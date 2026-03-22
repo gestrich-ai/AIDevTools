@@ -712,7 +712,7 @@ Create the first real `ARCHITECTURE.md` for the AIDevTools project, following th
 - Include `Depends on:` lines and `## Dependency Rules` summary
 - Verify the `architectureDocs` field on the AIDevTools repository configuration includes this file path (or note it needs to be added manually via the repos settings)
 
-## - [ ] Phase 6: Update Plan Generation to Produce Architecture JSON
+## - [x] Phase 6: Update Plan Generation to Produce Architecture JSON
 
 Modify `GeneratePlanUseCase` so that the Phase 3 template instructs the LLM to also produce an architecture JSON file when it generates implementation phases.
 
