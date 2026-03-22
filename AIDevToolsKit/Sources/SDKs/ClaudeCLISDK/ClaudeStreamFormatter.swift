@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 
 public struct ClaudeResultSummary: Codable, Sendable {
     public let type: String
@@ -20,6 +21,7 @@ public struct ClaudeResultSummary: Codable, Sendable {
 
 public final class ClaudeStreamFormatter: Sendable {
     private let decoder = JSONDecoder()
+    private let logger = Logger(label: "ClaudeStreamFormatter")
 
     public init() {}
 
@@ -28,29 +30,47 @@ public final class ClaudeStreamFormatter: Sendable {
         for line in rawChunk.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { continue }
-            if let formatted = formatLine(data) {
+            if let formatted = formatLine(data, rawLine: trimmed) {
                 output += formatted
             }
         }
         return output
     }
 
-    private func formatLine(_ data: Data) -> String? {
-        guard let raw = try? decoder.decode([String: JSONValue].self, from: data),
-              let typeValue = raw["type"]?.stringValue else { return nil }
+    private func formatLine(_ data: Data, rawLine: String) -> String? {
+        let envelope: ClaudeEventEnvelope
+        do {
+            envelope = try decoder.decode(ClaudeEventEnvelope.self, from: data)
+        } catch {
+            logger.error("Failed to decode event envelope: \(error.localizedDescription)", metadata: [
+                "line": "\(rawLine.prefix(200))"
+            ])
+            return nil
+        }
 
-        switch typeValue {
+        let lineMetadata: Logger.Metadata = ["type": "\(envelope.type)", "line": "\(rawLine.prefix(200))"]
+
+        switch envelope.type {
         case ClaudeEventType.assistant:
-            if let event = try? decoder.decode(ClaudeAssistantEvent.self, from: data) {
+            do {
+                let event = try decoder.decode(ClaudeAssistantEvent.self, from: data)
                 return formatAssistantEvent(event)
+            } catch {
+                logger.error("Failed to decode assistant event: \(error.localizedDescription)", metadata: lineMetadata)
             }
         case ClaudeEventType.user:
-            if let event = try? decoder.decode(ClaudeUserEvent.self, from: data) {
+            do {
+                let event = try decoder.decode(ClaudeUserEvent.self, from: data)
                 return formatUserEvent(event)
+            } catch {
+                logger.error("Failed to decode user event: \(error.localizedDescription)", metadata: lineMetadata)
             }
         case ClaudeEventType.result:
-            if let event = try? decoder.decode(ClaudeResultSummary.self, from: data) {
+            do {
+                let event = try decoder.decode(ClaudeResultSummary.self, from: data)
                 return formatResultEvent(event)
+            } catch {
+                logger.error("Failed to decode result event: \(error.localizedDescription)", metadata: lineMetadata)
             }
         default:
             break

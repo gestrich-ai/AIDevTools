@@ -172,6 +172,7 @@ let package = Package(
             name: "ClaudeCLISDK",
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
+                .product(name: "Logging", package: "swift-log"),
                 "ConcurrencySDK",
             ],
             path: "Sources/SDKs/ClaudeCLISDK"

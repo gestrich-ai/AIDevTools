@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 
 public struct ClaudeStructuredOutput<T: Sendable>: Sendable {
     public let value: T
@@ -30,6 +31,8 @@ public enum ClaudeStructuredOutputError: Error, LocalizedError {
 }
 
 public struct ClaudeStructuredOutputParser: Sendable {
+
+    private let logger = Logger(label: "ClaudeStructuredOutputParser")
 
     public init() {}
 
@@ -63,11 +66,25 @@ public struct ClaudeStructuredOutputParser: Sendable {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { continue }
 
-            guard let raw = try? decoder.decode([String: JSONValue].self, from: data),
-                  raw["type"]?.stringValue == ClaudeEventType.result else { continue }
+            let envelope: ClaudeEventEnvelope
+            do {
+                envelope = try decoder.decode(ClaudeEventEnvelope.self, from: data)
+            } catch {
+                logger.error("Failed to decode event envelope: \(error.localizedDescription)", metadata: [
+                    "line": "\(trimmed.prefix(200))"
+                ])
+                continue
+            }
 
-            if let event = try? decoder.decode(ClaudeResultEvent.self, from: data) {
+            guard envelope.type == ClaudeEventType.result else { continue }
+
+            do {
+                let event = try decoder.decode(ClaudeResultEvent.self, from: data)
                 lastResult = event
+            } catch {
+                logger.error("Failed to decode result event: \(error.localizedDescription)", metadata: [
+                    "line": "\(trimmed.prefix(200))"
+                ])
             }
         }
 

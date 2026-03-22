@@ -1,9 +1,24 @@
 import Foundation
 
+public struct ClaudeEventEnvelope: Codable, Sendable {
+    public let type: String
+}
+
 public enum ClaudeEventType {
     public static let assistant = "assistant"
-    public static let user = "user"
     public static let result = "result"
+    public static let system = "system"
+    public static let user = "user"
+}
+
+public struct ClaudeSystemEvent: Codable, Sendable {
+    public let type: String
+    public let sessionId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case sessionId = "session_id"
+    }
 }
 
 public enum ClaudeContentBlockType {

@@ -1,6 +1,7 @@
+import CLISDK
 import ConcurrencySDK
 import Foundation
-import CLISDK
+import Logging
 
 public enum ClaudeCLIError: Error, LocalizedError {
     case inactivityTimeout(seconds: Int)
@@ -16,6 +17,7 @@ public enum ClaudeCLIError: Error, LocalizedError {
 public struct ClaudeCLIClient: Sendable {
 
     private static let inactivityTimeout: TimeInterval = 480
+    private static let logger = Logger(label: "ClaudeCLIClient")
 
     private let client: CLIClient
 
@@ -215,10 +217,34 @@ public struct ClaudeCLIClient: Sendable {
         for line in stdout.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { continue }
-            guard let json = try? decoder.decode([String: JSONValue].self, from: data),
-                  json["type"]?.stringValue == "system",
-                  let sessionId = json["session_id"]?.stringValue else { continue }
-            return sessionId
+
+            let envelope: ClaudeEventEnvelope
+            do {
+                envelope = try decoder.decode(ClaudeEventEnvelope.self, from: data)
+            } catch {
+                logger.error("Failed to decode event envelope: \(error.localizedDescription)", metadata: [
+                    "line": "\(trimmed.prefix(200))"
+                ])
+                continue
+            }
+
+            guard envelope.type == ClaudeEventType.system else { continue }
+
+            do {
+                let event = try decoder.decode(ClaudeSystemEvent.self, from: data)
+                guard let sessionId = event.sessionId else {
+                    logger.error("System event missing session_id", metadata: [
+                        "line": "\(trimmed.prefix(200))"
+                    ])
+                    continue
+                }
+                return sessionId
+            } catch {
+                logger.error("Failed to decode system event: \(error.localizedDescription)", metadata: [
+                    "line": "\(trimmed.prefix(200))"
+                ])
+                continue
+            }
         }
         return nil
     }
