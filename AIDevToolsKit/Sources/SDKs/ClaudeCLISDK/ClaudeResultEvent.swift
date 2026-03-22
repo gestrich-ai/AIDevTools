@@ -22,4 +22,15 @@ public struct ClaudeResultEvent: Codable, Sendable {
         case numTurns = "num_turns"
         case sessionId = "session_id"
     }
+
+    public var diagnosticSummary: String {
+        var parts: [String] = []
+        if let sessionId { parts.append("session=\(sessionId)") }
+        if let isError { parts.append("is_error=\(isError)") }
+        if let subtype { parts.append("subtype=\(subtype)") }
+        if let numTurns { parts.append("turns=\(numTurns)") }
+        if let durationMs { parts.append("duration=\(durationMs)ms") }
+        if let totalCostUsd { parts.append(String(format: "cost=$%.4f", totalCostUsd)) }
+        return "[\(parts.joined(separator: ", "))]"
+    }
 }

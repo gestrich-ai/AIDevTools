@@ -151,8 +151,8 @@ struct ClaudeStructuredOutputParserTests {
             _ = try parser.parse(SimpleResult.self, from: Self.errorMaxRetries)
             Issue.record("Expected error to be thrown")
         } catch let error as ClaudeStructuredOutputError {
-            if case .resultError(let subtype, _) = error {
-                #expect(subtype == "error_max_structured_output_retries")
+            if case .resultError(let resultEvent) = error {
+                #expect(resultEvent.subtype == "error_max_structured_output_retries")
             } else {
                 Issue.record("Expected resultError case, got \(error)")
             }
@@ -164,11 +164,24 @@ struct ClaudeStructuredOutputParserTests {
             _ = try parser.parse(SimpleResult.self, from: Self.errorMaxRetries)
             Issue.record("Expected error to be thrown")
         } catch let error as ClaudeStructuredOutputError {
-            if case .resultError(_, let errors) = error {
-                #expect(errors != nil)
+            if case .resultError(let resultEvent) = error {
+                #expect(resultEvent.errors != nil)
+                #expect(resultEvent.sessionId == nil)
+                #expect(resultEvent.numTurns == 9)
             } else {
                 Issue.record("Expected resultError case")
             }
+        }
+    }
+
+    @Test func errorResultIncludesDiagnostics() throws {
+        do {
+            _ = try parser.parse(SimpleResult.self, from: Self.errorMaxRetries)
+            Issue.record("Expected error to be thrown")
+        } catch let error as ClaudeStructuredOutputError {
+            let description = error.errorDescription ?? ""
+            #expect(description.contains("turns=9"))
+            #expect(description.contains("is_error=true"))
         }
     }
 

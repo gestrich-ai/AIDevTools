@@ -7,23 +7,24 @@ public struct ClaudeStructuredOutput<T: Sendable>: Sendable {
 
 public enum ClaudeStructuredOutputError: Error, LocalizedError {
     case noResultEvent
-    case resultError(subtype: String?, errors: JSONValue?)
-    case missingStructuredOutput
-    case decodingFailed(Error)
+    case resultError(resultEvent: ClaudeResultEvent)
+    case missingStructuredOutput(resultEvent: ClaudeResultEvent)
+    case decodingFailed(Error, resultEvent: ClaudeResultEvent)
 
     public var errorDescription: String? {
         switch self {
         case .noResultEvent:
             return "Claude CLI returned no result event. The process may have exited early or produced no output."
-        case .resultError(let subtype, let errors):
+        case .resultError(let resultEvent):
             var parts = ["Claude CLI returned an error"]
-            if let subtype { parts.append("(\(subtype))") }
-            if let errors { parts.append(": \(errors)") }
+            if let subtype = resultEvent.subtype { parts.append("(\(subtype))") }
+            if let errors = resultEvent.errors { parts.append(": \(errors)") }
+            parts.append(resultEvent.diagnosticSummary)
             return parts.joined(separator: " ")
-        case .missingStructuredOutput:
-            return "Claude CLI result contained no structured output. The response may have been empty."
-        case .decodingFailed(let error):
-            return "Failed to decode Claude CLI response: \(error.localizedDescription)"
+        case .missingStructuredOutput(let resultEvent):
+            return "Claude CLI result contained no structured output. \(resultEvent.diagnosticSummary)"
+        case .decodingFailed(let error, let resultEvent):
+            return "Failed to decode Claude CLI response: \(error.localizedDescription). \(resultEvent.diagnosticSummary)"
         }
     }
 }
@@ -38,14 +39,11 @@ public struct ClaudeStructuredOutputParser: Sendable {
         // Use subtype as the authoritative success signal, matching claude-code-action behavior.
         // The is_error field should align with subtype but is not the primary indicator.
         if resultEvent.subtype != "success" {
-            throw ClaudeStructuredOutputError.resultError(
-                subtype: resultEvent.subtype,
-                errors: resultEvent.errors
-            )
+            throw ClaudeStructuredOutputError.resultError(resultEvent: resultEvent)
         }
 
         guard let structuredJSON = resultEvent.structuredOutput else {
-            throw ClaudeStructuredOutputError.missingStructuredOutput
+            throw ClaudeStructuredOutputError.missingStructuredOutput(resultEvent: resultEvent)
         }
 
         let encoded = try JSONEncoder().encode(structuredJSON)
@@ -53,7 +51,7 @@ public struct ClaudeStructuredOutputParser: Sendable {
             let decoded = try JSONDecoder().decode(T.self, from: encoded)
             return ClaudeStructuredOutput(value: decoded, resultEvent: resultEvent)
         } catch {
-            throw ClaudeStructuredOutputError.decodingFailed(error)
+            throw ClaudeStructuredOutputError.decodingFailed(error, resultEvent: resultEvent)
         }
     }
 
