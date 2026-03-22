@@ -35,6 +35,21 @@ public struct RepositoryInfo: Codable, Identifiable, Sendable {
         self.verification = verification
         self.pullRequest = pullRequest
     }
+
+    public func with(id: UUID) -> RepositoryInfo {
+        RepositoryInfo(
+            id: id,
+            path: path,
+            name: name,
+            description: description,
+            githubUser: githubUser,
+            recentFocus: recentFocus,
+            skills: skills,
+            architectureDocs: architectureDocs,
+            verification: verification,
+            pullRequest: pullRequest
+        )
+    }
 }
 
 public struct Verification: Codable, Sendable, Equatable {
@@ -48,6 +63,9 @@ public struct Verification: Codable, Sendable, Equatable {
 }
 
 public struct PullRequestConfig: Codable, Sendable, Equatable {
+    public static let defaultBaseBranch = "main"
+    public static let defaultBranchNamingConvention = "feature/description"
+
     public let baseBranch: String
     public let branchNamingConvention: String
     public let template: String?
@@ -63,5 +81,24 @@ public struct PullRequestConfig: Codable, Sendable, Equatable {
         self.branchNamingConvention = branchNamingConvention
         self.template = template
         self.notes = notes
+    }
+
+    /// Creates a config from raw form strings. Returns nil if all fields are empty.
+    public static func from(
+        baseBranch: String,
+        branchNamingConvention: String,
+        template: String,
+        notes: String
+    ) -> PullRequestConfig? {
+        guard !baseBranch.isEmpty || !branchNamingConvention.isEmpty
+            || !template.isEmpty || !notes.isEmpty else {
+            return nil
+        }
+        return PullRequestConfig(
+            baseBranch: baseBranch,
+            branchNamingConvention: branchNamingConvention,
+            template: template.isEmpty ? nil : template,
+            notes: notes.isEmpty ? nil : notes
+        )
     }
 }

@@ -90,20 +90,20 @@ final class WorkspaceModel {
     }
 
     func addRepository(
-        path: URL,
-        name: String? = nil,
+        _ repo: RepositoryInfo,
         casesDirectory: String? = nil,
         completedDirectory: String? = nil,
         proposedDirectory: String? = nil
     ) {
         do {
-            let repo = try addRepository.run(path: path, name: name)
+            let added = try addRepository.run(path: repo.path, name: repo.name)
+            try updateRepository.run(repo.with(id: added.id))
             if let casesDirectory {
-                try evalSettingsStore.update(repoId: repo.id, casesDirectory: casesDirectory)
+                try evalSettingsStore.update(repoId: added.id, casesDirectory: casesDirectory)
             }
             if completedDirectory != nil || proposedDirectory != nil {
                 try planSettingsStore.update(
-                    repoId: repo.id,
+                    repoId: added.id,
                     proposedDirectory: proposedDirectory,
                     completedDirectory: completedDirectory
                 )

@@ -49,6 +49,7 @@ let package = Package(
                 "ClaudeCLISDK",
                 "EvalFeature",
                 "EvalService",
+                "LoggingSDK",
                 "PlanRunnerFeature",
                 "PlanRunnerService",
                 "RepositorySDK",

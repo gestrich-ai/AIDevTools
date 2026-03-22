@@ -128,38 +128,38 @@ private struct ConfigurationDetailView: View {
 
     var body: some View {
         Form {
-            Section {
-                LabeledContent("Name") {
-                    Text(config.name)
-                        .foregroundStyle(.secondary)
-                }
+            Section("General") {
+                detailRow("Name", value: config.name)
+                detailRow("Repo Path", value: config.path.path(percentEncoded: false))
+                detailRow("Description", value: config.description)
+                detailRow("GitHub User", value: config.githubUser)
+                detailRow("Recent Focus", value: config.recentFocus)
+            }
 
-                LabeledContent("Repo Path") {
-                    Text(config.path.path(percentEncoded: false))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
+            Section("Directories") {
+                detailRow("Cases Directory", value: casesDirectory)
+                detailRow("Proposed Plans", value: proposedDirectory, fallback: PlanRepoSettings.defaultProposedDirectory)
+                detailRow("Completed Plans", value: completedDirectory, fallback: PlanRepoSettings.defaultCompletedDirectory)
+            }
 
-                LabeledContent("Cases Directory") {
-                    Text(casesDirectory ?? "Not configured")
-                        .foregroundStyle(casesDirectory != nil ? .secondary : .tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
+            Section("Skills & Architecture") {
+                detailRow("Skills", value: config.skills?.joined(separator: ", "))
+                detailRow("Architecture Docs", value: config.architectureDocs?.joined(separator: ", "))
+            }
 
-                LabeledContent("Proposed Plans Directory") {
-                    Text(proposedDirectory ?? PlanRepoSettings.defaultProposedDirectory)
-                        .foregroundStyle(proposedDirectory != nil ? .secondary : .tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+            if let verification = config.verification {
+                Section("Verification") {
+                    detailRow("Commands", value: verification.commands.joined(separator: ", "))
+                    detailRow("Notes", value: verification.notes)
                 }
+            }
 
-                LabeledContent("Completed Plans Directory") {
-                    Text(completedDirectory ?? PlanRepoSettings.defaultCompletedDirectory)
-                        .foregroundStyle(completedDirectory != nil ? .secondary : .tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+            if let pr = config.pullRequest {
+                Section("Pull Requests") {
+                    detailRow("Base Branch", value: pr.baseBranch)
+                    detailRow("Branch Naming", value: pr.branchNamingConvention)
+                    detailRow("Template", value: pr.template)
+                    detailRow("Notes", value: pr.notes)
                 }
             }
 
@@ -171,5 +171,14 @@ private struct ConfigurationDetailView: View {
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func detailRow(_ label: String, value: String?, fallback: String = "Not configured") -> some View {
+        LabeledContent(label) {
+            Text(value ?? fallback)
+                .foregroundStyle(value != nil ? .secondary : .tertiary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
     }
 }

@@ -14,6 +14,7 @@ public struct ExecutePlanUseCase: Sendable {
         public let repository: RepositoryInfo?
         public let completedDirectory: URL?
         public let dataPath: URL?
+        public let stopAfterArchitectureDiagram: Bool
         public let useWorktree: Bool
 
         public init(
@@ -23,6 +24,7 @@ public struct ExecutePlanUseCase: Sendable {
             repository: RepositoryInfo? = nil,
             completedDirectory: URL? = nil,
             dataPath: URL? = nil,
+            stopAfterArchitectureDiagram: Bool = false,
             useWorktree: Bool = false
         ) {
             self.planPath = planPath
@@ -31,6 +33,7 @@ public struct ExecutePlanUseCase: Sendable {
             self.repository = repository
             self.completedDirectory = completedDirectory
             self.dataPath = dataPath
+            self.stopAfterArchitectureDiagram = stopAfterArchitectureDiagram
             self.useWorktree = useWorktree
         }
     }
@@ -39,12 +42,20 @@ public struct ExecutePlanUseCase: Sendable {
         public let phasesExecuted: Int
         public let totalPhases: Int
         public let allCompleted: Bool
+        public let stoppedForArchitectureReview: Bool
         public let totalSeconds: Int
 
-        public init(phasesExecuted: Int, totalPhases: Int, allCompleted: Bool, totalSeconds: Int) {
+        public init(
+            phasesExecuted: Int,
+            totalPhases: Int,
+            allCompleted: Bool,
+            stoppedForArchitectureReview: Bool = false,
+            totalSeconds: Int
+        ) {
             self.phasesExecuted = phasesExecuted
             self.totalPhases = totalPhases
             self.allCompleted = allCompleted
+            self.stoppedForArchitectureReview = stoppedForArchitectureReview
             self.totalSeconds = totalSeconds
         }
     }
@@ -190,6 +201,20 @@ public struct ExecutePlanUseCase: Sendable {
             onProgress?(.phaseCompleted(index: nextIndex, elapsedSeconds: phaseElapsed, totalElapsedSeconds: totalElapsed))
             phasesExecuted += 1
 
+            if options.stopAfterArchitectureDiagram && architectureDiagramExists(planPath: options.planPath) {
+                let totalSeconds = Int(Date().timeIntervalSince(scriptStart))
+                logger.info("Stopping after architecture diagram detected", metadata: [
+                    "plan": "\(options.planPath.lastPathComponent)"
+                ])
+                return Result(
+                    phasesExecuted: phasesExecuted,
+                    totalPhases: phases.count,
+                    allCompleted: false,
+                    stoppedForArchitectureReview: true,
+                    totalSeconds: totalSeconds
+                )
+            }
+
             onProgress?(.fetchingStatus)
             statusResponse = try await getPhaseStatus(
                 planPath: options.planPath,
@@ -297,6 +322,16 @@ public struct ExecutePlanUseCase: Sendable {
             onFormattedOutput: onOutput
         )
         return output.value
+    }
+
+    // MARK: - Architecture Diagram Detection
+
+    private func architectureDiagramExists(planPath: URL) -> Bool {
+        let planName = planPath.deletingPathExtension().lastPathComponent
+        let architectureURL = planPath
+            .deletingLastPathComponent()
+            .appendingPathComponent("\(planName)-architecture.json")
+        return FileManager.default.fileExists(atPath: architectureURL.path)
     }
 
     // MARK: - Log Directory

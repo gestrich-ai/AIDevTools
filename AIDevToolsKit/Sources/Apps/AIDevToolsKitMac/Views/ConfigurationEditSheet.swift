@@ -8,6 +8,17 @@ struct ConfigurationEditSheet: View {
     @State private var casesDirectoryText: String
     @State private var completedDirectoryText: String
     @State private var proposedDirectoryText: String
+    @State private var descriptionText: String
+    @State private var githubUserText: String
+    @State private var recentFocusText: String
+    @State private var skillsText: String
+    @State private var architectureDocsText: String
+    @State private var verificationCommandsText: String
+    @State private var verificationNotesText: String
+    @State private var prBaseBranchText: String
+    @State private var prBranchNamingText: String
+    @State private var prTemplateText: String
+    @State private var prNotesText: String
     let isNew: Bool
     let onSave: (RepositoryInfo, String?, String?, String?) -> Void
     let onCancel: () -> Void
@@ -31,30 +42,100 @@ struct ConfigurationEditSheet: View {
         _casesDirectoryText = State(initialValue: casesDirectory ?? "")
         _completedDirectoryText = State(initialValue: completedDirectory ?? "")
         _proposedDirectoryText = State(initialValue: proposedDirectory ?? "")
+        _descriptionText = State(initialValue: config.description ?? "")
+        _githubUserText = State(initialValue: config.githubUser ?? "")
+        _recentFocusText = State(initialValue: config.recentFocus ?? "")
+        _skillsText = State(initialValue: (config.skills ?? []).joined(separator: "\n"))
+        _architectureDocsText = State(initialValue: (config.architectureDocs ?? []).joined(separator: "\n"))
+        _verificationCommandsText = State(initialValue: (config.verification?.commands ?? []).joined(separator: "\n"))
+        _verificationNotesText = State(initialValue: config.verification?.notes ?? "")
+        _prBaseBranchText = State(initialValue: config.pullRequest?.baseBranch ?? PullRequestConfig.defaultBaseBranch)
+        _prBranchNamingText = State(initialValue: config.pullRequest?.branchNamingConvention ?? PullRequestConfig.defaultBranchNamingConvention)
+        _prTemplateText = State(initialValue: config.pullRequest?.template ?? "")
+        _prNotesText = State(initialValue: config.pullRequest?.notes ?? "")
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(isNew ? "Add Repository" : "Edit Repository")
                 .font(.title2)
                 .bold()
+                .padding([.horizontal, .top])
 
-            LabeledContent("Name") {
-                TextField("my-repo", text: $nameText)
-                    .textFieldStyle(.roundedBorder)
+            Form {
+                Section("General") {
+                    LabeledContent("Name") {
+                        TextField("my-repo", text: $nameText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    pathField(label: "Repo Path", text: $repoPathText, placeholder: "/path/to/repo")
+
+                    LabeledContent("Description") {
+                        TextField("Brief description of this repository", text: $descriptionText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    LabeledContent("GitHub User") {
+                        TextField("username", text: $githubUserText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    LabeledContent("Recent Focus") {
+                        TextField("What you're currently working on", text: $recentFocusText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+
+                Section("Directories") {
+                    pathField(label: "Cases Directory", text: $casesDirectoryText, placeholder: "Optional — relative or absolute path")
+                    pathField(label: "Proposed Plans", text: $proposedDirectoryText, placeholder: "Optional — defaults to docs/proposed")
+                    pathField(label: "Completed Plans", text: $completedDirectoryText, placeholder: "Optional — defaults to docs/completed")
+
+                    Text("Directories can be relative to the repo path, absolute, or use ~.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Skills & Architecture") {
+                    LabeledContent("Skills") {
+                        multilineField(text: $skillsText, placeholder: "One skill per line")
+                    }
+                    LabeledContent("Architecture Docs") {
+                        multilineField(text: $architectureDocsText, placeholder: "One path per line, relative to repo root")
+                    }
+                }
+
+                Section("Verification") {
+                    LabeledContent("Commands") {
+                        multilineField(text: $verificationCommandsText, placeholder: "One command per line")
+                    }
+                    LabeledContent("Notes") {
+                        TextField("Optional verification notes", text: $verificationNotesText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+
+                Section("Pull Requests") {
+                    LabeledContent("Base Branch") {
+                        TextField("main", text: $prBaseBranchText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    LabeledContent("Branch Naming") {
+                        TextField("feature/description", text: $prBranchNamingText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    LabeledContent("Template") {
+                        TextField("Optional — e.g. .github/pull_request_template.md", text: $prTemplateText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    LabeledContent("Notes") {
+                        TextField("Optional PR notes", text: $prNotesText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
             }
-
-            pathField(label: "Repo Path", text: $repoPathText, placeholder: "/path/to/repo")
-
-            pathField(label: "Cases Directory", text: $casesDirectoryText, placeholder: "Optional — relative or absolute path")
-
-            pathField(label: "Proposed Plans Directory", text: $proposedDirectoryText, placeholder: "Optional — defaults to docs/proposed")
-
-            pathField(label: "Completed Plans Directory", text: $completedDirectoryText, placeholder: "Optional — defaults to docs/completed")
-
-            Text("Directories can be relative to the repo path, absolute, or use ~.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .formStyle(.grouped)
 
             HStack {
                 Spacer()
@@ -64,25 +145,73 @@ struct ConfigurationEditSheet: View {
                 }
                 .keyboardShortcut(.cancelAction)
                 Button("Save") {
-                    let repoURL = URL(filePath: repoPathText)
-                    let finalName = nameText.isEmpty ? repoURL.lastPathComponent : nameText
-                    let cases = casesDirectoryText.isEmpty ? nil : casesDirectoryText
-                    let proposed = proposedDirectoryText.isEmpty ? nil : proposedDirectoryText
-                    let completed = completedDirectoryText.isEmpty ? nil : completedDirectoryText
-                    let updated = RepositoryInfo(
-                        id: config.id,
-                        path: repoURL,
-                        name: finalName
-                    )
-                    onSave(updated, cases, completed, proposed)
-                    dismiss()
+                    saveRepository()
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(repoPathText.isEmpty)
             }
+            .padding([.horizontal, .bottom])
         }
-        .padding()
-        .frame(width: 500)
+        .frame(minWidth: 550, maxWidth: 550, minHeight: 400, idealHeight: 600, maxHeight: 700)
+    }
+
+    private func saveRepository() {
+        let repoURL = URL(filePath: repoPathText)
+        let finalName = nameText.isEmpty ? repoURL.lastPathComponent : nameText
+        let cases = casesDirectoryText.isEmpty ? nil : casesDirectoryText
+        let proposed = proposedDirectoryText.isEmpty ? nil : proposedDirectoryText
+        let completed = completedDirectoryText.isEmpty ? nil : completedDirectoryText
+
+        let skills = parseLines(skillsText)
+        let archDocs = parseLines(architectureDocsText)
+        let verifyCommands = parseLines(verificationCommandsText)
+
+        let verification: Verification? = verifyCommands.isEmpty
+            ? nil
+            : Verification(commands: verifyCommands, notes: verificationNotesText.isEmpty ? nil : verificationNotesText)
+
+        let pullRequest = PullRequestConfig.from(
+            baseBranch: prBaseBranchText,
+            branchNamingConvention: prBranchNamingText,
+            template: prTemplateText,
+            notes: prNotesText
+        )
+
+        let updated = RepositoryInfo(
+            id: config.id,
+            path: repoURL,
+            name: finalName,
+            description: descriptionText.isEmpty ? nil : descriptionText,
+            githubUser: githubUserText.isEmpty ? nil : githubUserText,
+            recentFocus: recentFocusText.isEmpty ? nil : recentFocusText,
+            skills: skills.isEmpty ? nil : skills,
+            architectureDocs: archDocs.isEmpty ? nil : archDocs,
+            verification: verification,
+            pullRequest: pullRequest
+        )
+        onSave(updated, cases, completed, proposed)
+        dismiss()
+    }
+
+    private func parseLines(_ text: String) -> [String] {
+        text.split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func multilineField(text: Binding<String>, placeholder: String) -> some View {
+        TextEditor(text: text)
+            .font(.body)
+            .frame(height: 48)
+            .overlay(alignment: .topLeading) {
+                if text.wrappedValue.isEmpty {
+                    Text(placeholder)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 6)
+                        .allowsHitTesting(false)
+                }
+            }
     }
 
     private func pathField(label: String, text: Binding<String>, placeholder: String) -> some View {

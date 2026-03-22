@@ -40,8 +40,7 @@ struct SettingsView: View {
             ) { updatedConfig, casesDirectory, completedDirectory, proposedDirectory in
                 if isAddingNew {
                     workspaceModel.addRepository(
-                        path: updatedConfig.path,
-                        name: updatedConfig.name,
+                        updatedConfig,
                         casesDirectory: casesDirectory,
                         completedDirectory: completedDirectory,
                         proposedDirectory: proposedDirectory

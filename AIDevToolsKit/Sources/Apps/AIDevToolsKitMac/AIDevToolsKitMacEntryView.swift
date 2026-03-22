@@ -74,5 +74,6 @@ public struct AIDevToolsSettingsView: View {
         SettingsView()
             .environment(settingsModel)
             .environment(workspaceModel)
+            .task { workspaceModel.load() }
     }
 }

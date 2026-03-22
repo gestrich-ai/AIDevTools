@@ -15,6 +15,7 @@ struct PlanDetailView: View {
     @State private var architectureDiagram: ArchitectureDiagram?
     @State private var selectedModule: ModuleSelection?
     @State private var isArchitectureExpanded = true
+    @AppStorage("planStopAfterArchitectureDiagram") private var stopAfterArchitectureDiagram = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -77,6 +78,9 @@ struct PlanDetailView: View {
         .task(id: plan.id) {
             loadPlan()
         }
+        .onChange(of: planRunnerModel.phaseCompleteCount) {
+            loadArchitectureDiagram()
+        }
         .onChange(of: planRunnerModel.executionCompleteCount) {
             loadPlan()
         }
@@ -125,6 +129,11 @@ struct PlanDetailView: View {
                     .font(.subheadline)
             }
 
+            Toggle("Pause for architecture", isOn: $stopAfterArchitectureDiagram)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+                .help("Stop execution after the architecture diagram is generated")
+
             Button {
                 completePlan()
             } label: {
@@ -133,8 +142,13 @@ struct PlanDetailView: View {
             .disabled(isBusy)
 
             Button {
+                let stopForDiagram = stopAfterArchitectureDiagram
                 Task {
-                    await planRunnerModel.execute(plan: plan, repository: repository)
+                    await planRunnerModel.execute(
+                        plan: plan,
+                        repository: repository,
+                        stopAfterArchitectureDiagram: stopForDiagram
+                    )
                 }
             } label: {
                 Label("Execute", systemImage: "play.fill")
@@ -245,11 +259,28 @@ struct PlanDetailView: View {
     // MARK: - Completion / Error
 
     private func completionBanner(_ result: ExecutePlanUseCase.Result) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: result.allCompleted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(result.allCompleted ? .green : .orange)
+        let bannerIcon: String
+        let bannerColor: Color
+        let bannerTitle: String
+        if result.allCompleted {
+            bannerIcon = "checkmark.circle.fill"
+            bannerColor = .green
+            bannerTitle = "All phases completed"
+        } else if result.stoppedForArchitectureReview {
+            bannerIcon = "building.columns"
+            bannerColor = .blue
+            bannerTitle = "Paused for architecture review"
+        } else {
+            bannerIcon = "exclamationmark.triangle.fill"
+            bannerColor = .orange
+            bannerTitle = "Execution stopped"
+        }
+
+        return HStack(spacing: 8) {
+            Image(systemName: bannerIcon)
+                .foregroundStyle(bannerColor)
             VStack(alignment: .leading) {
-                Text(result.allCompleted ? "All phases completed" : "Execution stopped")
+                Text(bannerTitle)
                     .font(.subheadline.bold())
                 Text("\(result.phasesExecuted)/\(result.totalPhases) phases in \(formattedTime(result.totalSeconds))")
                     .font(.caption)
@@ -262,7 +293,7 @@ struct PlanDetailView: View {
             .buttonStyle(.borderless)
         }
         .padding(10)
-        .background(result.allCompleted ? .green.opacity(0.1) : .orange.opacity(0.1))
+        .background(bannerColor.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -316,7 +347,10 @@ struct PlanDetailView: View {
             loadError = error.localizedDescription
         }
 
-        // Load architecture diagram JSON if present
+        loadArchitectureDiagram()
+    }
+
+    private func loadArchitectureDiagram() {
         let planName = plan.planURL.deletingPathExtension().lastPathComponent
         let architectureURL = plan.planURL
             .deletingLastPathComponent()

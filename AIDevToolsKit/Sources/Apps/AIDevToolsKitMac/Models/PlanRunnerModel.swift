@@ -41,6 +41,7 @@ final class PlanRunnerModel {
     var plans: [PlanEntry] = []
     var isLoadingPlans: Bool = false
     var executionCompleteCount: Int = 0
+    var phaseCompleteCount: Int = 0
     private(set) var currentRepository: RepositoryInfo?
 
     private let completePlanUseCase: CompletePlanUseCase
@@ -113,8 +114,9 @@ final class PlanRunnerModel {
         Task { await reloadPlans() }
     }
 
-    func execute(plan: PlanEntry, repository: RepositoryInfo) async {
+    func execute(plan: PlanEntry, repository: RepositoryInfo, stopAfterArchitectureDiagram: Bool = false) async {
         state = .executing(progress: ExecutionProgress())
+        phaseCompleteCount = 0
 
         do {
             let settings = try planSettingsStore.settings(forRepoId: repository.id) ?? PlanRepoSettings(repoId: repository.id)
@@ -123,7 +125,8 @@ final class PlanRunnerModel {
                 repoPath: repository.path,
                 repository: repository,
                 completedDirectory: settings.resolvedCompletedDirectory(repoPath: repository.path),
-                dataPath: dataPath
+                dataPath: dataPath,
+                stopAfterArchitectureDiagram: stopAfterArchitectureDiagram
             )
             let result = try await executePlan.run(options) { [weak self] progress in
                 guard let self else { return }
@@ -212,6 +215,7 @@ final class PlanRunnerModel {
                     status: "completed"
                 )
             }
+            phaseCompleteCount += 1
         case .phaseFailed(_, let description, let error):
             current.currentPhaseDescription = "\(description) — Failed: \(error)"
         case .allCompleted(let phasesExecuted, _):

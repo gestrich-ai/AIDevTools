@@ -146,6 +146,39 @@ struct UpdateRepo: ParsableCommand {
     @Option(help: "New proposed plans directory path (absolute or relative to repo, default: docs/proposed)")
     var proposedDir: String?
 
+    @Option(help: "Description of the repository")
+    var description: String?
+
+    @Option(help: "GitHub username for gh CLI auth switching")
+    var githubUser: String?
+
+    @Option(help: "Current focus area for the repository")
+    var recentFocus: String?
+
+    @Option(parsing: .upToNextOption, help: "Skills (space-separated list)")
+    var skills: [String] = []
+
+    @Option(parsing: .upToNextOption, help: "Architecture doc paths relative to repo root (space-separated)")
+    var architectureDocs: [String] = []
+
+    @Option(parsing: .upToNextOption, help: "Verification commands (space-separated)")
+    var verificationCommands: [String] = []
+
+    @Option(help: "Verification notes")
+    var verificationNotes: String?
+
+    @Option(help: "PR base branch")
+    var prBaseBranch: String?
+
+    @Option(help: "PR branch naming convention")
+    var prBranchNaming: String?
+
+    @Option(help: "PR template path")
+    var prTemplate: String?
+
+    @Option(help: "PR notes")
+    var prNotes: String?
+
     func run() throws {
         guard let uuid = UUID(uuidString: id) else {
             throw ValidationError("Invalid UUID: \(id)")
@@ -158,10 +191,38 @@ struct UpdateRepo: ParsableCommand {
 
         let cwd = URL(filePath: FileManager.default.currentDirectoryPath)
         if let path {
-            let newPath = URL(filePath: path, relativeTo: cwd)
-            repo = RepositoryInfo(id: repo.id, path: newPath, name: name ?? newPath.lastPathComponent)
-        } else if let name {
-            repo = RepositoryInfo(id: repo.id, path: repo.path, name: name)
+            repo = RepositoryInfo(
+                id: repo.id,
+                path: URL(filePath: path, relativeTo: cwd),
+                name: name ?? repo.name,
+                description: repo.description,
+                githubUser: repo.githubUser,
+                recentFocus: repo.recentFocus,
+                skills: repo.skills,
+                architectureDocs: repo.architectureDocs,
+                verification: repo.verification,
+                pullRequest: repo.pullRequest
+            )
+        }
+        if let name { repo = RepositoryInfo(id: repo.id, path: repo.path, name: name, description: repo.description, githubUser: repo.githubUser, recentFocus: repo.recentFocus, skills: repo.skills, architectureDocs: repo.architectureDocs, verification: repo.verification, pullRequest: repo.pullRequest) }
+        if let description { repo.description = description }
+        if let githubUser { repo.githubUser = githubUser }
+        if let recentFocus { repo.recentFocus = recentFocus }
+        if !skills.isEmpty { repo.skills = skills }
+        if !architectureDocs.isEmpty { repo.architectureDocs = architectureDocs }
+        if !verificationCommands.isEmpty || verificationNotes != nil {
+            repo.verification = Verification(
+                commands: verificationCommands.isEmpty ? (repo.verification?.commands ?? []) : verificationCommands,
+                notes: verificationNotes ?? repo.verification?.notes
+            )
+        }
+        if prBaseBranch != nil || prBranchNaming != nil || prTemplate != nil || prNotes != nil {
+            repo.pullRequest = PullRequestConfig(
+                baseBranch: prBaseBranch ?? repo.pullRequest?.baseBranch ?? "main",
+                branchNamingConvention: prBranchNaming ?? repo.pullRequest?.branchNamingConvention ?? "feature/description",
+                template: prTemplate ?? repo.pullRequest?.template,
+                notes: prNotes ?? repo.pullRequest?.notes
+            )
         }
 
         try UpdateRepositoryUseCase(store: store).run(repo)

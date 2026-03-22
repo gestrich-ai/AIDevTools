@@ -36,10 +36,14 @@ public struct ClaudeStructuredOutputParser: Sendable {
         let resultEvent = try findResultEvent(in: stdout)
 
         if resultEvent.isError == true {
-            throw ClaudeStructuredOutputError.resultError(
-                subtype: resultEvent.subtype,
-                errors: resultEvent.errors
-            )
+            if resultEvent.subtype == "success", resultEvent.structuredOutput != nil {
+                // CLI marked is_error but completed successfully with output — try to use it
+            } else {
+                throw ClaudeStructuredOutputError.resultError(
+                    subtype: resultEvent.subtype,
+                    errors: resultEvent.errors
+                )
+            }
         }
 
         guard let structuredJSON = resultEvent.structuredOutput else {
