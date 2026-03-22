@@ -97,7 +97,7 @@ The current implementation creates components without real guideline context. Fi
 - `GenerateReportUseCase` fixed to advance `currentStepIndex` to the followups step after completing
 - `ArchitecturePlannerStep` gained `cliName` property and `fromCLIName(_:)` factory for CLI ↔ step resolution
 
-## - [ ] Phase 5: Fix ExecuteImplementationUseCase to Record Real Decisions
+## - [x] Phase 5: Fix ExecuteImplementationUseCase to Record Real Decisions
 
 The current implementation records stub PhaseDecisions ("Implemented as planned"). Fix it to:
 
@@ -106,6 +106,15 @@ The current implementation records stub PhaseDecisions ("Implemented as planned"
 - Store real PhaseDecision records with: guidelineTitle, decision, rationale, phaseNumber, wasSkipped
 - Create UnclearFlag records when Claude indicates a guideline was ambiguous
 - This step doesn't need to execute actual code changes yet (that's a future enhancement) — but the decision recording should be real, not stubbed
+
+**Completed.** Technical notes:
+- Replaced unstructured `claudeClient.run()` call with `claudeClient.runStructured()` using a JSON schema that returns `decisions` and `unclearFlags` arrays
+- `DecisionDTO` captures: componentIndex, guidelineTitle, decision, rationale, wasSkipped — mapped to real `PhaseDecision` records per component
+- `UnclearFlagDTO` captures: componentIndex, guidelineTitle, ambiguityDescription, choiceMade — mapped to `UnclearFlag` records per component
+- Guidelines loaded from SwiftData store and included in the prompt so Claude references real guideline titles
+- Prompt restructured to ask Claude to evaluate implementation decisions against guidelines rather than execute code
+- Step summary now includes unclear flag count alongside phase and decision counts
+- Removed `dangerouslySkipPermissions` since structured JSON output doesn't execute code
 
 ## - [ ] Phase 6: Implement Followups Step
 
