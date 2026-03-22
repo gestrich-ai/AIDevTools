@@ -1,6 +1,6 @@
 import Foundation
 
-public struct SkillInfo: Sendable {
+public struct SkillInfo: Codable, Sendable {
     public let name: String
     public let path: URL
     public let referenceFiles: [SkillReferenceFile]
@@ -16,7 +16,7 @@ public struct SkillInfo: Sendable {
     }
 }
 
-public struct SkillReferenceFile: Sendable {
+public struct SkillReferenceFile: Codable, Sendable {
     public let name: String
     public let url: URL
 

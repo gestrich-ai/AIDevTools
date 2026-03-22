@@ -520,6 +520,19 @@ private struct EvalCaseRow: View {
                         }
                     }
 
+                    if !entry.result.skillChecks.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Skill Checks")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.blue)
+                            ForEach(Array(entry.result.skillChecks.enumerated()), id: \.offset) { _, check in
+                                Text(check.displayDescription)
+                                    .font(.body.monospaced())
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+
                     if !entry.result.skipped.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Skipped")

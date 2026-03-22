@@ -121,6 +121,9 @@ extension RunEvalsCommand {
                     print("    \(error)")
                 }
             }
+            for check in result.skillChecks {
+                print("    skill: \(check.displayDescription)")
+            }
             for skip in result.skipped {
                 print("    skip: \(skip)")
             }
