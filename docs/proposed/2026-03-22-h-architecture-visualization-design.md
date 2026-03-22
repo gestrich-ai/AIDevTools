@@ -676,3 +676,105 @@ This 8-phase plan unified two separate repository models, migrated both Evals an
 ### Conclusion
 
 The data model is expressive enough for its intended purpose. The five gaps identified are all low severity and don't warrant schema changes for v1. The sample JSON validates that a real, complex plan maps cleanly onto the architecture diagram model.
+
+---
+
+## Implementation Phases
+
+## - [ ] Phase 4: ArchitectureDiagram Codable Model
+
+**Skills to read**: `swift-testing`
+
+Create the `ArchitectureDiagram` Codable model in `PlanRunnerService` (Services layer) — this is a data model like `PlanEntry` and `PlanRepoSettings`, with no business logic.
+
+- Create `Sources/Services/PlanRunnerService/ArchitectureDiagram.swift` with structs matching the JSON schema from Phase 1:
+  - `ArchitectureDiagram` — top-level, contains `layers: [ArchitectureLayer]`
+  - `ArchitectureLayer` — `name`, `dependsOn`, `modules: [ArchitectureModule]`
+  - `ArchitectureModule` — `name`, `changes: [ArchitectureChange]`
+  - `ArchitectureChange` — `file`, `action` (enum: add/modify/delete), `summary` (optional), `phase` (optional)
+  - All types: `Codable`, `Sendable`, `Equatable`
+- Add computed helpers:
+  - `ArchitectureModule.isAffected: Bool` — `!changes.isEmpty`
+  - `ArchitectureDiagram.affectedModuleCount: Int`
+- Write unit tests in `Tests/Services/PlanRunnerServiceTests/ArchitectureDiagramTests.swift`:
+  - Round-trip encode/decode from sample JSON (use the example from Phase 1)
+  - Decode JSON with empty `changes` arrays
+  - Verify `isAffected` computed property
+  - Verify `action` enum decodes all three cases
+- Ensure `swift build` passes
+
+## - [ ] Phase 5: Create ARCHITECTURE.md for This Repository
+
+Create the first real `ARCHITECTURE.md` for the AIDevTools project, following the convention defined in Phase 1. This serves as both a reference example and enables architecture visualization for this repo's own plans.
+
+- Create `AIDevToolsKit/ARCHITECTURE.md` using the actual module structure from Package.swift
+- Include all four layers: Apps (2 modules), Features (5 modules), Services (5 modules), SDKs (11 modules)
+- Include `Depends on:` lines and `## Dependency Rules` summary
+- Verify the `architectureDocs` field on the AIDevTools repository configuration includes this file path (or note it needs to be added manually via the repos settings)
+
+## - [ ] Phase 6: Update Plan Generation to Produce Architecture JSON
+
+Modify `GeneratePlanUseCase` so that the Phase 3 template instructs the LLM to also produce an architecture JSON file when it generates implementation phases.
+
+- In `GeneratePlanUseCase.generatePlan()`, update the Phase 3 description in the prompt to include:
+  - Read the repository's ARCHITECTURE.md (if present in `architectureDocs`)
+  - After generating implementation phases, also write `{proposed-dir}/{plan-name}-architecture.json`
+  - The JSON must include ALL layers and modules from ARCHITECTURE.md, with `changes` populated for affected modules
+  - Provide the JSON schema inline in the prompt
+- The instruction is embedded in the plan markdown — `ExecutePlanUseCase` does NOT need changes. When Claude executes Phase 3, it reads the plan text and follows the embedded instructions.
+- If no ARCHITECTURE.md is listed in `architectureDocs`, the Phase 3 text should skip the architecture JSON instruction (conditional inclusion in the template)
+
+## - [ ] Phase 7: SwiftUI Architecture Diagram Views
+
+**Skills to read**: `swift-testing`
+
+Create the four SwiftUI views from the Phase 2 design in `Sources/Apps/AIDevToolsKitMac/Views/`:
+
+- `ArchitectureDiagramView.swift` — Top-level container:
+  - Takes `ArchitectureDiagram` and `Binding<ModuleSelection?>`
+  - `VStack` of `LayerBandView`s with chevron separators between layers
+  - `ModuleDetailPanel` below the diagram when a module is selected
+- `LayerBandView.swift` — Single layer band:
+  - Layer name label on leading edge
+  - Horizontal flow of `ModuleCardView`s (use `LazyVGrid` or wrapping `HStack`)
+  - Subtle background tint
+- `ModuleCardView.swift` — Single module card:
+  - Rounded rectangle with module name
+  - Unaffected: gray/secondary styling
+  - Affected: accent border + change count badge
+  - Tap gesture for selection (only on affected modules)
+- `ModuleDetailPanel.swift` — Change list for selected module:
+  - Header with module name + close button
+  - Rows: colored dot (action), file path, phase number
+  - Sorted by phase then file path alphabetically
+- Create `ModuleSelection.swift` (can be in the same file as `ArchitectureDiagramView` or separate) — simple struct with `layerName` and `moduleName`
+
+## - [ ] Phase 8: Integrate into PlanDetailView and Plan Lifecycle
+
+Wire the architecture diagram into the existing plan detail view and update the plan file lifecycle.
+
+- In `PlanDetailView`:
+  - Add `@State private var architectureDiagram: ArchitectureDiagram?`
+  - Add `@State private var selectedModule: ModuleSelection?`
+  - Add `@State private var isArchitectureExpanded = true`
+  - In `loadPlan()`, after loading markdown, attempt to load `{plan-name}-architecture.json` from the same directory and decode it
+  - Add architecture section (in a `DisclosureGroup`) between `phaseSection` and `outputPanel` in the body, conditional on `architectureDiagram != nil`
+- In `ExecutePlanUseCase.moveToCompleted()`:
+  - After moving the plan markdown, also move the `-architecture.json` file if it exists
+- Add `import PlanRunnerService` if not already present (for `ArchitectureDiagram` type)
+
+## - [ ] Phase 9: Validation
+
+**Skills to read**: `swift-testing`
+
+- Run `swift build` in AIDevToolsKit — verify clean compilation
+- Run `swift test` — verify all existing tests still pass plus new `ArchitectureDiagramTests`
+- Build and run the Mac app in Xcode:
+  - Open a plan that does NOT have an architecture JSON — verify the architecture section is hidden and nothing is broken
+  - Manually create a test `-architecture.json` file alongside a plan (using the sample JSON from Phase 3's validation) and verify:
+    - The architecture diagram section appears
+    - Layers render top-to-bottom
+    - Affected modules show accent styling and badge
+    - Tapping a module shows the detail panel
+    - Collapsing/expanding the disclosure group works
+  - Verify the plan still executes normally with the architecture section visible
