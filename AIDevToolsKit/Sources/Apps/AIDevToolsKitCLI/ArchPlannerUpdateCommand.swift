@@ -164,14 +164,14 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
 
         case "followups":
             let useCase = CompileFollowupsUseCase()
-            let options = CompileFollowupsUseCase.Options(jobId: jobId)
-            let result = try await MainActor.run {
-                try useCase.run(options, store: store) { progress in
-                    switch progress {
-                    case .collecting: print("Collecting followups...")
-                    case .collected(let count): print("Found \(count) followup items")
-                    case .saved: print("Saved")
-                    }
+            let options = CompileFollowupsUseCase.Options(jobId: jobId, repoPath: repoPath)
+            let result = try await useCase.run(options, store: store) { progress in
+                switch progress {
+                case .collecting: print("Collecting followups...")
+                case .collected(let count): print("Found \(count) followup items from unclear flags")
+                case .identifyingDeferredWork: print("Identifying additional deferred work...")
+                case .identified(let count): print("Found \(count) additional followup items")
+                case .saved: print("Saved")
                 }
             }
             print("Followups created: \(result.followupsCreated)")

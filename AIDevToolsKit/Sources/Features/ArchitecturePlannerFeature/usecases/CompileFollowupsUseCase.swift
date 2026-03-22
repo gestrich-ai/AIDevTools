@@ -1,15 +1,19 @@
 import ArchitecturePlannerService
+import ClaudeCLISDK
 import Foundation
 import SwiftData
 
-/// Collects unclear flags and open questions into followup items.
+/// Collects unclear flags and open questions into followup items,
+/// then uses Claude to identify additional deferred work from the implementation plan.
 public struct CompileFollowupsUseCase: Sendable {
 
     public struct Options: Sendable {
         public let jobId: UUID
+        public let repoPath: String
 
-        public init(jobId: UUID) {
+        public init(jobId: UUID, repoPath: String) {
             self.jobId = jobId
+            self.repoPath = repoPath
         }
     }
 
@@ -24,17 +28,32 @@ public struct CompileFollowupsUseCase: Sendable {
     public enum Progress: Sendable {
         case collecting
         case collected(count: Int)
+        case identifyingDeferredWork
+        case identified(count: Int)
         case saved
     }
 
-    public init() {}
+    struct FollowupDTO: Codable {
+        let summary: String
+        let details: String
+    }
+
+    struct FollowupsResponse: Codable {
+        let additionalFollowups: [FollowupDTO]
+    }
+
+    private let claudeClient: ClaudeCLIClient
+
+    public init(claudeClient: ClaudeCLIClient = ClaudeCLIClient()) {
+        self.claudeClient = claudeClient
+    }
 
     @MainActor
     public func run(
         _ options: Options,
         store: ArchitecturePlannerStore,
         onProgress: (@Sendable (Progress) -> Void)? = nil
-    ) throws -> Result {
+    ) async throws -> Result {
         let context = store.createContext()
 
         let jobId = options.jobId
@@ -46,6 +65,7 @@ public struct CompileFollowupsUseCase: Sendable {
 
         onProgress?(.collecting)
 
+        // Promote unclear flags to followup items
         var followupCount = 0
         for component in job.implementationComponents {
             for flag in component.unclearFlags where !flag.isPromotedToFollowup {
@@ -60,16 +80,100 @@ public struct CompileFollowupsUseCase: Sendable {
         }
 
         onProgress?(.collected(count: followupCount))
+        onProgress?(.identifyingDeferredWork)
+
+        // Use Claude to identify additional deferred work
+        let additionalCount = try await identifyDeferredWork(job: job, options: options)
+        followupCount += additionalCount
+
+        onProgress?(.identified(count: additionalCount))
 
         let step = job.processSteps.first { $0.stepIndex == ArchitecturePlannerStep.followups.rawValue }
         step?.status = "completed"
         step?.completedAt = Date()
-        step?.summary = "Compiled \(followupCount) followup items from unclear flags"
+        step?.summary = "Compiled \(followupCount) followup items from unclear flags and deferred work analysis"
+        job.currentStepIndex = max(job.currentStepIndex, ArchitecturePlannerStep.followups.rawValue + 1)
         job.updatedAt = Date()
 
         try context.save()
         onProgress?(.saved)
 
         return Result(followupsCreated: followupCount)
+    }
+
+    @MainActor
+    private func identifyDeferredWork(job: PlanningJob, options: Options) async throws -> Int {
+        let components = job.implementationComponents.sorted(by: { $0.sortOrder < $1.sortOrder })
+        guard !components.isEmpty else { return 0 }
+
+        let componentSummaries = components.enumerated().map { idx, comp in
+            var lines = ["\(idx): \(comp.summary)"]
+            lines.append("   Layer: \(comp.layerName)/\(comp.moduleName)")
+            lines.append("   Files: \(comp.filePaths.joined(separator: ", "))")
+            if !comp.tradeoffs.isEmpty {
+                lines.append("   Tradeoffs: \(comp.tradeoffs)")
+            }
+            let decisions = comp.phaseDecisions.map { d in
+                "     - \(d.decision) (guideline: \(d.guidelineTitle), skipped: \(d.wasSkipped))"
+            }
+            if !decisions.isEmpty {
+                lines.append("   Decisions:")
+                lines.append(contentsOf: decisions)
+            }
+            return lines.joined(separator: "\n")
+        }.joined(separator: "\n\n")
+
+        let requirementsSummary = job.requirements.sorted(by: { $0.sortOrder < $1.sortOrder }).map { req in
+            "- \(req.summary): \(req.details)"
+        }.joined(separator: "\n")
+
+        let prompt = """
+        You are reviewing a completed architecture implementation plan to identify deferred work and followup items.
+
+        ## Requirements
+        \(requirementsSummary.isEmpty ? "(none)" : requirementsSummary)
+
+        ## Implementation Components and Decisions
+        \(componentSummaries)
+
+        ## Task
+        Analyze the implementation plan and identify any additional followup items that should be tracked:
+
+        1. Work that was explicitly deferred or skipped during implementation decisions
+        2. Integration points between components that need verification
+        3. Missing test coverage or documentation needs
+        4. Performance considerations that should be revisited
+        5. Dependencies on external systems that need coordination
+
+        Only include genuinely actionable followups — not generic advice. If the plan is comprehensive and nothing was deferred, return an empty array.
+        """
+
+        let schema = """
+        {"type":"object","properties":{"additionalFollowups":{"type":"array","items":{"type":"object","properties":{"summary":{"type":"string"},"details":{"type":"string"}},"required":["summary","details"]}}},"required":["additionalFollowups"]}
+        """
+
+        var command = Claude(prompt: prompt)
+        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
+        command.jsonSchema = schema
+        command.printMode = true
+        command.verbose = true
+
+        let output = try await claudeClient.runStructured(
+            FollowupsResponse.self,
+            command: command,
+            workingDirectory: options.repoPath
+        )
+
+        var count = 0
+        for dto in output.value.additionalFollowups {
+            let followup = FollowupItem(
+                summary: dto.summary,
+                details: dto.details
+            )
+            followup.job = job
+            count += 1
+        }
+
+        return count
     }
 }

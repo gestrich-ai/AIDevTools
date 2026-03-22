@@ -25,6 +25,7 @@ final class ArchitecturePlannerModel {
 
     private let createJobUseCase: CreatePlanningJobUseCase
     private let compileArchInfoUseCase: CompileArchitectureInfoUseCase
+    private let compileFollowupsUseCase: CompileFollowupsUseCase
     private let executeUseCase: ExecuteImplementationUseCase
     private let formRequirementsUseCase: FormRequirementsUseCase
     private let generateReportUseCase: GenerateReportUseCase
@@ -34,6 +35,7 @@ final class ArchitecturePlannerModel {
 
     init(
         compileArchInfoUseCase: CompileArchitectureInfoUseCase = CompileArchitectureInfoUseCase(),
+        compileFollowupsUseCase: CompileFollowupsUseCase = CompileFollowupsUseCase(),
         createJobUseCase: CreatePlanningJobUseCase = CreatePlanningJobUseCase(),
         executeUseCase: ExecuteImplementationUseCase = ExecuteImplementationUseCase(),
         formRequirementsUseCase: FormRequirementsUseCase = FormRequirementsUseCase(),
@@ -43,6 +45,7 @@ final class ArchitecturePlannerModel {
         scoreConformanceUseCase: ScoreConformanceUseCase = ScoreConformanceUseCase()
     ) {
         self.compileArchInfoUseCase = compileArchInfoUseCase
+        self.compileFollowupsUseCase = compileFollowupsUseCase
         self.createJobUseCase = createJobUseCase
         self.executeUseCase = executeUseCase
         self.formRequirementsUseCase = formRequirementsUseCase
@@ -122,7 +125,11 @@ final class ArchitecturePlannerModel {
                     store: store
                 )
 
-            case .describeFeature, .reviewImplementationPlan, .followups:
+            case .followups:
+                let options = CompileFollowupsUseCase.Options(jobId: job.jobId, repoPath: repoPath)
+                _ = try await compileFollowupsUseCase.run(options, store: store)
+
+            case .describeFeature, .reviewImplementationPlan:
                 break // These are interactive steps handled via UI
             }
 

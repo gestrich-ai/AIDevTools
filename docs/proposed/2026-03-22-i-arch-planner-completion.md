@@ -116,7 +116,7 @@ The current implementation records stub PhaseDecisions ("Implemented as planned"
 - Step summary now includes unclear flag count alongside phase and decision counts
 - Removed `dangerouslySkipPermissions` since structured JSON output doesn't execute code
 
-## - [ ] Phase 6: Implement Followups Step
+## - [x] Phase 6: Implement Followups Step
 
 The FollowupItem model exists but nothing creates followup items. Add:
 
@@ -128,6 +128,16 @@ The FollowupItem model exists but nothing creates followup items. Add:
 - Wire into `runNextStep` in the model (currently `break`s for `.followups`)
 - Add to CLI `update` command as `--step followups`
 - Mark the ProcessStep as completed
+
+**Completed.** Technical notes:
+- `CompileFollowupsUseCase` enhanced with Claude integration via `runStructured()` to identify additional deferred work (skipped implementations, integration verification needs, missing tests/docs, performance considerations, external dependencies)
+- Added `repoPath` to `Options` since Claude client needs a working directory
+- Two-phase followup collection: first promotes unpromoted `UnclearFlag` records to `FollowupItem`, then calls Claude with the full implementation plan to identify additional deferred work
+- Claude response parsed via `FollowupsResponse` DTO containing `additionalFollowups` array of `FollowupDTO` (summary + details)
+- `currentStepIndex` now advanced past the last step (followups.rawValue + 1) to mark the job as fully complete
+- `ArchitecturePlannerModel` (MacApp) wired to call `CompileFollowupsUseCase` instead of `break` for `.followups`
+- Added `compileFollowupsUseCase` as an injected dependency in `ArchitecturePlannerModel`
+- CLI progress reporting updated with new `.identifyingDeferredWork` and `.identified(count:)` progress states
 
 ## - [ ] Phase 7: End-to-End CLI Validation
 
