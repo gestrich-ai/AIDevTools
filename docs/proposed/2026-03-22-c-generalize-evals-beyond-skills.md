@@ -145,11 +145,19 @@ Replace top-level skill fields with the `skills` array:
 - Fixed pre-existing compile error in `PlanRunnerFeatureTests` (missing `underlyingError` argument)
 - All 52 DeterministicGrader + PromptBuilder tests pass
 
-## - [ ] Phase 3: Update CLI Output
+## - [x] Phase 3: Update CLI Output
 
 - Ensure `list-cases`, `run-evals`, and `show-output` are not skill-scoped in their output format
 - Add optional `--skill <name>` filter to `list-cases` to find cases referencing a skill
 - Results and summaries should not group by skill
+
+### Technical Notes
+
+- `RunEvalsCommand` abstract changed from "Run skill evaluation cases against AI providers" to "Run evaluation cases against AI providers"
+- `list-cases` already used `EvalCase.summaryDescription` (updated in Phase 2) which prints skills as an optional property rather than a grouping dimension
+- `show-output` was already not skill-scoped — it displays results by case ID and provider
+- Added `--skill` filter to `list-cases` via `CaseLoader.filterCases(skill:)` — matches cases where any entry in the `skills` array has a matching skill name
+- Filter flows through `ListEvalCasesUseCase.Options` → `CaseLoader.filterCases`
 
 ## - [ ] Phase 4: Update Mac App UI
 
