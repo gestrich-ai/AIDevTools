@@ -7,8 +7,6 @@ struct ClaudeCodeChatView: View {
     @Environment(ClaudeCodeChatManager.self) private var chatManager: ClaudeCodeChatManager
     @State private var messageText: String = ""
     @State private var pastedImages: [ImageAttachment] = []
-    @State private var showingSettings: Bool = false
-    @State private var showingSessionPicker: Bool = false
     @State private var showingQueueViewer: Bool = false
     @State private var isNearBottom: Bool = true
     @State private var lastSeenMessageId: UUID?
@@ -21,25 +19,6 @@ struct ClaudeCodeChatView: View {
             Divider()
 
             messageInputView
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
-                Button(action: { showingSettings = true }) {
-                    Image(systemName: "gear")
-                }
-                .help("Claude Code settings")
-
-                Button(action: { showingSessionPicker = true }) {
-                    Image(systemName: "clock.arrow.circlepath")
-                }
-                .help("Session history")
-            }
-        }
-        .sheet(isPresented: $showingSettings) {
-            ClaudeCodeChatSettingsView()
-        }
-        .sheet(isPresented: $showingSessionPicker) {
-            ClaudeCodeSessionPickerView()
         }
         .sheet(isPresented: $showingQueueViewer) {
             ClaudeCodeQueueViewerSheet()

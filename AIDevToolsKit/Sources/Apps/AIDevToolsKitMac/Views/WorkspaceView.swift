@@ -32,6 +32,8 @@ struct WorkspaceView: View {
     @State private var chatViewModel: ChatViewModel?
     @AppStorage("chatMode") private var chatMode: ChatMode = .claudeCode
     @State private var claudeCodeChatManager: ClaudeCodeChatManager?
+    @State private var showingChatSettings = false
+    @State private var showingSessionPicker = false
 
     var body: some View {
         NavigationSplitView {
@@ -107,7 +109,7 @@ struct WorkspaceView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                         VStack(spacing: 0) {
-                            bottomBar
+                            chatToolbar
                             chatPanelView
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
@@ -117,6 +119,12 @@ struct WorkspaceView: View {
                     detailContentView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     bottomBar
+                }
+            }
+            .sheet(isPresented: $showingChatSettings) {
+                if let claudeCodeChatManager {
+                    ClaudeCodeChatSettingsView()
+                        .environment(claudeCodeChatManager)
                 }
             }
         }
@@ -143,6 +151,68 @@ struct WorkspaceView: View {
 
     // MARK: - Chat
 
+    private var chatToolbar: some View {
+        HStack(spacing: 8) {
+            Picker("", selection: $chatMode) {
+                ForEach(ChatMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 100)
+
+            Spacer()
+
+            if chatMode == .claudeCode, claudeCodeChatManager != nil {
+                Button(action: { showingSessionPicker = true }) {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                .buttonStyle(.plain)
+                .help("Session history")
+                .popover(isPresented: $showingSessionPicker) {
+                    if let claudeCodeChatManager {
+                        ClaudeCodeSessionPickerView()
+                            .environment(claudeCodeChatManager)
+                            .frame(minWidth: 300, minHeight: 400)
+                    }
+                }
+
+                Button(action: { showingChatSettings = true }) {
+                    Image(systemName: "gear")
+                }
+                .buttonStyle(.plain)
+                .help("Claude Code settings")
+            }
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { chatPanelVisible = false }
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.plain)
+            .help("Hide chat")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.bar)
+    }
+
+    private var bottomBar: some View {
+        HStack {
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { chatPanelVisible = true }
+            } label: {
+                Image(systemName: "terminal")
+            }
+            .buttonStyle(.plain)
+            .help("Show chat")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.bar)
+    }
+
     @ViewBuilder
     private var detailContentView: some View {
         switch selectedItem {
@@ -162,35 +232,6 @@ struct WorkspaceView: View {
         case nil:
             ContentUnavailableView("Select an Item", systemImage: "doc.text", description: Text("Choose a skill or plan to view details."))
         }
-    }
-
-    private var bottomBar: some View {
-        HStack(spacing: 8) {
-            Spacer()
-
-            if chatPanelVisible {
-                Picker("", selection: $chatMode) {
-                    ForEach(ChatMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 100)
-            }
-
-            Spacer()
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { chatPanelVisible.toggle() }
-            } label: {
-                Image(systemName: chatPanelVisible ? "terminal.fill" : "terminal")
-            }
-            .buttonStyle(.plain)
-            .help(chatPanelVisible ? "Hide chat" : "Show chat")
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(.bar)
     }
 
     @ViewBuilder
