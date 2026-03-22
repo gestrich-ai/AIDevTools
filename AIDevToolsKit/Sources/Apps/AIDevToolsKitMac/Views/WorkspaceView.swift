@@ -1,4 +1,5 @@
 import AnthropicChatService
+import ArchitecturePlannerService
 import ClaudeCodeChatService
 import PlanRunnerService
 import RepositorySDK
@@ -12,15 +13,18 @@ enum ChatMode: String, CaseIterable {
 }
 
 enum WorkspaceItem: Hashable {
+    case architecturePlanner
     case evals
     case plan(String)
     case skill(String)
 }
 
 struct WorkspaceView: View {
+    @Environment(ArchitecturePlannerModel.self) var architecturePlannerModel
     @Environment(WorkspaceModel.self) var model
     @Environment(PlanRunnerModel.self) var planRunnerModel
 
+    @AppStorage("selectedArchPlanner") private var storedArchPlanner = false
     @AppStorage("selectedEvalsView") private var storedEvalsView = false
     @AppStorage("selectedRepositoryID") private var storedRepoID: String = ""
     @AppStorage("selectedPlanName") private var storedPlanName: String?
@@ -51,6 +55,7 @@ struct WorkspaceView: View {
                         async let _ = model.selectRepository(repo)
                         async let _ = planRunnerModel.loadPlans(for: repo)
                     }
+                    architecturePlannerModel.loadJobs(repoName: repo.name, repoPath: repo.path.path())
                 }
                 rebuildChatViewModel()
                 rebuildClaudeCodeChatManager()
@@ -63,6 +68,11 @@ struct WorkspaceView: View {
                             Text("All Evals")
                                 .tag(WorkspaceItem.evals)
                         }
+                    }
+
+                    Section("Architecture Planner") {
+                        Text("Architecture Planner")
+                            .tag(WorkspaceItem.architecturePlanner)
                     }
 
                     Section("Plans") {
@@ -93,19 +103,28 @@ struct WorkspaceView: View {
                 }
                 .onChange(of: selectedItem) { _, newValue in
                     switch newValue {
+                    case .architecturePlanner:
+                        storedArchPlanner = true
+                        storedEvalsView = false
+                        storedPlanName = nil
+                        storedSkillName = nil
                     case .evals:
+                        storedArchPlanner = false
                         storedEvalsView = true
                         storedPlanName = nil
                         storedSkillName = nil
                     case .plan(let name):
+                        storedArchPlanner = false
                         storedEvalsView = false
                         storedPlanName = name
                         storedSkillName = nil
                     case .skill(let name):
+                        storedArchPlanner = false
                         storedEvalsView = false
                         storedPlanName = nil
                         storedSkillName = name
                     case nil:
+                        storedArchPlanner = false
                         storedEvalsView = false
                         storedPlanName = nil
                         storedSkillName = nil
@@ -151,7 +170,10 @@ struct WorkspaceView: View {
                 selectedRepoID = id
                 async let _ = model.selectRepository(repo)
                 async let _ = planRunnerModel.loadPlans(for: repo)
-                if storedEvalsView {
+                architecturePlannerModel.loadJobs(repoName: repo.name, repoPath: repo.path.path())
+                if storedArchPlanner {
+                    selectedItem = .architecturePlanner
+                } else if storedEvalsView {
                     selectedItem = .evals
                 } else if let planName = storedPlanName {
                     selectedItem = .plan(planName)
@@ -235,6 +257,8 @@ struct WorkspaceView: View {
     private var detailContentView: some View {
         if let repo = model.selectedRepository {
             switch selectedItem {
+            case .architecturePlanner:
+                ArchitecturePlannerView(model: architecturePlannerModel)
             case .evals:
                 if let config = model.evalConfig(for: repo) {
                     EvalResultsView(config: config)

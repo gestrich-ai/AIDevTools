@@ -1,12 +1,74 @@
 ## Implementation Phases
 
-- [x] Phase 1: SwiftData models in ArchitecturePlannerService (Request, Requirement, Guideline, GuidelineCategory, ImplementationComponent, ConformanceScore, PlanningJob, ProcessStep, UnclearFlag, FollowupItem)
-- [x] Phase 2: Use cases in ArchitecturePlannerFeature (FormRequirements, CompileArchitectureInfo, PlanAcrossLayers, BuildImplementationModel, ScoreConformance, ExecuteImplementation, GenerateReport, ManageGuidelines)
-- [x] Phase 3: CLI subcommands (arch-planner group: create, inspect, update, score, execute, report, guidelines)
-- [x] Phase 4: Mac app model and views (ArchitecturePlannerModel, step-based navigation UI, graphical layer view, guideline browser, approve/revise loops)
-- [x] Phase 5: Wire everything together, ensure swift build passes
-- [x] Phase 6: Unit tests for models, use cases, and services
-- [x] Phase 7: Validation — end-to-end manual test, PR creation
+- [x] Phase 1: SwiftData models in ArchitecturePlannerService — **DONE** (all 11 models with relationships)
+- [ ] Phase 2: Use cases in ArchitecturePlannerFeature — **PARTIAL** (files exist, but use case logic is incomplete — see audit below)
+- [ ] Phase 3: CLI subcommands — **PARTIAL** (`update` command only handles 3 of 10 steps; others hit "Unknown step")
+- [ ] Phase 4: Mac app model and views — **PARTIAL** (views exist but approve/revise loops missing; not wired into navigation until this session)
+- [x] Phase 5: Wire everything together, ensure swift build passes — **DONE**
+- [x] Phase 6: Unit tests for models, use cases, and services — **DONE** (tests exist for models, CRUD, report generation)
+- [ ] Phase 7: Validation — **NOT DONE** (no end-to-end test, no PR report)
+
+## Implementation Audit
+
+Cross-referenced each spec section against the actual code. "Done" means the code matches what the spec describes. "Incomplete" means files/structures exist but the logic doesn't fulfill the spec's requirements.
+
+### Models (Phase 1) — DONE
+All 11 SwiftData models exist with correct fields and relationships. Store is per-repo at `~/.ai-dev-tools/{repo-name}/architecture-planner/`. ArchitecturePlannerStep enum defines all 10 steps.
+
+### Use Cases (Phase 2) — INCOMPLETE
+
+| Use Case | Status | What's Missing |
+|----------|--------|----------------|
+| CreatePlanningJobUseCase | Done | Works correctly |
+| FormRequirementsUseCase | Done (with bug fix) | Was missing `printMode` and `verbose` flags — fixed this session |
+| CompileArchitectureInfoUseCase | **Incomplete** | Does NOT read `ARCHITECTURE.md` or any repo files. Does NOT load/seed guidelines from skills. Sends a generic prompt without real architectural context. Guidelines store is always empty. |
+| PlanAcrossLayersUseCase | **Incomplete** | Creates components but has no real guideline data to reference. Prompt doesn't include actual architecture rules. |
+| ScoreConformanceUseCase | **Incomplete** | Scores against guidelines but guidelines are never populated. Was missing `printMode`/`verbose` — fixed this session. |
+| ExecuteImplementationUseCase | **Incomplete** | Only generates text suggestions via Claude. Does NOT actually execute code changes. Records stub PhaseDecisions ("Implemented as planned"). No per-phase evaluation, no guideline re-check, no improvement pass. |
+| GenerateReportUseCase | Done | Generates markdown report from stored models. |
+| ManageGuidelinesUseCase | Done | Full CRUD for guidelines/categories, job listing, stale marking. |
+
+### CLI (Phase 3) — INCOMPLETE
+
+| Command | Status | What's Missing |
+|---------|--------|----------------|
+| `arch-planner create` | Done | |
+| `arch-planner inspect` | Done | |
+| `arch-planner update` | **Incomplete** | Only handles `form-requirements`, `compile-arch-info`, `plan-across-layers`. Missing: `score`, `execute`, `checklist-validation`, `build-implementation-model`, `report`, `followups`. |
+| `arch-planner score` | Done (calls ScoreConformanceUseCase) | |
+| `arch-planner execute` | Done (calls ExecuteImplementationUseCase) | But the use case itself is a stub. |
+| `arch-planner report` | Done | |
+| `arch-planner guidelines` | Done | list, add, delete subcommands. |
+
+### Mac App (Phase 4) — INCOMPLETE
+
+| Component | Status | What's Missing |
+|-----------|--------|----------------|
+| ArchitecturePlannerModel | Done | @Observable @MainActor, all use cases injected |
+| ArchitecturePlannerView | Done | Job list sidebar + create form |
+| ArchitecturePlannerDetailView | **Incomplete** | Step pills and layer map work. But: no approve/revise loops (spec steps 2, 7, 9), no text input for revision, no interactive steps. Steps like `reviewImplementationPlan` and `followups` just `break` with no UI. |
+| GuidelineBrowserView | Done (structurally) | View exists but guidelines are never populated so it's always empty. |
+| Navigation wiring | Done | Wired into WorkspaceView this session. |
+
+### Spec Section Status
+
+| Spec Section | Status | Notes |
+|--------------|--------|-------|
+| 1. User Describes the Feature | Done | Via create job |
+| 2. Requirements Formation | **Incomplete** | Extraction works. Approve/revise loop NOT implemented — no way to approve or request revision via UI or CLI. |
+| 3. Architectural Information Compilation | **Incomplete** | Does not read ARCHITECTURE.md. Does not seed guidelines from skills. No guideline data exists. |
+| 4. Plan Implementation Across Layers | **Incomplete** | Creates components but without real architectural context. |
+| 5. Checklist Validation | **Not implemented** | Step exists in enum but `runNextStep` maps it to ScoreConformanceUseCase (wrong). No checklist logic. |
+| 6. Implementation Model Formation | **Incomplete** | Components are created in step 4 and scored in step 5, but these are separate steps in the spec. No visual map. |
+| 7. User Review of Implementation Plan | **Not implemented** | Step exists but `runNextStep` skips it (`break`). No approve/revise UI. |
+| 8. Complete Implementation | **Incomplete** | ExecuteImplementationUseCase only generates text, doesn't execute. No per-phase evaluation, no guideline re-check, no improvement pass, no real PhaseDecision recording. |
+| 9. Final Report & Review | **Incomplete** | Report generation works. No review/iterate loop. |
+| 10. User Iteration | **Partial** | Step navigation and stale marking work. Going back and rerunning works. |
+| 11. Followups Compiled | **Not implemented** | FollowupItem model exists but nothing creates them. Step skipped in `runNextStep`. |
+| Unclear Guideline Flagging | **Not implemented** | UnclearFlag model exists but nothing creates flags. |
+| Graphical Layer View | **Partial** | Layer map sidebar exists (groups by layer). Not interactive/clickable — just a static list. |
+| Guideline Seeding from Skills | **Not implemented** | `swift-architecture` and `swift-swiftui` skills never copied or transformed into guidelines. |
+| End-to-End Integration Test | **Not done** | No e2e test exists. |
 
 ---
 

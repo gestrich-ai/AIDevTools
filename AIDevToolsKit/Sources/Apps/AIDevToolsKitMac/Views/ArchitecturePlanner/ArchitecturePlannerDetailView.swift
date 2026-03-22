@@ -262,7 +262,8 @@ struct ArchitecturePlannerDetailView: View {
                     .foregroundStyle(.red)
                 Text(error.localizedDescription)
                     .foregroundStyle(.red)
-                    .lineLimit(1)
+                    .lineLimit(3)
+                    .help(error.localizedDescription)
             }
 
             Spacer()

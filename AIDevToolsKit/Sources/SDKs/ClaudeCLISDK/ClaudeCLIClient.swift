@@ -154,6 +154,13 @@ public struct ClaudeCLIClient: Sendable {
         let stdoutCapture = StdoutAccumulator()
         let parser = ClaudeStructuredOutputParser()
         var currentCommand = command
+
+        // stream-json + print mode requires verbose — auto-enable to avoid silent CLI errors
+        if currentCommand.outputFormat == ClaudeOutputFormat.streamJSON.rawValue
+            && currentCommand.printMode
+            && !currentCommand.verbose {
+            currentCommand.verbose = true
+        }
         var retryCount = 0
 
         while true {

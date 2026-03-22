@@ -95,6 +95,7 @@ public struct CompileArchitectureInfoUseCase: Sendable {
         command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
         command.jsonSchema = schema
         command.printMode = true
+        command.verbose = true
 
         struct ArchInfoResponse: Codable {
             let layersSummary: String

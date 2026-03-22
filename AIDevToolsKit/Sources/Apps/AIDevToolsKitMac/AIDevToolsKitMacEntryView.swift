@@ -1,4 +1,6 @@
 import AnthropicChatService
+import ArchitecturePlannerFeature
+import ArchitecturePlannerService
 import EvalService
 import LoggingSDK
 import PlanRunnerFeature
@@ -11,6 +13,7 @@ import SwiftData
 import SwiftUI
 
 public struct AIDevToolsKitMacEntryView: View {
+    @State private var architecturePlannerModel = ArchitecturePlannerModel()
     @State private var settingsModel: SettingsModel
     @State private var workspaceModel: WorkspaceModel
     @State private var planRunnerModel: PlanRunnerModel
@@ -41,6 +44,7 @@ public struct AIDevToolsKitMacEntryView: View {
 
     public var body: some View {
         WorkspaceView()
+            .environment(architecturePlannerModel)
             .environment(planRunnerModel)
             .environment(workspaceModel)
             .modelContainer(for: [ChatConversation.self, ChatMessage.self])

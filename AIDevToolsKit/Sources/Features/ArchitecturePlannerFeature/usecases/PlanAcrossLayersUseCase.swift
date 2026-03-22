@@ -98,6 +98,7 @@ public struct PlanAcrossLayersUseCase: Sendable {
         command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
         command.jsonSchema = schema
         command.printMode = true
+        command.verbose = true
 
         struct PlanResponse: Codable {
             let components: [ComponentDTO]

@@ -103,6 +103,8 @@ public struct ScoreConformanceUseCase: Sendable {
         var command = Claude(prompt: prompt)
         command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
         command.jsonSchema = schema
+        command.printMode = true
+        command.verbose = true
 
         struct ScoreResponse: Codable {
             let mappings: [MappingDTO]
