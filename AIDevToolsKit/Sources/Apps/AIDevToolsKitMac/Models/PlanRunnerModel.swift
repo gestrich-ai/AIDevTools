@@ -42,27 +42,33 @@ final class PlanRunnerModel {
     var executionCompleteCount: Int = 0
     private(set) var currentRepository: RepositoryInfo?
 
+    private let completePlanUseCase: CompletePlanUseCase
     private let dataPath: URL
     private let deletePlanUseCase: DeletePlanUseCase
     private let executePlan: ExecutePlanUseCase
     private let generatePlan: GeneratePlanUseCase
     private let loadPlansUseCase: LoadPlansUseCase
     private let planSettingsStore: PlanRepoSettingsStore
+    private let togglePhaseUseCase: TogglePhaseUseCase
 
     init(
+        completePlanUseCase: CompletePlanUseCase = CompletePlanUseCase(),
         dataPath: URL,
         deletePlanUseCase: DeletePlanUseCase = DeletePlanUseCase(),
         executePlan: ExecutePlanUseCase = ExecutePlanUseCase(),
         generatePlan: GeneratePlanUseCase = GeneratePlanUseCase(),
         loadPlansUseCase: LoadPlansUseCase = LoadPlansUseCase(),
-        planSettingsStore: PlanRepoSettingsStore
+        planSettingsStore: PlanRepoSettingsStore,
+        togglePhaseUseCase: TogglePhaseUseCase = TogglePhaseUseCase()
     ) {
+        self.completePlanUseCase = completePlanUseCase
         self.dataPath = dataPath
         self.deletePlanUseCase = deletePlanUseCase
         self.executePlan = executePlan
         self.generatePlan = generatePlan
         self.loadPlansUseCase = loadPlansUseCase
         self.planSettingsStore = planSettingsStore
+        self.togglePhaseUseCase = togglePhaseUseCase
     }
 
     func loadPlans(for repo: RepositoryInfo) async {
@@ -84,6 +90,21 @@ final class PlanRunnerModel {
     func reloadPlans() async {
         guard let repo = currentRepository else { return }
         await loadPlans(for: repo)
+    }
+
+    /// Toggles a phase checkbox in the plan markdown and returns the updated content.
+    func togglePhase(plan: PlanEntry, phaseIndex: Int) throws -> String {
+        let updatedContent = try togglePhaseUseCase.run(planURL: plan.planURL, phaseIndex: phaseIndex)
+        Task { await reloadPlans() }
+        return updatedContent
+    }
+
+    /// Moves a plan from proposed to completed directory and refreshes the plan list.
+    func completePlan(_ plan: PlanEntry, repository: RepositoryInfo) throws {
+        let settings = (try? planSettingsStore.settings(forRepoId: repository.id)) ?? PlanRepoSettings(repoId: repository.id)
+        let completedDir = settings.resolvedCompletedDirectory(repoPath: repository.path)
+        try completePlanUseCase.run(planURL: plan.planURL, completedDirectory: completedDir)
+        Task { await reloadPlans() }
     }
 
     func execute(plan: PlanEntry, repository: RepositoryInfo) async {
