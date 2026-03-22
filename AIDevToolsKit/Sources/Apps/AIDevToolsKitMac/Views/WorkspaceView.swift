@@ -1,4 +1,3 @@
-import AnthropicChatFeature
 import AnthropicChatService
 import ClaudeCodeChatService
 import PlanRunnerService
