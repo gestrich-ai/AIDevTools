@@ -297,13 +297,214 @@ The app reads `{plan-name}-architecture.json` from the same directory as the pla
 
 This rendering is designed for Phase 2 and is listed here only to confirm the JSON schema supports it.
 
-## - [ ] Phase 2: Graphical UI Integration
+## - [x] Phase 2: Graphical UI Integration
 
 Design the UI for viewing the architecture diagram within the planning detail:
 
-- Show the generated SVG in the plan detail view
+- Render the architecture diagram from JSON in the plan detail view (not SVG — native SwiftUI)
 - Allow the user to select a layer/module and see which proposed changes affect it
 - Consider how this integrates alongside the existing phase checklist in the plan detail view
+
+---
+
+### 1. Placement in PlanDetailView
+
+The current `PlanDetailView` body layout (top to bottom):
+
+```
+headerBar
+errorBanner (conditional)
+ScrollView {
+    phaseSection
+    outputPanel (conditional, during execution)
+    completionBanner (conditional)
+    Divider
+    Markdown(planContent)
+}
+```
+
+The architecture diagram appears **between the phase section and the markdown content**, as a collapsible section. It provides a visual "where do changes land?" summary before diving into the full plan text.
+
+**Updated layout:**
+
+```
+headerBar
+errorBanner (conditional)
+ScrollView {
+    phaseSection
+    architectureSection (conditional — only when JSON exists)
+    outputPanel (conditional, during execution)
+    completionBanner (conditional)
+    Divider
+    Markdown(planContent)
+}
+```
+
+The architecture section is conditional: it only renders when a `-architecture.json` file exists alongside the plan. The `loadPlan()` method is extended to also attempt loading the architecture JSON.
+
+---
+
+### 2. Architecture Diagram View
+
+The diagram is rendered entirely in SwiftUI — no WebView, SVG, or external rendering.
+
+**Structure:**
+
+```
+ArchitectureDiagramView
+├── VStack (layer bands, top-to-bottom)
+│   ├── LayerBandView("Apps")
+│   │   ├── HStack (modules, evenly spaced)
+│   │   │   ├── ModuleCardView("AIDevToolsKitMac", affected: true, changeCount: 1)
+│   │   │   └── ModuleCardView("AIDevToolsKitCLI", affected: false, changeCount: 0)
+│   │   └── layer label on the left edge
+│   ├── DependencyArrow (downward)
+│   ├── LayerBandView("Features")
+│   │   └── ...
+│   ├── DependencyArrow (downward)
+│   ├── LayerBandView("Services")
+│   │   └── ...
+│   ├── DependencyArrow (downward)
+│   └── LayerBandView("SDKs")
+│       └── ...
+└── ModuleDetailPanel (conditional — when a module is selected)
+```
+
+**LayerBandView:**
+- Full-width horizontal band with a subtle background tint
+- Layer name label on the leading edge, vertically centered
+- Modules arranged in a flexible horizontal layout (wrapping if needed via `FlowLayout` or `LazyVGrid`)
+- Light border to separate layers visually
+
+**ModuleCardView:**
+- Rounded rectangle (`RoundedRectangle(cornerRadius: 8)`)
+- Module name centered inside
+- **Unaffected:** `.secondary` foreground, `.quaternary` background
+- **Affected:** Accent-colored border, badge showing change count in top-trailing corner
+- Tap gesture sets `selectedModule` state
+- Selected state: thicker border + slight scale effect
+
+**DependencyArrow:**
+- Simple downward chevron or arrow between layer bands
+- Drawn with `Image(systemName: "chevron.down")` centered, `.tertiary` foreground
+- Minimal — just indicates "depends on below"
+
+---
+
+### 3. Color Coding
+
+| State | Background | Border | Text |
+|-------|-----------|--------|------|
+| Unaffected module | `.fill.quaternary` | none | `.secondary` |
+| Affected module (selected) | `.tint.opacity(0.15)` | `.tint` 2pt | `.primary` |
+| Affected module (not selected) | `.tint.opacity(0.08)` | `.tint.opacity(0.5)` 1pt | `.primary` |
+| Layer band background | `.fill.quinary` | — | — |
+
+Change action colors appear only in the detail panel:
+- **add:** `.green`
+- **modify:** `.yellow` / `.orange`
+- **delete:** `.red`
+
+---
+
+### 4. Module Selection and Detail Panel
+
+**State:** `@State private var selectedModule: ModuleSelection?` where `ModuleSelection` is a struct with `layerName` and `moduleName`.
+
+**Behavior:**
+- Tapping an affected module selects it; tapping again deselects
+- Tapping an unaffected module does nothing (no changes to show)
+- Only one module can be selected at a time
+
+**ModuleDetailPanel** appears below the diagram (inside the same `VStack`) when a module is selected:
+
+```
+┌─────────────────────────────────────────────┐
+│  PlanRunnerFeature                     ✕    │
+│─────────────────────────────────────────────│
+│  ● add   usecases/NewUseCase.swift   Ph.5  │
+│  ● mod   usecases/GeneratePlan...    Ph.4  │
+│  ● mod   services/ClaudeRespo...     Ph.4  │
+└─────────────────────────────────────────────┘
+```
+
+- Header: module name + close button
+- Each row: colored dot (action), file path (truncated, tooltip for full path), phase number
+- Rows sorted by phase number, then alphabetically by file path
+- Tapping a row could eventually open the file, but for v1 it's display-only
+
+---
+
+### 5. Data Loading
+
+**In `loadPlan()`:** After loading the markdown, also attempt to load the architecture JSON:
+
+```swift
+let architectureURL = plan.planURL
+    .deletingPathExtension()
+    .appendingPathExtension("architecture.json")
+// Note: this doesn't work — need string manipulation instead
+
+// Correct approach:
+let planName = plan.planURL.deletingPathExtension().lastPathComponent
+let architectureURL = plan.planURL
+    .deletingLastPathComponent()
+    .appendingPathComponent("\(planName)-architecture.json")
+```
+
+If the file exists, decode it into the `ArchitectureDiagram` model (a Swift `Codable` struct mirroring the JSON schema). If it doesn't exist, `architectureDiagram` remains `nil` and the section is hidden.
+
+**New state property:**
+```swift
+@State private var architectureDiagram: ArchitectureDiagram?
+```
+
+---
+
+### 6. Collapsibility
+
+The architecture section uses a `DisclosureGroup` so it can be collapsed:
+
+```swift
+DisclosureGroup("Architecture", isExpanded: $isArchitectureExpanded) {
+    ArchitectureDiagramView(
+        diagram: diagram,
+        selectedModule: $selectedModule
+    )
+}
+```
+
+Default: expanded on first load, remembering toggle state for the session.
+
+---
+
+### 7. Responsive Layout
+
+- **Narrow windows:** Modules wrap to multiple rows within a layer band. The `FlowLayout` or `LazyVGrid` handles this automatically.
+- **Wide windows:** Modules spread horizontally with consistent spacing.
+- **Module cards:** Fixed minimum width (~100pt), flexible max. Text truncates with `lineLimit(1)`.
+- **Overall diagram:** No fixed height — it grows with the number of layers/modules. The parent `ScrollView` handles overflow.
+
+---
+
+### 8. View Decomposition
+
+New files needed (all in `AIDevToolsKitMac/Views/`):
+
+| View | Responsibility |
+|------|---------------|
+| `ArchitectureDiagramView` | Top-level container: layer stack + detail panel |
+| `LayerBandView` | Single layer: label + module cards |
+| `ModuleCardView` | Single module: name, badge, tap target |
+| `ModuleDetailPanel` | Selected module's change list |
+
+Model file (in `PlanRunnerFeature` or `PlanRunnerService`):
+
+| Model | Responsibility |
+|-------|---------------|
+| `ArchitectureDiagram` | `Codable` struct matching the JSON schema from Phase 1 |
+
+Keeping the views small and focused follows the existing pattern in the codebase where `PlanDetailView` is already ~280 lines.
 
 ## Later Steps (Not Yet Scoped)
 
