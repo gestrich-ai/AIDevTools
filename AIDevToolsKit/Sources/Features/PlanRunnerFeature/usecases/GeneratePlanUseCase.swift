@@ -133,6 +133,8 @@ public struct GeneratePlanUseCase: Sendable {
         Available repositories:
         \(repoList)
 
+        You MUST select one of the listed repositories. Do not reference or suggest any repository not in this list.
+
         Return the best matching repository ID and your interpretation of what the request is asking for.
         """
 
@@ -141,9 +143,6 @@ public struct GeneratePlanUseCase: Sendable {
         """
 
         var command = Claude(prompt: matchPrompt)
-        command.printMode = true
-        command.verbose = true
-        command.dangerouslySkipPermissions = true
         command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
         command.jsonSchema = schema
 

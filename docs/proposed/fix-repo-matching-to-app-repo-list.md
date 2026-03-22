@@ -119,7 +119,7 @@ Two root causes were identified in Phase 1:
 
 The `selectedRepository` bypass (already in the working tree) is a separate, valid path that skips matching entirely — it remains untouched.
 
-## - [ ] Phase 4: Fix matchRepo Prompt and Command Flags
+## - [x] Phase 4: Fix matchRepo Prompt and Command Flags
 
 **What to implement:**
 
@@ -135,12 +135,17 @@ The `selectedRepository` bypass (already in the working tree) is a separate, val
 - `docs/completed/2026-03-21-a-extract-claude-cli-sdk.md` — `ClaudeCLIClient` patterns; `runStructured()` signature
 
 **Acceptance criteria:**
-- [ ] Prompt includes explicit instruction to only choose from listed repos
-- [ ] `dangerouslySkipPermissions` is not set on the match command
-- [ ] `verbose` is not set on the match command
-- [ ] `printMode` is not set on the match command
-- [ ] Existing `selectedRepository` bypass path is unchanged
-- [ ] UUID validation guard (lines 88-91) remains in place as a safety net
+- [x] Prompt includes explicit instruction to only choose from listed repos
+- [x] `dangerouslySkipPermissions` is not set on the match command
+- [x] `verbose` is not set on the match command
+- [x] `printMode` is not set on the match command
+- [x] Existing `selectedRepository` bypass path is unchanged
+- [x] UUID validation guard (lines 88-91) remains in place as a safety net
+
+**Technical notes:**
+- Added constraint line "You MUST select one of the listed repositories. Do not reference or suggest any repository not in this list." to the match prompt, placed after the repo list and before the return instruction.
+- Removed `printMode`, `verbose`, and `dangerouslySkipPermissions` flags from the match command. The command now only sets `outputFormat` and `jsonSchema`, which is all that's needed for a pure text-in/JSON-out matching task.
+- The `selectedRepository` bypass (lines 76-79) and UUID validation guard (lines 88-91) are untouched.
 
 ## - [ ] Phase 5: Testing and Verification
 
