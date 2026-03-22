@@ -14,8 +14,6 @@ Genuine skill invocation means the AI recognized from the front matter (in its c
 
 Currently, the eval grading may not distinguish between these two scenarios. If that's the case, an eval case that asserts "skill was invoked" could pass even when the AI only accidentally found the skill file, which defeats the purpose of testing whether the skill's front matter is good enough to trigger proactive use.
 
-It's possible this already works correctly — the grading may already distinguish accidental discovery from genuine invocation. The first step is to reproduce the issue and find out.
-
 ### Test Case
 
 This repo has an existing skill and eval case that's ideal for testing: the `what-time-is-it` skill (`.agents/skills/what-time-is-it/SKILL.md`). It has clear front matter:
@@ -31,94 +29,94 @@ With a corresponding eval case (`demo-cases/cases/what-time-is-it.jsonl`) that a
 
 ## Phases
 
-## - [ ] Phase 1: Research Skill Invocation Mechanics
+## - [x] Phase 1: Research Skill Invocation Mechanics
+
+**Skills used**: `ai-dev-tools-debug`
+**Principles applied**: Traced the full grading pipeline, ran Codex evals with `RUST_LOG=trace` for debug output, researched Codex API layers, inspected raw JSONL traces across multiple runs
 
 **Skills to read**: `ai-dev-tools-debug`
 
-Research how Claude and Codex handle skill invocation at the protocol level. Search the web for documentation on how skill front matter is defined and how invocation appears in logs/traces. Understand:
+### Findings
 
-- How front matter fields (`description`, trigger conditions) work for each provider
-- What log events or tool use traces are produced when a skill is genuinely invoked vs. when the file is just read during a search
-- Whether Claude and Codex differ in how they report invocation
+#### Claude — Clean protocol-level distinction
 
-Also trace the current eval grading pipeline to understand how skill invocation is detected today.
+Claude has a dedicated `Skill` tool. The trace signals are unambiguous:
 
-## - [ ] Phase 2: Baseline — Run With Strong Front Matter
+- **Genuine invocation**: `tool_use` event with `name: "Skill"`, `input.skill: "<skill-name>"`. The `ClaudeOutputParser` extracts `ToolEvent(name: "Skill", skillName: "map-layer")`.
+- **Accidental file read**: `tool_use` event with `name: "Read"`, `input.file_path: "<path>"`. Produces `ToolEvent(name: "Read", filePath: "...")`.
+- The tool name alone (`"Skill"` vs `"Read"`) is the definitive signal.
 
-Run the existing `what-time-is-it` eval case as-is with the current strong front matter (`"Returns the current time. Use when the user asks what time it is or wants to know the current time."`). The prompt is simply "What time is it?" — no hints to grep.
+#### Codex — No protocol-level distinction
 
-1. Run the eval for both Claude and Codex providers
-2. Capture the full AI logs/traces
-3. Confirm the skill is genuinely invoked via front matter recognition
-4. Confirm the `skillMustBeInvoked` assertion passes
+Codex has NO dedicated skill tool. All actions appear as `command_execution` events in the JSONL stream:
 
-This establishes the positive baseline: what genuine invocation looks like in the logs.
+- **Genuine invocation**: `{"type":"item.completed","item":{"type":"command_execution","command":"sed ... .agents/skills/what-time-is-it/SKILL.md"}}`
+- **Accidental file read**: Identical format — same `command_execution` with the skill path in the command string.
 
-## - [ ] Phase 3: Weaken Front Matter Progressively
+Ran Codex 4 times with strong front matter. All 4 passed. In 3 of 4, Codex read the skill file as its very first command (strong signal of catalog-driven activation). In 1 of 4 (with `RUST_LOG=trace`), Codex emitted an `agent_message` commentary ("I'm using the `what-time-is-it` skill...") before the file read, but this was not consistent across runs and is unreliable as a heuristic.
 
-Modify the `what-time-is-it` skill's front matter in stages, running the same eval case at each stage to see when invocation stops. Suggested progression:
+#### Codex internal signals (not exposed to us)
 
-1. **Mild weakening** — Make the description vague but still somewhat related:
-   `description: A utility skill for miscellaneous tasks.`
-   Run eval, check if skill is still invoked.
+Codex internally tracks skill invocations but doesn't expose them:
 
-2. **Moderate weakening** — Make the description unrelated:
-   `description: Handles database migration operations.`
-   Run eval, check if skill is still invoked.
+- `codex.skill.injected` OTel metric with `invocation_type: Explicit` vs `Implicit` — exactly the distinction we want, but goes to OpenAI telemetry only
+- `detect_skill_doc_read()` internal function — matches `cat`/`sed`/`head` commands against SKILL.md paths (same heuristic we use)
+- App-server v2 WebSocket protocol has `skillMetadata` on some events, but switching from `codex exec` to WebSocket would be a significant rewrite
+- The OpenAI Responses API (upstream model API) has zero concept of skills — skills are entirely a Codex-layer construct
 
-3. **Severe weakening** — Remove the description entirely or make it empty:
-   `description: ""`
-   Run eval, check if skill is still invoked.
+#### Current grading bug
 
-At each stage, capture traces for both Claude and Codex. At some point the AI should stop proactively invoking the skill — note where that threshold is.
+The `skillWasInvoked()` function in `DeterministicGrader.swift` (line 260) has three detection paths:
 
-## - [ ] Phase 4: Force Accidental Discovery
+1. **Path 1** — `ToolEvent.skillName == skillName`: Only matches Claude `Skill` tool calls. **Reliable.**
+2. **Path 2** — `ToolEvent.filePath` matches skill path convention: Matches any Claude `Read` of a skill file, including accidental reads. **False-positive risk.**
+3. **Path 3** — Trace commands contain skill path strings: Matches any Codex `cat`/`sed` of a skill file, including accidental reads. **False-positive risk.**
 
-With the front matter still weakened (from Phase 3, using the version that did NOT trigger invocation), run a modified eval case where the prompt instructs the AI to grep the codebase for time-related functionality. Something like:
+Path 2 was added for nested skills (parent skill "ios-26" reading child "merge-insurance-policy.md" via `Read`), but also matches accidental reads.
 
-> "Search this codebase for any utilities or tools related to getting the current time. Read any files you find."
+For Claude, the fix is straightforward: Path 1 alone is the reliable signal for genuine invocation. Paths 2 and 3 should only be used for Codex (where they're the only option).
 
-This should cause the AI to find and read the `what-time-is-it` skill file incidentally during its search — but NOT because the front matter triggered invocation.
+For Codex, there is no fix possible with current data — the heuristic is the best we can do.
 
-1. Run this for both Claude and Codex
-2. Capture the full AI logs/traces
-3. Check what the `skillMustBeInvoked` assertion reports — does it say "invoked" or "not invoked"?
+## - [ ] Phase 2: Fix Claude skill invocation detection
 
-This is the critical test: if the grading says "invoked" here, it's the bug. The AI found the skill by accident, not through front matter recognition.
+**Skills to read**: `ai-dev-tools-debug`
 
-## - [ ] Phase 5: Compare Traces and Assess
+Update `skillWasInvoked()` in `DeterministicGrader.swift` to distinguish between Claude and Codex detection paths:
 
-Compare the log events across all runs:
+- **Claude**: Only use Path 1 (`ToolEvent.skillName`). This is the `Skill` tool call — unambiguous genuine invocation. Do NOT fall through to Path 2 (filePath) or Path 3 (trace commands) for Claude. An accidental `Read` of a skill file should not count.
+- **Codex**: Continue using Path 2 and Path 3 (file path and trace command matching) since that's the only data available.
 
-- **Phase 2** (strong front matter, genuine invocation) — what does invocation look like?
-- **Phase 3** (weakened front matter, no invocation) — what does non-invocation look like?
-- **Phase 4** (weak front matter, accidental grep discovery) — does this look like invocation or non-invocation?
+The grader already receives `providerCapabilities` — add a way to determine the provider so the detection logic can branch. Alternatively, check whether `toolEvents` contains any events with `name == "Skill"` or `name == "Read"` (Claude-specific tool names) to infer the provider.
 
-Key questions:
-- Do the traces for accidental discovery (Phase 4) look different from genuine invocation (Phase 2)?
-- Does the current grading already handle this correctly?
-- Do Claude and Codex differ in their traces?
+## - [ ] Phase 3: Add skill invocation indicator to CLI/UI output
 
-If the grading already works (accidental discovery is marked as "not invoked"), document why and close this plan — no fix needed.
+**Skills to read**: `ai-dev-tools-debug`
 
-If the grading incorrectly marks accidental discovery as "invoked", proceed to Phase 6.
+When a `skillMustBeInvoked` or `skillMustNotBeInvoked` assertion is evaluated during grading, add a visible indicator in the CLI and Mac app output showing:
 
-## - [ ] Phase 6: Update Assertion Logic (If Needed)
+- Which skill was checked
+- Whether it was detected as invoked or not
+- **For Codex**: Include a disclaimer noting that Codex lacks a dedicated skill tool, so invocation detection is based on file read heuristics and cannot distinguish genuine invocation from accidental discovery
 
-Based on the trace analysis, update the skill invocation assertion to use the distinguishing signals. Ensure it checks for genuine invocation evidence rather than just the skill content appearing in the conversation.
+This helps users understand the confidence level of skill invocation assertions per provider.
 
-If the traces are indistinguishable (no way to tell accidental from genuine), write a detailed analysis explaining:
+## - [ ] Phase 4: Update tests
 
-- What the log events look like in each scenario (include actual log excerpts)
-- Why there isn't enough information to distinguish them
-- What would need to change (in the providers or in the app's tracing) to make this possible
-- Whether web research on Claude/Codex skill invocation mechanics reveals any additional signals
+**Skills to read**: `swift-testing`
 
-## - [ ] Phase 7: Validation
+Update `DeterministicGraderTests.swift`:
 
-Restore the `what-time-is-it` skill to its original strong front matter, then:
+- Add test: Claude `Read` of a skill file does NOT pass `skillMustBeInvoked` (accidental read)
+- Add test: Claude `Skill` tool call DOES pass `skillMustBeInvoked` (genuine invocation)
+- Add test: Codex trace command with skill path still passes `skillMustBeInvoked` (heuristic, only option)
+- Verify existing nested skill path tests still work for Codex path
 
-- Re-run the accidental discovery scenario (weak front matter + grep prompt) — invocation should be marked "not invoked"
-- Re-run the genuine invocation scenario (strong front matter + clean prompt) — invocation should be marked "invoked"
-- Test with both Claude and Codex providers
-- If no fix was possible, the deliverable is the detailed analysis document with log event comparisons across all scenarios and an explanation of why the distinction can't be made with current information
+## - [ ] Phase 5: Validation
+
+**Skills to read**: `ai-dev-tools-debug`, `swift-testing`
+
+- Run `swift test` — all tests pass
+- Run `swift build` — no compiler errors
+- Run `what-time-is-it` eval for both Claude and Codex — both still pass with strong front matter
+- Verify the CLI output includes the new skill invocation indicator and Codex disclaimer
