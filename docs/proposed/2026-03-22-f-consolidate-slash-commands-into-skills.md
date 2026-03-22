@@ -66,9 +66,21 @@ The autocomplete chain is:
 - Global skill scanning (or at minimum, scanning `~/.claude/commands/` as a legacy location)
 - The `Skill` / `SkillInfo` model already has `name` and `path`, so the data model is compatible
 
-## - [ ] Phase 2: Extend Skills Framework
+## - [x] Phase 2: Extend Skills Framework
 
 Update the skills framework to also scan `.claude/commands/` (and `.agents/commands/` if applicable) and treat entries there as skills. Ensure the skill model can represent everything a legacy command could.
+
+### Changes
+
+- `SkillScanner.scanSkills(at:globalCommandsDirectory:)` now scans four directory types in priority order:
+  1. `.agents/skills` and `.claude/skills` (highest — existing behavior)
+  2. `.agents/commands` and `.claude/commands` (local commands, lower priority)
+  3. Optional `globalCommandsDirectory` parameter for `~/.claude/commands/` (lowest priority)
+- Commands directories are scanned recursively — subdirectories create path-segmented names (e.g., `deploy/staging.md` → skill named `deploy/staging`)
+- Skills override commands with the same name; `.agents/` variants override `.claude/` variants; local commands override global commands
+- The `SkillInfo` model was sufficient as-is — no changes needed
+- The `globalCommandsDirectory` parameter defaults to `nil`, preserving backward compatibility for existing callers
+- 8 new tests cover: commands discovery, recursive nesting, priority/override behavior, global commands, and non-markdown filtering
 
 ## - [ ] Phase 3: Migrate Consumers
 
