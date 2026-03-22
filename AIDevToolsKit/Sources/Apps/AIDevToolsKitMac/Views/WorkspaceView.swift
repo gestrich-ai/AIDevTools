@@ -44,8 +44,10 @@ struct WorkspaceView: View {
                 storedRepoID = newValue?.uuidString ?? ""
                 selectedItem = nil
                 if let id = newValue, let repo = model.repositories.first(where: { $0.id == id }) {
-                    model.selectRepository(repo)
-                    planRunnerModel.loadPlans(for: repo)
+                    Task {
+                        async let _ = model.selectRepository(repo)
+                        async let _ = planRunnerModel.loadPlans(for: repo)
+                    }
                 }
                 rebuildChatViewModel()
                 rebuildClaudeCodeChatManager()
@@ -58,6 +60,15 @@ struct WorkspaceView: View {
                     }
 
                     Section("Skills") {
+                        if model.isLoadingSkills {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Loading skills...")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                         ForEach(model.skills, id: \.name) { skill in
                             Text(skill.name)
                                 .tag(WorkspaceItem.skill(skill.name))
@@ -65,14 +76,9 @@ struct WorkspaceView: View {
                     }
                 }
                 .navigationTitle(model.selectedRepository?.name ?? "")
-                .onAppear {
+                .task(id: model.selectedRepository?.id) {
                     if let repo = model.selectedRepository {
-                        planRunnerModel.loadPlans(for: repo)
-                    }
-                }
-                .onChange(of: model.selectedRepository?.id) {
-                    if let repo = model.selectedRepository {
-                        planRunnerModel.loadPlans(for: repo)
+                        await planRunnerModel.loadPlans(for: repo)
                     }
                 }
                 .onChange(of: selectedItem) { _, newValue in
@@ -115,13 +121,13 @@ struct WorkspaceView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             model.load()
             if let id = UUID(uuidString: storedRepoID),
                let repo = model.repositories.first(where: { $0.id == id }) {
                 selectedRepoID = id
-                model.selectRepository(repo)
-                planRunnerModel.loadPlans(for: repo)
+                async let _ = model.selectRepository(repo)
+                async let _ = planRunnerModel.loadPlans(for: repo)
                 if let planName = storedPlanName {
                     selectedItem = .plan(planName)
                 } else if let skillName = storedSkillName {
@@ -240,6 +246,16 @@ struct WorkspaceView: View {
 
     @ViewBuilder
     private var planListContent: some View {
+        if planRunnerModel.isLoadingPlans {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Loading plans...")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+
         if case .generating(let step) = planRunnerModel.state {
             HStack(spacing: 8) {
                 ProgressView()

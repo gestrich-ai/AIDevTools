@@ -38,6 +38,7 @@ final class PlanRunnerModel {
 
     var state: State = .idle
     var plans: [PlanEntry] = []
+    var isLoadingPlans: Bool = false
     var executionCompleteCount: Int = 0
     private(set) var currentRepository: RepositoryInfo?
 
@@ -61,10 +62,15 @@ final class PlanRunnerModel {
         self.planSettingsStore = planSettingsStore
     }
 
-    func loadPlans(for repo: RepositoryInfo) {
+    func loadPlans(for repo: RepositoryInfo) async {
         currentRepository = repo
+        plans = []
+        isLoadingPlans = true
         let proposedDir = resolvedProposedDirectory(for: repo)
-        plans = loadPlansUseCase.run(proposedDirectory: proposedDir)
+        let loaded = await loadPlansUseCase.run(proposedDirectory: proposedDir)
+        guard self.currentRepository?.id == repo.id else { return }
+        self.plans = loaded
+        self.isLoadingPlans = false
     }
 
     func deletePlan(_ plan: PlanEntry) throws {
@@ -72,9 +78,9 @@ final class PlanRunnerModel {
         plans.removeAll { $0.id == plan.id }
     }
 
-    func reloadPlans() {
+    func reloadPlans() async {
         guard let repo = currentRepository else { return }
-        loadPlans(for: repo)
+        await loadPlans(for: repo)
     }
 
     func execute(plan: PlanEntry, repository: RepositoryInfo) async {
@@ -97,7 +103,7 @@ final class PlanRunnerModel {
             }
             state = .completed(result)
             executionCompleteCount += 1
-            loadPlans(for: repository)
+            await loadPlans(for: repository)
         } catch {
             state = .error(error)
         }
@@ -136,7 +142,7 @@ final class PlanRunnerModel {
                     }
                 }
             }
-            loadPlans(for: result.repository)
+            await loadPlans(for: result.repository)
             state = .idle
         } catch {
             state = .error(error)
