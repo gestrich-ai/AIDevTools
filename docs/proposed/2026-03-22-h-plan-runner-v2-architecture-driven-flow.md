@@ -1,12 +1,12 @@
 ## Implementation Phases
 
-- [ ] Phase 1: SwiftData models in ArchitecturePlannerService (Request, Requirement, Guideline, GuidelineCategory, ImplementationComponent, ConformanceScore, PlanningJob, ProcessStep, UnclearFlag, FollowupItem)
-- [ ] Phase 2: Use cases in ArchitecturePlannerFeature (FormRequirements, CompileArchitectureInfo, PlanAcrossLayers, BuildImplementationModel, ScoreConformance, ExecuteImplementation, GenerateReport, ManageGuidelines)
-- [ ] Phase 3: CLI subcommands (arch-planner group: create, inspect, update, score, execute, report, guidelines)
-- [ ] Phase 4: Mac app model and views (ArchitecturePlannerModel, step-based navigation UI, graphical layer view, guideline browser, approve/revise loops)
-- [ ] Phase 5: Wire everything together, ensure swift build passes
-- [ ] Phase 6: Unit tests for models, use cases, and services
-- [ ] Phase 7: Validation — end-to-end manual test, PR creation
+- [x] Phase 1: SwiftData models in ArchitecturePlannerService (Request, Requirement, Guideline, GuidelineCategory, ImplementationComponent, ConformanceScore, PlanningJob, ProcessStep, UnclearFlag, FollowupItem)
+- [x] Phase 2: Use cases in ArchitecturePlannerFeature (FormRequirements, CompileArchitectureInfo, PlanAcrossLayers, BuildImplementationModel, ScoreConformance, ExecuteImplementation, GenerateReport, ManageGuidelines)
+- [x] Phase 3: CLI subcommands (arch-planner group: create, inspect, update, score, execute, report, guidelines)
+- [x] Phase 4: Mac app model and views (ArchitecturePlannerModel, step-based navigation UI, graphical layer view, guideline browser, approve/revise loops)
+- [x] Phase 5: Wire everything together, ensure swift build passes
+- [x] Phase 6: Unit tests for models, use cases, and services
+- [x] Phase 7: Validation — end-to-end manual test, PR creation
 
 ---
 

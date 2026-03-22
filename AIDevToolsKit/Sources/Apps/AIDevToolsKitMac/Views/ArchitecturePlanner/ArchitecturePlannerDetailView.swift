@@ -188,7 +188,7 @@ struct ArchitecturePlannerDetailView: View {
                     }
 
                     // Unclear flags
-                    for flag in comp.unclearFlags {
+                    ForEach(comp.unclearFlags, id: \.flagId) { flag in
                         Label(flag.ambiguityDescription, systemImage: "exclamationmark.triangle")
                             .font(.caption)
                             .foregroundStyle(.orange)
