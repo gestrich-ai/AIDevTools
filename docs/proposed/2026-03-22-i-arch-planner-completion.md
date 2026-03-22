@@ -58,7 +58,7 @@ The current implementation sends a generic prompt without reading any actual fil
 - Prompt restructured into sections (ARCHITECTURE.md, Requirements, Loaded Guidelines, Task) and asks Claude to reference actual layer names, guideline titles, and conventions
 - ProcessStep summary now stores the full layers summary instead of truncating to 200 characters
 
-## - [ ] Phase 3: Fix PlanAcrossLayersUseCase to Include Guidelines
+## - [x] Phase 3: Fix PlanAcrossLayersUseCase to Include Guidelines
 
 The current implementation creates components without real guideline context. Fix it to:
 
@@ -66,6 +66,14 @@ The current implementation creates components without real guideline context. Fi
 - Include ARCHITECTURE.md content so Claude knows the actual layer structure
 - The prompt should ask Claude to explain which guidelines influenced each placement decision
 - Verify: `arch-planner update --step plan-across-layers` creates components that reference real layers and guidelines
+
+**Completed.** Technical notes:
+- Guidelines loaded from SwiftData store and included as titles + high-level overviews in the prompt
+- ARCHITECTURE.md read from repo path and included in `<architecture-document>` tags (with graceful fallback if missing)
+- Prompt restructured into sections (ARCHITECTURE.md, Architecture Analysis, Requirements, Architectural Guidelines, Task)
+- Added `GuidelineReference` DTO (title + reason) and `guidelinesApplied` field to `ComponentDTO` so Claude reports which guidelines influenced each component
+- `GuidelineMapping` records created automatically linking each component to its referenced guidelines via case-insensitive title matching
+- JSON schema updated to require `guidelinesApplied` array on each component
 
 ## - [ ] Phase 4: Complete the CLI `update` Command for All Steps
 
