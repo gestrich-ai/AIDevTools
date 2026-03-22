@@ -36,6 +36,7 @@ public struct AIDevToolsKitMacEntryView: View {
             updateRepository: UpdateRepositoryUseCase(store: store)
         ))
         _planRunnerModel = State(initialValue: PlanRunnerModel(
+            dataPath: settingsModel.dataPath,
             planSettingsStore: planSettingsStore
         ))
     }

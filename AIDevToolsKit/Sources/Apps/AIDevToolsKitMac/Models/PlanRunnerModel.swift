@@ -42,6 +42,7 @@ final class PlanRunnerModel {
     var executionCompleteCount: Int = 0
     private(set) var currentRepository: RepositoryInfo?
 
+    private let dataPath: URL
     private let deletePlanUseCase: DeletePlanUseCase
     private let executePlan: ExecutePlanUseCase
     private let generatePlan: GeneratePlanUseCase
@@ -49,12 +50,14 @@ final class PlanRunnerModel {
     private let planSettingsStore: PlanRepoSettingsStore
 
     init(
+        dataPath: URL,
         deletePlanUseCase: DeletePlanUseCase = DeletePlanUseCase(),
         executePlan: ExecutePlanUseCase = ExecutePlanUseCase(),
         generatePlan: GeneratePlanUseCase = GeneratePlanUseCase(),
         loadPlansUseCase: LoadPlansUseCase = LoadPlansUseCase(),
         planSettingsStore: PlanRepoSettingsStore
     ) {
+        self.dataPath = dataPath
         self.deletePlanUseCase = deletePlanUseCase
         self.executePlan = executePlan
         self.generatePlan = generatePlan
@@ -91,7 +94,8 @@ final class PlanRunnerModel {
             planPath: plan.planURL,
             repoPath: repository.path,
             repository: repository,
-            completedDirectory: settings.resolvedCompletedDirectory(repoPath: repository.path)
+            completedDirectory: settings.resolvedCompletedDirectory(repoPath: repository.path),
+            dataPath: dataPath
         )
 
         do {

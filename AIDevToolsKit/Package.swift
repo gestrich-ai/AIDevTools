@@ -112,6 +112,7 @@ let package = Package(
             dependencies: [
                 "ClaudeCLISDK",
                 "GitSDK",
+                "LoggingSDK",
                 "PlanRunnerService",
                 "RepositorySDK",
             ],
