@@ -7,7 +7,7 @@ struct ArchPlannerGuidelinesCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "guidelines",
         abstract: "Manage architectural guidelines",
-        subcommands: [GuidelinesListCommand.self, GuidelinesAddCommand.self, GuidelinesDeleteCommand.self]
+        subcommands: [GuidelinesAddCommand.self, GuidelinesDeleteCommand.self, GuidelinesListCommand.self, GuidelinesSeedCommand.self]
     )
 }
 
@@ -106,5 +106,35 @@ struct GuidelinesDeleteCommand: AsyncParsableCommand {
         let useCase = ManageGuidelinesUseCase()
         try await MainActor.run { try useCase.deleteGuideline(guidelineId: uuid, store: store) }
         print("Deleted guideline: \(guidelineId)")
+    }
+}
+
+struct GuidelinesSeedCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "seed",
+        abstract: "Seed guidelines from bundled skills and ARCHITECTURE.md"
+    )
+
+    @Option(name: .long, help: "Repository name")
+    var repoName: String
+
+    @Option(name: .long, help: "Repository path")
+    var repoPath: String
+
+    mutating func run() async throws {
+        let store = try ArchitecturePlannerStore(repoName: repoName)
+        let useCase = SeedGuidelinesUseCase()
+        let result = try await MainActor.run {
+            try useCase.run(
+                SeedGuidelinesUseCase.Options(repoName: repoName, repoPath: repoPath),
+                store: store
+            )
+        }
+
+        if result.skipped {
+            print("Guidelines already exist for \(repoName) — skipped seeding")
+        } else {
+            print("Seeded \(result.guidelinesCreated) guidelines for \(repoName)")
+        }
     }
 }

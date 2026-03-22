@@ -29,6 +29,13 @@ public struct CreatePlanningJobUseCase: Sendable {
 
     @MainActor
     public func run(_ options: Options, store: ArchitecturePlannerStore) throws -> Result {
+        // Seed guidelines if none exist yet
+        let seedUseCase = SeedGuidelinesUseCase()
+        _ = try seedUseCase.run(
+            SeedGuidelinesUseCase.Options(repoName: options.repoName, repoPath: options.repoPath),
+            store: store
+        )
+
         let context = store.createContext()
 
         let job = PlanningJob(

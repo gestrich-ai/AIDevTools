@@ -16,7 +16,7 @@ The original spec doc has been annotated with a detailed audit table showing wha
 
 ## Phases
 
-## - [ ] Phase 1: Seed Guidelines from Skills and ARCHITECTURE.md
+## - [x] Phase 1: Seed Guidelines from Skills and ARCHITECTURE.md
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `swift-app-architecture:swift-swiftui`
 
@@ -32,6 +32,14 @@ The entire guideline pipeline is empty — nothing populates the SwiftData guide
 - Add a CLI command: `arch-planner guidelines seed --repo-name NAME --repo-path PATH`
 - Call `SeedGuidelinesUseCase` automatically in `CreatePlanningJobUseCase` so new jobs start with guidelines populated
 - Verify: `arch-planner guidelines list --repo-name AIDevTools` shows seeded guidelines
+
+**Completed.** Technical notes:
+- `SeedGuidelinesUseCase` created with 15 bundled guidelines: 1 from ARCHITECTURE.md (if present), 6 from swift-architecture skill, 8 from swift-swiftui skill
+- Guidelines are embedded as string constants in `SeedGuidelinesUseCase.GuidelineDefinition` structs — no external file reads needed at runtime
+- Categories seeded: `architecture`, `conventions`, `layer-placement`, `observable-model`, `swiftui`, `view-patterns`
+- Idempotent: skips seeding if any guidelines already exist for the repo
+- `CreatePlanningJobUseCase` calls `SeedGuidelinesUseCase` automatically before creating the job
+- `GuidelinesSeedCommand` added as `arch-planner guidelines seed --repo-name NAME --repo-path PATH`
 
 ## - [ ] Phase 2: Fix CompileArchitectureInfoUseCase to Use Real Data
 
