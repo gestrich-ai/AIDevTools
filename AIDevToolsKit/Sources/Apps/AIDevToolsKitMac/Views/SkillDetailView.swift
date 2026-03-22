@@ -6,6 +6,7 @@ struct SkillDetailView: View {
     @Environment(EvalRunnerModel.self) var evalRunnerModel
     let skill: Skill
     let evalConfig: RepositoryEvalConfig?
+    var onNavigateToEvals: (() -> Void)?
 
     @AppStorage("skillDetailTab") private var selectedTab: DetailTab = .skill
     @State private var selectedFileTab: URL?
@@ -45,7 +46,21 @@ struct SkillDetailView: View {
                 skillContent
             case .evals:
                 if evalConfig != nil {
-                    EvalResultsView(skillName: skill.name)
+                    VStack(spacing: 0) {
+                        if onNavigateToEvals != nil {
+                            HStack {
+                                Spacer()
+                                Button {
+                                    onNavigateToEvals?()
+                                } label: {
+                                    Label("View All Evals", systemImage: "arrow.up.right")
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                            .padding([.horizontal, .top])
+                        }
+                        EvalResultsView(skillName: skill.name)
+                    }
                 }
             }
         }

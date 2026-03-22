@@ -159,12 +159,21 @@ Replace top-level skill fields with the `skills` array:
 - Added `--skill` filter to `list-cases` via `CaseLoader.filterCases(skill:)` — matches cases where any entry in the `skills` array has a matching skill name
 - Filter flows through `ListEvalCasesUseCase.Options` → `CaseLoader.filterCases`
 
-## - [ ] Phase 4: Update Mac App UI
+## - [x] Phase 4: Update Mac App UI
 
 - Add top-level **Evals** sidebar section as a sibling to **Skills**
 - Evals view: flat list of all suites and cases, with results and grading
 - Skills view: list of skills, drill-in shows associated eval suites/cases
 - Navigating from skills view to a suite/case jumps to the evals view filtered to that item
+
+### Technical Notes
+
+- Added `.evals` case to `WorkspaceItem` enum (alphabetically ordered alongside `.plan` and `.skill`)
+- New "Evals" sidebar section appears when the selected repository has eval config, shown alphabetically before Plans and Skills
+- Selecting "All Evals" in sidebar configures `EvalRunnerModel` and shows `EvalResultsView(skillName: nil)` — displaying all suites/cases without skill filtering
+- `SkillDetailView` gains an `onNavigateToEvals` callback; when on the Evals tab, a "View All Evals" button navigates to the top-level Evals view
+- Selection state persisted via `@AppStorage("selectedEvalsView")` boolean, restored on app launch alongside existing plan/skill persistence
+- `EvalRunnerModel` environment dependency added to `WorkspaceView` to configure eval state when switching to the Evals view directly (previously only configured via `SkillDetailView`)
 
 ## - [ ] Phase 5: Migrate Existing Evals
 
