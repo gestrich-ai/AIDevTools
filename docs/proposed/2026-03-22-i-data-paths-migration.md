@@ -1,0 +1,125 @@
+## Relevant Skills
+
+No project-specific skills apply to this task. The `docs/guides/configuration-architecture.md` reference document describes the target paradigm.
+
+## Background
+
+The app currently manages data paths in an ad-hoc way: `RepositoryStoreConfiguration` hardcodes a default path, `SettingsModel` persists it in UserDefaults, individual stores (`EvalRepoSettingsStore`, `PlanRepoSettingsStore`) each accept a raw `dataPath: URL`, and `ArchitecturePlannerStore` builds its own path from `~/.ai-dev-tools/{repoName}`. There is no centralized path management and no type-safe enum for known data locations.
+
+We will adopt the `DataPathsService` pattern from RefactorApp (`~/Developer/personal/RefactorApp/services/DataPathsService/`). This gives us:
+- A single `DataPathsService` that owns all data directory creation and lookup
+- A type-safe `ServicePath` enum for known locations
+- A configurable root path (set in app settings, passed from CLI)
+
+**Key constraints from Bill:**
+- SDKs must NOT know about `DataPathsService`. They receive plain `URL` paths.
+- The Mac app and CLI are responsible for creating `DataPathsService` and passing resolved paths into use case initializers (not individual methods).
+- No backwards compatibility shims — we move all data to the new structure in one go.
+- The base data path is an application-level concern.
+
+## Phases
+
+## - [x] Phase 1: Create DataPathsService
+
+Port `DataPathsService` from RefactorApp into `AIDevToolsKit/Sources/Services/DataPathsService/`.
+
+**Source to copy from:** `~/Developer/personal/RefactorApp/services/DataPathsService/Sources/DataPathsService/DataPathsService.swift`
+
+**Adaptations:**
+- Define a `ServicePath` enum with cases for AIDevTools' needs:
+  - `architecturePlanner` — `architecture-planner/` (replaces `~/.ai-dev-tools/{repoName}/architecture-planner/`)
+  - `evalSettings` — `eval/settings/`
+  - `planSettings` — `plan/settings/`
+  - `repositories` — `repositories/` (for `repositories.json`)
+  - `repoOutput(String)` — `repos/{repoName}/` (per-repo output directories)
+- Keep the public `init(rootPath: URL)` (no hardcoded default — the app layer provides it)
+- Keep the internal test initializer pattern
+- Keep auto-creation of directories
+- Mark `@unchecked Sendable`
+- Add the new target to `Package.swift`
+
+**Completed:** Simplified from RefactorApp's `serviceName`/`subdirectory` pattern to a single `relativePath` computed property on `ServicePath`, since AIDevTools paths don't all follow a two-level structure. The `internal init(rootPath:fileManager:)` serves as the test initializer. Generic `path(for: String)` and `path(for: String, subdirectory: String)` methods retained for ad-hoc paths.
+
+## - [ ] Phase 2: Update SettingsModel and RepositoryStoreConfiguration
+
+**SettingsModel** already stores `dataPath` in UserDefaults — this stays as the source of truth for the Mac app. No changes needed to SettingsModel itself.
+
+**RepositoryStoreConfiguration** — remove the hardcoded default. Make `dataPath` required (no default parameter):
+```swift
+public init(dataPath: URL)
+```
+
+This forces callers (Mac app, CLI) to explicitly provide the path, making it clear this is an app-level concern.
+
+## - [ ] Phase 3: Migrate RepositoryStore
+
+- `RepositoryStore` currently stores `repositories.json` at `dataPath/repositories.json`. Update it to accept a `repositoriesFile: URL` in its initializer instead of deriving it from `RepositoryStoreConfiguration`.
+- The app layer will use `DataPathsService.path(for: .repositories)` to get the directory and pass it in.
+- Remove `RepositoryStoreConfiguration` if it becomes unnecessary (it currently just wraps a single URL).
+- Update `outputDirectory(for:)` to accept a base URL or remove it — the app layer will use `DataPathsService.path(for: .repoOutput(repo.name))`.
+
+## - [ ] Phase 4: Migrate EvalRepoSettingsStore and PlanRepoSettingsStore
+
+Both stores currently take `dataPath: URL` and derive their file path.
+
+- Change `EvalRepoSettingsStore.init` to take the resolved file URL directly (e.g., `filePath: URL`) rather than building it from `dataPath`.
+- Same for `PlanRepoSettingsStore`.
+- The app layer uses `DataPathsService` to resolve the path and passes it in.
+
+## - [ ] Phase 5: Migrate ArchitecturePlannerStore
+
+Currently builds its own path: `~/.ai-dev-tools/{repoName}/architecture-planner/store.sqlite`.
+
+- Change `init` to accept a `directoryURL: URL` instead of `repoName: String`.
+- The app layer resolves the path via `DataPathsService.path(for: .architecturePlanner)` combined with the repo name, and passes the URL.
+
+## - [ ] Phase 6: Update use case initializers
+
+Use cases that need data paths should receive them in their initializer, not per-method.
+
+- `CreatePlanningJobUseCase` — receives `ArchitecturePlannerStore` via `run()` already. The store creation moves to the app layer. No change needed to the use case itself.
+- `LoadPlansUseCase` — currently takes `proposedDirectory: URL` in `run()`. Move this to the initializer.
+- `CompletePlanUseCase`, `DeletePlanUseCase`, `ExecutePlanUseCase`, `GeneratePlanUseCase` — audit each; if they take a path per-method, move to initializer.
+- `LoadRepositoriesUseCase`, `AddRepositoryUseCase`, etc. — already take `store` in init. No change needed.
+
+## - [ ] Phase 7: Update Mac app initialization
+
+In `AIDevToolsKitMacEntryView.init()`:
+
+1. Create `DataPathsService(rootPath: settingsModel.dataPath)`
+2. Use it to resolve all paths before passing to stores and models:
+   - `RepositoryStore(filePath: dataPathsService.path(for: .repositories).appending("repositories.json"))`
+   - `EvalRepoSettingsStore(filePath: dataPathsService.path(for: .evalSettings).appending("eval-settings.json"))`
+   - `PlanRepoSettingsStore(filePath: dataPathsService.path(for: .planSettings).appending("plan-settings.json"))`
+3. Same for `AIDevToolsSettingsView.init()`
+4. Pass resolved paths to use cases via initializers where needed
+
+## - [ ] Phase 8: Update CLI initialization
+
+- `ReposCommand` — create `DataPathsService(rootPath:)` from the `--data-path` option (or default)
+- Replace `RepositoryStore.fromCLI()`, `EvalRepoSettingsStore.fromCLI()`, `PlanRepoSettingsStore.fromCLI()` with construction via `DataPathsService`
+- Remove the `+CLI` extension files once their logic is consolidated
+- Update architecture planner CLI commands to create `ArchitecturePlannerStore` with a `DataPathsService`-resolved path
+
+## - [ ] Phase 9: Move existing data to new structure
+
+Since we are not maintaining backwards compatibility, write a one-time migration that runs on first launch:
+
+1. Detect if old-style data exists (e.g., `repositories.json` at root, `~/.ai-dev-tools/` for architecture planner)
+2. Copy files to the new directory structure under `DataPathsService`-managed paths
+3. Log what was migrated
+4. Optionally: leave old files in place but don't read from them (user can delete manually)
+
+This can be a `MigrateDataPathsUseCase` that runs once at app startup.
+
+## - [ ] Phase 10: Validation
+
+- Build the full project: `./build.sh all` (or equivalent for this repo's monorepo Package.swift)
+- Verify Mac app launches and loads existing repositories
+- Verify CLI commands work: `repos list`, `repos add`, `arch-planner create`, `eval run`
+- Verify data is read from new paths after migration
+- Verify `ArchitecturePlannerStore` loads existing jobs from migrated location
+- Write unit tests for `DataPathsService`:
+  - All `ServicePath` cases resolve to expected subdirectories
+  - Directories are auto-created
+  - Test initializer works with temp directory

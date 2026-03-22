@@ -19,6 +19,7 @@ let package = Package(
         .library(name: "ClaudePythonSDK", targets: ["ClaudePythonSDK"]),
         .library(name: "CodexCLISDK", targets: ["CodexCLISDK"]),
         .library(name: "ConcurrencySDK", targets: ["ConcurrencySDK"]),
+        .library(name: "DataPathsService", targets: ["DataPathsService"]),
         .library(name: "EnvironmentSDK", targets: ["EnvironmentSDK"]),
         .library(name: "EvalFeature", targets: ["EvalFeature"]),
         .library(name: "EvalSDK", targets: ["EvalSDK"]),
@@ -161,6 +162,11 @@ let package = Package(
                 "ClaudeCLISDK",
             ],
             path: "Sources/Services/ClaudeCodeChatService"
+        ),
+        .target(
+            name: "DataPathsService",
+            dependencies: [],
+            path: "Sources/Services/DataPathsService"
         ),
         .target(
             name: "EvalService",
