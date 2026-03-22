@@ -103,9 +103,16 @@ Update the Mac app and CLI to use the skills framework everywhere slash commands
 - **ClaudeCodeChatFeatureTests** — migrated to `ScanSkillsUseCase`/`SkillInfo` types; all tests updated
 - No consumer module imports `SlashCommandSDK` after this phase; the SDK itself remains for Phase 4 removal
 
-## - [ ] Phase 4: Remove SlashCommandSDK
+## - [x] Phase 4: Remove SlashCommandSDK
 
 Delete the `SlashCommandSDK` target from `Package.swift` and remove its source files.
+
+### Changes
+
+- Removed `SlashCommandSDK` product, target, and `SlashCommandSDKTests` test target from `Package.swift`
+- Deleted `Sources/SDKs/SlashCommandSDK/` (2 files: `SlashCommand.swift`, `SlashCommandScanner.swift`)
+- Deleted `Tests/SDKs/SlashCommandSDKTests/` (1 file: `SlashCommandScannerTests.swift`)
+- Verified no remaining imports or references to `SlashCommandSDK` in the codebase
 
 ## - [ ] Phase 5: Validation
 

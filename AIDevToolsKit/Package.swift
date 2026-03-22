@@ -26,7 +26,6 @@ let package = Package(
         .library(name: "PlanRunnerFeature", targets: ["PlanRunnerFeature"]),
         .library(name: "PlanRunnerService", targets: ["PlanRunnerService"]),
         .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
-        .library(name: "SlashCommandSDK", targets: ["SlashCommandSDK"]),
         .library(name: "SkillBrowserFeature", targets: ["SkillBrowserFeature"]),
         .library(name: "SkillScannerSDK", targets: ["SkillScannerSDK"]),
         .library(name: "SkillService", targets: ["SkillService"]),
@@ -231,11 +230,6 @@ let package = Package(
             dependencies: [],
             path: "Sources/SDKs/SkillScannerSDK"
         ),
-        .target(
-            name: "SlashCommandSDK",
-            dependencies: [],
-            path: "Sources/SDKs/SlashCommandSDK"
-        ),
 
         // Test Targets (alphabetical)
         .testTarget(
@@ -315,11 +309,6 @@ let package = Package(
             name: "SkillScannerSDKTests",
             dependencies: ["SkillScannerSDK"],
             path: "Tests/SDKs/SkillScannerSDKTests"
-        ),
-        .testTarget(
-            name: "SlashCommandSDKTests",
-            dependencies: ["SlashCommandSDK"],
-            path: "Tests/SDKs/SlashCommandSDKTests"
         ),
     ],
     swiftLanguageModes: [.v5]
