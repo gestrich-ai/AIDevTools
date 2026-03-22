@@ -50,7 +50,7 @@ struct PlanRunnerExecuteCommand: AsyncParsableCommand {
 
         let planPath = planURL.path(percentEncoded: false)
         let repository = repos.first { planPath.hasPrefix($0.path.path(percentEncoded: false)) }
-        let completedDirectory = repository.map { planSettings.resolvedCompletedDirectory(forRepo: $0) }
+        let completedDirectory = try repository.map { try planSettings.resolvedCompletedDirectory(forRepo: $0) }
 
         let result = try await ExecutePlanUseCase().run(
             ExecutePlanUseCase.Options(

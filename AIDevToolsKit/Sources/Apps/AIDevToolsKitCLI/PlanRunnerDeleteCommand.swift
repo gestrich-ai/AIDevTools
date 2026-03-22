@@ -22,7 +22,7 @@ struct PlanRunnerDeleteCommand: ParsableCommand {
         if let plan {
             planURL = URL(fileURLWithPath: (plan as NSString).standardizingPath)
         } else {
-            guard let selected = selectPlan() else {
+            guard let selected = try selectPlan() else {
                 throw ExitCode.failure
             }
             planURL = selected
@@ -33,14 +33,14 @@ struct PlanRunnerDeleteCommand: ParsableCommand {
         printColored("Deleted.", color: .green)
     }
 
-    private func selectPlan() -> URL? {
+    private func selectPlan() throws -> URL? {
         let store = ReposCommand.makeStore(dataPath: dataPath)
         let planSettings = PlanRepoSettingsStore.fromCLI(dataPath: dataPath)
         let repos = (try? store.loadAll()) ?? []
 
         var allPlans: [(url: URL, repoName: String)] = []
         for repo in repos {
-            let proposedDir = planSettings.resolvedProposedDirectory(forRepo: repo)
+            let proposedDir = try planSettings.resolvedProposedDirectory(forRepo: repo)
             guard let files = try? FileManager.default.contentsOfDirectory(
                 at: proposedDir,
                 includingPropertiesForKeys: nil,

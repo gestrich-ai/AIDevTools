@@ -75,10 +75,14 @@ final class PlanRunnerModel {
         currentRepository = repo
         plans = []
         isLoadingPlans = true
-        let proposedDir = resolvedProposedDirectory(for: repo)
-        let loaded = await loadPlansUseCase.run(proposedDirectory: proposedDir)
-        guard self.currentRepository?.id == repo.id else { return }
-        self.plans = loaded
+        do {
+            let proposedDir = try resolvedProposedDirectory(for: repo)
+            let loaded = await loadPlansUseCase.run(proposedDirectory: proposedDir)
+            guard self.currentRepository?.id == repo.id else { return }
+            self.plans = loaded
+        } catch {
+            state = .error(error)
+        }
         self.isLoadingPlans = false
     }
 
@@ -101,7 +105,7 @@ final class PlanRunnerModel {
 
     /// Moves a plan from proposed to completed directory and refreshes the plan list.
     func completePlan(_ plan: PlanEntry, repository: RepositoryInfo) throws {
-        let settings = (try? planSettingsStore.settings(forRepoId: repository.id)) ?? PlanRepoSettings(repoId: repository.id)
+        let settings = try planSettingsStore.settings(forRepoId: repository.id) ?? PlanRepoSettings(repoId: repository.id)
         let completedDir = settings.resolvedCompletedDirectory(repoPath: repository.path)
         try completePlanUseCase.run(planURL: plan.planURL, completedDirectory: completedDir)
         Task { await reloadPlans() }
@@ -110,16 +114,15 @@ final class PlanRunnerModel {
     func execute(plan: PlanEntry, repository: RepositoryInfo) async {
         state = .executing(progress: ExecutionProgress())
 
-        let settings = (try? planSettingsStore.settings(forRepoId: repository.id)) ?? PlanRepoSettings(repoId: repository.id)
-        let options = ExecutePlanUseCase.Options(
-            planPath: plan.planURL,
-            repoPath: repository.path,
-            repository: repository,
-            completedDirectory: settings.resolvedCompletedDirectory(repoPath: repository.path),
-            dataPath: dataPath
-        )
-
         do {
+            let settings = try planSettingsStore.settings(forRepoId: repository.id) ?? PlanRepoSettings(repoId: repository.id)
+            let options = ExecutePlanUseCase.Options(
+                planPath: plan.planURL,
+                repoPath: repository.path,
+                repository: repository,
+                completedDirectory: settings.resolvedCompletedDirectory(repoPath: repository.path),
+                dataPath: dataPath
+            )
             let result = try await executePlan.run(options) { [weak self] progress in
                 guard let self else { return }
                 Task { @MainActor in
@@ -142,7 +145,7 @@ final class PlanRunnerModel {
             voiceText: voiceText,
             repositories: repositories,
             resolveProposedDirectory: { repo in
-                let settings = (try? settingsStore.settings(forRepoId: repo.id)) ?? PlanRepoSettings(repoId: repo.id)
+                let settings = try settingsStore.settings(forRepoId: repo.id) ?? PlanRepoSettings(repoId: repo.id)
                 return settings.resolvedProposedDirectory(repoPath: repo.path)
             }
         )
@@ -233,8 +236,8 @@ final class PlanRunnerModel {
         return phases
     }
 
-    private func resolvedProposedDirectory(for repo: RepositoryInfo) -> URL {
-        let settings = (try? planSettingsStore.settings(forRepoId: repo.id)) ?? PlanRepoSettings(repoId: repo.id)
+    private func resolvedProposedDirectory(for repo: RepositoryInfo) throws -> URL {
+        let settings = try planSettingsStore.settings(forRepoId: repo.id) ?? PlanRepoSettings(repoId: repo.id)
         return settings.resolvedProposedDirectory(repoPath: repo.path)
     }
 }

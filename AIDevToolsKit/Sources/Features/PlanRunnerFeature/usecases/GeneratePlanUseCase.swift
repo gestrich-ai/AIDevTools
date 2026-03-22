@@ -7,12 +7,12 @@ public struct GeneratePlanUseCase: Sendable {
     public struct Options: Sendable {
         public let voiceText: String
         public let repositories: [RepositoryInfo]
-        public let resolveProposedDirectory: @Sendable (RepositoryInfo) -> URL
+        public let resolveProposedDirectory: @Sendable (RepositoryInfo) throws -> URL
 
         public init(
             voiceText: String,
             repositories: [RepositoryInfo],
-            resolveProposedDirectory: @escaping @Sendable (RepositoryInfo) -> URL
+            resolveProposedDirectory: @escaping @Sendable (RepositoryInfo) throws -> URL
         ) {
             self.voiceText = voiceText
             self.repositories = repositories
@@ -87,7 +87,7 @@ public struct GeneratePlanUseCase: Sendable {
         onProgress?(.generatedPlan(filename: plan.filename))
 
         onProgress?(.writingPlan)
-        let proposedDir = options.resolveProposedDirectory(repo)
+        let proposedDir = try options.resolveProposedDirectory(repo)
         let planURL = try writePlan(plan, to: proposedDir)
         onProgress?(.completed(planURL: planURL, repository: repo))
 

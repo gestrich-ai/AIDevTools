@@ -29,7 +29,7 @@ struct PlanRunnerPlanCommand: AsyncParsableCommand {
                 voiceText: text,
                 repositories: repos,
                 resolveProposedDirectory: { repo in
-                    planSettings.resolvedProposedDirectory(forRepo: repo)
+                    try planSettings.resolvedProposedDirectory(forRepo: repo)
                 }
             )
         ) { progress in
