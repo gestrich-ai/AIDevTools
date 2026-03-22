@@ -681,7 +681,7 @@ The data model is expressive enough for its intended purpose. The five gaps iden
 
 ## Implementation Phases
 
-## - [ ] Phase 4: ArchitectureDiagram Codable Model
+## - [x] Phase 4: ArchitectureDiagram Codable Model
 
 **Skills to read**: `swift-testing`
 
@@ -703,7 +703,7 @@ Create the `ArchitectureDiagram` Codable model in `PlanRunnerService` (Services 
   - Verify `action` enum decodes all three cases
 - Ensure `swift build` passes
 
-## - [ ] Phase 5: Create ARCHITECTURE.md for This Repository
+## - [x] Phase 5: Create ARCHITECTURE.md for This Repository
 
 Create the first real `ARCHITECTURE.md` for the AIDevTools project, following the convention defined in Phase 1. This serves as both a reference example and enables architecture visualization for this repo's own plans.
 
