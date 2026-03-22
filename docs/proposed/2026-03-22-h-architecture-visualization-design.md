@@ -724,7 +724,7 @@ Modify `GeneratePlanUseCase` so that the Phase 3 template instructs the LLM to a
 - The instruction is embedded in the plan markdown — `ExecutePlanUseCase` does NOT need changes. When Claude executes Phase 3, it reads the plan text and follows the embedded instructions.
 - If no ARCHITECTURE.md is listed in `architectureDocs`, the Phase 3 text should skip the architecture JSON instruction (conditional inclusion in the template)
 
-## - [ ] Phase 7: SwiftUI Architecture Diagram Views
+## - [x] Phase 7: SwiftUI Architecture Diagram Views
 
 **Skills to read**: `swift-testing`
 
