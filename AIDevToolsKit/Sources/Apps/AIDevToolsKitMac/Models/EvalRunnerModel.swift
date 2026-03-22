@@ -59,17 +59,15 @@ final class EvalRunnerModel {
         self.listSuites = listSuites
     }
 
-    func configure(with config: RepositoryEvalConfig?) {
+    func load(config: RepositoryEvalConfig?, skillName: String? = nil) {
         evalConfig = config
         suites = []
         selectedSuite = nil
         displayedCases = []
         lastResults = []
         state = .idle
-    }
 
-    func loadSuites(skillName: String?) {
-        guard let casesDirectory = evalConfig?.casesDirectory else { return }
+        guard let casesDirectory = config?.casesDirectory else { return }
         let options = ListEvalSuitesUseCase.Options(
             casesDirectory: casesDirectory,
             skillName: skillName

@@ -59,7 +59,7 @@ struct SkillDetailView: View {
                             }
                             .padding([.horizontal, .top])
                         }
-                        EvalResultsView(skillName: skill.name)
+                        EvalResultsView()
                     }
                 }
             }
@@ -68,7 +68,7 @@ struct SkillDetailView: View {
         .task(id: skill.path) {
             selectedTab = .skill
             selectedFileTab = resolveSkillFileURL(skill.path)
-            evalRunnerModel.configure(with: evalConfig)
+            evalRunnerModel.load(config: evalConfig, skillName: skill.name)
         }
         .onChange(of: selectedFileTab) { _, newValue in
             guard let url = newValue else { return }

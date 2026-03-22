@@ -99,7 +99,7 @@ struct WorkspaceView: View {
                         storedPlanName = nil
                         storedSkillName = nil
                         if let repo = model.selectedRepository {
-                            evalRunnerModel.configure(with: model.evalConfig(for: repo))
+                            evalRunnerModel.load(config: model.evalConfig(for: repo))
                         }
                     case .plan(let name):
                         storedEvalsView = false
@@ -157,7 +157,7 @@ struct WorkspaceView: View {
                 async let _ = planRunnerModel.loadPlans(for: repo)
                 if storedEvalsView {
                     selectedItem = .evals
-                    evalRunnerModel.configure(with: model.evalConfig(for: repo))
+                    evalRunnerModel.load(config: model.evalConfig(for: repo))
                 } else if let planName = storedPlanName {
                     selectedItem = .plan(planName)
                 } else if let skillName = storedSkillName {
@@ -241,7 +241,7 @@ struct WorkspaceView: View {
         switch selectedItem {
         case .evals:
             if model.selectedRepository != nil {
-                EvalResultsView(skillName: nil)
+                EvalResultsView()
             }
         case .plan(let name):
             if let plan = planRunnerModel.plans.first(where: { $0.name == name }),

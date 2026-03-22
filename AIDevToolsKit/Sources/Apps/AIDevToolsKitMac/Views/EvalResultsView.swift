@@ -26,7 +26,6 @@ enum ProviderSelection: String, CaseIterable {
 
 struct EvalResultsView: View {
     @Environment(EvalRunnerModel.self) var evalRunnerModel
-    let skillName: String?
 
     @State private var showDirtyRepoAlert = false
     @State private var pendingRunAction: (() -> Void)?
@@ -97,12 +96,6 @@ struct EvalResultsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            evalRunnerModel.loadSuites(skillName: skillName)
-        }
-        .onChange(of: skillName) {
-            evalRunnerModel.loadSuites(skillName: skillName)
-        }
     }
 
     private var isRunning: Bool {
