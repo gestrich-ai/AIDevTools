@@ -300,6 +300,11 @@ let package = Package(
             path: "Tests/SDKs/ClaudePythonSDKTests"
         ),
         .testTarget(
+            name: "DataPathsServiceTests",
+            dependencies: ["DataPathsService"],
+            path: "Tests/Services/DataPathsServiceTests"
+        ),
+        .testTarget(
             name: "EnvironmentSDKTests",
             dependencies: ["EnvironmentSDK"],
             path: "Tests/SDKs/EnvironmentSDKTests"
