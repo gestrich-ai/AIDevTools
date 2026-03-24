@@ -1,6 +1,7 @@
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import ArgumentParser
+import DataPathsService
 import Foundation
 
 struct ArchPlannerExecuteCommand: AsyncParsableCommand {
@@ -29,7 +30,7 @@ struct ArchPlannerExecuteCommand: AsyncParsableCommand {
             return
         }
 
-        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
+        let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
         let useCase = ExecuteImplementationUseCase()
         let options = ExecuteImplementationUseCase.Options(
             jobId: uuid,

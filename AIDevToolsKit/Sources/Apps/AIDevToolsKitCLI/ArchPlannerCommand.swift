@@ -1,6 +1,4 @@
 import ArgumentParser
-import ArchitecturePlannerService
-import DataPathsService
 import Foundation
 
 struct ArchPlannerCommand: AsyncParsableCommand {
@@ -21,10 +19,4 @@ struct ArchPlannerCommand: AsyncParsableCommand {
 
     @Option(help: "Data directory path (overrides app settings)")
     var dataPath: String?
-
-    static func makeStore(dataPath: String?, repoName: String) throws -> ArchitecturePlannerStore {
-        let service = try DataPathsService.fromCLI(dataPath: dataPath)
-        let archDir = try service.path(for: "architecture-planner", subdirectory: repoName)
-        return try ArchitecturePlannerStore(directoryURL: archDir)
-    }
 }

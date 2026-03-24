@@ -1,6 +1,7 @@
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import ArgumentParser
+import DataPathsService
 import Foundation
 
 struct ArchPlannerInspectCommand: AsyncParsableCommand {
@@ -18,7 +19,7 @@ struct ArchPlannerInspectCommand: AsyncParsableCommand {
     var jobId: String?
 
     mutating func run() async throws {
-        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
+        let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
         let useCase = ManageGuidelinesUseCase()
 
         if let jobIdStr = jobId, let uuid = UUID(uuidString: jobIdStr) {
