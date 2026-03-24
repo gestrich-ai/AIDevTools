@@ -14,7 +14,7 @@ import SwiftData
 import SwiftUI
 
 public struct AIDevToolsKitMacEntryView: View {
-    @State private var architecturePlannerModel = ArchitecturePlannerModel()
+    @State private var architecturePlannerModel: ArchitecturePlannerModel
     @State private var settingsModel: SettingsModel
     @State private var workspaceModel: WorkspaceModel
     @State private var planRunnerModel: PlanRunnerModel
@@ -47,6 +47,9 @@ public struct AIDevToolsKitMacEntryView: View {
         _planRunnerModel = State(initialValue: PlanRunnerModel(
             dataPath: settingsModel.dataPath,
             planSettingsStore: planSettingsStore
+        ))
+        _architecturePlannerModel = State(initialValue: ArchitecturePlannerModel(
+            dataPathsService: dataPathsService
         ))
     }
 
