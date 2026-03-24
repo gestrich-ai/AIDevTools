@@ -13,7 +13,7 @@ struct ReposCommand: ParsableCommand {
         subcommands: [AddRepo.self, ListRepos.self, RemoveRepo.self, UpdateRepo.self]
     )
 
-    @Option(help: "Data directory path (default: ~/Desktop/ai-dev-tools)")
+    @Option(help: "Data directory path (overrides app settings)")
     var dataPath: String?
 
     static func makeDataPathsService(dataPath: String?) throws -> DataPathsService {
@@ -39,10 +39,10 @@ struct ListRepos: ParsableCommand {
         abstract: "List configured repositories"
     )
 
-    @OptionGroup var parent: ReposCommand
+    @OptionGroup var dataPathOptions: ReposCommand
 
     func run() throws {
-        let service = try ReposCommand.makeDataPathsService(dataPath: parent.dataPath)
+        let service = try ReposCommand.makeDataPathsService(dataPath: dataPathOptions.dataPath)
         let store = try ReposCommand.makeStore(service)
         let evalSettingsStore = try ReposCommand.makeEvalSettingsStore(service)
         let planSettingsStore = try ReposCommand.makePlanSettingsStore(service)
@@ -68,7 +68,7 @@ struct AddRepo: ParsableCommand {
         abstract: "Add a repository"
     )
 
-    @OptionGroup var parent: ReposCommand
+    @OptionGroup var dataPathOptions: ReposCommand
 
     @Argument(help: "Path to the repository")
     var path: String
@@ -87,7 +87,7 @@ struct AddRepo: ParsableCommand {
 
     func run() throws {
         let url = URL(filePath: path, relativeTo: URL(filePath: FileManager.default.currentDirectoryPath))
-        let service = try ReposCommand.makeDataPathsService(dataPath: parent.dataPath)
+        let service = try ReposCommand.makeDataPathsService(dataPath: dataPathOptions.dataPath)
         let store = try ReposCommand.makeStore(service)
         let repo = try AddRepositoryUseCase(store: store).run(path: url, name: name)
         if let casesDir {
@@ -108,7 +108,7 @@ struct RemoveRepo: ParsableCommand {
         abstract: "Remove a repository by ID"
     )
 
-    @OptionGroup var parent: ReposCommand
+    @OptionGroup var dataPathOptions: ReposCommand
 
     @Argument(help: "UUID of the repository to remove")
     var id: String
@@ -117,7 +117,7 @@ struct RemoveRepo: ParsableCommand {
         guard let uuid = UUID(uuidString: id) else {
             throw ValidationError("Invalid UUID: \(id)")
         }
-        let service = try ReposCommand.makeDataPathsService(dataPath: parent.dataPath)
+        let service = try ReposCommand.makeDataPathsService(dataPath: dataPathOptions.dataPath)
         let store = try ReposCommand.makeStore(service)
         let evalSettingsStore = try ReposCommand.makeEvalSettingsStore(service)
         let planSettingsStore = try ReposCommand.makePlanSettingsStore(service)
@@ -134,7 +134,7 @@ struct UpdateRepo: ParsableCommand {
         abstract: "Update a repository configuration"
     )
 
-    @OptionGroup var parent: ReposCommand
+    @OptionGroup var dataPathOptions: ReposCommand
 
     @Argument(help: "UUID of the repository to update")
     var id: String
@@ -191,7 +191,7 @@ struct UpdateRepo: ParsableCommand {
         guard let uuid = UUID(uuidString: id) else {
             throw ValidationError("Invalid UUID: \(id)")
         }
-        let service = try ReposCommand.makeDataPathsService(dataPath: parent.dataPath)
+        let service = try ReposCommand.makeDataPathsService(dataPath: dataPathOptions.dataPath)
         let store = try ReposCommand.makeStore(service)
         let repos = try LoadRepositoriesUseCase(store: store).run()
         guard var repo = repos.first(where: { $0.id == uuid }) else {

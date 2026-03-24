@@ -9,7 +9,7 @@ struct ArchPlannerExecuteCommand: AsyncParsableCommand {
         abstract: "Execute the implementation plan"
     )
 
-    @OptionGroup var parent: ArchPlannerCommand
+    @OptionGroup var dataPathOptions: ArchPlannerCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
@@ -29,7 +29,7 @@ struct ArchPlannerExecuteCommand: AsyncParsableCommand {
             return
         }
 
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
         let useCase = ExecuteImplementationUseCase()
         let options = ExecuteImplementationUseCase.Options(
             jobId: uuid,

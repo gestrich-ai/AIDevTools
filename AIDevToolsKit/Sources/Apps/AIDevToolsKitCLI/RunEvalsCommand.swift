@@ -20,7 +20,7 @@ struct RunEvalsCommand: AsyncParsableCommand {
     @Option(help: "Repository path to resolve directories from stored config")
     var repo: String?
 
-    @Option(help: "Data directory path (default: ~/Desktop/ai-dev-tools)")
+    @Option(help: "Data directory path (overrides app settings)")
     var dataPath: String?
 
     @Option var caseId: String?
@@ -55,7 +55,7 @@ struct RunEvalsCommand: AsyncParsableCommand {
             if let outputDir {
                 resolvedOutputDir = URL(fileURLWithPath: outputDir)
             } else {
-                resolvedOutputDir = DataPathsService.cliDefaultRootPath
+                resolvedOutputDir = service.rootPath
             }
         } else if let repo {
             let repoURL = URL(fileURLWithPath: repo, relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))

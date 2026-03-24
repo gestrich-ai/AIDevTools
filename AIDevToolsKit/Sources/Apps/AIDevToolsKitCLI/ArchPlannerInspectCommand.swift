@@ -9,7 +9,7 @@ struct ArchPlannerInspectCommand: AsyncParsableCommand {
         abstract: "Inspect a planning job's current state"
     )
 
-    @OptionGroup var parent: ArchPlannerCommand
+    @OptionGroup var dataPathOptions: ArchPlannerCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
@@ -18,7 +18,7 @@ struct ArchPlannerInspectCommand: AsyncParsableCommand {
     var jobId: String?
 
     mutating func run() async throws {
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
         let useCase = ManageGuidelinesUseCase()
 
         if let jobIdStr = jobId, let uuid = UUID(uuidString: jobIdStr) {

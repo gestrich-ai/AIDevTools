@@ -9,7 +9,7 @@ struct ArchPlannerScoreCommand: AsyncParsableCommand {
         abstract: "Score implementation components against guidelines"
     )
 
-    @OptionGroup var parent: ArchPlannerCommand
+    @OptionGroup var dataPathOptions: ArchPlannerCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
@@ -26,7 +26,7 @@ struct ArchPlannerScoreCommand: AsyncParsableCommand {
             return
         }
 
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
         let useCase = ScoreConformanceUseCase()
         let options = ScoreConformanceUseCase.Options(jobId: uuid, repoPath: repoPath)
 

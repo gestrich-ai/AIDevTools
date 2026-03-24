@@ -17,7 +17,7 @@ struct PlanRunnerPlanCommand: AsyncParsableCommand {
     @Flag(help: "Execute the plan immediately after generating it")
     var execute = false
 
-    @Option(help: "Data directory path (default: ~/Desktop/ai-dev-tools)")
+    @Option(help: "Data directory path (overrides app settings)")
     var dataPath: String?
 
     func run() async throws {

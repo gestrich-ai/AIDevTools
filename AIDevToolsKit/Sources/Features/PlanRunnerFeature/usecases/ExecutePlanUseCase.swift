@@ -81,14 +81,14 @@ public struct ExecutePlanUseCase: Sendable {
 
     private let claudeClient: ClaudeCLIClient
     private let completedDirectory: URL?
-    private let dataPath: URL?
+    private let dataPath: URL
     private let gitClient: GitClient
     private let logger = Logger(label: "PlanRunner")
 
     public init(
         claudeClient: ClaudeCLIClient = ClaudeCLIClient(),
         completedDirectory: URL? = nil,
-        dataPath: URL? = nil,
+        dataPath: URL,
         gitClient: GitClient = GitClient()
     ) {
         self.claudeClient = claudeClient
@@ -106,9 +106,8 @@ public struct ExecutePlanUseCase: Sendable {
         }
 
         let repository = options.repository
-        let resolvedDataPath = dataPath ?? URL.homeDirectory.appending(path: "Desktop/ai-dev-tools")
         let logDir: URL? = if let repoName = repository?.name {
-            Self.logDirectory(dataPath: resolvedDataPath, repoName: repoName, planURL: options.planPath)
+            Self.logDirectory(dataPath: dataPath, repoName: repoName, planURL: options.planPath)
         } else {
             nil
         }

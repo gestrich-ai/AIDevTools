@@ -10,7 +10,7 @@ struct ArchPlannerGuidelinesCommand: AsyncParsableCommand {
         subcommands: [GuidelinesAddCommand.self, GuidelinesDeleteCommand.self, GuidelinesListCommand.self, GuidelinesSeedCommand.self]
     )
 
-    @OptionGroup var parent: ArchPlannerCommand
+    @OptionGroup var dataPathOptions: ArchPlannerCommand
 }
 
 struct GuidelinesListCommand: AsyncParsableCommand {
@@ -19,13 +19,13 @@ struct GuidelinesListCommand: AsyncParsableCommand {
         abstract: "List guidelines for a repository"
     )
 
-    @OptionGroup var parent: ArchPlannerGuidelinesCommand
+    @OptionGroup var dataPathOptions: ArchPlannerGuidelinesCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
 
     mutating func run() async throws {
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPathOptions.dataPath, repoName: repoName)
         let useCase = ManageGuidelinesUseCase()
         let guidelines = try await MainActor.run { try useCase.listGuidelines(repoName: repoName, store: store) }
 
@@ -46,7 +46,7 @@ struct GuidelinesAddCommand: AsyncParsableCommand {
         abstract: "Add a guideline"
     )
 
-    @OptionGroup var parent: ArchPlannerGuidelinesCommand
+    @OptionGroup var dataPathOptions: ArchPlannerGuidelinesCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
@@ -67,7 +67,7 @@ struct GuidelinesAddCommand: AsyncParsableCommand {
     var fileGlobs: String = ""
 
     mutating func run() async throws {
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPathOptions.dataPath, repoName: repoName)
         let useCase = ManageGuidelinesUseCase()
 
         let catNames = categories.isEmpty ? [] : categories.split(separator: ",").map { String($0.trimmingCharacters(in: .whitespaces)) }
@@ -96,7 +96,7 @@ struct GuidelinesDeleteCommand: AsyncParsableCommand {
         abstract: "Delete a guideline"
     )
 
-    @OptionGroup var parent: ArchPlannerGuidelinesCommand
+    @OptionGroup var dataPathOptions: ArchPlannerGuidelinesCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
@@ -110,7 +110,7 @@ struct GuidelinesDeleteCommand: AsyncParsableCommand {
             return
         }
 
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPathOptions.dataPath, repoName: repoName)
         let useCase = ManageGuidelinesUseCase()
         try await MainActor.run { try useCase.deleteGuideline(guidelineId: uuid, store: store) }
         print("Deleted guideline: \(guidelineId)")
@@ -123,7 +123,7 @@ struct GuidelinesSeedCommand: AsyncParsableCommand {
         abstract: "Seed guidelines from bundled skills and ARCHITECTURE.md"
     )
 
-    @OptionGroup var parent: ArchPlannerGuidelinesCommand
+    @OptionGroup var dataPathOptions: ArchPlannerGuidelinesCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
@@ -132,7 +132,7 @@ struct GuidelinesSeedCommand: AsyncParsableCommand {
     var repoPath: String
 
     mutating func run() async throws {
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPathOptions.dataPath, repoName: repoName)
         let useCase = SeedGuidelinesUseCase()
         let result = try await MainActor.run {
             try useCase.run(

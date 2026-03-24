@@ -16,7 +16,7 @@ struct ClearArtifactsCommand: ParsableCommand {
     @Option(help: "Repository path to resolve output directory from stored config")
     var repo: String?
 
-    @Option(help: "Data directory path (default: ~/Desktop/ai-dev-tools)")
+    @Option(help: "Data directory path (overrides app settings)")
     var dataPath: String?
 
     func validate() throws {

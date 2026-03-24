@@ -19,7 +19,7 @@ struct ArchPlannerCommand: AsyncParsableCommand {
         ]
     )
 
-    @Option(help: "Data directory path (default: ~/Desktop/ai-dev-tools)")
+    @Option(help: "Data directory path (overrides app settings)")
     var dataPath: String?
 
     static func makeStore(dataPath: String?, repoName: String) throws -> ArchitecturePlannerStore {

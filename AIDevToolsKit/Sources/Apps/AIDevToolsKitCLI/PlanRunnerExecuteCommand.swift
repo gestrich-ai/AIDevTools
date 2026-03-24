@@ -17,7 +17,7 @@ struct PlanRunnerExecuteCommand: AsyncParsableCommand {
     @Option(help: "Maximum runtime in minutes")
     var maxMinutes: Int = 90
 
-    @Option(help: "Data directory path (default: ~/Desktop/ai-dev-tools)")
+    @Option(help: "Data directory path (overrides app settings)")
     var dataPath: String?
 
     func run() async throws {
@@ -54,9 +54,10 @@ struct PlanRunnerExecuteCommand: AsyncParsableCommand {
         let repository = repos.first { planPath.hasPrefix($0.path.path(percentEncoded: false)) }
         let completedDirectory = try repository.map { try planSettings.resolvedCompletedDirectory(forRepo: $0) }
 
+        let resolvedDataPath = ResolveDataPathUseCase().resolve(explicit: dataPath).path
         let useCase = ExecutePlanUseCase(
             completedDirectory: completedDirectory,
-            dataPath: dataPath.map { URL(filePath: $0) }
+            dataPath: resolvedDataPath
         )
         let result = try await useCase.run(
             ExecutePlanUseCase.Options(

@@ -10,7 +10,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
         abstract: "Run the next step or a specific step in a planning job"
     )
 
-    @OptionGroup var parent: ArchPlannerCommand
+    @OptionGroup var dataPathOptions: ArchPlannerCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
@@ -30,7 +30,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
             return
         }
 
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
         let stepName = step ?? "next"
 
         if stepName == "all" {

@@ -9,7 +9,7 @@ struct ArchPlannerDeleteCommand: AsyncParsableCommand {
         abstract: "Delete a planning job"
     )
 
-    @OptionGroup var parent: ArchPlannerCommand
+    @OptionGroup var dataPathOptions: ArchPlannerCommand
 
     @Option(name: .long, help: "Repository name")
     var repoName: String
@@ -23,7 +23,7 @@ struct ArchPlannerDeleteCommand: AsyncParsableCommand {
             throw ExitCode.failure
         }
 
-        let store = try ArchPlannerCommand.makeStore(dataPath: parent.dataPath, repoName: repoName)
+        let store = try ArchPlannerCommand.makeStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
         let useCase = ManageGuidelinesUseCase()
 
         guard try await MainActor.run(body: { try useCase.getJob(jobId: uuid, store: store) }) != nil else {
