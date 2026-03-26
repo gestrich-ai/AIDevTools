@@ -304,7 +304,10 @@ outputService.writeArtifacts(...)
 - Pass `result.stderr` to `writeArtifacts()` from `AIClientResult`
 - Run eval CLI commands to verify artifacts written correctly
 
-## - [ ] Phase 5: Migrate Architecture Planner and Plan Runner
+## - [x] Phase 5: Migrate Architecture Planner and Plan Runner
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Replaced concrete ClaudeCLIClient with AIClient protocol in all three use cases; isolated default ClaudeCLIClient creation into +Default.swift extension files per Phase 4 pattern; kept OutputAccumulator in ExecutePlanUseCase for error-resilient log writing since AIRunSession doesn't yet persist on failure
 
 **Skills to read**: `swift-architecture`
 

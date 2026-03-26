@@ -1,5 +1,5 @@
+import AIOutputSDK
 import ArchitecturePlannerService
-import ClaudeCLISDK
 import Foundation
 import SwiftData
 
@@ -56,10 +56,10 @@ public struct ExecuteImplementationUseCase: Sendable {
         let unclearFlags: [UnclearFlagDTO]
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
 
-    public init(claudeClient: ClaudeCLIClient = ClaudeCLIClient()) {
-        self.claudeClient = claudeClient
+    public init(client: any AIClient) {
+        self.client = client
     }
 
     @MainActor
@@ -139,17 +139,14 @@ public struct ExecuteImplementationUseCase: Sendable {
             {"type":"object","properties":{"decisions":{"type":"array","items":{"type":"object","properties":{"componentIndex":{"type":"integer"},"guidelineTitle":{"type":"string"},"decision":{"type":"string"},"rationale":{"type":"string"},"wasSkipped":{"type":"boolean"}},"required":["componentIndex","guidelineTitle","decision","rationale","wasSkipped"]}},"unclearFlags":{"type":"array","items":{"type":"object","properties":{"componentIndex":{"type":"integer"},"guidelineTitle":{"type":"string"},"ambiguityDescription":{"type":"string"},"choiceMade":{"type":"string"}},"required":["componentIndex","guidelineTitle","ambiguityDescription","choiceMade"]}}},"required":["decisions","unclearFlags"]}
             """
 
-            var command = Claude(prompt: prompt)
-            command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-            command.jsonSchema = schema
-            command.printMode = true
-            command.verbose = true
+            let aiOptions = AIClientOptions(workingDirectory: options.repoPath)
 
-            let output = try await claudeClient.runStructured(
+            let output = try await client.runStructured(
                 PhaseResponse.self,
-                command: command,
-                workingDirectory: options.repoPath,
-                onFormattedOutput: onOutput
+                prompt: prompt,
+                jsonSchema: schema,
+                options: aiOptions,
+                onOutput: onOutput
             )
 
             onProgress?(.phaseCompleted(index: phaseIdx))

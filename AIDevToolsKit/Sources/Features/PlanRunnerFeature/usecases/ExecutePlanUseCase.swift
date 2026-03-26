@@ -1,5 +1,5 @@
+import AIOutputSDK
 import Foundation
-import ClaudeCLISDK
 import GitSDK
 import Logging
 import PlanRunnerService
@@ -79,19 +79,19 @@ public struct ExecutePlanUseCase: Sendable {
         }
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
     private let completedDirectory: URL?
     private let dataPath: URL
     private let gitClient: GitClient
     private let logger = Logger(label: "PlanRunner")
 
     public init(
-        claudeClient: ClaudeCLIClient = ClaudeCLIClient(),
+        client: any AIClient,
         completedDirectory: URL? = nil,
         dataPath: URL,
         gitClient: GitClient = GitClient()
     ) {
-        self.claudeClient = claudeClient
+        self.client = client
         self.completedDirectory = completedDirectory
         self.dataPath = dataPath
         self.gitClient = gitClient
@@ -263,17 +263,17 @@ public struct ExecutePlanUseCase: Sendable {
         Determine status by checking if each phase has been marked as complete in the document.
         """
 
-        var command = Claude(prompt: prompt)
-        command.printMode = true
-        command.verbose = true
-        command.dangerouslySkipPermissions = true
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = Self.statusSchema
-
-        let output = try await claudeClient.runStructured(
-            PhaseStatusResponse.self,
-            command: command,
+        let options = AIClientOptions(
+            dangerouslySkipPermissions: true,
             workingDirectory: repoPath?.path
+        )
+
+        let output = try await client.runStructured(
+            PhaseStatusResponse.self,
+            prompt: prompt,
+            jsonSchema: Self.statusSchema,
+            options: options,
+            onOutput: nil
         )
         return output.value
     }
@@ -306,18 +306,17 @@ public struct ExecutePlanUseCase: Sendable {
         Return success: true if the phase was completed successfully, false otherwise.
         """
 
-        var command = Claude(prompt: prompt)
-        command.printMode = true
-        command.verbose = true
-        command.dangerouslySkipPermissions = true
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = Self.executionSchema
+        let options = AIClientOptions(
+            dangerouslySkipPermissions: true,
+            workingDirectory: repoPath?.path
+        )
 
-        let output = try await claudeClient.runStructured(
+        let output = try await client.runStructured(
             PhaseResult.self,
-            command: command,
-            workingDirectory: repoPath?.path,
-            onFormattedOutput: onOutput
+            prompt: prompt,
+            jsonSchema: Self.executionSchema,
+            options: options,
+            onOutput: onOutput
         )
         return output.value
     }

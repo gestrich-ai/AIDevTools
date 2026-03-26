@@ -94,6 +94,7 @@ let package = Package(
         .target(
             name: "ArchitecturePlannerFeature",
             dependencies: [
+                "AIOutputSDK",
                 "ArchitecturePlannerService",
                 "ClaudeCLISDK",
                 "RepositorySDK",
@@ -129,6 +130,7 @@ let package = Package(
         .target(
             name: "PlanRunnerFeature",
             dependencies: [
+                "AIOutputSDK",
                 "ClaudeCLISDK",
                 "GitSDK",
                 "LoggingSDK",

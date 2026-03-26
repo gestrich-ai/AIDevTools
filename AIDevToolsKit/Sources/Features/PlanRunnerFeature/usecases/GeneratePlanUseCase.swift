@@ -1,4 +1,4 @@
-import ClaudeCLISDK
+import AIOutputSDK
 import Foundation
 import RepositorySDK
 
@@ -57,14 +57,14 @@ public struct GeneratePlanUseCase: Sendable {
         }
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
     private let resolveProposedDirectory: @Sendable (RepositoryInfo) throws -> URL
 
     public init(
-        claudeClient: ClaudeCLIClient = ClaudeCLIClient(),
+        client: any AIClient,
         resolveProposedDirectory: @escaping @Sendable (RepositoryInfo) throws -> URL
     ) {
-        self.claudeClient = claudeClient
+        self.client = client
         self.resolveProposedDirectory = resolveProposedDirectory
     }
 
@@ -144,11 +144,13 @@ public struct GeneratePlanUseCase: Sendable {
         {"type":"object","properties":{"repoId":{"type":"string","description":"The id of the matched repository"},"interpretedRequest":{"type":"string","description":"The interpreted version of the request"}},"required":["repoId","interpretedRequest"]}
         """
 
-        var command = Claude(prompt: matchPrompt)
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = schema
-
-        let output = try await claudeClient.runStructured(RepoMatch.self, command: command)
+        let output = try await client.runStructured(
+            RepoMatch.self,
+            prompt: matchPrompt,
+            jsonSchema: schema,
+            options: AIClientOptions(),
+            onOutput: nil
+        )
         return output.value
     }
 
@@ -219,17 +221,17 @@ public struct GeneratePlanUseCase: Sendable {
         {"type":"object","properties":{"planContent":{"type":"string","description":"The full markdown plan document content"},"filename":{"type":"string","description":"Kebab-case filename without extension"}},"required":["planContent","filename"]}
         """
 
-        var command = Claude(prompt: prompt)
-        command.printMode = true
-        command.verbose = true
-        command.dangerouslySkipPermissions = true
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = schema
-
-        let output = try await claudeClient.runStructured(
-            GeneratedPlan.self,
-            command: command,
+        let options = AIClientOptions(
+            dangerouslySkipPermissions: true,
             workingDirectory: repo.path.path()
+        )
+
+        let output = try await client.runStructured(
+            GeneratedPlan.self,
+            prompt: prompt,
+            jsonSchema: schema,
+            options: options,
+            onOutput: nil
         )
         return output.value
     }
