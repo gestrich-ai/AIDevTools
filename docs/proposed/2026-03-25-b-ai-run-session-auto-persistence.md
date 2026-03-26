@@ -136,7 +136,7 @@ After this phase, the raw stdout persistence moves into `AIRunSession.run()`. `O
 - Update `ProviderResult.rawStdoutPath` — set it from `session.store.url(for: key)` instead of from `OutputService`
 - Run eval CLI commands to verify no regression in artifact output
 
-## - [ ] Phase 3: Migrate Architecture Planner to use `AIRunSession`
+## - [x] Phase 3: Migrate Architecture Planner to use `AIRunSession`
 
 **Skills to read**: `swift-architecture`
 

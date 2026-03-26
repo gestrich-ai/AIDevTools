@@ -107,53 +107,59 @@ final class ArchitecturePlannerModel {
         state = .running(stepName: stepDef.name)
         currentOutput = ""
 
-        let outputHandler: @Sendable (String) -> Void = { [weak self] text in
-            Task { @MainActor in
-                self?.currentOutput += text
-            }
-        }
+        let session = makeSession(jobId: job.jobId, stepIndex: stepIndex)
 
         do {
             switch stepDef {
-            case .formRequirements:
-                let options = FormRequirementsUseCase.Options(jobId: job.jobId, repoPath: repoPath)
-                _ = try await formRequirementsUseCase.run(options, store: store, onOutput: outputHandler)
-
-            case .compileArchitectureInfo:
-                let options = CompileArchitectureInfoUseCase.Options(jobId: job.jobId, repoPath: repoPath)
-                _ = try await compileArchInfoUseCase.run(options, store: store, onOutput: outputHandler)
-
-            case .planAcrossLayers:
-                let options = PlanAcrossLayersUseCase.Options(jobId: job.jobId, repoPath: repoPath)
-                _ = try await planAcrossLayersUseCase.run(options, store: store, onOutput: outputHandler)
-
-            case .buildImplementationModel, .checklistValidation:
-                let options = ScoreConformanceUseCase.Options(jobId: job.jobId, repoPath: repoPath)
-                _ = try await scoreConformanceUseCase.run(options, store: store, onOutput: outputHandler)
-
-            case .executeImplementation:
-                let options = ExecuteImplementationUseCase.Options(jobId: job.jobId, repoPath: repoPath)
-                _ = try await executeUseCase.run(options, store: store, onOutput: outputHandler)
-
             case .finalReport:
                 _ = try generateReportUseCase.run(
                     GenerateReportUseCase.Options(jobId: job.jobId),
                     store: store
                 )
 
-            case .followups:
-                let options = CompileFollowupsUseCase.Options(jobId: job.jobId, repoPath: repoPath)
-                _ = try await compileFollowupsUseCase.run(options, store: store, onOutput: outputHandler)
-
             case .describeFeature, .reviewImplementationPlan:
-                break // These are interactive steps handled via UI
+                break
+
+            default:
+                try await session?.run(onOutput: { [weak self] text in
+                    Task { @MainActor in
+                        self?.currentOutput += text
+                    }
+                }) { outputHandler in
+                    switch stepDef {
+                    case .formRequirements:
+                        let options = FormRequirementsUseCase.Options(jobId: job.jobId, repoPath: repoPath)
+                        _ = try await self.formRequirementsUseCase.run(options, store: store, onOutput: outputHandler)
+
+                    case .compileArchitectureInfo:
+                        let options = CompileArchitectureInfoUseCase.Options(jobId: job.jobId, repoPath: repoPath)
+                        _ = try await self.compileArchInfoUseCase.run(options, store: store, onOutput: outputHandler)
+
+                    case .planAcrossLayers:
+                        let options = PlanAcrossLayersUseCase.Options(jobId: job.jobId, repoPath: repoPath)
+                        _ = try await self.planAcrossLayersUseCase.run(options, store: store, onOutput: outputHandler)
+
+                    case .buildImplementationModel, .checklistValidation:
+                        let options = ScoreConformanceUseCase.Options(jobId: job.jobId, repoPath: repoPath)
+                        _ = try await self.scoreConformanceUseCase.run(options, store: store, onOutput: outputHandler)
+
+                    case .executeImplementation:
+                        let options = ExecuteImplementationUseCase.Options(jobId: job.jobId, repoPath: repoPath)
+                        _ = try await self.executeUseCase.run(options, store: store, onOutput: outputHandler)
+
+                    case .followups:
+                        let options = CompileFollowupsUseCase.Options(jobId: job.jobId, repoPath: repoPath)
+                        _ = try await self.compileFollowupsUseCase.run(options, store: store, onOutput: outputHandler)
+
+                    default:
+                        break
+                    }
+                }
             }
 
-            persistOutput(jobId: job.jobId, stepIndex: stepIndex)
             reloadSelectedJob()
             state = .idle
         } catch {
-            persistOutput(jobId: job.jobId, stepIndex: stepIndex)
             state = .error(error)
         }
     }
@@ -204,14 +210,14 @@ final class ArchitecturePlannerModel {
     }
 
     func loadOutput(jobId: UUID, stepIndex: Int) -> String? {
-        outputStore?.read(key: "\(jobId.uuidString)/\(stepIndex)")
+        makeSession(jobId: jobId, stepIndex: stepIndex)?.loadOutput()
     }
 
     // MARK: - Private
 
-    private func persistOutput(jobId: UUID, stepIndex: Int) {
-        guard !currentOutput.isEmpty else { return }
-        try? outputStore?.write(output: currentOutput, key: "\(jobId.uuidString)/\(stepIndex)")
+    private func makeSession(jobId: UUID, stepIndex: Int) -> AIRunSession? {
+        guard let outputStore else { return nil }
+        return AIRunSession(key: "\(jobId.uuidString)/\(stepIndex)", store: outputStore)
     }
 
     private func reloadSelectedJob() {

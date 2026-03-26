@@ -13,7 +13,7 @@ public struct AIRunSession: Sendable {
     @discardableResult
     public func run(
         onOutput: (@Sendable (String) -> Void)? = nil,
-        work: @Sendable (_ outputHandler: @Sendable (String) -> Void) async throws -> Void
+        work: @Sendable (_ outputHandler: @escaping @Sendable (String) -> Void) async throws -> Void
     ) async throws -> String {
         let accumulator = Accumulator()
 
