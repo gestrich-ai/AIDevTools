@@ -154,7 +154,7 @@ Currently the use case:
 - For loading historical output in the detail view, use `AIRunSession(key:store:).loadOutput()` instead of `AIOutputStore.read(key:)` directly
 - Verify the architecture planner UI still streams live output and loads historical output correctly
 
-## - [ ] Phase 4: Update `OutputPanel` to accept session-based loading
+## - [x] Phase 4: Update `OutputPanel` to accept session-based loading
 
 **Skills to read**: `swift-architecture`
 
@@ -175,7 +175,7 @@ The `OutputPanel` already takes a `text: String` binding. The session integratio
   - Remove direct `AIOutputStore.read()` calls
 - Verify both features' output panels display correctly for live and historical output
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
 **Skills to read**: `swift-testing`
 
