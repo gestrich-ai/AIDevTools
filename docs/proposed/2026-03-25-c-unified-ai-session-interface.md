@@ -197,7 +197,10 @@ Add `AIOutputSDK` as a dependency of `CodexCLISDK`. Add analogous conformance fo
 - Add `CodexCLIClient+AIClient.swift` extension
 - Verify existing tests still pass
 
-## - [ ] Phase 3: Evolve `AIRunSession` to own execution
+## - [x] Phase 3: Evolve `AIRunSession` to own execution
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Session owns execution + persistence; old closure API kept deprecated for one remaining caller until Phase 5 migration; read-only init preserved for historical-only sessions
 
 **Skills to read**: `swift-architecture`
 
