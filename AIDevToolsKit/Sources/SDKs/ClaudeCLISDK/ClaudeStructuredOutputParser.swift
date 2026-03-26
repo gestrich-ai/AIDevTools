@@ -3,8 +3,10 @@ import Foundation
 import Logging
 
 public struct ClaudeStructuredOutput<T: Sendable>: Sendable {
-    public let value: T
+    public let rawOutput: String
     public let resultEvent: ClaudeResultEvent
+    public let stderr: String
+    public let value: T
 }
 
 public struct ProcessDiagnostics: Sendable {
@@ -85,7 +87,7 @@ public struct ClaudeStructuredOutputParser: Sendable {
         let encoded = try JSONEncoder().encode(structuredJSON)
         do {
             let decoded = try JSONDecoder().decode(T.self, from: encoded)
-            return ClaudeStructuredOutput(value: decoded, resultEvent: resultEvent)
+            return ClaudeStructuredOutput(rawOutput: result.stdout, resultEvent: resultEvent, stderr: result.stderr, value: decoded)
         } catch {
             throw ClaudeStructuredOutputError.decodingFailed(error, resultEvent: resultEvent)
         }

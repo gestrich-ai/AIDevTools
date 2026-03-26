@@ -208,6 +208,7 @@ let package = Package(
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
                 .product(name: "Logging", package: "swift-log"),
+                "AIOutputSDK",
                 "ConcurrencySDK",
             ],
             path: "Sources/SDKs/ClaudeCLISDK"
@@ -225,6 +226,7 @@ let package = Package(
             name: "CodexCLISDK",
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
+                "AIOutputSDK",
             ],
             path: "Sources/SDKs/CodexCLISDK"
         ),

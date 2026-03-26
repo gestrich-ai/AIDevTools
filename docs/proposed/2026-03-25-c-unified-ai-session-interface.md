@@ -125,7 +125,10 @@ public protocol AIClient: Sendable {
 - Add `AIClient.swift` with the protocol and supporting types
 - Unit tests: verify types are `Sendable`, compile-time protocol conformance check
 
-## - [ ] Phase 2: Conform CLI clients to `AIClient`
+## - [x] Phase 2: Conform CLI clients to `AIClient`
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Extensions in separate files per SDK convention; ClaudeStructuredOutput updated to expose rawOutput/stderr for protocol conformance; CodexCLIClient structured output implemented via --output-schema + --json flags
 
 **Skills to read**: `swift-architecture`
 
