@@ -58,7 +58,10 @@ Feature targets replace direct `ClaudeCLISDK` imports with `AIOutputSDK` where p
 
 ## Phases
 
-## - [ ] Phase 1: Define `AIClient` protocol and types in `AIOutputSDK`
+## - [x] Phase 1: Define `AIClient` protocol and types in `AIOutputSDK`
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Protocol + value types placed in leaf SDK (AIOutputSDK) with no dependencies; all types marked Sendable
 
 **Skills to read**: `swift-architecture`
 
