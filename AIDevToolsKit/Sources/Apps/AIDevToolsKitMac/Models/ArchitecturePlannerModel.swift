@@ -1,3 +1,4 @@
+import AIOutputSDK
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import DataPathsService
@@ -23,6 +24,7 @@ final class ArchitecturePlannerModel {
     private(set) var currentRepoName: String?
     private(set) var currentRepoPath: String?
 
+    private var outputStore: AIOutputStore?
     private var store: ArchitecturePlannerStore?
 
     private let dataPathsService: DataPathsService
@@ -66,6 +68,7 @@ final class ArchitecturePlannerModel {
 
         do {
             let directoryURL = try dataPathsService.path(for: "architecture-planner", subdirectory: repoName)
+            self.outputStore = AIOutputStore(baseDirectory: directoryURL.appendingPathComponent("output"))
             let store = try ArchitecturePlannerStore(directoryURL: directoryURL)
             self.store = store
             self.jobs = try manageGuidelinesUseCase.listJobs(repoName: repoName, store: store)
@@ -146,9 +149,11 @@ final class ArchitecturePlannerModel {
                 break // These are interactive steps handled via UI
             }
 
+            persistOutput(jobId: job.jobId, stepIndex: stepIndex)
             reloadSelectedJob()
             state = .idle
         } catch {
+            persistOutput(jobId: job.jobId, stepIndex: stepIndex)
             state = .error(error)
         }
     }
@@ -198,7 +203,16 @@ final class ArchitecturePlannerModel {
         state = .idle
     }
 
+    func loadOutput(jobId: UUID, stepIndex: Int) -> String? {
+        outputStore?.read(key: "\(jobId.uuidString)/\(stepIndex)")
+    }
+
     // MARK: - Private
+
+    private func persistOutput(jobId: UUID, stepIndex: Int) {
+        guard !currentOutput.isEmpty else { return }
+        try? outputStore?.write(output: currentOutput, key: "\(jobId.uuidString)/\(stepIndex)")
+    }
 
     private func reloadSelectedJob() {
         guard let repoName = currentRepoName, let store else { return }

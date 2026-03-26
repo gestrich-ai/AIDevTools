@@ -65,7 +65,7 @@ Tasks:
 - Update `OutputService.readFormattedOutput()` to load raw stdout via `AIOutputStore.read()` then apply formatting
 - Run existing eval CLI commands to verify no regression
 
-## - [ ] Phase 4: Add raw output persistence to Architecture Planner
+## - [x] Phase 4: Add raw output persistence to Architecture Planner
 
 **Skills to read**: `swift-architecture`
 

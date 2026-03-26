@@ -4,6 +4,8 @@ import SwiftUI
 struct ArchitecturePlannerDetailView: View {
     @Bindable var model: ArchitecturePlannerModel
     let job: PlanningJob
+    @State private var expandedOutputStepIndex: Int?
+    @State private var loadedOutput: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -125,6 +127,39 @@ struct ArchitecturePlannerDetailView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            if step.status == "completed" {
+                stepOutputDisclosure(step)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func stepOutputDisclosure(_ step: ProcessStep) -> some View {
+        DisclosureGroup(
+            isExpanded: Binding(
+                get: { expandedOutputStepIndex == step.stepIndex },
+                set: { isExpanded in
+                    if isExpanded {
+                        expandedOutputStepIndex = step.stepIndex
+                        loadedOutput = model.loadOutput(jobId: job.jobId, stepIndex: step.stepIndex)
+                    } else {
+                        expandedOutputStepIndex = nil
+                        loadedOutput = nil
+                    }
+                }
+            )
+        ) {
+            if let loadedOutput, !loadedOutput.isEmpty {
+                OutputPanel(title: nil, text: loadedOutput, autoScroll: false)
+            } else {
+                Text("No output recorded")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+        } label: {
+            Text("Raw Output")
+                .font(.subheadline)
         }
     }
 

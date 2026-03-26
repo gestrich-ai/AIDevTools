@@ -68,6 +68,7 @@ let package = Package(
             name: "AIDevToolsKitMac",
             dependencies: [
                 .product(name: "MarkdownUI", package: "swift-markdown-ui"),
+                "AIOutputSDK",
                 "AnthropicChatService",
                 "ArchitecturePlannerFeature",
                 "ArchitecturePlannerService",
