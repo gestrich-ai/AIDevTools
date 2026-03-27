@@ -1,9 +1,22 @@
 import Foundation
 import SkillScannerSDK
 
-public enum Provider: String, Codable, Sendable, CaseIterable {
-    case codex
-    case claude
+public struct Provider: RawRepresentable, Codable, Sendable, Hashable, CustomStringConvertible {
+    public let rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+
+    public var description: String { rawValue }
+
+    public static let claude = Provider(rawValue: "claude")
+    public static let codex = Provider(rawValue: "codex")
+}
+
+import AIOutputSDK
+
+extension Provider {
+    public init(client: any AIClient) {
+        self.init(rawValue: client.name)
+    }
 }
 
 /// How a skill invocation was detected during eval grading.

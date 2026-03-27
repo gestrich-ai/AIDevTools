@@ -186,7 +186,7 @@ let package = Package(
         ),
         .target(
             name: "EvalService",
-            dependencies: ["SkillScannerSDK"],
+            dependencies: ["AIOutputSDK", "SkillScannerSDK"],
             path: "Sources/Services/EvalService"
         ),
         .target(

@@ -57,6 +57,9 @@ public struct AIStructuredResult<T: Sendable>: Sendable {
 }
 
 public protocol AIClient: Sendable {
+    var name: String { get }
+    var displayName: String { get }
+
     func run(
         prompt: String,
         options: AIClientOptions,

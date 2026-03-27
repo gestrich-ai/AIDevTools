@@ -11,10 +11,10 @@ public struct CodexOutputParser: Sendable {
 
     public init() {}
 
-    public func buildResult(from stdout: String) -> ProviderResult {
+    public func buildResult(from stdout: String, provider: Provider) -> ProviderResult {
         let output = parse(stdout)
         return ProviderResult(
-            provider: .codex,
+            provider: provider,
             events: output.rawEvents,
             toolEvents: output.toolEvents,
             toolCallSummary: output.toolCallSummary

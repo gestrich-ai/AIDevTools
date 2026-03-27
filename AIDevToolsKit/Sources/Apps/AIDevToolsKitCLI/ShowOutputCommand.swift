@@ -78,6 +78,7 @@ struct ShowOutputCommand: ParsableCommand {
         switch provider {
         case .claude: ClaudeStreamFormatter()
         case .codex: CodexStreamFormatter()
+        default: ClaudeStreamFormatter()
         }
     }
 }

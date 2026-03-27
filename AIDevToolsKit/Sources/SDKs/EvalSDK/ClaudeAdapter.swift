@@ -73,7 +73,7 @@ public struct ClaudeAdapter: ProviderAdapterProtocol {
             print("[DEBUG] Stdout (first 500 chars): \(String(result.stdout.prefix(500)))")
         }
 
-        let providerResult = parser.buildResult(from: result.stdout)
+        let providerResult = parser.buildResult(from: result.stdout, provider: Provider(client: client))
         return try outputService.writeArtifacts(
             result: providerResult,
             stderr: result.stderr,

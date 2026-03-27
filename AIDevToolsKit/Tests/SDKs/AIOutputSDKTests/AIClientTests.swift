@@ -82,6 +82,9 @@ import Testing
 }
 
 private struct MockAIClient: AIClient {
+    let name = "mock"
+    let displayName = "Mock"
+
     func run(
         prompt: String,
         options: AIClientOptions,

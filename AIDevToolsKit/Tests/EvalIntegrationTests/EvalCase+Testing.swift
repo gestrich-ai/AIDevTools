@@ -37,6 +37,7 @@ func runEval(_ eval: EvalCase, provider: Provider = .claude) async throws {
     let adapter: any ProviderAdapterProtocol = switch provider {
     case .claude: ClaudeAdapter(client: ClaudeCLIClient())
     case .codex: CodexAdapter(client: CodexCLIClient())
+    default: ClaudeAdapter(client: ClaudeCLIClient())
     }
 
     let tempDir = try createEvalTempDirectory()
@@ -61,6 +62,7 @@ func runEvalExpectingFailure(_ eval: EvalCase, provider: Provider = .claude) asy
     let adapter: any ProviderAdapterProtocol = switch provider {
     case .claude: ClaudeAdapter(client: ClaudeCLIClient())
     case .codex: CodexAdapter(client: CodexCLIClient())
+    default: ClaudeAdapter(client: ClaudeCLIClient())
     }
 
     let tempDir = try createEvalTempDirectory()

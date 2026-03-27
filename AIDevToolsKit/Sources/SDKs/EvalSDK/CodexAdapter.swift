@@ -68,7 +68,7 @@ public struct CodexAdapter: ProviderAdapterProtocol {
             let trimmedStdout = result.stdout.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
             let errorMessage = trimmedStderr.isEmpty ? trimmedStdout : trimmedStderr
             let errorResult = ProviderResult(
-                provider: .codex,
+                provider: Provider(client: client),
                 error: ProviderError(message: errorMessage, subtype: ProviderErrorSubtype.execFailed)
             )
             return try outputService.writeArtifacts(
@@ -79,7 +79,7 @@ public struct CodexAdapter: ProviderAdapterProtocol {
             )
         }
 
-        var providerResult = parser.buildResult(from: result.stdout)
+        var providerResult = parser.buildResult(from: result.stdout, provider: Provider(client: client))
 
         do {
             let data = try Data(contentsOf: outputFile)

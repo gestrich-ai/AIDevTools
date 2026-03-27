@@ -61,6 +61,7 @@ final class EvalRunnerModel {
             switch provider {
             case .codex: CodexAdapter(client: CodexCLIClient())
             case .claude: ClaudeAdapter(client: ClaudeCLIClient(), debug: debug)
+            default: ClaudeAdapter(client: ClaudeCLIClient(), debug: debug)
             }
         }),
         listSuites: ListEvalSuitesUseCase = ListEvalSuitesUseCase()
@@ -225,7 +226,7 @@ final class EvalRunnerModel {
     }
 
     func loadCaseOutput(for evalCase: EvalCase, provider: String) -> FormattedOutput? {
-        guard let providerEnum = Provider(rawValue: provider) else { return nil }
+        let providerEnum = Provider(rawValue: provider)
 
         let qualifiedId: String
         if let matchedResult = lastResults
@@ -250,6 +251,7 @@ final class EvalRunnerModel {
         switch provider {
         case .claude: ClaudeStreamFormatter()
         case .codex: CodexStreamFormatter()
+        default: ClaudeStreamFormatter()
         }
     }
 
@@ -261,7 +263,7 @@ final class EvalRunnerModel {
         let decoder = JSONDecoder()
         var summaries: [EvalSummary] = []
 
-        for provider in Provider.allCases {
+        for provider in [Provider.claude, .codex] {
             let summaryFile = artifactsDir
                 .appendingPathComponent(provider.rawValue)
                 .appendingPathComponent("summary.json")

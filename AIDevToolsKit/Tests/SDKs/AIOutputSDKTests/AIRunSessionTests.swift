@@ -177,6 +177,9 @@ private struct SimpleValue: Codable, Sendable {
 }
 
 private final class MockAIClient: AIClient, @unchecked Sendable {
+    let name = "mock"
+    let displayName = "Mock"
+
     let runResult: AIClientResult?
     let onRunOutput: [String]
     let structuredRawOutput: String

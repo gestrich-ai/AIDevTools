@@ -76,6 +76,7 @@ struct RunEvalsCommand: AsyncParsableCommand {
             switch provider {
             case .codex: CodexAdapter(client: CodexCLIClient())
             case .claude: ClaudeAdapter(client: ClaudeCLIClient(), debug: debug)
+            default: ClaudeAdapter(client: ClaudeCLIClient(), debug: debug)
             }
         }).run(
             RunEvalsUseCase.Options(

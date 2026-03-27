@@ -12,11 +12,11 @@ public struct ClaudeOutputParser: Sendable {
 
     public init() {}
 
-    public func buildResult(from stdout: String) -> ProviderResult {
+    public func buildResult(from stdout: String, provider: Provider) -> ProviderResult {
         let output = parse(stdout)
 
         var result = ProviderResult(
-            provider: .claude,
+            provider: provider,
             events: output.rawEvents,
             toolEvents: output.toolEvents,
             toolCallSummary: output.toolCallSummary

@@ -160,6 +160,9 @@ private enum MockError: Error {
 }
 
 private final class MockAIClient: AIClient, @unchecked Sendable {
+    let name = "mock"
+    let displayName = "Mock"
+
     let error: Error?
     let onRunOutput: [String]
     let runResult: AIClientResult?

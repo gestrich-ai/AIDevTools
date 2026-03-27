@@ -1,6 +1,9 @@
 import AIOutputSDK
 
 extension ClaudeCLIClient: AIClient {
+    public var name: String { "claude" }
+    public var displayName: String { "Claude CLI" }
+
     public func run(
         prompt: String,
         options: AIClientOptions,

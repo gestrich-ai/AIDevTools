@@ -3,6 +3,9 @@ import Foundation
 @preconcurrency import SwiftAnthropic
 
 public actor AnthropicAIClient: AIClient {
+    public nonisolated var name: String { "anthropic-api" }
+    public nonisolated var displayName: String { "Anthropic API" }
+
     private let apiClient: AnthropicAPIClient
     private var conversations: [String: [MessageParameter.Message]] = [:]
 
