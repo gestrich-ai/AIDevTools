@@ -245,7 +245,10 @@ public actor AnthropicAIClient: AIClient {
   - AnthropicAIClient sends message history on second call with same sessionId
   - AnthropicAIClient generates new sessionId when none provided
 
-## - [ ] Phase 3: Create unified ChatService on AIClient
+## - [x] Phase 3: Create unified ChatService on AIClient
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Services layer holds shared stateful types; ChatService depends only on AIOutputSDK protocol, no concrete SDKs; persistence stays at App layer
 
 **Skills to read**: `swift-architecture`
 
