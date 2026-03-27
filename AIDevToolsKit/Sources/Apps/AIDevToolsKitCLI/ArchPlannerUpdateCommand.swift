@@ -1,6 +1,7 @@
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import ArgumentParser
+import ClaudeCLISDK
 import DataPathsService
 import Foundation
 import SwiftData
@@ -84,7 +85,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
     private func runStep(_ targetStep: String, store: ArchitecturePlannerStore, jobId: UUID) async throws {
         switch targetStep {
         case "form-requirements":
-            let useCase = FormRequirementsUseCase()
+            let useCase = FormRequirementsUseCase(client: ClaudeCLIClient())
             let options = FormRequirementsUseCase.Options(jobId: jobId, repoPath: repoPath)
             let result = try await useCase.run(options, store: store, onProgress: { progress in
                 switch progress {
@@ -98,7 +99,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
             print("Requirements formed: \(result.requirements.count)")
 
         case "compile-arch-info":
-            let useCase = CompileArchitectureInfoUseCase()
+            let useCase = CompileArchitectureInfoUseCase(client: ClaudeCLIClient())
             let options = CompileArchitectureInfoUseCase.Options(jobId: jobId, repoPath: repoPath)
             let result = try await useCase.run(options, store: store, onProgress: { progress in
                 switch progress {
@@ -112,7 +113,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
             print("Layers: \(result.layersSummary.prefix(200))")
 
         case "plan-across-layers":
-            let useCase = PlanAcrossLayersUseCase()
+            let useCase = PlanAcrossLayersUseCase(client: ClaudeCLIClient())
             let options = PlanAcrossLayersUseCase.Options(jobId: jobId, repoPath: repoPath)
             let result = try await useCase.run(options, store: store, onProgress: { progress in
                 switch progress {
@@ -140,7 +141,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
             print("Components with mappings: \(result.componentsWithMappings)/\(result.componentsTotal)")
 
         case "build-implementation-model", "score":
-            let useCase = ScoreConformanceUseCase()
+            let useCase = ScoreConformanceUseCase(client: ClaudeCLIClient())
             let options = ScoreConformanceUseCase.Options(jobId: jobId, repoPath: repoPath)
             let result = try await useCase.run(options, store: store, onProgress: { progress in
                 switch progress {
@@ -174,7 +175,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
             print("Review step auto-approved")
 
         case "execute":
-            let useCase = ExecuteImplementationUseCase()
+            let useCase = ExecuteImplementationUseCase(client: ClaudeCLIClient())
             let options = ExecuteImplementationUseCase.Options(jobId: jobId, repoPath: repoPath)
             let result = try await useCase.run(options, store: store, onProgress: { progress in
                 switch progress {
@@ -197,7 +198,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
             print(result.report)
 
         case "followups":
-            let useCase = CompileFollowupsUseCase()
+            let useCase = CompileFollowupsUseCase(client: ClaudeCLIClient())
             let options = CompileFollowupsUseCase.Options(jobId: jobId, repoPath: repoPath)
             let result = try await useCase.run(options, store: store, onProgress: { progress in
                 switch progress {

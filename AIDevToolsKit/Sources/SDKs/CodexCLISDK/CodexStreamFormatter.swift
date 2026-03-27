@@ -1,6 +1,7 @@
+import AIOutputSDK
 import Foundation
 
-public final class CodexStreamFormatter: Sendable {
+public final class CodexStreamFormatter: StreamFormatter, Sendable {
     private let decoder = JSONDecoder()
 
     public init() {}

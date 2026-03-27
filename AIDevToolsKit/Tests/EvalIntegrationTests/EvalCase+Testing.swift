@@ -1,8 +1,10 @@
-import Testing
-import Foundation
-import EvalService
+import ClaudeCLISDK
+import CodexCLISDK
 import EvalFeature
 import EvalSDK
+import EvalService
+import Foundation
+import Testing
 
 enum IntegrationTest {
     static var isEnabled: Bool {
@@ -33,8 +35,8 @@ private func createEvalTempDirectory() throws -> URL {
 
 func runEval(_ eval: EvalCase, provider: Provider = .claude) async throws {
     let adapter: any ProviderAdapterProtocol = switch provider {
-    case .claude: ClaudeAdapter()
-    case .codex: CodexAdapter()
+    case .claude: ClaudeAdapter(client: ClaudeCLIClient())
+    case .codex: CodexAdapter(client: CodexCLIClient())
     }
 
     let tempDir = try createEvalTempDirectory()
@@ -57,8 +59,8 @@ func runEval(_ eval: EvalCase, provider: Provider = .claude) async throws {
 
 func runEvalExpectingFailure(_ eval: EvalCase, provider: Provider = .claude) async throws {
     let adapter: any ProviderAdapterProtocol = switch provider {
-    case .claude: ClaudeAdapter()
-    case .codex: CodexAdapter()
+    case .claude: ClaudeAdapter(client: ClaudeCLIClient())
+    case .codex: CodexAdapter(client: CodexCLIClient())
     }
 
     let tempDir = try createEvalTempDirectory()

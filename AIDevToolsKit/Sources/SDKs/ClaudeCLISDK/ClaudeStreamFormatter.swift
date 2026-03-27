@@ -1,3 +1,4 @@
+import AIOutputSDK
 import Foundation
 import Logging
 
@@ -19,7 +20,7 @@ public struct ClaudeResultSummary: Codable, Sendable {
     }
 }
 
-public final class ClaudeStreamFormatter: Sendable {
+public final class ClaudeStreamFormatter: StreamFormatter, Sendable {
     private let decoder = JSONDecoder()
     private let logger = Logger(label: "ClaudeStreamFormatter")
 

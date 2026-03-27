@@ -1,5 +1,5 @@
+import AIOutputSDK
 import ArchitecturePlannerService
-import ClaudeCLISDK
 import Foundation
 import SwiftData
 
@@ -42,10 +42,10 @@ public struct CompileFollowupsUseCase: Sendable {
         let additionalFollowups: [FollowupDTO]
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
 
-    public init(claudeClient: ClaudeCLIClient = ClaudeCLIClient()) {
-        self.claudeClient = claudeClient
+    public init(client: any AIClient) {
+        self.client = client
     }
 
     @MainActor
@@ -153,17 +153,14 @@ public struct CompileFollowupsUseCase: Sendable {
         {"type":"object","properties":{"additionalFollowups":{"type":"array","items":{"type":"object","properties":{"summary":{"type":"string"},"details":{"type":"string"}},"required":["summary","details"]}}},"required":["additionalFollowups"]}
         """
 
-        var command = Claude(prompt: prompt)
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = schema
-        command.printMode = true
-        command.verbose = true
+        let aiOptions = AIClientOptions(workingDirectory: options.repoPath)
 
-        let output = try await claudeClient.runStructured(
+        let output = try await client.runStructured(
             FollowupsResponse.self,
-            command: command,
-            workingDirectory: options.repoPath,
-            onFormattedOutput: onOutput
+            prompt: prompt,
+            jsonSchema: schema,
+            options: aiOptions,
+            onOutput: onOutput
         )
 
         var count = 0

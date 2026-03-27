@@ -55,6 +55,7 @@ public struct RunEvalsUseCase: Sendable {
         }
     }
 
+    private let adapterFactory: (@Sendable (Provider, Bool) -> any ProviderAdapterProtocol)?
     private let overrideEntries: [ProviderEntry]?
     private let caseLoader: CaseLoader
     private let gitClient: GitClient
@@ -62,11 +63,13 @@ public struct RunEvalsUseCase: Sendable {
     private let rubricEvaluator: RubricEvaluator
 
     public init(
+        adapterFactory: @escaping @Sendable (Provider, Bool) -> any ProviderAdapterProtocol,
         caseLoader: CaseLoader = CaseLoader(),
         gitClient: GitClient = GitClient(),
         deterministicGrader: DeterministicGrader = DeterministicGrader(),
         rubricEvaluator: RubricEvaluator = RubricEvaluator()
     ) {
+        self.adapterFactory = adapterFactory
         self.overrideEntries = nil
         self.caseLoader = caseLoader
         self.gitClient = gitClient
@@ -81,6 +84,7 @@ public struct RunEvalsUseCase: Sendable {
         deterministicGrader: DeterministicGrader = DeterministicGrader(),
         rubricEvaluator: RubricEvaluator = RubricEvaluator()
     ) {
+        self.adapterFactory = nil
         self.overrideEntries = providers
         self.caseLoader = caseLoader
         self.gitClient = gitClient
@@ -116,8 +120,15 @@ public struct RunEvalsUseCase: Sendable {
 
         let skills = try SkillScanner().scanSkills(at: options.repoRoot)
 
-        let entries = overrideEntries ?? options.providers.map { provider in
-            ProviderEntry(provider: provider, adapter: makeAdapter(for: provider, debug: options.debug))
+        let entries: [ProviderEntry]
+        if let overrideEntries {
+            entries = overrideEntries
+        } else if let adapterFactory {
+            entries = options.providers.map { provider in
+                ProviderEntry(provider: provider, adapter: adapterFactory(provider, options.debug))
+            }
+        } else {
+            preconditionFailure("RunEvalsUseCase requires either adapterFactory or providers")
         }
 
         var summaries: [EvalSummary] = []
@@ -149,13 +160,6 @@ public struct RunEvalsUseCase: Sendable {
             process.standardError = FileHandle.nullDevice
             try process.run()
             process.waitUntilExit()
-        }
-    }
-
-    private func makeAdapter(for provider: Provider, debug: Bool = false) -> any ProviderAdapterProtocol {
-        switch provider {
-        case .codex: return CodexAdapter()
-        case .claude: return ClaudeAdapter(debug: debug)
         }
     }
 

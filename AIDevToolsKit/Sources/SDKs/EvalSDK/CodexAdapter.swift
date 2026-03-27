@@ -1,17 +1,16 @@
 import AIOutputSDK
-import CodexCLISDK
 import EvalService
 import Foundation
 import SkillScannerSDK
 
 public struct CodexAdapter: ProviderAdapterProtocol {
 
-    private let codexClient: CodexCLIClient
+    private let client: any AIClient
     private let parser = CodexOutputParser()
     private let outputService = OutputService()
 
-    public init(codexClient: CodexCLIClient = CodexCLIClient()) {
-        self.codexClient = codexClient
+    public init(client: any AIClient) {
+        self.client = client
     }
 
     public func capabilities() -> ProviderCapabilities {
@@ -41,33 +40,32 @@ public struct CodexAdapter: ProviderAdapterProtocol {
         let outputFile = configuration.providerDirectory.appendingPathComponent("\(configuration.caseId).json")
         try FileManager.default.createDirectory(at: configuration.providerDirectory, withIntermediateDirectories: true)
 
-        let command = Codex.Exec(
-            skipGitRepoCheck: true,
-            ephemeral: true,
-            outputSchema: configuration.outputSchemaPath.path,
-            outputFile: outputFile.path,
-            json: true,
-            fullAuto: true,
+        let options = AIClientOptions(
+            dangerouslySkipPermissions: true,
+            environment: [
+                "CODEX_OUTPUT_FILE": outputFile.path,
+                "CODEX_OUTPUT_SCHEMA_PATH": configuration.outputSchemaPath.path,
+            ],
             model: configuration.model,
-            prompt: configuration.prompt
-        )
-
-        let executionResult = try await codexClient.run(
-            command: command,
-            workingDirectory: configuration.workingDirectory?.path,
-            onFormattedOutput: onOutput
+            workingDirectory: configuration.workingDirectory?.path
         )
 
         let session = OutputService.makeSession(
             artifactsDirectory: configuration.artifactsDirectory,
             provider: configuration.provider.rawValue,
-            caseId: configuration.caseId
+            caseId: configuration.caseId,
+            client: client
         )
-        try session.store.write(output: executionResult.stdout, key: session.key)
 
-        guard executionResult.isSuccess else {
-            let trimmedStderr = executionResult.stderr.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-            let trimmedStdout = executionResult.stdout.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        let result = try await session.run(
+            prompt: configuration.prompt,
+            options: options,
+            onOutput: onOutput
+        )
+
+        guard result.exitCode == 0 else {
+            let trimmedStderr = result.stderr.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            let trimmedStdout = result.stdout.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
             let errorMessage = trimmedStderr.isEmpty ? trimmedStdout : trimmedStderr
             let errorResult = ProviderResult(
                 provider: .codex,
@@ -75,29 +73,29 @@ public struct CodexAdapter: ProviderAdapterProtocol {
             )
             return try outputService.writeArtifacts(
                 result: errorResult,
-                stderr: executionResult.stderr,
+                stderr: result.stderr,
                 session: session,
                 configuration: configuration
             )
         }
 
-        var result = parser.buildResult(from: executionResult.stdout)
+        var providerResult = parser.buildResult(from: result.stdout)
 
         do {
             let data = try Data(contentsOf: outputFile)
             let payload = try JSONDecoder().decode([String: JSONValue].self, from: data)
-            result.structuredOutput = payload
-            result.resultText = payload[StructuredOutputKey.result]?.stringValue ?? ""
+            providerResult.structuredOutput = payload
+            providerResult.resultText = payload[StructuredOutputKey.result]?.stringValue ?? ""
         } catch {
-            result.error = ProviderError(
+            providerResult.error = ProviderError(
                 message: "invalid primary output JSON: \(error.localizedDescription)",
                 subtype: ProviderErrorSubtype.parseError
             )
         }
 
         return try outputService.writeArtifacts(
-            result: result,
-            stderr: executionResult.stderr,
+            result: providerResult,
+            stderr: result.stderr,
             session: session,
             configuration: configuration
         )

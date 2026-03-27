@@ -1,5 +1,5 @@
+import AIOutputSDK
 import ArchitecturePlannerService
-import ClaudeCLISDK
 import Foundation
 import SwiftData
 
@@ -40,10 +40,10 @@ public struct ScoreConformanceUseCase: Sendable {
         case saved
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
 
-    public init(claudeClient: ClaudeCLIClient = ClaudeCLIClient()) {
-        self.claudeClient = claudeClient
+    public init(client: any AIClient) {
+        self.client = client
     }
 
     @MainActor
@@ -101,21 +101,18 @@ public struct ScoreConformanceUseCase: Sendable {
         {"type":"object","properties":{"mappings":{"type":"array","items":{"type":"object","properties":{"componentIndex":{"type":"integer"},"guidelineTitle":{"type":"string"},"matchReason":{"type":"string"},"conformanceScore":{"type":"integer"},"scoreRationale":{"type":"string"}},"required":["componentIndex","guidelineTitle","matchReason","conformanceScore","scoreRationale"]}}},"required":["mappings"]}
         """
 
-        var command = Claude(prompt: prompt)
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = schema
-        command.printMode = true
-        command.verbose = true
-
         struct ScoreResponse: Codable {
             let mappings: [MappingDTO]
         }
 
-        let output = try await claudeClient.runStructured(
+        let aiOptions = AIClientOptions(workingDirectory: options.repoPath)
+
+        let output = try await client.runStructured(
             ScoreResponse.self,
-            command: command,
-            workingDirectory: options.repoPath,
-            onFormattedOutput: onOutput
+            prompt: prompt,
+            jsonSchema: schema,
+            options: aiOptions,
+            onOutput: onOutput
         )
 
         let dtos = output.value.mappings

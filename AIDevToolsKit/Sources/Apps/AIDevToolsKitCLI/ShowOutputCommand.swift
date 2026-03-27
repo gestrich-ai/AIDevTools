@@ -1,4 +1,7 @@
+import AIOutputSDK
 import ArgumentParser
+import ClaudeCLISDK
+import CodexCLISDK
 import DataPathsService
 import EvalFeature
 import EvalService
@@ -56,8 +59,10 @@ struct ShowOutputCommand: ParsableCommand {
         let resolvedProvider = provider.resolved[0]
         let options = ReadCaseOutputUseCase.Options(
             caseId: caseId,
+            formatter: Self.formatter(for: resolvedProvider),
             provider: resolvedProvider,
-            outputDirectory: resolvedOutputDir
+            outputDirectory: resolvedOutputDir,
+            rubricFormatter: ClaudeStreamFormatter()
         )
 
         let output = try ReadCaseOutputUseCase().run(options)
@@ -66,6 +71,13 @@ struct ShowOutputCommand: ParsableCommand {
         if let rubricOutput = output.rubricOutput {
             print("\n--- Rubric Evaluation ---\n")
             print(rubricOutput)
+        }
+    }
+
+    private static func formatter(for provider: Provider) -> any StreamFormatter {
+        switch provider {
+        case .claude: ClaudeStreamFormatter()
+        case .codex: CodexStreamFormatter()
         }
     }
 }

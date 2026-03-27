@@ -1,5 +1,5 @@
+import AIOutputSDK
 import ArchitecturePlannerService
-import ClaudeCLISDK
 import Foundation
 import SwiftData
 
@@ -46,10 +46,10 @@ public struct PlanAcrossLayersUseCase: Sendable {
         case saved
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
 
-    public init(claudeClient: ClaudeCLIClient = ClaudeCLIClient()) {
-        self.claudeClient = claudeClient
+    public init(client: any AIClient) {
+        self.client = client
     }
 
     @MainActor
@@ -142,21 +142,18 @@ public struct PlanAcrossLayersUseCase: Sendable {
         {"type":"object","properties":{"components":{"type":"array","items":{"type":"object","properties":{"summary":{"type":"string"},"details":{"type":"string"},"filePaths":{"type":"array","items":{"type":"string"}},"layerName":{"type":"string"},"moduleName":{"type":"string"},"tradeoffs":{"type":"string"},"guidelinesApplied":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"reason":{"type":"string"}},"required":["title","reason"]}},"requirementIndices":{"type":"array","items":{"type":"integer"}}},"required":["summary","details","filePaths","layerName","moduleName","tradeoffs","guidelinesApplied","requirementIndices"]}}},"required":["components"]}
         """
 
-        var command = Claude(prompt: prompt)
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = schema
-        command.printMode = true
-        command.verbose = true
-
         struct PlanResponse: Codable {
             let components: [ComponentDTO]
         }
 
-        let output = try await claudeClient.runStructured(
+        let aiOptions = AIClientOptions(workingDirectory: options.repoPath)
+
+        let output = try await client.runStructured(
             PlanResponse.self,
-            command: command,
-            workingDirectory: options.repoPath,
-            onFormattedOutput: onOutput
+            prompt: prompt,
+            jsonSchema: schema,
+            options: aiOptions,
+            onOutput: onOutput
         )
 
         let dtos = output.value.components

@@ -37,7 +37,7 @@ App layer (CLI/Mac)        → concrete SDKs (for DI wiring only)
 
 ## Phases
 
-## - [ ] Phase 1: Migrate ArchitecturePlannerFeature use cases to AIClient
+## - [x] Phase 1: Migrate ArchitecturePlannerFeature use cases to AIClient
 
 **Skills to read**: `swift-architecture`
 
@@ -97,7 +97,7 @@ Each file needs:
 4. Remove `Claude()` command construction; build `AIClientOptions` instead
 5. Update `runStructured` call to use `AIClient` signature (`prompt:jsonSchema:options:onOutput:`)
 
-## - [ ] Phase 2: Migrate CodexAdapter in EvalSDK to AIClient
+## - [x] Phase 2: Migrate CodexAdapter in EvalSDK to AIClient
 
 **Skills to read**: `swift-architecture`
 
@@ -139,7 +139,7 @@ let result = try await session.run(prompt: ..., options: ..., onOutput: ...)
 
 `CodexAdapter` may use Codex-specific options (like `writableRoots`). Verify whether these map to `AIClientOptions` fields or if `CodexCLIClient`'s `AIClient` conformance handles them internally. If Codex-specific options are needed, they should be set via `AIClientOptions.environment` or handled inside the `CodexCLIClient` conformance.
 
-## - [ ] Phase 3: Abstract stream formatting out of EvalSDK
+## - [x] Phase 3: Abstract stream formatting out of EvalSDK
 
 **Skills to read**: `swift-architecture`
 
@@ -169,7 +169,7 @@ Have each conform to the new protocol. Then `OutputService` accepts a `StreamFor
 - `EvalSDK/OutputService.swift` — replace `format(_ raw: String, provider: Provider)` with `format(_ raw: String, formatter: StreamFormatter)`. Remove imports of `ClaudeCLISDK` and `CodexCLISDK`.
 - Callers of `OutputService.format()` — pass the appropriate formatter (injected from App layer or adapter)
 
-## - [ ] Phase 4: Move +Default.swift convenience inits to App layer
+## - [x] Phase 4: Move +Default.swift convenience inits to App layer
 
 **Skills to read**: `swift-architecture`
 
@@ -207,7 +207,7 @@ This is the change that actually removes `ClaudeCLISDK` and `CodexCLISDK` from t
 
 The `+Default.swift` files also provide defaults for non-SDK parameters (e.g., `dataPath`, `gitClient`). Those defaults should stay — only the hardcoded `ClaudeCLIClient()` needs to move. If a file has both SDK and non-SDK defaults, split: keep the non-SDK defaults in the Feature, require `client` as a parameter.
 
-## - [ ] Phase 5: Tighten CLI command client types
+## - [x] Phase 5: Tighten CLI command client types
 
 **Skills to read**: `swift-architecture`
 
@@ -221,7 +221,7 @@ In the CLI App layer, `ChatCommand` types its `client` parameter as the concrete
 
 If `ChatCommand` ever supports a `--provider` flag (like eval commands do), the helpers already accept any provider. Even without that, it's consistent with how `ClaudeChatCommand` works and avoids unnecessary coupling in method signatures.
 
-## - [ ] Phase 6: Clean up Package.swift dependencies
+## - [x] Phase 6: Clean up Package.swift dependencies
 
 **Skills to read**: `swift-architecture`
 
@@ -253,7 +253,7 @@ grep -r "import ClaudeCLISDK\|import CodexCLISDK\|import AnthropicSDK" \
 
 Expected: zero matches.
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
 
 **Skills to read**: `ai-dev-tools-debug`
 

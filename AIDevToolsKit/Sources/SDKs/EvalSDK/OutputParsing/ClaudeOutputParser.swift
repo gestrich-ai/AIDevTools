@@ -1,6 +1,5 @@
-import Foundation
 import EvalService
-import ClaudeCLISDK
+import Foundation
 
 public struct ClaudeOutputParser: Sendable {
 

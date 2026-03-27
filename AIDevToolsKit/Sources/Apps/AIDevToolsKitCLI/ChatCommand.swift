@@ -1,3 +1,4 @@
+import AIOutputSDK
 import AnthropicChatFeature
 import AnthropicSDK
 import ArgumentParser
@@ -41,7 +42,7 @@ struct ChatCommand: AsyncParsableCommand {
         apiKey ?? ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]
     }
 
-    private func sendSingleMessage(_ text: String, client: AnthropicAIClient) async throws {
+    private func sendSingleMessage(_ text: String, client: any AIClient) async throws {
         let useCase = SendChatMessageUseCase(client: client)
         let options = SendChatMessageUseCase.Options(
             message: text,
@@ -59,7 +60,7 @@ struct ChatCommand: AsyncParsableCommand {
         }
     }
 
-    private func runInteractive(client: AnthropicAIClient) async throws {
+    private func runInteractive(client: any AIClient) async throws {
         print("Chat with Claude (type 'exit' or Ctrl-D to quit)")
         print("─────────────────────────────────────────────────")
 

@@ -2,15 +2,27 @@ import AIOutputSDK
 import Foundation
 
 extension CodexCLIClient: AIClient {
+
+    public static let outputFileEnvironmentKey = "CODEX_OUTPUT_FILE"
+    public static let outputSchemaPathEnvironmentKey = "CODEX_OUTPUT_SCHEMA_PATH"
+
     public func run(
         prompt: String,
         options: AIClientOptions,
         onOutput: (@Sendable (String) -> Void)?
     ) async throws -> AIClientResult {
         var command = Codex.Exec(prompt: prompt)
+        command.ephemeral = true
         command.fullAuto = options.dangerouslySkipPermissions
         command.model = options.model
-        if let jsonSchema = options.jsonSchema {
+        command.skipGitRepoCheck = true
+        if let outputFile = options.environment?[Self.outputFileEnvironmentKey] {
+            command.outputFile = outputFile
+        }
+        if let schemaPath = options.environment?[Self.outputSchemaPathEnvironmentKey] {
+            command.json = true
+            command.outputSchema = schemaPath
+        } else if let jsonSchema = options.jsonSchema {
             command.json = true
             command.outputSchema = jsonSchema
         }
@@ -31,10 +43,12 @@ extension CodexCLIClient: AIClient {
         onOutput: (@Sendable (String) -> Void)?
     ) async throws -> AIStructuredResult<T> {
         var command = Codex.Exec(prompt: prompt)
+        command.ephemeral = true
         command.fullAuto = options.dangerouslySkipPermissions
         command.json = true
         command.model = options.model
         command.outputSchema = jsonSchema
+        command.skipGitRepoCheck = true
         let result = try await run(
             command: command,
             workingDirectory: options.workingDirectory,

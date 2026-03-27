@@ -1,5 +1,5 @@
+import AIOutputSDK
 import ArchitecturePlannerService
-import ClaudeCLISDK
 import Foundation
 import SwiftData
 
@@ -32,10 +32,10 @@ public struct CompileArchitectureInfoUseCase: Sendable {
         case completed
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
 
-    public init(claudeClient: ClaudeCLIClient = ClaudeCLIClient()) {
-        self.claudeClient = claudeClient
+    public init(client: any AIClient) {
+        self.client = client
     }
 
     @MainActor
@@ -119,22 +119,19 @@ public struct CompileArchitectureInfoUseCase: Sendable {
         {"type":"object","properties":{"layersSummary":{"type":"string","description":"Detailed summary of identified layers, relevant guidelines, and architectural context drawn from ARCHITECTURE.md and loaded guidelines"},"relevantGuidelineCount":{"type":"integer","description":"Number of guidelines relevant to these requirements"}},"required":["layersSummary","relevantGuidelineCount"]}
         """
 
-        var command = Claude(prompt: prompt)
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = schema
-        command.printMode = true
-        command.verbose = true
-
         struct ArchInfoResponse: Codable {
             let layersSummary: String
             let relevantGuidelineCount: Int
         }
 
-        let output = try await claudeClient.runStructured(
+        let aiOptions = AIClientOptions(workingDirectory: options.repoPath)
+
+        let output = try await client.runStructured(
             ArchInfoResponse.self,
-            command: command,
-            workingDirectory: options.repoPath,
-            onFormattedOutput: onOutput
+            prompt: prompt,
+            jsonSchema: schema,
+            options: aiOptions,
+            onOutput: onOutput
         )
 
         // Update step with the full layers summary

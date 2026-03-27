@@ -1,3 +1,6 @@
+import AIOutputSDK
+import ClaudeCLISDK
+import CodexCLISDK
 import EvalFeature
 import EvalSDK
 import EvalService
@@ -54,7 +57,12 @@ final class EvalRunnerModel {
     init(
         config: RepositoryEvalConfig,
         skillName: String? = nil,
-        runEvals: RunEvalsUseCase = RunEvalsUseCase(),
+        runEvals: RunEvalsUseCase = RunEvalsUseCase(adapterFactory: { provider, debug in
+            switch provider {
+            case .codex: CodexAdapter(client: CodexCLIClient())
+            case .claude: ClaudeAdapter(client: ClaudeCLIClient(), debug: debug)
+            }
+        }),
         listSuites: ListEvalSuitesUseCase = ListEvalSuitesUseCase()
     ) {
         self.evalConfig = config
@@ -230,10 +238,19 @@ final class EvalRunnerModel {
 
         let options = ReadCaseOutputUseCase.Options(
             caseId: qualifiedId,
+            formatter: Self.formatter(for: providerEnum),
             provider: providerEnum,
-            outputDirectory: evalConfig.outputDirectory
+            outputDirectory: evalConfig.outputDirectory,
+            rubricFormatter: ClaudeStreamFormatter()
         )
         return try? ReadCaseOutputUseCase().run(options)
+    }
+
+    private static func formatter(for provider: Provider) -> any StreamFormatter {
+        switch provider {
+        case .claude: ClaudeStreamFormatter()
+        case .codex: CodexStreamFormatter()
+        }
     }
 
     private func loadLastResults() {

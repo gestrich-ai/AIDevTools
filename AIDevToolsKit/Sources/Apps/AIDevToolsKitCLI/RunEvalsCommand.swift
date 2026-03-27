@@ -1,6 +1,9 @@
 import ArgumentParser
+import ClaudeCLISDK
+import CodexCLISDK
 import DataPathsService
 import EvalFeature
+import EvalSDK
 import EvalService
 import Foundation
 import RepositorySDK
@@ -69,7 +72,12 @@ struct RunEvalsCommand: AsyncParsableCommand {
             throw ValidationError("Must specify either --cases-dir or --repo")
         }
 
-        let summaries = try await RunEvalsUseCase().run(
+        let summaries = try await RunEvalsUseCase(adapterFactory: { provider, debug in
+            switch provider {
+            case .codex: CodexAdapter(client: CodexCLIClient())
+            case .claude: ClaudeAdapter(client: ClaudeCLIClient(), debug: debug)
+            }
+        }).run(
             RunEvalsUseCase.Options(
                 casesDirectory: resolvedCasesDir,
                 outputDirectory: resolvedOutputDir,

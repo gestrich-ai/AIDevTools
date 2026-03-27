@@ -1,6 +1,7 @@
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import ArgumentParser
+import ClaudeCLISDK
 import DataPathsService
 import Foundation
 
@@ -31,7 +32,7 @@ struct ArchPlannerExecuteCommand: AsyncParsableCommand {
         }
 
         let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
-        let useCase = ExecuteImplementationUseCase()
+        let useCase = ExecuteImplementationUseCase(client: ClaudeCLIClient())
         let options = ExecuteImplementationUseCase.Options(
             jobId: uuid,
             repoPath: repoPath,

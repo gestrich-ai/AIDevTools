@@ -1,5 +1,5 @@
+import AIOutputSDK
 import ArchitecturePlannerService
-import ClaudeCLISDK
 import Foundation
 import SwiftData
 
@@ -35,10 +35,10 @@ public struct FormRequirementsUseCase: Sendable {
         case saved
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
 
-    public init(claudeClient: ClaudeCLIClient = ClaudeCLIClient()) {
-        self.claudeClient = claudeClient
+    public init(client: any AIClient) {
+        self.client = client
     }
 
     @MainActor
@@ -81,21 +81,18 @@ public struct FormRequirementsUseCase: Sendable {
         {"type":"object","properties":{"requirements":{"type":"array","items":{"type":"object","properties":{"summary":{"type":"string","description":"One-line requirement summary"},"details":{"type":"string","description":"Detailed description of the requirement"}},"required":["summary","details"]}}},"required":["requirements"]}
         """
 
-        var command = Claude(prompt: prompt)
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.jsonSchema = schema
-        command.printMode = true
-        command.verbose = true
-
         struct RequirementsResponse: Codable {
             let requirements: [RequirementDTO]
         }
 
-        let output = try await claudeClient.runStructured(
+        let aiOptions = AIClientOptions(workingDirectory: options.repoPath)
+
+        let output = try await client.runStructured(
             RequirementsResponse.self,
-            command: command,
-            workingDirectory: options.repoPath,
-            onFormattedOutput: onOutput
+            prompt: prompt,
+            jsonSchema: schema,
+            options: aiOptions,
+            onOutput: onOutput
         )
 
         let dtos = output.value.requirements

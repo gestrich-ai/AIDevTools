@@ -1,6 +1,7 @@
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import ArgumentParser
+import ClaudeCLISDK
 import DataPathsService
 import Foundation
 
@@ -28,7 +29,7 @@ struct ArchPlannerScoreCommand: AsyncParsableCommand {
         }
 
         let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
-        let useCase = ScoreConformanceUseCase()
+        let useCase = ScoreConformanceUseCase(client: ClaudeCLIClient())
         let options = ScoreConformanceUseCase.Options(jobId: uuid, repoPath: repoPath)
 
         let result = try await useCase.run(options, store: store) { progress in

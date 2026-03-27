@@ -1,4 +1,5 @@
 import ArgumentParser
+import ClaudeCLISDK
 import DataPathsService
 import Foundation
 import PlanRunnerFeature
@@ -27,6 +28,7 @@ struct PlanRunnerPlanCommand: AsyncParsableCommand {
         let planSettings = try ReposCommand.makePlanSettingsStore(service)
 
         let useCase = GeneratePlanUseCase(
+            client: ClaudeCLIClient(),
             resolveProposedDirectory: { repo in
                 try planSettings.resolvedProposedDirectory(forRepo: repo)
             }

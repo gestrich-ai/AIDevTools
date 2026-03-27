@@ -4,6 +4,10 @@ import Testing
 @testable import EvalSDK
 @testable import EvalService
 
+private struct PassthroughFormatter: StreamFormatter {
+    func format(_ rawChunk: String) -> String { rawChunk }
+}
+
 @Suite struct OutputServiceTests {
 
     private let service = OutputService()
@@ -87,7 +91,7 @@ import Testing
         defer { try? FileManager.default.removeItem(at: outputDir) }
 
         #expect(throws: OutputServiceError.self) {
-            try service.readFormattedOutput(caseId: "missing", provider: .claude, outputDirectory: outputDir)
+            try service.readFormattedOutput(caseId: "missing", provider: .claude, outputDirectory: outputDir, formatter: PassthroughFormatter(), rubricFormatter: PassthroughFormatter())
         }
     }
 

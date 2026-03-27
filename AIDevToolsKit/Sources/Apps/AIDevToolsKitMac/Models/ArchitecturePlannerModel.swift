@@ -1,6 +1,7 @@
 import AIOutputSDK
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
+import ClaudeCLISDK
 import DataPathsService
 import Foundation
 
@@ -40,15 +41,15 @@ final class ArchitecturePlannerModel {
 
     init(
         dataPathsService: DataPathsService,
-        compileArchInfoUseCase: CompileArchitectureInfoUseCase = CompileArchitectureInfoUseCase(),
-        compileFollowupsUseCase: CompileFollowupsUseCase = CompileFollowupsUseCase(),
+        compileArchInfoUseCase: CompileArchitectureInfoUseCase = CompileArchitectureInfoUseCase(client: ClaudeCLIClient()),
+        compileFollowupsUseCase: CompileFollowupsUseCase = CompileFollowupsUseCase(client: ClaudeCLIClient()),
         createJobUseCase: CreatePlanningJobUseCase = CreatePlanningJobUseCase(),
-        executeUseCase: ExecuteImplementationUseCase = ExecuteImplementationUseCase(),
-        formRequirementsUseCase: FormRequirementsUseCase = FormRequirementsUseCase(),
+        executeUseCase: ExecuteImplementationUseCase = ExecuteImplementationUseCase(client: ClaudeCLIClient()),
+        formRequirementsUseCase: FormRequirementsUseCase = FormRequirementsUseCase(client: ClaudeCLIClient()),
         generateReportUseCase: GenerateReportUseCase = GenerateReportUseCase(),
         manageGuidelinesUseCase: ManageGuidelinesUseCase = ManageGuidelinesUseCase(),
-        planAcrossLayersUseCase: PlanAcrossLayersUseCase = PlanAcrossLayersUseCase(),
-        scoreConformanceUseCase: ScoreConformanceUseCase = ScoreConformanceUseCase()
+        planAcrossLayersUseCase: PlanAcrossLayersUseCase = PlanAcrossLayersUseCase(client: ClaudeCLIClient()),
+        scoreConformanceUseCase: ScoreConformanceUseCase = ScoreConformanceUseCase(client: ClaudeCLIClient())
     ) {
         self.dataPathsService = dataPathsService
         self.compileArchInfoUseCase = compileArchInfoUseCase

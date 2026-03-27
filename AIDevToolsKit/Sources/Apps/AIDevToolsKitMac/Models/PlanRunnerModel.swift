@@ -1,3 +1,4 @@
+import ClaudeCLISDK
 import Foundation
 import Logging
 import PlanRunnerFeature
@@ -108,6 +109,7 @@ final class PlanRunnerModel {
         do {
             let settings = try planSettingsStore.settings(forRepoId: repository.id) ?? PlanRepoSettings(repoId: repository.id)
             let useCase = ExecutePlanUseCase(
+                client: ClaudeCLIClient(),
                 completedDirectory: settings.resolvedCompletedDirectory(repoPath: repository.path),
                 dataPath: dataPath
             )
@@ -136,6 +138,7 @@ final class PlanRunnerModel {
 
         let settingsStore = planSettingsStore
         let useCase = GeneratePlanUseCase(
+            client: ClaudeCLIClient(),
             resolveProposedDirectory: { repo in
                 let settings = try settingsStore.settings(forRepoId: repo.id) ?? PlanRepoSettings(repoId: repo.id)
                 return settings.resolvedProposedDirectory(repoPath: repo.path)

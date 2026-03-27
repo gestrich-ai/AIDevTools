@@ -48,6 +48,7 @@ let package = Package(
             name: "AIDevToolsKitCLI",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "AIOutputSDK",
                 "AnthropicChatFeature",
                 "AnthropicSDK",
                 "ArchitecturePlannerFeature",
@@ -55,8 +56,10 @@ let package = Package(
                 "ClaudeCodeChatFeature",
                 "ClaudeCodeChatService",
                 "ClaudeCLISDK",
+                "CodexCLISDK",
                 "DataPathsService",
                 "EvalFeature",
+                "EvalSDK",
                 "EvalService",
                 "LoggingSDK",
                 "PlanRunnerFeature",
@@ -72,11 +75,12 @@ let package = Package(
                 .product(name: "MarkdownUI", package: "swift-markdown-ui"),
                 "AIOutputSDK",
                 "AnthropicChatService",
+                "AnthropicSDK",
                 "ArchitecturePlannerFeature",
                 "ArchitecturePlannerService",
-                "AnthropicSDK",
                 "ClaudeCodeChatService",
                 "ClaudeCLISDK",
+                "CodexCLISDK",
                 "DataPathsService",
                 "EvalFeature",
                 "EvalSDK",
@@ -98,7 +102,6 @@ let package = Package(
             dependencies: [
                 "AIOutputSDK",
                 "ArchitecturePlannerService",
-                "ClaudeCLISDK",
                 "RepositorySDK",
             ],
             path: "Sources/Features/ArchitecturePlannerFeature"
@@ -132,7 +135,6 @@ let package = Package(
             name: "PlanRunnerFeature",
             dependencies: [
                 "AIOutputSDK",
-                "ClaudeCLISDK",
                 "GitSDK",
                 "LoggingSDK",
                 "PlanRunnerService",
@@ -254,8 +256,6 @@ let package = Package(
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
                 "AIOutputSDK",
-                "ClaudeCLISDK",
-                "CodexCLISDK",
                 "EvalService",
             ],
             path: "Sources/SDKs/EvalSDK"
@@ -297,7 +297,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ArchitecturePlannerFeatureTests",
-            dependencies: ["ArchitecturePlannerFeature", "ArchitecturePlannerService", "ClaudeCLISDK", "RepositorySDK"],
+            dependencies: ["ArchitecturePlannerFeature", "ArchitecturePlannerService", "RepositorySDK"],
             path: "Tests/Features/ArchitecturePlannerFeatureTests"
         ),
         .testTarget(
@@ -347,7 +347,7 @@ let package = Package(
         ),
         .testTarget(
             name: "EvalIntegrationTests",
-            dependencies: ["EvalFeature", "EvalSDK", "EvalService"]
+            dependencies: ["ClaudeCLISDK", "CodexCLISDK", "EvalFeature", "EvalSDK", "EvalService"]
         ),
         .testTarget(
             name: "EvalSDKTests",
@@ -366,7 +366,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PlanRunnerFeatureTests",
-            dependencies: ["ClaudeCLISDK", "GitSDK", "PlanRunnerFeature", "PlanRunnerService", "RepositorySDK"],
+            dependencies: ["GitSDK", "PlanRunnerFeature", "PlanRunnerService", "RepositorySDK"],
             path: "Tests/Features/PlanRunnerFeatureTests"
         ),
         .testTarget(

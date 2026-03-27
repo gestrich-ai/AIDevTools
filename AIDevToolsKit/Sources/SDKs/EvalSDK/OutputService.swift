@@ -1,6 +1,4 @@
 import AIOutputSDK
-import ClaudeCLISDK
-import CodexCLISDK
 import EvalService
 import Foundation
 
@@ -84,7 +82,9 @@ public struct OutputService: Sendable {
     public func readFormattedOutput(
         caseId: String,
         provider: Provider,
-        outputDirectory: URL
+        outputDirectory: URL,
+        formatter: any StreamFormatter,
+        rubricFormatter: any StreamFormatter
     ) throws -> FormattedOutput {
         let artifactsDir = Self.artifactsDirectory(outputDirectory: outputDirectory)
         let session = Self.makeSession(
@@ -97,7 +97,7 @@ public struct OutputService: Sendable {
             throw OutputServiceError.stdoutNotFound(session.store.url(for: session.key))
         }
 
-        let mainOutput = format(rawStdout, provider: provider)
+        let mainOutput = formatter.format(rawStdout)
 
         let rubricSession = Self.makeSession(
             artifactsDirectory: artifactsDir,
@@ -106,19 +106,10 @@ public struct OutputService: Sendable {
         )
         var rubricOutput: String?
         if let rawRubric = rubricSession.loadOutput() {
-            rubricOutput = ClaudeStreamFormatter().format(rawRubric)
+            rubricOutput = rubricFormatter.format(rawRubric)
         }
 
         return FormattedOutput(mainOutput: mainOutput, rubricOutput: rubricOutput)
-    }
-
-    private func format(_ raw: String, provider: Provider) -> String {
-        switch provider {
-        case .claude:
-            return ClaudeStreamFormatter().format(raw)
-        case .codex:
-            return CodexStreamFormatter().format(raw)
-        }
     }
 }
 

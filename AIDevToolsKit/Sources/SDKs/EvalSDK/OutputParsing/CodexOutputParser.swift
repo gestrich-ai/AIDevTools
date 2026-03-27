@@ -1,6 +1,5 @@
-import Foundation
-import CodexCLISDK
 import EvalService
+import Foundation
 
 public struct CodexOutputParser: Sendable {
 

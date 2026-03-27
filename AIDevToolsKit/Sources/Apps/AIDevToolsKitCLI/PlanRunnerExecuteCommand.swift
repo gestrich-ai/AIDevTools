@@ -1,4 +1,5 @@
 import ArgumentParser
+import ClaudeCLISDK
 import DataPathsService
 import Foundation
 import PlanRunnerFeature
@@ -56,6 +57,7 @@ struct PlanRunnerExecuteCommand: AsyncParsableCommand {
 
         let resolvedDataPath = ResolveDataPathUseCase().resolve(explicit: dataPath).path
         let useCase = ExecutePlanUseCase(
+            client: ClaudeCLIClient(),
             completedDirectory: completedDirectory,
             dataPath: resolvedDataPath
         )
