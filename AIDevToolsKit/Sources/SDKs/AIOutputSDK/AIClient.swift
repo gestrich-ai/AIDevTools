@@ -5,6 +5,8 @@ public struct AIClientOptions: Sendable {
     public var environment: [String: String]?
     public var jsonSchema: String?
     public var model: String?
+    public var sessionId: String?
+    public var systemPrompt: String?
     public var workingDirectory: String?
 
     public init(
@@ -12,23 +14,29 @@ public struct AIClientOptions: Sendable {
         environment: [String: String]? = nil,
         jsonSchema: String? = nil,
         model: String? = nil,
+        sessionId: String? = nil,
+        systemPrompt: String? = nil,
         workingDirectory: String? = nil
     ) {
         self.dangerouslySkipPermissions = dangerouslySkipPermissions
         self.environment = environment
         self.jsonSchema = jsonSchema
         self.model = model
+        self.sessionId = sessionId
+        self.systemPrompt = systemPrompt
         self.workingDirectory = workingDirectory
     }
 }
 
 public struct AIClientResult: Sendable {
     public let exitCode: Int32
+    public let sessionId: String?
     public let stderr: String
     public let stdout: String
 
-    public init(exitCode: Int32, stderr: String, stdout: String) {
+    public init(exitCode: Int32, sessionId: String? = nil, stderr: String, stdout: String) {
         self.exitCode = exitCode
+        self.sessionId = sessionId
         self.stderr = stderr
         self.stdout = stdout
     }
@@ -36,11 +44,13 @@ public struct AIClientResult: Sendable {
 
 public struct AIStructuredResult<T: Sendable>: Sendable {
     public let rawOutput: String
+    public let sessionId: String?
     public let stderr: String
     public let value: T
 
-    public init(rawOutput: String, stderr: String, value: T) {
+    public init(rawOutput: String, sessionId: String? = nil, stderr: String, value: T) {
         self.rawOutput = rawOutput
+        self.sessionId = sessionId
         self.stderr = stderr
         self.value = value
     }
