@@ -158,7 +158,10 @@ public struct AIStructuredResult<T: Sendable>: Sendable {
 - Update `AIRunSession.run()` and `runStructured()` to pass through and return `sessionId`
 - Verify all existing callers still compile (they pass no `sessionId`, so they get `nil`)
 
-## - [ ] Phase 2: Update CLI conformances and create Anthropic adapter
+## - [x] Phase 2: Update CLI conformances and create Anthropic adapter
+
+**Skills used**: `swift-architecture`
+**Principles applied**: SDKs are stateless structs (ClaudeCLI/Codex); AnthropicAIClient is an actor because it manages conversation state. Codex left unchanged since it doesn't support resume/system-prompt.
 
 **Skills to read**: `swift-architecture`
 

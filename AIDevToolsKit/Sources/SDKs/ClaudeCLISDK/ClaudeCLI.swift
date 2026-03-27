@@ -15,6 +15,7 @@ public struct Claude {
     @Option("--output-format") public var outputFormat: String?
     @Flag("-p") public var printMode: Bool = false
     @Option("--resume") public var resume: String?
+    @Option("--system-prompt") public var systemPrompt: String?
     @Flag public var verbose: Bool = false
     @Positional public var prompt: String
 }

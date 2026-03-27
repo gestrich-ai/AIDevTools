@@ -9,6 +9,8 @@ extension ClaudeCLIClient: AIClient {
         var command = Claude(prompt: prompt)
         command.dangerouslySkipPermissions = options.dangerouslySkipPermissions
         command.model = options.model
+        command.resume = options.sessionId
+        command.systemPrompt = options.systemPrompt
         if let jsonSchema = options.jsonSchema {
             command.jsonSchema = jsonSchema
             command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
@@ -21,7 +23,8 @@ extension ClaudeCLIClient: AIClient {
             environment: options.environment,
             onFormattedOutput: onOutput
         )
-        return AIClientResult(exitCode: result.exitCode, stderr: result.stderr, stdout: result.stdout)
+        let sessionId = Self.extractSessionId(from: result.stdout)
+        return AIClientResult(exitCode: result.exitCode, sessionId: sessionId, stderr: result.stderr, stdout: result.stdout)
     }
 
     public func runStructured<T: Decodable & Sendable>(
@@ -35,6 +38,8 @@ extension ClaudeCLIClient: AIClient {
         command.dangerouslySkipPermissions = options.dangerouslySkipPermissions
         command.jsonSchema = jsonSchema
         command.model = options.model
+        command.resume = options.sessionId
+        command.systemPrompt = options.systemPrompt
         command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
         command.printMode = true
         command.verbose = true
@@ -45,6 +50,7 @@ extension ClaudeCLIClient: AIClient {
             environment: options.environment,
             onFormattedOutput: onOutput
         )
-        return AIStructuredResult(rawOutput: output.rawOutput, stderr: output.stderr, value: output.value)
+        let sessionId = Self.extractSessionId(from: output.rawOutput)
+        return AIStructuredResult(rawOutput: output.rawOutput, sessionId: sessionId, stderr: output.stderr, value: output.value)
     }
 }

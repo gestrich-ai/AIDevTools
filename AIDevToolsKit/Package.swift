@@ -201,6 +201,7 @@ let package = Package(
         .target(
             name: "AnthropicSDK",
             dependencies: [
+                "AIOutputSDK",
                 "SwiftAnthropic",
             ],
             path: "Sources/SDKs/AnthropicSDK"
