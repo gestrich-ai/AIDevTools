@@ -21,18 +21,19 @@ struct ClaudeChatCommand: AsyncParsableCommand {
 
     func run() async throws {
         let dir = workingDir ?? FileManager.default.currentDirectoryPath
+        let client = ClaudeCLIClient()
 
         if let message {
-            try await sendSingleMessage(message, workingDirectory: dir)
+            try await sendSingleMessage(message, workingDirectory: dir, client: client)
         } else {
-            try await runInteractive(workingDirectory: dir)
+            try await runInteractive(workingDirectory: dir, client: client)
         }
     }
 
     // MARK: - Private
 
-    private func sendSingleMessage(_ text: String, workingDirectory: String) async throws {
-        let useCase = SendClaudeCodeMessageUseCase()
+    private func sendSingleMessage(_ text: String, workingDirectory: String, client: ClaudeCLIClient) async throws {
+        let useCase = SendClaudeCodeMessageUseCase(client: client)
         var sessionId: String?
         if resume {
             let sessions = await ListClaudeCodeSessionsUseCase().run(
@@ -58,11 +59,11 @@ struct ClaudeChatCommand: AsyncParsableCommand {
         }
     }
 
-    private func runInteractive(workingDirectory: String) async throws {
+    private func runInteractive(workingDirectory: String, client: ClaudeCLIClient) async throws {
         print("Claude Code Chat (type 'exit' or Ctrl-D to quit)")
         print("─────────────────────────────────────────────────")
 
-        let useCase = SendClaudeCodeMessageUseCase()
+        let useCase = SendClaudeCodeMessageUseCase(client: client)
         var sessionId: String?
 
         if resume {
@@ -98,7 +99,7 @@ struct ClaudeChatCommand: AsyncParsableCommand {
             fflush(stdout)
 
             do {
-                _ = try await useCase.run(options) { progress in
+                let result = try await useCase.run(options) { progress in
                     switch progress {
                     case .textDelta(let text):
                         print(text, terminator: "")
@@ -107,6 +108,7 @@ struct ClaudeChatCommand: AsyncParsableCommand {
                         print()
                     }
                 }
+                sessionId = result.sessionId ?? sessionId
             } catch {
                 print("\nError: \(error.localizedDescription)")
             }

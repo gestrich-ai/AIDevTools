@@ -113,7 +113,7 @@ let package = Package(
         .target(
             name: "ClaudeCodeChatFeature",
             dependencies: [
-                "ClaudeCLISDK",
+                "AIOutputSDK",
                 "ClaudeCodeChatService",
                 "SkillScannerSDK",
             ],
@@ -173,7 +173,7 @@ let package = Package(
         .target(
             name: "ClaudeCodeChatService",
             dependencies: [
-                "ClaudeCLISDK",
+                "AIOutputSDK",
             ],
             path: "Sources/Services/ClaudeCodeChatService"
         ),

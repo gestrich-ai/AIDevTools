@@ -1,4 +1,4 @@
-import ClaudeCLISDK
+import AIOutputSDK
 import Foundation
 import Observation
 
@@ -11,7 +11,7 @@ public final class ClaudeCodeChatManager {
     public let settings: ClaudeCodeChatSettings
     public private(set) var messageQueue: [QueuedMessage] = []
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
     private var currentTask: Task<Void, Never>?
 
     public var messages: [ClaudeCodeChatMessage] { sessionState.messages }
@@ -21,9 +21,9 @@ public final class ClaudeCodeChatManager {
     public init(
         workingDirectory: String? = nil,
         settings: ClaudeCodeChatSettings = ClaudeCodeChatSettings(),
-        claudeClient: ClaudeCLIClient = ClaudeCLIClient()
+        client: any AIClient
     ) {
-        self.claudeClient = claudeClient
+        self.client = client
         self.settings = settings
 
         let rawWorkingDir = workingDirectory ?? FileManager.default.currentDirectoryPath
@@ -175,16 +175,10 @@ public final class ClaudeCodeChatManager {
             isProcessing = true
         }
 
-        let shouldContinue = await MainActor.run {
-            settings.resumeLastSession && sessionState.hasStartedSession
+        let resumeId = await MainActor.run {
+            settings.resumeLastSession && sessionState.hasStartedSession ? sessionState.sessionId : nil
         }
-        let resumeId = await MainActor.run { sessionState.sessionId }
-        let serviceSettings = await MainActor.run {
-            (
-                workingDir: workingDirectory,
-                verbose: settings.verboseMode
-            )
-        }
+        let workingDir = await MainActor.run { workingDirectory }
 
         var promptText = content
         var imagePaths: [String] = []
@@ -235,23 +229,17 @@ public final class ClaudeCodeChatManager {
 
         let accumulator = StreamAccumulator()
 
-        var command = Claude(prompt: promptText)
-        command.dangerouslySkipPermissions = true
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.verbose = true
-        if shouldContinue {
-            if let resumeId {
-                command.resume = resumeId
-            } else {
-                command.continueConversation = true
-            }
-        }
+        let options = AIClientOptions(
+            dangerouslySkipPermissions: true,
+            sessionId: resumeId,
+            workingDirectory: workingDir
+        )
 
         do {
-            let result = try await claudeClient.run(
-                command: command,
-                workingDirectory: serviceSettings.workingDir,
-                onFormattedOutput: { @Sendable chunk in
+            let result = try await client.run(
+                prompt: promptText,
+                options: options,
+                onOutput: { @Sendable chunk in
                     Task {
                         let updatedContent = await accumulator.append(chunk)
                         await MainActor.run { [updatedContent] in
@@ -268,12 +256,10 @@ public final class ClaudeCodeChatManager {
                 }
             )
 
-            let sessionId = parseSessionId(from: result.stdout)
-
             await MainActor.run {
                 if result.exitCode == 0 {
                     sessionState.hasStartedSession = true
-                    if let sessionId {
+                    if let sessionId = result.sessionId {
                         sessionState.sessionId = sessionId
                     }
                 }
@@ -342,22 +328,6 @@ public final class ClaudeCodeChatManager {
         }
 
         await sendMessageInternal(queuedMessage.content, images: queuedMessage.images)
-    }
-
-    // MARK: - Session File Parsing
-
-    private nonisolated func parseSessionId(from stdout: String) -> String? {
-        let decoder = JSONDecoder()
-        for line in stdout.components(separatedBy: "\n").reversed() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { continue }
-            if let result = try? decoder.decode(ClaudeResultEvent.self, from: data),
-               result.type == "result",
-               let sessionId = result.sessionId {
-                return sessionId
-            }
-        }
-        return nil
     }
 
     private nonisolated static func findSummaryInSessionFile(at filePath: String) -> String? {

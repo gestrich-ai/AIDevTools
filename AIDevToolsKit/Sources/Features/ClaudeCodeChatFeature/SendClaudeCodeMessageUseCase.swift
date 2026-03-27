@@ -1,5 +1,5 @@
+import AIOutputSDK
 import ClaudeCodeChatService
-import ClaudeCLISDK
 import Foundation
 
 public struct SendClaudeCodeMessageUseCase: Sendable {
@@ -23,40 +23,36 @@ public struct SendClaudeCodeMessageUseCase: Sendable {
         }
     }
 
+    public struct Result: Sendable {
+        public let fullText: String
+        public let sessionId: String?
+    }
+
     public enum Progress: Sendable {
         case textDelta(String)
         case completed(fullText: String)
     }
 
-    private let claudeClient: ClaudeCLIClient
+    private let client: any AIClient
 
-    public init(claudeClient: ClaudeCLIClient = ClaudeCLIClient()) {
-        self.claudeClient = claudeClient
+    public init(client: any AIClient) {
+        self.client = client
     }
 
     public func run(
         _ options: Options,
         onProgress: (@Sendable (Progress) -> Void)? = nil
-    ) async throws -> String {
-        var command = Claude(prompt: options.message)
-        command.dangerouslySkipPermissions = true
-        command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
-        command.verbose = true
-        if let sessionId = options.sessionId {
-            command.resume = sessionId
-        }
+    ) async throws -> Result {
+        let aiOptions = AIClientOptions(
+            dangerouslySkipPermissions: true,
+            sessionId: options.sessionId,
+            workingDirectory: options.workingDirectory
+        )
 
-        actor TextAccumulator {
-            var text = ""
-            func append(_ chunk: String) { text += chunk }
-        }
-        let accumulator = TextAccumulator()
-
-        let result = try await claudeClient.run(
-            command: command,
-            workingDirectory: options.workingDirectory,
-            onFormattedOutput: { @Sendable chunk in
-                Task { await accumulator.append(chunk) }
+        let result = try await client.run(
+            prompt: options.message,
+            options: aiOptions,
+            onOutput: { chunk in
                 onProgress?(.textDelta(chunk))
             }
         )
@@ -65,9 +61,8 @@ public struct SendClaudeCodeMessageUseCase: Sendable {
             throw ClaudeCodeChatError.commandFailed(exitCode: result.exitCode, stderr: result.stderr)
         }
 
-        let fullText = await accumulator.text
-        onProgress?(.completed(fullText: fullText))
-        return fullText
+        onProgress?(.completed(fullText: result.stdout))
+        return Result(fullText: result.stdout, sessionId: result.sessionId)
     }
 }
 

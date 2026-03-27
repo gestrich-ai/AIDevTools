@@ -1,5 +1,6 @@
 import AnthropicChatService
 import ArchitecturePlannerService
+import ClaudeCLISDK
 import ClaudeCodeChatService
 import PlanRunnerService
 import RepositorySDK
@@ -317,7 +318,8 @@ struct WorkspaceView: View {
             return
         }
         claudeCodeChatManager = ClaudeCodeChatManager(
-            workingDirectory: repo.path.path()
+            workingDirectory: repo.path.path(),
+            client: ClaudeCLIClient()
         )
     }
 

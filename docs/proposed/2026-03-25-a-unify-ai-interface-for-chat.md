@@ -341,7 +341,10 @@ public actor ChatSessionManager {
   - Streaming events arrive in correct order
   - Error propagation
 
-## - [ ] Phase 4: Migrate ClaudeCodeChat to unified ChatService
+## - [x] Phase 4: Migrate ClaudeCodeChat to unified ChatService
+
+**Skills used**: `swift-architecture`, `ai-dev-tools-debug`
+**Principles applied**: Concrete SDK injected at App layer; service and feature layers depend only on AIClient protocol via AIOutputSDK. JSONL session loading stays in ClaudeCodeChatService as CLI-specific utility.
 
 **Skills to read**: `swift-architecture`, `ai-dev-tools-debug`
 
