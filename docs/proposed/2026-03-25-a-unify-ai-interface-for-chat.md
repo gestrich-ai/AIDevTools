@@ -425,7 +425,10 @@ Recommend option 1 unless tool calling is actively used. Check `ChatViewModel` t
 - Remove `AnthropicChatService` target if fully replaced by `ChatService`
 - Verify: send a message, see streaming response, multi-turn conversation, load previous conversations from SwiftData
 
-## - [ ] Phase 6: Clean up and validation
+## - [x] Phase 6: Clean up and validation
+
+**Skills used**: `swift-architecture`, `ai-dev-tools-debug`
+**Principles applied**: Dependency audit confirms all features/services go through AIOutputSDK protocol only; concrete SDKs injected at App layer. Kept ClaudeCodeChatService (session file loading) and AnthropicChatService (SwiftData persistence) as thin utilities. 115 tests pass.
 
 **Skills to read**: `swift-architecture`, `ai-dev-tools-debug`
 
