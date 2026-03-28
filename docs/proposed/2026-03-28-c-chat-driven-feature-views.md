@@ -304,7 +304,10 @@ final class ActivePlanModel {
 - Modify: `Apps/AIDevToolsKitMac/Models/MarkdownPlannerModel.swift` — adjust execution to work with ChatModel
 - Possibly modify: `Features/MarkdownPlannerFeature/usecases/ExecutePlanUseCase.swift` — if execution needs to go through chat
 
-## - [ ] Phase 6: Remove standalone workspace chat panel
+## - [x] Phase 6: Remove standalone workspace chat panel
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Removed all chat panel state (`chatPanelVisible`, `chatProviderName`, `chatModel`, `showingChatSettings`, `showingSessionPicker`), deleted `chatToolbar`, `bottomBar`, `chatPanelView`, and `rebuildChatModel()`. Replaced the `VSplitView`-wrapped detail section with a direct `detailContentView`. Removed `ChatFeature` import. Chat infrastructure (`ChatPanelView`, `ChatModel`) remains intact — now used exclusively within feature views (e.g. `MarkdownPlannerDetailView`).
 
 **Skills to read**: `swift-architecture`
 

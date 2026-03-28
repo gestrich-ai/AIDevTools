@@ -1,6 +1,5 @@
 import AIOutputSDK
 import ArchitecturePlannerService
-import ChatFeature
 import MarkdownPlannerService
 import ProviderRegistryService
 import RepositorySDK
@@ -28,14 +27,9 @@ struct WorkspaceView: View {
     @AppStorage("selectedPlanName") private var storedPlanName: String?
     @AppStorage("selectedSkillName") private var storedSkillName: String?
     @AppStorage("anthropicAPIKey") private var apiKey = ""
-    @AppStorage("chatPanelVisible") private var chatPanelVisible = false
-    @AppStorage("chatProviderName") private var chatProviderName: String = ""
     @State private var selectedRepoID: UUID?
     @State private var selectedItem: WorkspaceItem?
     @State private var showGenerateSheet = false
-    @State private var chatModel: ChatModel?
-    @State private var showingChatSettings = false
-    @State private var showingSessionPicker = false
 
     var body: some View {
         NavigationSplitView {
@@ -53,7 +47,6 @@ struct WorkspaceView: View {
                     }
                     architecturePlannerModel.loadJobs(repoName: repo.name, repoPath: repo.path.path())
                 }
-                rebuildChatModel()
             }
         } content: {
             if model.selectedRepository != nil {
@@ -132,31 +125,7 @@ struct WorkspaceView: View {
                 ContentUnavailableView("Select a Repository", systemImage: "folder", description: Text("Choose a repository from the sidebar."))
             }
         } detail: {
-            VStack(spacing: 0) {
-                if chatPanelVisible {
-                    VSplitView {
-                        detailContentView
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                        VStack(spacing: 0) {
-                            chatToolbar
-                            chatPanelView
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                        .frame(minHeight: 100, idealHeight: 300)
-                    }
-                } else {
-                    detailContentView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    bottomBar
-                }
-            }
-            .sheet(isPresented: $showingChatSettings) {
-                if let chatModel {
-                    ChatSettingsView()
-                        .environment(chatModel)
-                }
-            }
+            detailContentView
         }
         .task {
             model.load()
@@ -176,82 +145,10 @@ struct WorkspaceView: View {
                     selectedItem = .skill(skillName)
                 }
             }
-            rebuildChatModel()
         }
         .onChange(of: apiKey) { _, _ in
             providerModel.refreshProviders()
-            rebuildChatModel()
         }
-    }
-
-    // MARK: - Chat
-
-    private var chatProviders: [(name: String, displayName: String)] {
-        providerModel.providerRegistry.providers.map { (name: $0.name, displayName: $0.displayName) }
-    }
-
-    private var chatToolbar: some View {
-        HStack(spacing: 8) {
-            Picker("", selection: $chatProviderName) {
-                ForEach(chatProviders, id: \.name) { entry in
-                    Text(entry.displayName).tag(entry.name)
-                }
-            }
-            .frame(maxWidth: 200)
-            .onChange(of: chatProviderName) { _, _ in
-                rebuildChatModel()
-            }
-
-            Spacer()
-
-            if let chatModel {
-                if chatModel.supportsSessionHistory {
-                    Button(action: { showingSessionPicker = true }) {
-                        Image(systemName: "clock.arrow.circlepath")
-                    }
-                    .buttonStyle(.plain)
-                    .help("Session history")
-                    .popover(isPresented: $showingSessionPicker) {
-                        ChatSessionPickerView()
-                            .environment(chatModel)
-                            .frame(minWidth: 300, minHeight: 400)
-                    }
-                }
-
-                Button(action: { showingChatSettings = true }) {
-                    Image(systemName: "gear")
-                }
-                .buttonStyle(.plain)
-                .help("Chat settings")
-            }
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { chatPanelVisible = false }
-            } label: {
-                Image(systemName: "xmark")
-            }
-            .buttonStyle(.plain)
-            .help("Hide chat")
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(.bar)
-    }
-
-    private var bottomBar: some View {
-        HStack {
-            Spacer()
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { chatPanelVisible = true }
-            } label: {
-                Image(systemName: "terminal")
-            }
-            .buttonStyle(.plain)
-            .help("Show chat")
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(.bar)
     }
 
     @ViewBuilder
@@ -280,35 +177,6 @@ struct WorkspaceView: View {
                 ContentUnavailableView("Select an Item", systemImage: "doc.text", description: Text("Choose a skill, plan, or eval suite to view details."))
             }
         }
-    }
-
-    @ViewBuilder
-    private var chatPanelView: some View {
-        if let chatModel {
-            ChatPanelView()
-                .environment(chatModel)
-        } else {
-            ContentUnavailableView("Select a Repository", systemImage: "folder", description: Text("Select a repository to start chat."))
-        }
-    }
-
-    private func rebuildChatModel() {
-        guard let repo = model.selectedRepository else {
-            chatModel = nil
-            return
-        }
-        let resolvedName = chatProviderName.isEmpty
-            ? providerModel.providerRegistry.defaultClient?.name ?? ""
-            : chatProviderName
-        guard let client = providerModel.providerRegistry.client(named: resolvedName) else {
-            chatModel = nil
-            return
-        }
-        chatModel = ChatModel(
-            sendMessageUseCase: SendChatMessageUseCase(client: client),
-            client: client,
-            workingDirectory: repo.path.path()
-        )
     }
 
     // MARK: - Plan List Content
