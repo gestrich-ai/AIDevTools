@@ -8,18 +8,22 @@ import ProviderRegistryService
 @MainActor @Observable
 final class ProviderModel {
     private(set) var providerRegistry: ProviderRegistry
+    private let anthropicAPIKeySource: @Sendable () -> String?
 
-    init() {
-        self.providerRegistry = Self.buildRegistry()
+    init(anthropicAPIKeySource: @escaping @Sendable () -> String? = {
+        UserDefaults.standard.string(forKey: "anthropicAPIKey")
+    }) {
+        self.anthropicAPIKeySource = anthropicAPIKeySource
+        self.providerRegistry = Self.buildRegistry(anthropicAPIKey: anthropicAPIKeySource())
     }
 
     func refreshProviders() {
-        self.providerRegistry = Self.buildRegistry()
+        self.providerRegistry = Self.buildRegistry(anthropicAPIKey: anthropicAPIKeySource())
     }
 
-    private static func buildRegistry() -> ProviderRegistry {
+    private static func buildRegistry(anthropicAPIKey: String?) -> ProviderRegistry {
         var providers: [any AIClient] = [ClaudeProvider(), CodexProvider()]
-        if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
+        if let key = anthropicAPIKey, !key.isEmpty {
             providers.append(AnthropicProvider(apiClient: AnthropicAPIClient(apiKey: key)))
         }
         return ProviderRegistry(providers: providers)

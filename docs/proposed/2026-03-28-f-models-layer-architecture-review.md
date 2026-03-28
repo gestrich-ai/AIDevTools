@@ -63,9 +63,10 @@ Each phase reviews one file and then implements all findings. The review output 
 - Implement all review findings, including low severity
 - Verify the build passes
 
-## - [ ] Phase 6: Review and fix ProviderModel.swift
+## - [x] Phase 6: Review and fix ProviderModel.swift
 
-**Skills to read**: `ai-dev-tools-review`
+**Skills used**: `ai-dev-tools-review`
+**Principles applied**: Injected API key source via closure to decouple from UserDefaults singleton; parameterized `buildRegistry()` to accept API key, improving testability and reducing implicit coupling to hardcoded key string; noted CLI factory duplication as future consolidation opportunity
 
 - Run the `ai-dev-tools-review` skill on `AIDevToolsKit/Sources/Apps/AIDevToolsKitMac/Models/ProviderModel.swift`
 - Save the review output to `reviews/apps-ProviderModel.md`
