@@ -74,9 +74,11 @@ struct ChatCommand: AsyncParsableCommand {
 
         let result = try await useCase.run(options) { progress in
             switch progress {
-            case .textDelta(let text):
-                print(text, terminator: "")
-                fflush(stdout)
+            case .streamEvent(let event):
+                if case .textDelta(let text) = event {
+                    print(text, terminator: "")
+                    fflush(stdout)
+                }
             case .completed:
                 print()
             }
@@ -131,9 +133,11 @@ struct ChatCommand: AsyncParsableCommand {
             do {
                 let result = try await useCase.run(options) { progress in
                     switch progress {
-                    case .textDelta(let text):
-                        print(text, terminator: "")
-                        fflush(stdout)
+                    case .streamEvent(let event):
+                        if case .textDelta(let text) = event {
+                            print(text, terminator: "")
+                            fflush(stdout)
+                        }
                     case .completed:
                         print()
                     }

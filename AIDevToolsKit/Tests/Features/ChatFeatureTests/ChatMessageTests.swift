@@ -1,75 +1,86 @@
+import AIOutputSDK
 import Foundation
 import Testing
 @testable import ChatFeature
 
 struct ChatMessageTests {
 
-    // MARK: - ContentLines Parsing
+    // MARK: - contentBlocks
 
-    @Test func contentLinesClassifiesThinkingLines() {
-        let message = ChatMessage(role: .assistant, content: "🧠 Thinking about this...")
-        let lines = message.contentLines
-        #expect(lines.count == 1)
-        #expect(lines[0].type == .thinking)
+    @Test func contentBlocksFromStringInit() {
+        let message = ChatMessage(role: .assistant, content: "Hello world")
+        #expect(message.contentBlocks == [.text("Hello world")])
     }
 
-    @Test func contentLinesClassifiesToolLines() {
-        let message = ChatMessage(role: .assistant, content: "🔧 Running grep command")
-        let lines = message.contentLines
-        #expect(lines.count == 1)
-        #expect(lines[0].type == .tool)
+    @Test func contentBlocksFromEmptyStringInit() {
+        let message = ChatMessage(role: .assistant, content: "")
+        #expect(message.contentBlocks.isEmpty)
     }
 
-    @Test func contentLinesClassifiesTextLines() {
-        let message = ChatMessage(role: .assistant, content: "Here is the answer.")
-        let lines = message.contentLines
-        #expect(lines.count == 1)
-        #expect(lines[0].type == .text)
+    @Test func contentBlocksFromDirectInit() {
+        let blocks: [AIContentBlock] = [
+            .thinking("Let me think..."),
+            .toolUse(name: "Bash", detail: "ls -la"),
+            .text("Here is the result."),
+        ]
+        let message = ChatMessage(role: .assistant, contentBlocks: blocks)
+        #expect(message.contentBlocks == blocks)
     }
 
-    @Test func contentLinesHandlesMixedContent() {
-        let content = """
-        🧠 Let me think...
-        🔧 Reading file.swift
-        Here is the result.
-        """
-        let message = ChatMessage(role: .assistant, content: content)
-        let lines = message.contentLines
-        #expect(lines.count == 3)
-        #expect(lines[0].type == .thinking)
-        #expect(lines[1].type == .tool)
-        #expect(lines[2].type == .text)
+    // MARK: - content (computed)
+
+    @Test func contentConcatenatesTextBlocks() {
+        let blocks: [AIContentBlock] = [
+            .thinking("hmm"),
+            .text("Hello "),
+            .toolUse(name: "Bash", detail: "ls"),
+            .text("world"),
+        ]
+        let message = ChatMessage(role: .assistant, contentBlocks: blocks)
+        #expect(message.content == "Hello world")
     }
 
-    @Test func contentLinesSkipsEmptyLines() {
-        let message = ChatMessage(role: .assistant, content: "Hello\n\nWorld")
-        let lines = message.contentLines
-        #expect(lines.count == 2)
-        #expect(lines[0].text == "Hello")
-        #expect(lines[1].text == "World")
+    @Test func contentReturnsEmptyForNoTextBlocks() {
+        let blocks: [AIContentBlock] = [
+            .thinking("hmm"),
+            .toolUse(name: "Bash", detail: "ls"),
+        ]
+        let message = ChatMessage(role: .assistant, contentBlocks: blocks)
+        #expect(message.content == "")
     }
 
     // MARK: - shouldCollapseThinking
 
     @Test func shouldCollapseThinkingReturnsTrueForCompletedMessageWithBothTypes() {
-        let content = "🧠 Thinking\nHere is the answer."
-        let message = ChatMessage(role: .assistant, content: content, isComplete: true)
+        let blocks: [AIContentBlock] = [.thinking("Thinking"), .text("Here is the answer.")]
+        let message = ChatMessage(role: .assistant, contentBlocks: blocks, isComplete: true)
         #expect(message.shouldCollapseThinking == true)
     }
 
     @Test func shouldCollapseThinkingReturnsFalseForIncompleteMessage() {
-        let content = "🧠 Thinking\nHere is the answer."
-        let message = ChatMessage(role: .assistant, content: content, isComplete: false)
+        let blocks: [AIContentBlock] = [.thinking("Thinking"), .text("Here is the answer.")]
+        let message = ChatMessage(role: .assistant, contentBlocks: blocks, isComplete: false)
         #expect(message.shouldCollapseThinking == false)
     }
 
     @Test func shouldCollapseThinkingReturnsFalseForUserMessage() {
-        let message = ChatMessage(role: .user, content: "🧠 Not thinking", isComplete: true)
+        let message = ChatMessage(role: .user, content: "Not thinking", isComplete: true)
         #expect(message.shouldCollapseThinking == false)
     }
 
     @Test func shouldCollapseThinkingReturnsFalseWhenOnlyThinking() {
-        let message = ChatMessage(role: .assistant, content: "🧠 Just thinking", isComplete: true)
+        let blocks: [AIContentBlock] = [.thinking("Just thinking")]
+        let message = ChatMessage(role: .assistant, contentBlocks: blocks, isComplete: true)
         #expect(message.shouldCollapseThinking == false)
+    }
+
+    @Test func shouldCollapseThinkingReturnsTrueWithToolBlocks() {
+        let blocks: [AIContentBlock] = [
+            .toolUse(name: "Bash", detail: "ls"),
+            .toolResult(name: "Bash", summary: "file.txt", isError: false),
+            .text("Done."),
+        ]
+        let message = ChatMessage(role: .assistant, contentBlocks: blocks, isComplete: true)
+        #expect(message.shouldCollapseThinking == true)
     }
 }

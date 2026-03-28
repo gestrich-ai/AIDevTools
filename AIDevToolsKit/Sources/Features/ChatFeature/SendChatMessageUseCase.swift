@@ -41,7 +41,7 @@ public struct SendChatMessageUseCase: Sendable {
 
     public enum Progress: Sendable {
         case completed(fullText: String)
-        case textDelta(String)
+        case streamEvent(AIStreamEvent)
     }
 
     private let client: any AIClient
@@ -82,8 +82,9 @@ public struct SendChatMessageUseCase: Sendable {
         let result = try await client.run(
             prompt: promptText,
             options: aiOptions,
-            onOutput: { chunk in
-                onProgress?(.textDelta(chunk))
+            onOutput: nil,
+            onStreamEvent: { event in
+                onProgress?(.streamEvent(event))
             }
         )
 

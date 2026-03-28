@@ -87,7 +87,7 @@ struct ChatPanelView: View {
                     scrollDebounceTask = nil
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
-                .onChange(of: chatModel.messages.last?.content) { _, _ in
+                .onChange(of: chatModel.messages.last?.contentBlocks) { _, _ in
                     guard isNearBottom else { return }
                     scrollDebounceTask?.cancel()
                     scrollDebounceTask = Task {
@@ -334,7 +334,7 @@ struct ChatMessageRow: View {
                     (chatModel?.isProcessing ?? false) &&
                     chatModel?.messages.last?.id == message.id
 
-                if message.content.isEmpty && message.role == .assistant {
+                if message.contentBlocks.isEmpty && message.role == .assistant {
                     HStack(spacing: 8) {
                         ProgressView()
                             .controlSize(.small)
@@ -356,7 +356,7 @@ struct ChatMessageRow: View {
                             }
                         }
 
-                        if !message.content.isEmpty {
+                        if !message.contentBlocks.isEmpty {
                             ChatFormattedContent(message: message, isProcessing: chatModel?.isProcessing ?? false)
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -393,10 +393,16 @@ struct ChatFormattedContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            let lines = message.contentLines
-            let hasText = lines.contains { $0.type == .text }
+            let blocks = message.contentBlocks
+            let hasText = blocks.contains { if case .text = $0 { return true }; return false }
+            let hasThinkingOrTools = blocks.contains { block in
+                switch block {
+                case .thinking, .toolUse, .toolResult: return true
+                default: return false
+                }
+            }
 
-            if hasText && lines.contains(where: { $0.type == .thinking || $0.type == .tool }) {
+            if hasText && hasThinkingOrTools {
                 Button(action: { showThinkingAndTools.toggle() }) {
                     HStack(spacing: 4) {
                         Image(systemName: showThinkingAndTools ? "chevron.down" : "chevron.right")
@@ -410,15 +416,15 @@ struct ChatFormattedContent: View {
                 .padding(.bottom, 4)
             }
 
-            ForEach(lines, id: \.id) { line in
-                switch line.type {
-                case .thinking:
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                switch block {
+                case .thinking(let content):
                     if showThinkingAndTools || !hasText {
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "brain")
                                 .font(.caption)
                                 .foregroundStyle(.purple)
-                            Text(line.text)
+                            Text(content)
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                         }
@@ -432,15 +438,53 @@ struct ChatFormattedContent: View {
                                 .stroke(Color.purple.opacity(0.2), lineWidth: 1)
                         )
                     }
-                case .tool:
+                case .toolUse(let name, let detail):
                     if showThinkingAndTools || !hasText {
-                        Text(line.text)
-                            .font(.caption)
-                            .italic()
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 6) {
+                            Image(systemName: "terminal")
+                                .font(.caption2)
+                            Text("[\(name)]")
+                                .fontWeight(.medium)
+                            Text(detail)
+                                .lineLimit(1)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.secondary.opacity(0.1))
+                        )
                     }
-                case .text:
-                    Text(line.text)
+                case .toolResult(_, let summary, let isError):
+                    if showThinkingAndTools || !hasText {
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: isError ? "xmark.circle" : "checkmark.circle")
+                                .font(.caption2)
+                                .foregroundStyle(isError ? .red : .green)
+                            Text(summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.leading, 16)
+                    }
+                case .metrics(let duration, let cost, let turns):
+                    HStack(spacing: 12) {
+                        if let duration {
+                            Text(String(format: "%.1fs", duration))
+                        }
+                        if let cost {
+                            Text(String(format: "$%.4f", cost))
+                        }
+                        if let turns {
+                            Text("\(turns) turns")
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                case .text(let text):
+                    Text(text)
                         .font(.body)
                 }
             }

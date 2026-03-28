@@ -90,7 +90,10 @@ This phase is foundational — all subsequent phases depend on structured stream
 - Modify: `ClaudeCLISDK/ClaudeProvider+AIClient.swift` — emit stream events
 - Modify: `AnthropicSDK/AnthropicProvider.swift` — emit stream events
 
-## - [ ] Phase 2: Update ChatMessage and ChatFormattedContent to use structured blocks
+## - [x] Phase 2: Update ChatMessage and ChatFormattedContent to use structured blocks
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Replaced emoji-prefix string parsing with typed `AIContentBlock` array as the primary storage in `ChatMessage`. Kept `content: String` init for backward compatibility (user messages, error messages, session history) while making `content` computed from text blocks. `StreamAccumulator` in `ChatModel` now applies accumulation rules (text deltas merge, discrete events append). `ChatFormattedContent` renders each block type with dedicated UI: thinking blocks get purple styling, tool use gets compact pill badges, tool results show success/error indicators, metrics show as subtle footers.
 
 **Skills to read**: `swift-architecture`
 

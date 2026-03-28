@@ -181,7 +181,7 @@ public final class ChatModel {
         let placeholderMessage = ChatMessage(
             id: assistantMessageId,
             role: .assistant,
-            content: "",
+            contentBlocks: [],
             timestamp: Date()
         )
 
@@ -190,11 +190,26 @@ public final class ChatModel {
         }
 
         actor StreamAccumulator {
-            var content = ""
+            var blocks: [AIContentBlock] = []
 
-            func append(_ chunk: String) -> String {
-                content += chunk
-                return content
+            func apply(_ event: AIStreamEvent) -> [AIContentBlock] {
+                switch event {
+                case .textDelta(let chunk):
+                    if case .text(let existing) = blocks.last {
+                        blocks[blocks.count - 1] = .text(existing + chunk)
+                    } else {
+                        blocks.append(.text(chunk))
+                    }
+                case .thinking(let content):
+                    blocks.append(.thinking(content))
+                case .toolUse(let name, let detail):
+                    blocks.append(.toolUse(name: name, detail: detail))
+                case .toolResult(let name, let summary, let isError):
+                    blocks.append(.toolResult(name: name, summary: summary, isError: isError))
+                case .metrics(let duration, let cost, let turns):
+                    blocks.append(.metrics(duration: duration, cost: cost, turns: turns))
+                }
+                return blocks
             }
         }
 
@@ -210,15 +225,15 @@ public final class ChatModel {
         do {
             let result = try await sendMessageUseCase.run(options) { @Sendable progress in
                 switch progress {
-                case .textDelta(let chunk):
+                case .streamEvent(let event):
                     Task {
-                        let updatedContent = await accumulator.append(chunk)
-                        await MainActor.run { [updatedContent] in
+                        let updatedBlocks = await accumulator.apply(event)
+                        await MainActor.run { [updatedBlocks] in
                             if let index = self.messages.firstIndex(where: { $0.id == assistantMessageId }) {
                                 self.messages[index] = ChatMessage(
                                     id: assistantMessageId,
                                     role: .assistant,
-                                    content: updatedContent,
+                                    contentBlocks: updatedBlocks,
                                     timestamp: self.messages[index].timestamp
                                 )
                             }
@@ -259,7 +274,7 @@ public final class ChatModel {
                         messages[index] = ChatMessage(
                             id: existing.id,
                             role: existing.role,
-                            content: existing.content,
+                            contentBlocks: existing.contentBlocks,
                             images: existing.images,
                             timestamp: existing.timestamp,
                             isComplete: true
