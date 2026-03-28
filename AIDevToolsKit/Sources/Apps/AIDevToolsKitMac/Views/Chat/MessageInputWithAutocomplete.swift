@@ -36,7 +36,7 @@ struct MessageInputWithAutocomplete: View {
 
             CustomTextField(
                 text: $messageText,
-                placeholder: "Ask Claude anything...",
+                placeholder: "Send a message...",
                 onSubmit: onSubmit,
                 onTab: acceptSelectedSkill,
                 onUpArrow: selectPreviousSkill,

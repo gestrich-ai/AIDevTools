@@ -190,7 +190,7 @@ public struct PlanAcrossLayersUseCase: Sendable {
             }
             comp.requirements = linkedReqs
 
-            // Create GuidelineMappings from the guidelines Claude referenced
+            // Create GuidelineMappings from the referenced guidelines
             for ref in dto.guidelinesApplied {
                 if let guideline = guidelinesByTitle[ref.title.lowercased()] {
                     let mapping = GuidelineMapping(matchReason: ref.reason)

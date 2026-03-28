@@ -1,14 +1,13 @@
 import AIOutputSDK
 import AppKit
 import ChatFeature
-import ClaudeCLISDK
 import SwiftUI
 
 struct ChatSessionDetailView: View {
     @Environment(ChatModel.self) private var chatModel: ChatModel
     @Environment(\.dismiss) private var dismiss
     let session: ChatSession
-    @State private var sessionDetails: ClaudeSessionDetails?
+    @State private var sessionDetails: SessionDetails?
     @State private var isLoading = true
     @State private var searchText = ""
 
@@ -68,10 +67,11 @@ struct ChatSessionDetailView: View {
             }
             .task {
                 isLoading = true
+                let model = chatModel
                 let workDir = chatModel.workingDirectory
                 let s = session
                 let details = await Task.detached {
-                    ClaudeProvider().getSessionDetails(
+                    model.loadSessionDetails(
                         sessionId: s.id,
                         summary: s.summary,
                         lastModified: s.lastModified,
@@ -87,7 +87,7 @@ struct ChatSessionDetailView: View {
 
     // MARK: - Subviews
 
-    private func metadataBar(details: ClaudeSessionDetails) -> some View {
+    private func metadataBar(details: SessionDetails) -> some View {
         HStack(spacing: 16) {
             if let cwd = details.cwd {
                 HStack(spacing: 4) {

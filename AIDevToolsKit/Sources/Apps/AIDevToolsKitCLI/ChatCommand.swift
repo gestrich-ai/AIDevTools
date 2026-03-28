@@ -10,8 +10,8 @@ struct ChatCommand: AsyncParsableCommand {
         abstract: "Chat with an AI provider"
     )
 
-    @Option(name: .long, help: "Provider to use for chat (default: claude)")
-    var provider: String = "claude"
+    @Option(name: .long, help: "Provider to use for chat (default: first registered)")
+    var provider: String?
 
     @Option(name: .long, help: "System prompt to configure the AI's behavior")
     var systemPrompt: String?
@@ -28,9 +28,19 @@ struct ChatCommand: AsyncParsableCommand {
     func run() async throws {
         let registry = makeProviderRegistry()
 
-        guard let client = registry.client(named: provider) else {
-            print("Unknown provider '\(provider)'. Available: \(registry.providerNames.joined(separator: ", "))")
-            throw ExitCode.failure
+        let client: any AIClient
+        if let provider {
+            guard let named = registry.client(named: provider) else {
+                print("Unknown provider '\(provider)'. Available: \(registry.providerNames.joined(separator: ", "))")
+                throw ExitCode.failure
+            }
+            client = named
+        } else {
+            guard let defaultClient = registry.defaultClient else {
+                print("No providers registered.")
+                throw ExitCode.failure
+            }
+            client = defaultClient
         }
 
         let useCase = SendChatMessageUseCase(client: client)

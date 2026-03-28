@@ -1,5 +1,4 @@
 import ArgumentParser
-import ClaudeCLISDK
 import DataPathsService
 import Foundation
 import MarkdownPlannerFeature
@@ -63,7 +62,7 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
         let completedDirectory = try repository.map { try planSettings.resolvedCompletedDirectory(forRepo: $0) }
 
         let registry = makeProviderRegistry()
-        let client = provider.flatMap { registry.client(named: $0) } ?? registry.providers.first!
+        let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
 
         let resolvedDataPath = ResolveDataPathUseCase().resolve(explicit: dataPath).path
         let useCase = ExecutePlanUseCase(
@@ -122,7 +121,7 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
             printColored(String(repeating: "=", count: 50), color: .blue)
             printColored("Step \(index + 1) of \(total) -> \(description)", color: .yellow)
             printColored(String(repeating: "-", count: 50), color: .blue)
-            printColored("Running claude...\n", color: .blue)
+            printColored("Running AI...\n", color: .blue)
             timer.start()
 
         case .phaseOutput(let text):

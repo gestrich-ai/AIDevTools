@@ -1,5 +1,4 @@
 import AIOutputSDK
-import ClaudeCLISDK
 import EvalFeature
 import EvalSDK
 import EvalService
@@ -117,7 +116,7 @@ final class EvalRunnerModel {
         state = .running(progress: RunProgress(
             completedCases: 0,
             totalCases: 0,
-            provider: providerFilter?.first ?? registry.entries.first?.name ?? "",
+            provider: providerFilter?.first ?? registry.defaultEntry?.name ?? "",
             currentCaseId: caseId
         ))
         debugLog("state -> .running (initial)")
@@ -233,15 +232,18 @@ final class EvalRunnerModel {
             qualifiedId = evalCase.qualifiedId
         }
 
-        let formatter: any StreamFormatter = registry.entries.first(where: { $0.name == provider })?.client.streamFormatter
-            ?? ClaudeStreamFormatter()
+        let entry = registry.entries.first(where: { $0.name == provider })
+        let formatter: any StreamFormatter = entry?.client.streamFormatter
+            ?? registry.defaultEntry!.client.streamFormatter
+        let rubricFormatter: any StreamFormatter = entry?.client.streamFormatter
+            ?? registry.defaultEntry!.client.streamFormatter
 
         let options = ReadCaseOutputUseCase.Options(
             caseId: qualifiedId,
             formatter: formatter,
             provider: providerValue,
             outputDirectory: evalConfig.outputDirectory,
-            rubricFormatter: ClaudeStreamFormatter()
+            rubricFormatter: rubricFormatter
         )
         return try? ReadCaseOutputUseCase().run(options)
     }

@@ -4,7 +4,7 @@ import SwiftUI
 struct ArchitecturePlannerDetailView: View {
     @Bindable var model: ArchitecturePlannerModel
     let job: PlanningJob
-    @AppStorage("archPlannerProviderName") private var storedProviderName: String = "claude"
+    @AppStorage("archPlannerProviderName") private var storedProviderName: String = ""
     @State private var expandedOutputStepIndex: Int?
     @State private var loadedOutput: String?
 

@@ -4,7 +4,7 @@ import Foundation
 import SwiftData
 
 /// Collects unclear flags and open questions into followup items,
-/// then uses Claude to identify additional deferred work from the implementation plan.
+/// then uses AI to identify additional deferred work from the implementation plan.
 public struct CompileFollowupsUseCase: Sendable {
 
     public struct Options: Sendable {
@@ -83,7 +83,7 @@ public struct CompileFollowupsUseCase: Sendable {
         onProgress?(.collected(count: followupCount))
         onProgress?(.identifyingDeferredWork)
 
-        // Use Claude to identify additional deferred work
+        // Use AI to identify additional deferred work
         let additionalCount = try await identifyDeferredWork(job: job, options: options, onOutput: onOutput)
         followupCount += additionalCount
 

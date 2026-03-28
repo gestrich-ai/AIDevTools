@@ -17,7 +17,7 @@ extension ClaudeProvider: SessionListable {
 
     // MARK: - Session Details (Claude-specific)
 
-    public func getSessionDetails(sessionId: String, summary: String, lastModified: Date, workingDirectory: String) -> ClaudeSessionDetails? {
+    public func getSessionDetails(sessionId: String, summary: String, lastModified: Date, workingDirectory: String) -> SessionDetails? {
         let filePath = Self.sessionFilePath(sessionId: sessionId, workingDirectory: workingDirectory)
 
         guard FileManager.default.fileExists(atPath: filePath),
@@ -40,7 +40,7 @@ extension ClaudeProvider: SessionListable {
         }
 
         let session = ChatSession(id: sessionId, lastModified: lastModified, summary: summary)
-        return ClaudeSessionDetails(cwd: cwd, gitBranch: gitBranch, rawJsonLines: rawJsonLines, session: session)
+        return SessionDetails(cwd: cwd, gitBranch: gitBranch, rawJsonLines: rawJsonLines, session: session)
     }
 
     // MARK: - Private Helpers
@@ -156,16 +156,3 @@ extension ClaudeProvider: SessionListable {
     }
 }
 
-public struct ClaudeSessionDetails: Sendable {
-    public let cwd: String?
-    public let gitBranch: String?
-    public let rawJsonLines: [String]
-    public let session: ChatSession
-
-    public init(cwd: String?, gitBranch: String?, rawJsonLines: [String], session: ChatSession) {
-        self.cwd = cwd
-        self.gitBranch = gitBranch
-        self.rawJsonLines = rawJsonLines
-        self.session = session
-    }
-}

@@ -7,6 +7,10 @@ public struct ProviderRegistry: Sendable {
         self.providers = providers
     }
 
+    public var defaultClient: (any AIClient)? {
+        providers.first
+    }
+
     public var providerNames: [String] {
         providers.map(\.name)
     }
@@ -33,6 +37,10 @@ public struct EvalProviderRegistry: Sendable {
 
     public init(entries: [EvalProviderEntry]) {
         self.entries = entries
+    }
+
+    public var defaultEntry: EvalProviderEntry? {
+        entries.first
     }
 
     public func filtered(by names: [String]?) -> [EvalProviderEntry] {

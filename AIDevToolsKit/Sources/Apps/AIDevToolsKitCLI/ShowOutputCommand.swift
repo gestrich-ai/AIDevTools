@@ -1,6 +1,5 @@
 import AIOutputSDK
 import ArgumentParser
-import ClaudeCLISDK
 import DataPathsService
 import EvalFeature
 import EvalService
@@ -26,7 +25,7 @@ struct ShowOutputCommand: ParsableCommand {
     @Option(help: "The eval case ID (e.g. feature-flags.add-bool-flag-structured)")
     var caseId: String
 
-    @Option(help: "Provider name (e.g. claude, codex)")
+    @Option(help: "Provider name")
     var provider: String
 
     func validate() throws {
@@ -55,14 +54,17 @@ struct ShowOutputCommand: ParsableCommand {
 
         let registry = makeEvalRegistry()
         let resolvedProvider = Provider(rawValue: provider)
-        let formatter = registry.entries.first(where: { $0.name == provider })?.client.streamFormatter
-            ?? ClaudeStreamFormatter()
+        let entry = registry.entries.first(where: { $0.name == provider })
+        let formatter = entry?.client.streamFormatter
+            ?? registry.defaultEntry!.client.streamFormatter
+        let rubricFormatter = entry?.client.streamFormatter
+            ?? registry.defaultEntry!.client.streamFormatter
         let options = ReadCaseOutputUseCase.Options(
             caseId: caseId,
             formatter: formatter,
             provider: resolvedProvider,
             outputDirectory: resolvedOutputDir,
-            rubricFormatter: ClaudeStreamFormatter()
+            rubricFormatter: rubricFormatter
         )
 
         let output = try ReadCaseOutputUseCase().run(options)

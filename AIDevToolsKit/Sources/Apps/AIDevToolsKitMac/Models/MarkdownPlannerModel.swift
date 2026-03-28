@@ -1,5 +1,4 @@
 import AIOutputSDK
-import ClaudeCLISDK
 import Foundation
 import Logging
 import MarkdownPlannerFeature
@@ -82,7 +81,7 @@ final class MarkdownPlannerModel {
         self.togglePhaseUseCase = togglePhaseUseCase
 
         let client = selectedProviderName.flatMap { providerRegistry.client(named: $0) }
-            ?? providerRegistry.providers.first!
+            ?? providerRegistry.defaultClient!
         self.selectedProviderName = client.name
         self.activeClient = client
     }

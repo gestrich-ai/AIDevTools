@@ -118,6 +118,11 @@ public final class ChatModel {
         return await listable.listSessions(workingDirectory: workingDirectory)
     }
 
+    public nonisolated func loadSessionDetails(sessionId: String, summary: String, lastModified: Date, workingDirectory: String) -> SessionDetails? {
+        guard let listable = client as? SessionListable else { return nil }
+        return listable.getSessionDetails(sessionId: sessionId, summary: summary, lastModified: lastModified, workingDirectory: workingDirectory)
+    }
+
     public func resumeSession(_ sessionId: String) async {
         self.messages = []
         self.sessionId = sessionId

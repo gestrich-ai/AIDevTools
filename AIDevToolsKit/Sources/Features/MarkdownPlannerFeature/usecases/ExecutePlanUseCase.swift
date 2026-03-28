@@ -263,7 +263,7 @@ public struct ExecutePlanUseCase: Sendable {
         )
     }
 
-    // MARK: - Claude Calls
+    // MARK: - AI Calls
 
     private static let statusSchema = """
     {"type":"object","properties":{"phases":{"type":"array","items":{"type":"object","properties":{"description":{"type":"string"},"status":{"type":"string","enum":["pending","in_progress","completed"]}},"required":["description","status"]}},"nextPhaseIndex":{"type":"integer","description":"Index of the next phase to execute (0-based), or -1 if all complete"}},"required":["phases","nextPhaseIndex"]}

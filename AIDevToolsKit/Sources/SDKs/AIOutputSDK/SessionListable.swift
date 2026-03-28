@@ -27,7 +27,28 @@ public struct ChatSessionMessage: Sendable {
     }
 }
 
+public struct SessionDetails: Sendable {
+    public let cwd: String?
+    public let gitBranch: String?
+    public let rawJsonLines: [String]
+    public let session: ChatSession
+
+    public init(cwd: String?, gitBranch: String?, rawJsonLines: [String], session: ChatSession) {
+        self.cwd = cwd
+        self.gitBranch = gitBranch
+        self.rawJsonLines = rawJsonLines
+        self.session = session
+    }
+}
+
 public protocol SessionListable {
     func listSessions(workingDirectory: String) async -> [ChatSession]
     func loadSessionMessages(sessionId: String, workingDirectory: String) async -> [ChatSessionMessage]
+    func getSessionDetails(sessionId: String, summary: String, lastModified: Date, workingDirectory: String) -> SessionDetails?
+}
+
+extension SessionListable {
+    public func getSessionDetails(sessionId: String, summary: String, lastModified: Date, workingDirectory: String) -> SessionDetails? {
+        nil
+    }
 }

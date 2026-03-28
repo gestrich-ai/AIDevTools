@@ -174,7 +174,7 @@ public struct GeneratePlanUseCase: Sendable {
         }
         let repoContext = repoContextLines.joined(separator: "\n")
 
-        let claudeMdContent = readClaudeMd(at: repo.path)
+        let projectInstructions = readProjectInstructions(at: repo.path)
 
         let prompt = """
         You are generating a complete, detailed phased implementation plan. You are ONLY generating the plan — do NOT execute, explore, or implement anything.
@@ -183,7 +183,7 @@ public struct GeneratePlanUseCase: Sendable {
 
         Repository context:
         \(repoContext)
-        \(claudeMdContent.map { "\nCLAUDE.md contents:\n\($0)" } ?? "")
+        \(projectInstructions.map { "\nCLAUDE.md contents:\n\($0)" } ?? "")
 
         Generate a markdown plan document with this structure:
 
@@ -245,9 +245,9 @@ public struct GeneratePlanUseCase: Sendable {
         return output.value
     }
 
-    private func readClaudeMd(at repoPath: URL) -> String? {
-        let claudeMdURL = repoPath.appendingPathComponent("CLAUDE.md")
-        return try? String(contentsOf: claudeMdURL, encoding: .utf8)
+    private func readProjectInstructions(at repoPath: URL) -> String? {
+        let instructionsURL = repoPath.appendingPathComponent("CLAUDE.md")
+        return try? String(contentsOf: instructionsURL, encoding: .utf8)
     }
 
     private func writePlan(_ plan: GeneratedPlan, to proposedDirectory: URL) throws -> URL {

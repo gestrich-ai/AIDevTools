@@ -1,5 +1,4 @@
 import ArgumentParser
-import ClaudeCLISDK
 import DataPathsService
 import Foundation
 import MarkdownPlannerFeature
@@ -32,7 +31,7 @@ struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
         let planSettings = try ReposCommand.makePlanSettingsStore(service)
 
         let registry = makeProviderRegistry()
-        let client = provider.flatMap { registry.client(named: $0) } ?? registry.providers.first!
+        let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
 
         let useCase = GeneratePlanUseCase(
             client: client,

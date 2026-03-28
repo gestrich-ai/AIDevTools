@@ -29,7 +29,7 @@ struct WorkspaceView: View {
     @AppStorage("selectedSkillName") private var storedSkillName: String?
     @AppStorage("anthropicAPIKey") private var apiKey = ""
     @AppStorage("chatPanelVisible") private var chatPanelVisible = false
-    @AppStorage("chatProviderName") private var chatProviderName: String = "claude"
+    @AppStorage("chatProviderName") private var chatProviderName: String = ""
     @State private var selectedRepoID: UUID?
     @State private var selectedItem: WorkspaceItem?
     @State private var showGenerateSheet = false
@@ -297,7 +297,10 @@ struct WorkspaceView: View {
             chatModel = nil
             return
         }
-        guard let client = providerModel.providerRegistry.client(named: chatProviderName) else {
+        let resolvedName = chatProviderName.isEmpty
+            ? providerModel.providerRegistry.defaultClient?.name ?? ""
+            : chatProviderName
+        guard let client = providerModel.providerRegistry.client(named: resolvedName) else {
             chatModel = nil
             return
         }

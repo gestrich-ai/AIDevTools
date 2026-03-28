@@ -36,7 +36,7 @@ struct ArchPlannerExecuteCommand: AsyncParsableCommand {
 
         let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
         let registry = makeProviderRegistry()
-        let client = provider.flatMap { registry.client(named: $0) } ?? registry.providers.first!
+        let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
         let useCase = ExecuteImplementationUseCase(client: client)
         let options = ExecuteImplementationUseCase.Options(
             jobId: uuid,

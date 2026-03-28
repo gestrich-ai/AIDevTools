@@ -61,7 +61,7 @@ final class ArchitecturePlannerModel {
         self.providerRegistry = providerRegistry
 
         let client = selectedProviderName.flatMap { providerRegistry.client(named: $0) }
-            ?? providerRegistry.providers.first!
+            ?? providerRegistry.defaultClient!
         self.selectedProviderName = client.name
 
         self.compileArchInfoUseCase = CompileArchitectureInfoUseCase(client: client)
