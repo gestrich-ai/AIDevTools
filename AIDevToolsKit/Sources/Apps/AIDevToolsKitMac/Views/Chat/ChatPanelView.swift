@@ -1,10 +1,10 @@
 import AIOutputSDK
 import AppKit
-import ChatManagerService
+import ChatFeature
 import SwiftUI
 
 struct ChatPanelView: View {
-    @Environment(ChatManager.self) private var chatManager: ChatManager
+    @Environment(ChatModel.self) private var chatModel: ChatModel
     @State private var messageText: String = ""
     @State private var pastedImages: [ImageAttachment] = []
     @State private var showingQueueViewer: Bool = false
@@ -31,7 +31,7 @@ struct ChatPanelView: View {
         ScrollViewReader { proxy in
             ZStack(alignment: .top) {
                 List {
-                    if chatManager.isLoadingHistory {
+                    if chatModel.isLoadingHistory {
                         VStack(spacing: 12) {
                             ProgressView()
                                 .controlSize(.regular)
@@ -43,12 +43,12 @@ struct ChatPanelView: View {
                         .padding(.top, 60)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets())
-                    } else if chatManager.messages.isEmpty {
+                    } else if chatModel.messages.isEmpty {
                         emptyStateView
                             .listRowSeparator(.hidden)
                             .listRowInsets(EdgeInsets())
                     } else {
-                        ForEach(chatManager.messages) { message in
+                        ForEach(chatModel.messages) { message in
                             ChatMessageRow(message: message)
                                 .id(message.id)
                                 .listRowSeparator(.hidden)
@@ -62,7 +62,7 @@ struct ChatPanelView: View {
                             .listRowInsets(EdgeInsets())
                             .onAppear {
                                 isNearBottom = true
-                                lastSeenMessageId = chatManager.messages.last?.id
+                                lastSeenMessageId = chatModel.messages.last?.id
                             }
                             .onDisappear {
                                 isNearBottom = false
@@ -72,7 +72,7 @@ struct ChatPanelView: View {
                 .listStyle(.plain)
                 .defaultScrollAnchor(.bottom)
                 .onAppear {
-                    if !chatManager.messages.isEmpty {
+                    if !chatModel.messages.isEmpty {
                         Task {
                             try? await Task.sleep(for: .milliseconds(50))
                             await MainActor.run {
@@ -81,13 +81,13 @@ struct ChatPanelView: View {
                         }
                     }
                 }
-                .onChange(of: chatManager.messages.count) { oldCount, newCount in
+                .onChange(of: chatModel.messages.count) { oldCount, newCount in
                     guard newCount > oldCount, isNearBottom else { return }
                     scrollDebounceTask?.cancel()
                     scrollDebounceTask = nil
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
-                .onChange(of: chatManager.messages.last?.content) { _, _ in
+                .onChange(of: chatModel.messages.last?.content) { _, _ in
                     guard isNearBottom else { return }
                     scrollDebounceTask?.cancel()
                     scrollDebounceTask = Task {
@@ -103,7 +103,7 @@ struct ChatPanelView: View {
                     scrollDebounceTask = nil
                 }
 
-                if !chatManager.messages.isEmpty && !isNearBottom {
+                if !chatModel.messages.isEmpty && !isNearBottom {
                     Button(action: {
                         withAnimation(.easeOut(duration: 0.3)) {
                             proxy.scrollTo("bottom", anchor: .bottom)
@@ -143,23 +143,23 @@ struct ChatPanelView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.blue)
 
-            Text("\(chatManager.providerDisplayName) Chat")
+            Text("\(chatModel.providerDisplayName) Chat")
                 .font(.title)
                 .fontWeight(.bold)
 
             VStack(spacing: 8) {
-                Text("Chat with \(chatManager.providerDisplayName)")
+                Text("Chat with \(chatModel.providerDisplayName)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                if chatManager.supportsSessionHistory && chatManager.settings.resumeLastSession {
+                if chatModel.supportsSessionHistory && chatModel.settings.resumeLastSession {
                     Label("Will resume last session on startup", systemImage: "arrow.triangle.branch")
                         .font(.caption)
                         .foregroundStyle(.green)
                 }
 
-                if chatManager.settings.verboseMode {
+                if chatModel.settings.verboseMode {
                     Label("Thinking process will be shown", systemImage: "brain")
                         .font(.caption)
                         .foregroundStyle(.purple)
@@ -218,18 +218,18 @@ struct ChatPanelView: View {
 
                 MessageInputWithAutocomplete(
                     messageText: $messageText,
-                    workingDirectory: chatManager.workingDirectory,
+                    workingDirectory: chatModel.workingDirectory,
                     onSubmit: sendMessage
                 )
 
-                if !chatManager.messageQueue.isEmpty {
+                if !chatModel.messageQueue.isEmpty {
                     Button(action: { showingQueueViewer = true }) {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: "tray.full")
                                 .font(.title3)
                                 .foregroundStyle(.orange)
 
-                            Text("\(chatManager.messageQueue.count)")
+                            Text("\(chatModel.messageQueue.count)")
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 4)
@@ -239,11 +239,11 @@ struct ChatPanelView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("View queued messages (\(chatManager.messageQueue.count))")
+                    .help("View queued messages (\(chatModel.messageQueue.count))")
                 }
 
-                if chatManager.isProcessing {
-                    Button(action: { chatManager.cancelCurrentRequest() }) {
+                if chatModel.isProcessing {
+                    Button(action: { chatModel.cancelCurrentRequest() }) {
                         Image(systemName: "stop.circle.fill")
                             .font(.title2)
                             .foregroundStyle(.red)
@@ -289,16 +289,16 @@ struct ChatPanelView: View {
         pastedImages = []
 
         Task {
-            await chatManager.sendMessage(message, images: images)
+            await chatModel.sendMessage(message, images: images)
         }
     }
 
     private func calculateUnseenMessageCount() -> Int {
         guard let lastSeenId = lastSeenMessageId else { return 0 }
-        guard let lastSeenIndex = chatManager.messages.firstIndex(where: { $0.id == lastSeenId }) else {
-            return chatManager.messages.count
+        guard let lastSeenIndex = chatModel.messages.firstIndex(where: { $0.id == lastSeenId }) else {
+            return chatModel.messages.count
         }
-        return max(0, chatManager.messages.count - lastSeenIndex - 1)
+        return max(0, chatModel.messages.count - lastSeenIndex - 1)
     }
 }
 
@@ -306,7 +306,7 @@ struct ChatPanelView: View {
 
 struct ChatMessageRow: View {
     let message: ChatMessage
-    @Environment(ChatManager.self) private var chatManager: ChatManager?
+    @Environment(ChatModel.self) private var chatModel: ChatModel?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -322,7 +322,7 @@ struct ChatMessageRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(message.role == .user ? "You" : (chatManager?.providerDisplayName ?? "Assistant"))
+                    Text(message.role == .user ? "You" : (chatModel?.providerDisplayName ?? "Assistant"))
                         .font(.headline)
                     Spacer()
                     Text(message.timestamp, style: .time)
@@ -331,8 +331,8 @@ struct ChatMessageRow: View {
                 }
 
                 let isCurrentlyStreaming = message.role == .assistant &&
-                    (chatManager?.isProcessing ?? false) &&
-                    chatManager?.messages.last?.id == message.id
+                    (chatModel?.isProcessing ?? false) &&
+                    chatModel?.messages.last?.id == message.id
 
                 if message.content.isEmpty && message.role == .assistant {
                     HStack(spacing: 8) {
@@ -357,7 +357,7 @@ struct ChatMessageRow: View {
                         }
 
                         if !message.content.isEmpty {
-                            ChatFormattedContent(message: message, isProcessing: chatManager?.isProcessing ?? false)
+                            ChatFormattedContent(message: message, isProcessing: chatModel?.isProcessing ?? false)
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }

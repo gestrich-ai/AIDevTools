@@ -9,11 +9,9 @@ let package = Package(
         .executable(name: "ai-dev-tools-kit", targets: ["AIDevToolsKitCLI"]),
         .library(name: "AIDevToolsKitMac", targets: ["AIDevToolsKitMac"]),
         .library(name: "AIOutputSDK", targets: ["AIOutputSDK"]),
-        .library(name: "AnthropicChatFeature", targets: ["AnthropicChatFeature"]),
         .library(name: "AnthropicSDK", targets: ["AnthropicSDK"]),
-        .library(name: "ChatManagerService", targets: ["ChatManagerService"]),
+        .library(name: "ChatFeature", targets: ["ChatFeature"]),
         .library(name: "ChatService", targets: ["ChatService"]),
-        .library(name: "ClaudeCodeChatFeature", targets: ["ClaudeCodeChatFeature"]),
         .library(name: "ClaudeCLISDK", targets: ["ClaudeCLISDK"]),
         .library(name: "ClaudePythonSDK", targets: ["ClaudePythonSDK"]),
         .library(name: "CodexCLISDK", targets: ["CodexCLISDK"]),
@@ -47,11 +45,10 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 "AIOutputSDK",
-                "AnthropicChatFeature",
                 "AnthropicSDK",
                 "ArchitecturePlannerFeature",
                 "ArchitecturePlannerService",
-                "ClaudeCodeChatFeature",
+                "ChatFeature",
                 "ClaudeCLISDK",
                 "CodexCLISDK",
                 "DataPathsService",
@@ -76,7 +73,7 @@ let package = Package(
                 "AnthropicSDK",
                 "ArchitecturePlannerFeature",
                 "ArchitecturePlannerService",
-                "ChatManagerService",
+                "ChatFeature",
                 "ClaudeCLISDK",
                 "CodexCLISDK",
                 "DataPathsService",
@@ -106,19 +103,12 @@ let package = Package(
             path: "Sources/Features/ArchitecturePlannerFeature"
         ),
         .target(
-            name: "AnthropicChatFeature",
-            dependencies: [
-                "AIOutputSDK",
-            ],
-            path: "Sources/Features/AnthropicChatFeature"
-        ),
-        .target(
-            name: "ClaudeCodeChatFeature",
+            name: "ChatFeature",
             dependencies: [
                 "AIOutputSDK",
                 "SkillScannerSDK",
             ],
-            path: "Sources/Features/ClaudeCodeChatFeature"
+            path: "Sources/Features/ChatFeature"
         ),
         .target(
             name: "EvalFeature",
@@ -156,13 +146,6 @@ let package = Package(
             name: "ArchitecturePlannerService",
             dependencies: [],
             path: "Sources/Services/ArchitecturePlannerService"
-        ),
-        .target(
-            name: "ChatManagerService",
-            dependencies: [
-                "AIOutputSDK",
-            ],
-            path: "Sources/Services/ChatManagerService"
         ),
         .target(
             name: "ChatService",
@@ -303,19 +286,14 @@ let package = Package(
             path: "Tests/Services/ArchitecturePlannerServiceTests"
         ),
         .testTarget(
-            name: "ChatManagerServiceTests",
-            dependencies: ["ChatManagerService"],
-            path: "Tests/Services/ChatManagerServiceTests"
+            name: "ChatFeatureTests",
+            dependencies: ["ChatFeature", "SkillScannerSDK"],
+            path: "Tests/Features/ChatFeatureTests"
         ),
         .testTarget(
             name: "ChatServiceTests",
             dependencies: ["AIOutputSDK", "ChatService"],
             path: "Tests/Services/ChatServiceTests"
-        ),
-        .testTarget(
-            name: "ClaudeCodeChatFeatureTests",
-            dependencies: ["ClaudeCodeChatFeature", "SkillScannerSDK"],
-            path: "Tests/Features/ClaudeCodeChatFeatureTests"
         ),
         .testTarget(
             name: "ClaudeCLISDKTests",

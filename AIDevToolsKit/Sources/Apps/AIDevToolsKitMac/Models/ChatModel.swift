@@ -1,4 +1,5 @@
 import AIOutputSDK
+import ChatFeature
 import Foundation
 import Observation
 
@@ -18,25 +19,32 @@ public struct QueuedMessage: Identifiable, Sendable {
 
 @Observable
 @MainActor
-public final class ChatManager {
+public final class ChatModel {
     public private(set) var messages: [ChatMessage] = []
     public private(set) var isProcessing: Bool = false
     public private(set) var isLoadingHistory: Bool = false
     public private(set) var messageQueue: [QueuedMessage] = []
     public let providerDisplayName: String
     public let settings: ChatSettings
-
-    private let client: any AIClient
-    private var sessionId: String?
     public private(set) var workingDirectory: String
-    private var currentTask: Task<Void, Never>?
-    private var hasStartedSession: Bool = false
 
     public var currentSessionId: String? { sessionId }
     public var providerName: String { client.name }
     public var supportsSessionHistory: Bool { client is SessionListable }
 
-    public init(client: any AIClient, workingDirectory: String?, settings: ChatSettings = ChatSettings()) {
+    private let sendMessageUseCase: SendChatMessageUseCase
+    private let client: any AIClient
+    private var sessionId: String?
+    private var currentTask: Task<Void, Never>?
+    private var hasStartedSession: Bool = false
+
+    public init(
+        sendMessageUseCase: SendChatMessageUseCase,
+        client: any AIClient,
+        workingDirectory: String?,
+        settings: ChatSettings = ChatSettings()
+    ) {
+        self.sendMessageUseCase = sendMessageUseCase
         self.client = client
         self.settings = settings
         self.providerDisplayName = client.displayName
@@ -164,32 +172,6 @@ public final class ChatManager {
         }
         let workingDir = await MainActor.run { workingDirectory }
 
-        var promptText = content
-        var imagePaths: [String] = []
-
-        if !images.isEmpty {
-            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("chat-images-\(UUID().uuidString)")
-            try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-            for (index, imageAttachment) in images.enumerated() {
-                if let imageData = Data(base64Encoded: imageAttachment.base64Data) {
-                    let filename = "image-\(index).png"
-                    let filePath = tempDir.appendingPathComponent(filename)
-                    try? imageData.write(to: filePath)
-                    imagePaths.append(filePath.path)
-                }
-            }
-
-            if !imagePaths.isEmpty {
-                var imagePromptPart = "\n\nI've attached \(imagePaths.count) image(s). Please analyze them:\n"
-                for (index, path) in imagePaths.enumerated() {
-                    imagePromptPart += "\nImage \(index + 1): \(path)"
-                }
-                imagePromptPart += "\n\nPlease use your Read tool to view these images and incorporate them into your response."
-                promptText += imagePromptPart
-            }
-        }
-
         let assistantMessageId = UUID()
         let placeholderMessage = ChatMessage(
             id: assistantMessageId,
@@ -213,17 +195,17 @@ public final class ChatManager {
 
         let accumulator = StreamAccumulator()
 
-        let options = AIClientOptions(
-            dangerouslySkipPermissions: true,
+        let options = SendChatMessageUseCase.Options(
+            message: content,
+            workingDirectory: workingDir,
             sessionId: resumeId,
-            workingDirectory: workingDir
+            images: images
         )
 
         do {
-            let result = try await client.run(
-                prompt: promptText,
-                options: options,
-                onOutput: { @Sendable chunk in
+            let result = try await sendMessageUseCase.run(options) { @Sendable progress in
+                switch progress {
+                case .textDelta(let chunk):
                     Task {
                         let updatedContent = await accumulator.append(chunk)
                         await MainActor.run { [updatedContent] in
@@ -237,10 +219,13 @@ public final class ChatManager {
                             }
                         }
                     }
+                case .completed:
+                    break
                 }
-            )
+            }
 
             await MainActor.run {
+                let displayName = providerDisplayName
                 if result.exitCode == 0 {
                     hasStartedSession = true
                     if let newSessionId = result.sessionId {
@@ -256,7 +241,7 @@ public final class ChatManager {
                         if result.exitCode == 130 || result.exitCode == 143 {
                             errorMessage = "Request interrupted by user"
                         } else {
-                            errorMessage = "Error running \(providerDisplayName) (exit code \(result.exitCode))\n\(result.stderr)"
+                            errorMessage = "Error running \(displayName) (exit code \(result.exitCode))\n\(result.stderr)"
                         }
                         messages[index] = ChatMessage(
                             id: assistantMessageId,
@@ -291,11 +276,6 @@ public final class ChatManager {
                 }
                 isProcessing = false
             }
-        }
-
-        if !imagePaths.isEmpty, let firstPath = imagePaths.first {
-            let tempDir = URL(fileURLWithPath: firstPath).deletingLastPathComponent()
-            try? FileManager.default.removeItem(at: tempDir)
         }
 
         await processNextQueuedMessage()

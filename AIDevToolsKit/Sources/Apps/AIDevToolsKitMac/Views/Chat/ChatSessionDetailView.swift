@@ -1,11 +1,11 @@
 import AIOutputSDK
 import AppKit
-import ChatManagerService
+import ChatFeature
 import ClaudeCLISDK
 import SwiftUI
 
 struct ChatSessionDetailView: View {
-    @Environment(ChatManager.self) private var chatManager: ChatManager
+    @Environment(ChatModel.self) private var chatModel: ChatModel
     @Environment(\.dismiss) private var dismiss
     let session: ChatSession
     @State private var sessionDetails: ClaudeSessionDetails?
@@ -59,7 +59,7 @@ struct ChatSessionDetailView: View {
 
                     ToolbarItem(placement: .primaryAction) {
                         Button("Resume This Session") {
-                            Task { await chatManager.resumeSession(session.id) }
+                            Task { await chatModel.resumeSession(session.id) }
                             dismiss()
                         }
                         .buttonStyle(.borderedProminent)
@@ -68,7 +68,7 @@ struct ChatSessionDetailView: View {
             }
             .task {
                 isLoading = true
-                let workDir = chatManager.workingDirectory
+                let workDir = chatModel.workingDirectory
                 let s = session
                 let details = await Task.detached {
                     ClaudeCLIClient().getSessionDetails(

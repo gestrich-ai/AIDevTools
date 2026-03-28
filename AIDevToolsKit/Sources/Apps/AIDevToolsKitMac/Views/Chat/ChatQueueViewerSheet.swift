@@ -1,14 +1,14 @@
-import ChatManagerService
+import ChatFeature
 import SwiftUI
 
 struct ChatQueueViewerSheet: View {
-    @Environment(ChatManager.self) private var chatManager: ChatManager
+    @Environment(ChatModel.self) private var chatModel: ChatModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if chatManager.messageQueue.isEmpty {
+                if chatModel.messageQueue.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "tray")
                             .font(.system(size: 60))
@@ -27,7 +27,7 @@ struct ChatQueueViewerSheet: View {
                     .padding()
                 } else {
                     List {
-                        ForEach(chatManager.messageQueue) { queuedMessage in
+                        ForEach(chatModel.messageQueue) { queuedMessage in
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
                                     Image(systemName: "clock")
@@ -41,7 +41,7 @@ struct ChatQueueViewerSheet: View {
                                     Spacer()
 
                                     Button(action: {
-                                        chatManager.removeQueuedMessage(id: queuedMessage.id)
+                                        chatModel.removeQueuedMessage(id: queuedMessage.id)
                                     }) {
                                         Image(systemName: "xmark.circle.fill")
                                             .foregroundStyle(.red)
@@ -72,16 +72,16 @@ struct ChatQueueViewerSheet: View {
                     }
                 }
             }
-            .navigationTitle("Queued Messages (\(chatManager.messageQueue.count))")
+            .navigationTitle("Queued Messages (\(chatModel.messageQueue.count))")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
 
-                if !chatManager.messageQueue.isEmpty {
+                if !chatModel.messageQueue.isEmpty {
                     ToolbarItem(placement: .primaryAction) {
                         Button("Clear All", role: .destructive) {
-                            chatManager.clearQueue()
+                            chatModel.clearQueue()
                         }
                         .foregroundStyle(.red)
                     }

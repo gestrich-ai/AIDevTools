@@ -1,9 +1,6 @@
 import AIOutputSDK
-import AnthropicChatFeature
-import AnthropicSDK
 import ArgumentParser
-import ClaudeCodeChatFeature
-import ClaudeCLISDK
+import ChatFeature
 import Foundation
 import ProviderRegistryService
 
@@ -36,39 +33,36 @@ struct ChatCommand: AsyncParsableCommand {
             throw ExitCode.failure
         }
 
-        if client is AnthropicAIClient {
-            try await runAnthropicChat(client: client)
-        } else {
-            try await runCLIChat(client: client)
-        }
-    }
-
-    // MARK: - Anthropic API Chat
-
-    private func runAnthropicChat(client: any AIClient) async throws {
-        if let message {
-            try await sendAnthropicMessage(message, client: client)
-        } else {
-            try await runAnthropicInteractive(client: client)
-        }
-    }
-
-    private func sendAnthropicMessage(_ text: String, client: any AIClient) async throws {
         let useCase = SendChatMessageUseCase(client: client)
+        let dir = workingDir ?? FileManager.default.currentDirectoryPath
+
+        if let message {
+            try await sendMessage(message, workingDirectory: dir, useCase: useCase, client: client)
+        } else {
+            try await runInteractive(workingDirectory: dir, useCase: useCase, client: client)
+        }
+    }
+
+    private func sendMessage(
+        _ text: String,
+        workingDirectory: String,
+        useCase: SendChatMessageUseCase,
+        client: any AIClient
+    ) async throws {
         var sessionId: String?
         if resume, let listable = client as? SessionListable {
-            let dir = workingDir ?? FileManager.default.currentDirectoryPath
-            let sessions = await listable.listSessions(workingDirectory: dir)
+            let sessions = await listable.listSessions(workingDirectory: workingDirectory)
             sessionId = sessions.first?.id
         }
 
         let options = SendChatMessageUseCase.Options(
             message: text,
+            workingDirectory: workingDirectory,
             sessionId: sessionId,
             systemPrompt: systemPrompt
         )
 
-        _ = try await useCase.run(options) { progress in
+        let result = try await useCase.run(options) { progress in
             switch progress {
             case .textDelta(let text):
                 print(text, terminator: "")
@@ -77,18 +71,24 @@ struct ChatCommand: AsyncParsableCommand {
                 print()
             }
         }
+
+        if result.exitCode != 0 {
+            throw ExitCode(result.exitCode)
+        }
     }
 
-    private func runAnthropicInteractive(client: any AIClient) async throws {
-        print("Anthropic API Chat (type 'exit' or Ctrl-D to quit)")
+    private func runInteractive(
+        workingDirectory: String,
+        useCase: SendChatMessageUseCase,
+        client: any AIClient
+    ) async throws {
+        print("\(client.displayName) Chat (type 'exit' or Ctrl-D to quit)")
         print("\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}")
 
-        let useCase = SendChatMessageUseCase(client: client)
         var sessionId: String?
 
         if resume, let listable = client as? SessionListable {
-            let dir = workingDir ?? FileManager.default.currentDirectoryPath
-            let sessions = await listable.listSessions(workingDirectory: dir)
+            let sessions = await listable.listSessions(workingDirectory: workingDirectory)
             sessionId = sessions.first?.id
             if let sessionId {
                 print("Resuming session: \(sessionId)")
@@ -110,99 +110,9 @@ struct ChatCommand: AsyncParsableCommand {
 
             let options = SendChatMessageUseCase.Options(
                 message: input,
+                workingDirectory: workingDirectory,
                 sessionId: sessionId,
                 systemPrompt: systemPrompt
-            )
-
-            print("\nClaude: ", terminator: "")
-            fflush(stdout)
-
-            do {
-                let result = try await useCase.run(options) { progress in
-                    switch progress {
-                    case .textDelta(let text):
-                        print(text, terminator: "")
-                        fflush(stdout)
-                    case .completed:
-                        print()
-                    }
-                }
-                sessionId = result.sessionId ?? sessionId
-            } catch {
-                print("\nError: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    // MARK: - CLI Chat (Claude, Codex, etc.)
-
-    private func runCLIChat(client: any AIClient) async throws {
-        let dir = workingDir ?? FileManager.default.currentDirectoryPath
-
-        if let message {
-            try await sendCLIMessage(message, workingDirectory: dir, client: client)
-        } else {
-            try await runCLIInteractive(workingDirectory: dir, client: client)
-        }
-    }
-
-    private func sendCLIMessage(_ text: String, workingDirectory: String, client: any AIClient) async throws {
-        let useCase = SendClaudeCodeMessageUseCase(client: client)
-        var sessionId: String?
-        if resume, let listable = client as? SessionListable {
-            let sessions = await listable.listSessions(workingDirectory: workingDirectory)
-            sessionId = sessions.first?.id
-        }
-
-        let options = SendClaudeCodeMessageUseCase.Options(
-            message: text,
-            workingDirectory: workingDirectory,
-            sessionId: sessionId
-        )
-
-        _ = try await useCase.run(options) { progress in
-            switch progress {
-            case .textDelta(let text):
-                print(text, terminator: "")
-                fflush(stdout)
-            case .completed:
-                print()
-            }
-        }
-    }
-
-    private func runCLIInteractive(workingDirectory: String, client: any AIClient) async throws {
-        print("\(client.displayName) Chat (type 'exit' or Ctrl-D to quit)")
-        print("\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}")
-
-        let useCase = SendClaudeCodeMessageUseCase(client: client)
-        var sessionId: String?
-
-        if resume, let listable = client as? SessionListable {
-            let sessions = await listable.listSessions(workingDirectory: workingDirectory)
-            sessionId = sessions.first?.id
-            if let sessionId {
-                print("Resuming session: \(sessionId)")
-            }
-        }
-
-        while true {
-            print("\nYou: ", terminator: "")
-            fflush(stdout)
-
-            guard let line = readLine(strippingNewline: true) else {
-                print()
-                break
-            }
-
-            let input = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if input.isEmpty { continue }
-            if input.lowercased() == "exit" { break }
-
-            let options = SendClaudeCodeMessageUseCase.Options(
-                message: input,
-                workingDirectory: workingDirectory,
-                sessionId: sessionId
             )
 
             print("\n\(client.displayName): ", terminator: "")

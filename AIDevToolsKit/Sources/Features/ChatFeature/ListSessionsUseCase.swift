@@ -1,7 +1,7 @@
 import AIOutputSDK
 import Foundation
 
-public struct ListClaudeCodeSessionsUseCase: Sendable {
+public struct ListSessionsUseCase: Sendable {
 
     public struct Options: Sendable {
         public let workingDirectory: String

@@ -70,4 +70,3 @@ public struct ContentLine: Identifiable, Sendable, Equatable {
         case tool
     }
 }
-

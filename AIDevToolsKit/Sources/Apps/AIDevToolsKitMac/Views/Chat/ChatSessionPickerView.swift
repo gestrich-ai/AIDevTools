@@ -1,10 +1,9 @@
 import AIOutputSDK
-import ChatManagerService
-import ClaudeCLISDK
+import ChatFeature
 import SwiftUI
 
 struct ChatSessionPickerView: View {
-    @Environment(ChatManager.self) private var chatManager: ChatManager
+    @Environment(ChatModel.self) private var chatModel: ChatModel
     @Environment(\.dismiss) private var dismiss
     @State private var sessions: [ChatSession] = []
     @State private var isLoading = true
@@ -38,7 +37,7 @@ struct ChatSessionPickerView: View {
                         ForEach(sessions) { session in
                             HStack {
                                 Button(action: {
-                                    Task { await chatManager.resumeSession(session.id) }
+                                    Task { await chatModel.resumeSession(session.id) }
                                     dismiss()
                                 }) {
                                     VStack(alignment: .leading, spacing: 4) {
@@ -51,7 +50,7 @@ struct ChatSessionPickerView: View {
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
 
-                                            if chatManager.currentSessionId == session.id {
+                                            if chatModel.currentSessionId == session.id {
                                                 Spacer()
                                                 Image(systemName: "checkmark.circle.fill")
                                                     .foregroundStyle(.green)
@@ -84,7 +83,7 @@ struct ChatSessionPickerView: View {
 
                 ToolbarItem(placement: .primaryAction) {
                     Button("New Session") {
-                        chatManager.startNewConversation()
+                        chatModel.startNewConversation()
                         dismiss()
                     }
                     .buttonStyle(.borderedProminent)
@@ -92,12 +91,12 @@ struct ChatSessionPickerView: View {
             }
             .task {
                 isLoading = true
-                sessions = await chatManager.listSessions()
+                sessions = await chatModel.listSessions()
                 isLoading = false
             }
             .sheet(item: $selectedSessionForDetail) { session in
                 ChatSessionDetailView(session: session)
-                    .environment(chatManager)
+                    .environment(chatModel)
             }
         }
         .frame(minWidth: 600, minHeight: 400)

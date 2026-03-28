@@ -1,8 +1,8 @@
-import ChatManagerService
+import ChatFeature
 import SwiftUI
 
 struct ChatSettingsView: View {
-    @Environment(ChatManager.self) private var chatManager: ChatManager
+    @Environment(ChatModel.self) private var chatModel: ChatModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -10,14 +10,14 @@ struct ChatSettingsView: View {
             Form {
                 Section {
                     Toggle("Enable Streaming", isOn: Binding(
-                        get: { chatManager.settings.enableStreaming },
-                        set: { chatManager.settings.enableStreaming = $0 }
+                        get: { chatModel.settings.enableStreaming },
+                        set: { chatModel.settings.enableStreaming = $0 }
                     ))
                     .help("Show response as it's being generated")
 
                     Toggle("Resume Last Session", isOn: Binding(
-                        get: { chatManager.settings.resumeLastSession },
-                        set: { chatManager.settings.resumeLastSession = $0 }
+                        get: { chatModel.settings.resumeLastSession },
+                        set: { chatModel.settings.resumeLastSession = $0 }
                     ))
                     .help("Automatically resume the most recent session when the app starts")
                 } header: {
@@ -26,8 +26,8 @@ struct ChatSettingsView: View {
 
                 Section {
                     Toggle("Verbose Mode", isOn: Binding(
-                        get: { chatManager.settings.verboseMode },
-                        set: { chatManager.settings.verboseMode = $0 }
+                        get: { chatModel.settings.verboseMode },
+                        set: { chatModel.settings.verboseMode = $0 }
                     ))
                     .help("Show thinking process and intermediate steps")
 
@@ -35,8 +35,8 @@ struct ChatSettingsView: View {
                         Text("Max Thinking Tokens")
                         Spacer()
                         TextField("Tokens", value: Binding(
-                            get: { chatManager.settings.maxThinkingTokens },
-                            set: { chatManager.settings.maxThinkingTokens = max($0, 1024) }
+                            get: { chatModel.settings.maxThinkingTokens },
+                            set: { chatModel.settings.maxThinkingTokens = max($0, 1024) }
                         ), format: .number)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 100)
@@ -50,7 +50,7 @@ struct ChatSettingsView: View {
 
                 Section {
                     LabeledContent("Working Directory") {
-                        Text(chatManager.workingDirectory)
+                        Text(chatModel.workingDirectory)
                             .font(.caption)
                             .fontDesign(.monospaced)
                             .lineLimit(1)
@@ -58,7 +58,7 @@ struct ChatSettingsView: View {
                     }
 
                     LabeledContent("Provider") {
-                        Text(chatManager.providerDisplayName)
+                        Text(chatModel.providerDisplayName)
                             .font(.caption)
                     }
                 } header: {

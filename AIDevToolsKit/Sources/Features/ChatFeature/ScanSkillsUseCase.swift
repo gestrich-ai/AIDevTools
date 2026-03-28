@@ -4,12 +4,12 @@ import SkillScannerSDK
 public struct ScanSkillsUseCase: Sendable {
 
     public struct Options: Sendable {
-        public let workingDirectory: String
         public let query: String?
+        public let workingDirectory: String
 
         public init(workingDirectory: String, query: String? = nil) {
-            self.workingDirectory = workingDirectory
             self.query = query
+            self.workingDirectory = workingDirectory
         }
     }
 

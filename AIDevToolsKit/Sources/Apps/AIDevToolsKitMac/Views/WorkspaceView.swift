@@ -1,5 +1,6 @@
+import AIOutputSDK
 import ArchitecturePlannerService
-import ChatManagerService
+import ChatFeature
 import PlanRunnerService
 import ProviderRegistryService
 import RepositorySDK
@@ -32,7 +33,7 @@ struct WorkspaceView: View {
     @State private var selectedRepoID: UUID?
     @State private var selectedItem: WorkspaceItem?
     @State private var showGenerateSheet = false
-    @State private var chatManager: ChatManager?
+    @State private var chatModel: ChatModel?
     @State private var showingChatSettings = false
     @State private var showingSessionPicker = false
 
@@ -52,7 +53,7 @@ struct WorkspaceView: View {
                     }
                     architecturePlannerModel.loadJobs(repoName: repo.name, repoPath: repo.path.path())
                 }
-                rebuildChatManager()
+                rebuildChatModel()
             }
         } content: {
             if model.selectedRepository != nil {
@@ -151,9 +152,9 @@ struct WorkspaceView: View {
                 }
             }
             .sheet(isPresented: $showingChatSettings) {
-                if let chatManager {
+                if let chatModel {
                     ChatSettingsView()
-                        .environment(chatManager)
+                        .environment(chatModel)
                 }
             }
         }
@@ -175,11 +176,11 @@ struct WorkspaceView: View {
                     selectedItem = .skill(skillName)
                 }
             }
-            rebuildChatManager()
+            rebuildChatModel()
         }
         .onChange(of: apiKey) { _, _ in
             providerModel.refreshProviders()
-            rebuildChatManager()
+            rebuildChatModel()
         }
     }
 
@@ -199,13 +200,13 @@ struct WorkspaceView: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: 200)
             .onChange(of: chatProviderName) { _, _ in
-                rebuildChatManager()
+                rebuildChatModel()
             }
 
             Spacer()
 
-            if let chatManager {
-                if chatManager.supportsSessionHistory {
+            if let chatModel {
+                if chatModel.supportsSessionHistory {
                     Button(action: { showingSessionPicker = true }) {
                         Image(systemName: "clock.arrow.circlepath")
                     }
@@ -213,7 +214,7 @@ struct WorkspaceView: View {
                     .help("Session history")
                     .popover(isPresented: $showingSessionPicker) {
                         ChatSessionPickerView()
-                            .environment(chatManager)
+                            .environment(chatModel)
                             .frame(minWidth: 300, minHeight: 400)
                     }
                 }
@@ -284,24 +285,25 @@ struct WorkspaceView: View {
 
     @ViewBuilder
     private var chatPanelView: some View {
-        if let chatManager {
+        if let chatModel {
             ChatPanelView()
-                .environment(chatManager)
+                .environment(chatModel)
         } else {
             ContentUnavailableView("Select a Repository", systemImage: "folder", description: Text("Select a repository to start chat."))
         }
     }
 
-    private func rebuildChatManager() {
+    private func rebuildChatModel() {
         guard let repo = model.selectedRepository else {
-            chatManager = nil
+            chatModel = nil
             return
         }
         guard let client = providerModel.providerRegistry.client(named: chatProviderName) else {
-            chatManager = nil
+            chatModel = nil
             return
         }
-        chatManager = ChatManager(
+        chatModel = ChatModel(
+            sendMessageUseCase: SendChatMessageUseCase(client: client),
             client: client,
             workingDirectory: repo.path.path()
         )
