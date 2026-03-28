@@ -43,7 +43,7 @@ public final class ClaudeStreamFormatter: StreamFormatter, Sendable {
         do {
             envelope = try decoder.decode(ClaudeEventEnvelope.self, from: data)
         } catch {
-            return rawLine + "\n"
+            return nil
         }
 
         let lineMetadata: Logger.Metadata = ["type": "\(envelope.type)", "line": "\(rawLine.prefix(200))"]

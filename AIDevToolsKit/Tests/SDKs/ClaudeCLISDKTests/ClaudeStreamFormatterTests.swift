@@ -226,6 +226,17 @@ struct ClaudeStreamFormatterTests {
         #expect(events.isEmpty)
     }
 
+    @Test func partialJSONChunkIsDropped() {
+        // Arrange — simulate a large JSONL line split across streaming chunks
+        let partialJSON = #"{"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_01"#
+
+        // Act
+        let events = formatter.formatStructured(partialJSON)
+
+        // Assert
+        #expect(events.isEmpty)
+    }
+
     @Test func toolResultArrayContentExtractsTextSummary() {
         // Arrange — array-format tool result (e.g., Read file output)
         let arrayResult = #"{"type":"user","message":{"content":[{"type":"tool_result","content":[{"type":"text","text":"line 1\nline 2\nline 3"}],"tool_use_id":"toolu_003"}]}}"#
@@ -241,5 +252,52 @@ struct ClaudeStreamFormatterTests {
         } else {
             Issue.record("Expected .toolResult, got \(events[0])")
         }
+    }
+
+    // MARK: - format() (text-based output)
+
+    @Test func formatPartialJSONDoesNotLeakRawText() {
+        // Arrange — a large JSONL line split mid-stream produces partial JSON
+        let partialJSON = #"{"type":"user","message":{"role":"user","con"#
+
+        // Act
+        let output = formatter.format(partialJSON)
+
+        // Assert — partial JSON must not appear in formatted output
+        #expect(output.isEmpty)
+    }
+
+    @Test func formatValidAssistantTextReturnsText() {
+        // Arrange
+        let input = Self.textBlock
+
+        // Act
+        let output = formatter.format(input)
+
+        // Assert
+        #expect(output.contains("Hello world"))
+    }
+
+    @Test func formatToolResultReturnsArrowSummary() {
+        // Arrange
+        let input = Self.toolResult
+
+        // Act
+        let output = formatter.format(input)
+
+        // Assert
+        #expect(output.contains("→"))
+        #expect(output.contains("file.txt"))
+    }
+
+    @Test func formatInvalidJSONDoesNotLeakRawText() {
+        // Arrange
+        let input = "not json at all {broken"
+
+        // Act
+        let output = formatter.format(input)
+
+        // Assert
+        #expect(output.isEmpty)
     }
 }
