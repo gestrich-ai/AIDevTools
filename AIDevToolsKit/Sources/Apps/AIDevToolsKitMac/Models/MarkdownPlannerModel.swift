@@ -258,6 +258,10 @@ final class MarkdownPlannerModel {
         queuedTasks.append(QueuedTask(description: description))
     }
 
+    func removeQueuedTask(_ id: UUID) {
+        queuedTasks.removeAll { $0.id == id }
+    }
+
     func clearQueue() -> [QueuedTask] {
         let tasks = queuedTasks
         queuedTasks = []

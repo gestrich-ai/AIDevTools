@@ -21,6 +21,8 @@ struct MarkdownPlannerDetailView: View {
     @State private var executionChatModel: ChatModel?
     @State private var iterationChatModel: ChatModel?
     @State private var activePlanModel = ActivePlanModel()
+    @State private var isAddTaskPopoverPresented = false
+    @State private var newTaskDescription = ""
 
     private var activeChatModel: ChatModel? {
         iterationChatModel ?? executionChatModel
@@ -72,6 +74,7 @@ struct MarkdownPlannerDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 phaseSection
+                queuedTasksSection
 
                 if let diagram = architectureDiagram {
                     DisclosureGroup("Architecture", isExpanded: $isArchitectureExpanded) {
@@ -116,6 +119,72 @@ struct MarkdownPlannerDetailView: View {
             ChatMessagesView()
                 .environment(executionModel)
         }
+    }
+
+    // MARK: - Add Task
+
+    private var addTaskPopover: some View {
+        VStack(spacing: 8) {
+            Text("Add Task to Queue")
+                .font(.headline)
+            TextField("Task description", text: $newTaskDescription)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 280)
+                .onSubmit {
+                    submitNewTask()
+                }
+            HStack {
+                Button("Cancel") {
+                    newTaskDescription = ""
+                    isAddTaskPopoverPresented = false
+                }
+                .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Add") {
+                    submitNewTask()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(newTaskDescription.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding()
+    }
+
+    @ViewBuilder
+    private var queuedTasksSection: some View {
+        let tasks = markdownPlannerModel.queuedTasks
+        if !tasks.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Queued Tasks")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+
+                ForEach(tasks) { task in
+                    HStack(spacing: 8) {
+                        Image(systemName: "clock")
+                            .foregroundStyle(.orange)
+                        Text(task.description)
+                            .font(.body)
+                        Spacer()
+                        Button {
+                            markdownPlannerModel.removeQueuedTask(task.id)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func submitNewTask() {
+        let trimmed = newTaskDescription.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        markdownPlannerModel.queueTask(trimmed)
+        newTaskDescription = ""
+        isAddTaskPopoverPresented = false
     }
 
     // MARK: - Header
@@ -179,6 +248,16 @@ struct MarkdownPlannerDetailView: View {
                 Label("Complete", systemImage: "checkmark.circle")
             }
             .disabled(isBusy)
+
+            Button {
+                isAddTaskPopoverPresented = true
+            } label: {
+                Label("Add Task", systemImage: "plus.circle")
+            }
+            .disabled(!isExecuting)
+            .popover(isPresented: $isAddTaskPopoverPresented) {
+                addTaskPopover
+            }
 
             Button {
                 startExecution()
@@ -367,6 +446,7 @@ struct MarkdownPlannerDetailView: View {
 
     private func handleExecutionComplete() {
         loadPlan()
+        mergeExecutionPhaseStates()
         executionChatModel?.finalizeCurrentStreamingMessage()
         markdownPlannerModel.executionProgressObserver = nil
 
@@ -375,6 +455,17 @@ struct MarkdownPlannerDetailView: View {
             systemPrompt: makeIterationSystemPrompt()
         )
         activePlanModel.startWatching(url: plan.planURL)
+    }
+
+    private func mergeExecutionPhaseStates() {
+        let executionPhases = markdownPlannerModel.lastExecutionPhases
+        guard !executionPhases.isEmpty else { return }
+        localPhases = localPhases.enumerated().map { index, phase in
+            if index < executionPhases.count, executionPhases[index].isCompleted {
+                return PlanPhase(index: phase.index, description: phase.description, isCompleted: true)
+            }
+            return phase
+        }
     }
 
     private func makeIterationSystemPrompt() -> String {

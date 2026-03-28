@@ -74,7 +74,10 @@ Connect the queue to the execution flow:
   4. The use case modifies the plan file on disk
   5. Returns, allowing `ExecutePlanUseCase` to re-read phase status and discover new phases
 
-## - [ ] Phase 5: Add "Add Task" UI to MarkdownPlannerDetailView
+## - [x] Phase 5: Add "Add Task" UI to MarkdownPlannerDetailView
+
+**Skills used**: none
+**Principles applied**: Added the button near existing controls in the header bar, only enabled during execution. Used a popover for task entry to avoid cluttering the main view. Queued tasks display below the phase list with a clock icon and X button for removal. Added `removeQueuedTask` to the model to support deletion.
 
 Add the UI for queuing tasks:
 
