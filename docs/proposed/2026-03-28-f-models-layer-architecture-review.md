@@ -113,9 +113,10 @@ Each phase reviews one file and then implements all findings. The review output 
 - Implement all review findings, including low severity
 - Verify the build passes
 
-## - [ ] Phase 11: Review and fix CaseResult.swift
+## - [x] Phase 11: Review and fix CaseResult.swift
 
-**Skills to read**: `ai-dev-tools-review`
+**Skills used**: `ai-dev-tools-review`
+**Principles applied**: Changed nine never-mutated properties from `var` to `let` to communicate immutability intent; extracted `EvalSummary` to its own file for discoverability since it's a standalone public type used broadly across Features and Apps
 
 - Run the `ai-dev-tools-review` skill on `AIDevToolsKit/Sources/Services/EvalService/Models/CaseResult.swift`
 - Save the review output to `reviews/services-CaseResult.md`
