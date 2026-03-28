@@ -113,6 +113,7 @@ let package = Package(
         .target(
             name: "EvalFeature",
             dependencies: [
+                "AIOutputSDK",
                 "EvalSDK",
                 "EvalService",
                 "ProviderRegistryService",
@@ -171,7 +172,7 @@ let package = Package(
         ),
         .target(
             name: "ProviderRegistryService",
-            dependencies: ["AIOutputSDK", "EvalSDK", "EvalService"],
+            dependencies: ["AIOutputSDK"],
             path: "Sources/Services/ProviderRegistryService"
         ),
         .target(
@@ -185,7 +186,7 @@ let package = Package(
         // SDKs Layer
         .target(
             name: "AIOutputSDK",
-            dependencies: [],
+            dependencies: ["SkillScannerSDK"],
             path: "Sources/SDKs/AIOutputSDK"
         ),
         .target(
@@ -203,6 +204,7 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 "AIOutputSDK",
                 "ConcurrencySDK",
+                "SkillScannerSDK",
             ],
             path: "Sources/SDKs/ClaudeCLISDK"
         ),
@@ -220,6 +222,7 @@ let package = Package(
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
                 "AIOutputSDK",
+                "SkillScannerSDK",
             ],
             path: "Sources/SDKs/CodexCLISDK"
         ),
@@ -234,7 +237,6 @@ let package = Package(
         .target(
             name: "EvalSDK",
             dependencies: [
-                .product(name: "CLISDK", package: "SwiftCLI"),
                 "AIOutputSDK",
                 "EvalService",
             ],
@@ -322,16 +324,16 @@ let package = Package(
         ),
         .testTarget(
             name: "EvalIntegrationTests",
-            dependencies: ["ClaudeCLISDK", "CodexCLISDK", "EvalFeature", "EvalSDK", "EvalService"]
+            dependencies: ["AIOutputSDK", "ClaudeCLISDK", "CodexCLISDK", "EvalFeature", "EvalSDK", "EvalService"]
         ),
         .testTarget(
             name: "EvalSDKTests",
-            dependencies: ["AIOutputSDK", "EvalSDK"],
+            dependencies: ["AIOutputSDK", "ClaudeCLISDK", "CodexCLISDK", "EvalSDK"],
             path: "Tests/SDKs/EvalSDKTests"
         ),
         .testTarget(
             name: "EvalServiceTests",
-            dependencies: ["EvalService", "SkillScannerSDK"],
+            dependencies: ["AIOutputSDK", "EvalService", "SkillScannerSDK"],
             path: "Tests/Services/EvalServiceTests"
         ),
         .testTarget(

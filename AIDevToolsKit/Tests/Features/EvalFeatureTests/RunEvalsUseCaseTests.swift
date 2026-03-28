@@ -38,13 +38,13 @@ struct RunEvalsUseCaseTests {
         ])
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let client = MockAIClient(name: "claude")
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "hello"
         ))
         let registry = EvalProviderRegistry(entries: [
-            EvalProviderEntry(client: client, adapter: adapter)
+            EvalProviderEntry(client: adapter)
         ])
         let useCase = RunEvalsUseCase(registry: registry)
 
@@ -94,13 +94,13 @@ struct RunEvalsUseCaseTests {
         ])
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let client = MockAIClient(name: "claude")
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "match"
         ))
         let registry = EvalProviderRegistry(entries: [
-            EvalProviderEntry(client: client, adapter: adapter)
+            EvalProviderEntry(client: adapter)
         ])
         let useCase = RunEvalsUseCase(registry: registry)
 
@@ -126,13 +126,13 @@ struct RunEvalsUseCaseTests {
         ])
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let client = MockAIClient(name: "claude")
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "ok"
         ))
         let registry = EvalProviderRegistry(entries: [
-            EvalProviderEntry(client: client, adapter: adapter)
+            EvalProviderEntry(client: adapter)
         ])
         let useCase = RunEvalsUseCase(registry: registry)
 

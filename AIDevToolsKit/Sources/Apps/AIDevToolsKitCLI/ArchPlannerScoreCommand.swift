@@ -29,7 +29,7 @@ struct ArchPlannerScoreCommand: AsyncParsableCommand {
         }
 
         let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
-        let useCase = ScoreConformanceUseCase(client: ClaudeCLIClient())
+        let useCase = ScoreConformanceUseCase(client: ClaudeProvider())
         let options = ScoreConformanceUseCase.Options(jobId: uuid, repoPath: repoPath)
 
         let result = try await useCase.run(options, store: store) { progress in

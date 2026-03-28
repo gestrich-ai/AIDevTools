@@ -1,7 +1,7 @@
 import AIOutputSDK
 import Foundation
 
-extension CodexCLIClient: AIClient, SessionListable {
+extension CodexProvider: AIClient, SessionListable {
     public var name: String { "codex" }
     public var displayName: String { "Codex CLI" }
 

@@ -2,7 +2,6 @@ import AIOutputSDK
 import Foundation
 import Testing
 @testable import EvalSDK
-@testable import EvalService
 
 private struct PassthroughFormatter: StreamFormatter {
     func format(_ rawChunk: String) -> String { rawChunk }
@@ -17,43 +16,30 @@ private struct PassthroughFormatter: StreamFormatter {
             .appendingPathComponent("OutputServiceTests-\(UUID().uuidString)")
     }
 
-    private func makeConfiguration(outputDir: URL, provider: Provider = Provider(rawValue: "claude"), caseId: String = "test-case") -> RunConfiguration {
-        RunConfiguration(
-            prompt: "test prompt",
-            outputSchemaPath: outputDir.appendingPathComponent("schema.json"),
-            artifactsDirectory: OutputService.artifactsDirectory(outputDirectory: outputDir),
-            provider: provider,
-            caseId: caseId
-        )
-    }
-
-    private func writeWithSession(
+    private func writeArtifacts(
         result: ProviderResult,
         stdout: String,
         stderr: String,
-        configuration: RunConfiguration
+        provider: Provider = Provider(rawValue: "claude"),
+        caseId: String = "test-case",
+        outputDir: URL
     ) throws -> ProviderResult {
-        let session = OutputService.makeSession(
-            artifactsDirectory: configuration.artifactsDirectory,
-            provider: configuration.provider.rawValue,
-            caseId: configuration.caseId
-        )
-        try session.store.write(output: stdout, key: session.key)
-        return try service.writeArtifacts(
-            result: result,
-            stderr: stderr,
-            session: session,
-            configuration: configuration
+        let artifactsDir = OutputService.artifactsDirectory(outputDirectory: outputDir)
+        let evalOutput = EvalRunOutput(result: result, rawStdout: stdout, stderr: stderr)
+        return try service.writeEvalArtifacts(
+            evalOutput: evalOutput,
+            provider: provider,
+            caseId: caseId,
+            artifactsDirectory: artifactsDir
         )
     }
 
     @Test func writeAndReadRoundTrip() throws {
         let outputDir = makeTempDir()
         defer { try? FileManager.default.removeItem(at: outputDir) }
-        let config = makeConfiguration(outputDir: outputDir)
         let result = ProviderResult(provider: Provider(rawValue: "claude"))
 
-        let updated = try writeWithSession(result: result, stdout: "hello stdout", stderr: "hello stderr", configuration: config)
+        let updated = try writeArtifacts(result: result, stdout: "hello stdout", stderr: "hello stderr", outputDir: outputDir)
         let rawContents = try String(contentsOf: updated.rawStdoutPath!, encoding: .utf8)
 
         #expect(rawContents == "hello stdout")
@@ -62,10 +48,9 @@ private struct PassthroughFormatter: StreamFormatter {
     @Test func writeCreatesStdoutAndStderrFiles() throws {
         let outputDir = makeTempDir()
         defer { try? FileManager.default.removeItem(at: outputDir) }
-        let config = makeConfiguration(outputDir: outputDir)
         let result = ProviderResult(provider: Provider(rawValue: "claude"))
 
-        let updated = try writeWithSession(result: result, stdout: "out", stderr: "err", configuration: config)
+        let updated = try writeArtifacts(result: result, stdout: "out", stderr: "err", outputDir: outputDir)
 
         #expect(updated.rawStdoutPath != nil)
         #expect(updated.rawStderrPath != nil)
@@ -76,10 +61,16 @@ private struct PassthroughFormatter: StreamFormatter {
     @Test func stdoutPathUsesExpectedLayout() throws {
         let outputDir = makeTempDir()
         defer { try? FileManager.default.removeItem(at: outputDir) }
-        let config = makeConfiguration(outputDir: outputDir, provider: Provider(rawValue: "claude"), caseId: "my-suite.my-case")
         let result = ProviderResult(provider: Provider(rawValue: "claude"))
 
-        let updated = try writeWithSession(result: result, stdout: "content", stderr: "", configuration: config)
+        let updated = try writeArtifacts(
+            result: result,
+            stdout: "content",
+            stderr: "",
+            provider: Provider(rawValue: "claude"),
+            caseId: "my-suite.my-case",
+            outputDir: outputDir
+        )
 
         let expected = outputDir
             .appendingPathComponent("artifacts/raw/claude/my-suite.my-case.stdout")
@@ -98,11 +89,10 @@ private struct PassthroughFormatter: StreamFormatter {
     @Test func writeOverwritesPreviousOutput() throws {
         let outputDir = makeTempDir()
         defer { try? FileManager.default.removeItem(at: outputDir) }
-        let config = makeConfiguration(outputDir: outputDir)
         let result = ProviderResult(provider: Provider(rawValue: "claude"))
 
-        _ = try writeWithSession(result: result, stdout: "first", stderr: "", configuration: config)
-        let updated = try writeWithSession(result: result, stdout: "second", stderr: "", configuration: config)
+        _ = try writeArtifacts(result: result, stdout: "first", stderr: "", outputDir: outputDir)
+        let updated = try writeArtifacts(result: result, stdout: "second", stderr: "", outputDir: outputDir)
         let rawContents = try String(contentsOf: updated.rawStdoutPath!, encoding: .utf8)
 
         #expect(rawContents == "second")

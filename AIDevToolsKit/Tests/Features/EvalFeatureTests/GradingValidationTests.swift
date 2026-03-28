@@ -1,8 +1,9 @@
-import Testing
+import AIOutputSDK
 import Foundation
+import Testing
 @testable import EvalFeature
-@testable import EvalService
 @testable import EvalSDK
+@testable import EvalService
 
 // Validates that the eval framework correctly detects both passing AND failing cases
 // across all grading capabilities. Each capability has a positive test (should pass)
@@ -32,11 +33,11 @@ struct OutputMatchingValidation {
             id: "exact-pos", suite: "validation", task: "Add header", input: "code",
             expected: "// Copyright © Acme Corp, LLC. All rights reserved.\n\nimport Foundation"
         )
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "// Copyright © Acme Corp, LLC. All rights reserved.\n\nimport Foundation"
         ))
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
         #expect(result.errors.isEmpty)
     }
@@ -46,11 +47,11 @@ struct OutputMatchingValidation {
             id: "exact-neg", suite: "validation", task: "Add header", input: "code",
             expected: "// Copyright © Acme Corp, LLC. All rights reserved.\n\nimport Foundation"
         )
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "// Wrong header\n\nimport Foundation"
         ))
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when output doesn't match expected")
         #expect(result.errors.contains(where: { $0.contains("exact output mismatch") }))
     }
@@ -62,11 +63,11 @@ struct OutputMatchingValidation {
             id: "mi-pos", suite: "validation", task: "Add header", input: "code",
             mustInclude: ["Copyright", "Acme Corp"]
         )
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "// Copyright © Acme Corp, LLC. All rights reserved."
         ))
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
@@ -75,11 +76,11 @@ struct OutputMatchingValidation {
             id: "mi-neg", suite: "validation", task: "Add header", input: "code",
             mustInclude: ["Copyright", "Acme Corp"]
         )
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "// Some other header with no relevant keywords"
         ))
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when required substrings are missing")
         #expect(result.errors.contains(where: { $0.contains("missing required substring: 'Copyright'") }))
         #expect(result.errors.contains(where: { $0.contains("missing required substring: 'Acme Corp'") }))
@@ -92,11 +93,11 @@ struct OutputMatchingValidation {
             id: "mni-pos", suite: "validation", task: "Add header", input: "code",
             mustNotInclude: ["TODO", "FIXME"]
         )
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "// Copyright © Acme Corp, LLC."
         ))
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
@@ -105,11 +106,11 @@ struct OutputMatchingValidation {
             id: "mni-neg", suite: "validation", task: "Add header", input: "code",
             mustNotInclude: ["TODO", "FIXME"]
         )
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "// TODO: Add copyright header\n// FIXME: wrong format"
         ))
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when forbidden substrings are found")
         #expect(result.errors.contains(where: { $0.contains("found forbidden substring: 'TODO'") }))
         #expect(result.errors.contains(where: { $0.contains("found forbidden substring: 'FIXME'") }))
@@ -140,7 +141,7 @@ struct ToolEventValidation {
             id: "tc-pos", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(traceCommandContains: ["cat", "sed"])
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -151,7 +152,7 @@ struct ToolEventValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
@@ -160,7 +161,7 @@ struct ToolEventValidation {
             id: "tc-neg", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(traceCommandContains: ["cat", "sed"])
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -170,7 +171,7 @@ struct ToolEventValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when required trace commands are missing")
         #expect(result.errors.contains(where: { $0.contains("missing trace command substring: 'cat'") }))
     }
@@ -182,7 +183,7 @@ struct ToolEventValidation {
             id: "tnc-pos", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(traceCommandNotContains: ["rm -rf", "sudo"])
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -190,7 +191,7 @@ struct ToolEventValidation {
                 toolEvents: [ToolEvent(name: "bash", command: "cat file.swift")]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
@@ -199,7 +200,7 @@ struct ToolEventValidation {
             id: "tnc-neg", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(traceCommandNotContains: ["rm -rf"])
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -207,7 +208,7 @@ struct ToolEventValidation {
                 toolEvents: [ToolEvent(name: "bash", command: "rm -rf /tmp/test")]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when forbidden trace command is found")
         #expect(result.errors.contains(where: { $0.contains("found forbidden trace command substring: 'rm -rf'") }))
     }
@@ -219,7 +220,7 @@ struct ToolEventValidation {
             id: "to-pos", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(traceCommandOrder: ["cat", "sed", "echo"])
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -231,7 +232,7 @@ struct ToolEventValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
@@ -240,7 +241,7 @@ struct ToolEventValidation {
             id: "to-neg", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(traceCommandOrder: ["sed", "cat"])
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -251,7 +252,7 @@ struct ToolEventValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when commands are in wrong order")
         #expect(result.errors.contains(where: { $0.contains("trace command order violation") }))
     }
@@ -263,7 +264,7 @@ struct ToolEventValidation {
             id: "mc-pos", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(maxCommands: 3)
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -274,7 +275,7 @@ struct ToolEventValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
@@ -283,7 +284,7 @@ struct ToolEventValidation {
             id: "mc-neg", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(maxCommands: 2)
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -296,7 +297,7 @@ struct ToolEventValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when too many commands are executed")
         #expect(result.errors.contains(where: { $0.contains("exceeded max commands: 4 > 2") }))
     }
@@ -308,7 +309,7 @@ struct ToolEventValidation {
             id: "th-pos", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(maxRepeatedCommands: 2)
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -320,7 +321,7 @@ struct ToolEventValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
@@ -329,7 +330,7 @@ struct ToolEventValidation {
             id: "th-neg", suite: "validation", task: "task", input: "input",
             deterministic: DeterministicChecks(maxRepeatedCommands: 2)
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -341,7 +342,7 @@ struct ToolEventValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when commands are repeated excessively")
         #expect(result.errors.contains(where: { $0.contains("thrashing detected") }))
     }
@@ -357,11 +358,11 @@ struct ToolEventValidation {
                 maxRepeatedCommands: 2
             )
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: false),
             result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "ok")
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed, "Should pass since tool assertions are skipped")
         #expect(!result.skipped.isEmpty, "Should report skipped checks")
     }
@@ -386,115 +387,115 @@ struct RubricGradingValidation {
 
     @Test func rubricOverallPassPositive() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
+        var adapter = MockEvalProvider()
         adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "good output")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "good output"), rawStdout: "", stderr: "")
             }
-            return ProviderResult(
+            return EvalRunOutput(result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
                 structuredOutput: [
                     "overall_pass": .bool(true),
                     "score": .int(8),
                     "checks": .array([])
                 ]
-            )
+            ), rawStdout: "", stderr: "")
         }
         let evalCase = EvalCase(
             id: "rub-pos", suite: "validation", task: "task", input: "input",
             rubric: RubricConfig(prompt: "Grade: {{result}}", requireOverallPass: true)
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
     @Test func rubricOverallPassNegative() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
+        var adapter = MockEvalProvider()
         adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "bad output")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "bad output"), rawStdout: "", stderr: "")
             }
-            return ProviderResult(
+            return EvalRunOutput(result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
                 structuredOutput: [
                     "overall_pass": .bool(false),
                     "score": .int(3),
                     "checks": .array([])
                 ]
-            )
+            ), rawStdout: "", stderr: "")
         }
         let evalCase = EvalCase(
             id: "rub-neg", suite: "validation", task: "task", input: "input",
             rubric: RubricConfig(prompt: "Grade: {{result}}", requireOverallPass: true)
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when rubric overall_pass is false")
         #expect(result.errors.contains(where: { $0.contains("overall_pass") }))
     }
 
     @Test func rubricMinScorePositive() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
+        var adapter = MockEvalProvider()
         adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output"), rawStdout: "", stderr: "")
             }
-            return ProviderResult(
+            return EvalRunOutput(result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
                 structuredOutput: [
                     "overall_pass": .bool(true),
                     "score": .int(8),
                     "checks": .array([])
                 ]
-            )
+            ), rawStdout: "", stderr: "")
         }
         let evalCase = EvalCase(
             id: "rms-pos", suite: "validation", task: "task", input: "input",
             rubric: RubricConfig(prompt: "Grade: {{result}}", minScore: 7)
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
     @Test func rubricMinScoreNegative() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
+        var adapter = MockEvalProvider()
         adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output"), rawStdout: "", stderr: "")
             }
-            return ProviderResult(
+            return EvalRunOutput(result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
                 structuredOutput: [
                     "overall_pass": .bool(true),
                     "score": .int(3),
                     "checks": .array([])
                 ]
-            )
+            ), rawStdout: "", stderr: "")
         }
         let evalCase = EvalCase(
             id: "rms-neg", suite: "validation", task: "task", input: "input",
             rubric: RubricConfig(prompt: "Grade: {{result}}", minScore: 7)
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when score is below minScore")
         #expect(result.errors.contains(where: { $0.contains("rubric score below threshold") }))
     }
 
     @Test func rubricRequiredCheckPositive() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
+        var adapter = MockEvalProvider()
         adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output"), rawStdout: "", stderr: "")
             }
-            return ProviderResult(
+            return EvalRunOutput(result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
                 structuredOutput: [
                     "overall_pass": .bool(true),
@@ -504,7 +505,7 @@ struct RubricGradingValidation {
                         .object(["id": .string("blank-line"), "pass": .bool(true), "notes": .string("present")])
                     ])
                 ]
-            )
+            ), rawStdout: "", stderr: "")
         }
         let evalCase = EvalCase(
             id: "rci-pos", suite: "validation", task: "task", input: "input",
@@ -513,19 +514,19 @@ struct RubricGradingValidation {
                 requiredCheckIds: ["header-format", "blank-line"]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(result.passed)
     }
 
     @Test func rubricRequiredCheckNegativeMissing() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
+        var adapter = MockEvalProvider()
         adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output"), rawStdout: "", stderr: "")
             }
-            return ProviderResult(
+            return EvalRunOutput(result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
                 structuredOutput: [
                     "overall_pass": .bool(true),
@@ -534,7 +535,7 @@ struct RubricGradingValidation {
                         .object(["id": .string("header-format"), "pass": .bool(true), "notes": .string("ok")])
                     ])
                 ]
-            )
+            ), rawStdout: "", stderr: "")
         }
         let evalCase = EvalCase(
             id: "rci-miss", suite: "validation", task: "task", input: "input",
@@ -543,20 +544,20 @@ struct RubricGradingValidation {
                 requiredCheckIds: ["header-format", "blank-line"]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when required check is missing")
         #expect(result.errors.contains(where: { $0.contains("missing rubric check id: blank-line") }))
     }
 
     @Test func rubricRequiredCheckNegativeFailed() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
+        var adapter = MockEvalProvider()
         adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output"), rawStdout: "", stderr: "")
             }
-            return ProviderResult(
+            return EvalRunOutput(result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
                 structuredOutput: [
                     "overall_pass": .bool(true),
@@ -565,7 +566,7 @@ struct RubricGradingValidation {
                         .object(["id": .string("header-format"), "pass": .bool(false), "notes": .string("wrong format")])
                     ])
                 ]
-            )
+            ), rawStdout: "", stderr: "")
         }
         let evalCase = EvalCase(
             id: "rci-fail", suite: "validation", task: "task", input: "input",
@@ -574,7 +575,7 @@ struct RubricGradingValidation {
                 requiredCheckIds: ["header-format"]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when required check fails")
         #expect(result.errors.contains(where: { $0.contains("rubric check failed: header-format") }))
     }
@@ -599,33 +600,33 @@ struct ProviderErrorValidation {
 
     @Test func providerErrorCaptured() async throws {
         let evalCase = EvalCase(id: "pe-neg", suite: "validation", task: "task", input: "input")
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             error: ProviderError(message: "CLI exited with code 1")
         ))
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when provider errors")
         #expect(result.errors.contains(where: { $0.contains("provider error") }))
     }
 
     @Test func rubricProviderErrorCaptured() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
+        var adapter = MockEvalProvider()
         adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "output"), rawStdout: "", stderr: "")
             }
-            return ProviderResult(
+            return EvalRunOutput(result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
                 error: ProviderError(message: "rubric CLI timeout")
-            )
+            ), rawStdout: "", stderr: "")
         }
         let evalCase = EvalCase(
             id: "rpe-neg", suite: "validation", task: "task", input: "input",
             rubric: RubricConfig(prompt: "Grade: {{result}}")
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Should fail when rubric provider errors")
         #expect(result.errors.contains(where: { $0.contains("rubric provider error") }))
     }
@@ -655,11 +656,11 @@ struct CombinedFailureValidation {
             mustInclude: ["Acme Corp"],
             mustNotInclude: ["TODO"]
         )
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "TODO: wrong output"
         ))
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed)
         #expect(result.errors.count >= 3, "Should accumulate errors from exact match, mustInclude, and mustNotInclude")
         #expect(result.errors.contains(where: { $0.contains("exact output mismatch") }))
@@ -676,7 +677,7 @@ struct CombinedFailureValidation {
                 maxCommands: 2
             )
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: true),
             result: ProviderResult(
                 provider: Provider(rawValue: "claude"),
@@ -688,7 +689,7 @@ struct CombinedFailureValidation {
                 ]
             )
         )
-        let result = try await RunCaseUseCase(adapter: adapter).run(makeOptions(evalCase))
+        let result = try await RunCaseUseCase(client: adapter).run(makeOptions(evalCase))
         #expect(!result.passed, "Output passes but tool events should fail")
         #expect(result.errors.contains(where: { $0.contains("found forbidden trace command substring") }))
         #expect(result.errors.contains(where: { $0.contains("exceeded max commands") }))

@@ -1,17 +1,21 @@
-import Foundation
+import AIOutputSDK
 import EvalService
+import Foundation
 
 public struct RubricEvaluator: Sendable {
 
     private let promptBuilder: PromptBuilder
     private let rubricGrader: RubricGrader
+    private let outputService: OutputService
 
     public init(
         promptBuilder: PromptBuilder = PromptBuilder(),
-        rubricGrader: RubricGrader = RubricGrader()
+        rubricGrader: RubricGrader = RubricGrader(),
+        outputService: OutputService = OutputService()
     ) {
         self.promptBuilder = promptBuilder
         self.rubricGrader = rubricGrader
+        self.outputService = outputService
     }
 
     public func evaluate(
@@ -19,7 +23,7 @@ public struct RubricEvaluator: Sendable {
         evalCase: EvalCase,
         caseId: String,
         resultText: String,
-        adapter: any ProviderAdapterProtocol,
+        client: any AIClient & EvalCapable,
         rubricSchemaPath: URL,
         artifactsDirectory: URL,
         provider: Provider,
@@ -40,17 +44,24 @@ public struct RubricEvaluator: Sendable {
             schemaPath = rubricSchemaPath
         }
 
-        let configuration = RunConfiguration(
+        let rubricCaseId = "\(caseId).rubric"
+        let evalOutput = try await client.runEval(
             prompt: rubricPrompt,
             outputSchemaPath: schemaPath,
             artifactsDirectory: artifactsDirectory,
-            provider: provider,
-            caseId: "\(caseId).rubric",
+            caseId: rubricCaseId,
             model: model,
-            workingDirectory: repoRoot
+            workingDirectory: repoRoot,
+            evalMode: .structured,
+            onOutput: nil
         )
 
-        let result = try await adapter.run(configuration: configuration)
+        let result = try outputService.writeEvalArtifacts(
+            evalOutput: evalOutput,
+            provider: provider,
+            caseId: rubricCaseId,
+            artifactsDirectory: artifactsDirectory
+        )
 
         if let error = result.error {
             return ["rubric provider error: \(error.message)"]

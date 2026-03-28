@@ -14,10 +14,10 @@ public enum ClaudeCLIError: Error, LocalizedError {
     }
 }
 
-public struct ClaudeCLIClient: Sendable {
+public struct ClaudeProvider: Sendable {
 
     private static let inactivityTimeout: TimeInterval = 480
-    private static let logger = Logger(label: "ClaudeCLIClient")
+    private static let logger = Logger(label: "ClaudeProvider")
 
     private let client: CLIClient
 

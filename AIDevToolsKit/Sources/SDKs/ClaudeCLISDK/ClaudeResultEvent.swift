@@ -1,3 +1,4 @@
+import AIOutputSDK
 import Foundation
 
 public struct ClaudeResultEvent: Codable, Sendable {
@@ -5,7 +6,7 @@ public struct ClaudeResultEvent: Codable, Sendable {
     public let isError: Bool?
     public let subtype: String?
     public let errors: JSONValue?
-    public let structuredOutput: JSONValue?
+    public let structuredOutput: [String: JSONValue]?
     public let durationMs: Int?
     public let totalCostUsd: Double?
     public let numTurns: Int?
@@ -32,5 +33,19 @@ public struct ClaudeResultEvent: Codable, Sendable {
         if let durationMs { parts.append("duration=\(durationMs)ms") }
         if let totalCostUsd { parts.append(String(format: "cost=$%.4f", totalCostUsd)) }
         return "[\(parts.joined(separator: ", "))]"
+    }
+
+    public var metrics: ProviderMetrics {
+        ProviderMetrics(durationMs: durationMs, costUsd: totalCostUsd, turns: numTurns)
+    }
+
+    public var providerError: ProviderError? {
+        guard isError == true else { return nil }
+        let message = errors.map { "\($0)" } ?? subtype ?? "unknown error"
+        return ProviderError(
+            message: message,
+            subtype: subtype,
+            details: errors.map { ["errors": $0] }
+        )
     }
 }

@@ -1,6 +1,7 @@
-import Foundation
-import EvalService
+import AIOutputSDK
 import EvalSDK
+import EvalService
+import Foundation
 import ProviderRegistryService
 import SkillScannerSDK
 
@@ -138,7 +139,7 @@ public struct RunEvalsUseCase: Sendable {
         skills: [SkillInfo],
         onProgress: (@Sendable (Progress) -> Void)? = nil
     ) async throws -> EvalSummary {
-        let runCase = RunCaseUseCase(adapter: entry.adapter)
+        let runCase = RunCaseUseCase(client: entry.client)
         var results: [CaseResult] = []
         let providerName = entry.name
 
@@ -189,7 +190,7 @@ public struct RunEvalsUseCase: Sendable {
                         evalCase: evalCase,
                         caseId: caseId,
                         resultText: result.providerResponse ?? "",
-                        adapter: entry.adapter,
+                        client: entry.client,
                         rubricSchemaPath: rubricSchemaPath,
                         artifactsDirectory: artifactsDirectory,
                         provider: entry.provider,

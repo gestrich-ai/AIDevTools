@@ -18,9 +18,9 @@ final class ProviderModel {
     }
 
     private static func buildRegistry() -> ProviderRegistry {
-        var providers: [any AIClient] = [ClaudeCLIClient(), CodexCLIClient()]
+        var providers: [any AIClient] = [ClaudeProvider(), CodexProvider()]
         if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
-            providers.append(AnthropicAIClient(apiClient: AnthropicAPIClient(apiKey: key)))
+            providers.append(AnthropicProvider(apiClient: AnthropicAPIClient(apiKey: key)))
         }
         return ProviderRegistry(providers: providers)
     }

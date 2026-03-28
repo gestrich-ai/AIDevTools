@@ -1,7 +1,7 @@
 import Foundation
 import CLISDK
 
-public struct CodexCLIClient: Sendable {
+public struct CodexProvider: Sendable {
 
     private let client: CLIClient
 

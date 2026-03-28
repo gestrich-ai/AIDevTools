@@ -1,6 +1,6 @@
+import AIOutputSDK
 import Testing
-@testable import EvalSDK
-@testable import EvalService
+@testable import ClaudeCLISDK
 
 @Suite("ClaudeOutputParser")
 struct ClaudeOutputParserTests {

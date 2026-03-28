@@ -1,10 +1,10 @@
-import EvalService
+import AIOutputSDK
 import Foundation
 
 public struct ClaudeOutputParser: Sendable {
 
     public struct Output: Sendable {
-        public let rawEvents: [[String: EvalService.JSONValue]]
+        public let rawEvents: [[String: JSONValue]]
         public let toolEvents: [ToolEvent]
         public let resultEvent: ClaudeResultEvent?
         public let toolCallSummary: ToolCallSummary
@@ -43,7 +43,7 @@ public struct ClaudeOutputParser: Sendable {
     }
 
     public func parse(_ stdout: String) -> Output {
-        var rawEvents: [[String: EvalService.JSONValue]] = []
+        var rawEvents: [[String: JSONValue]] = []
         var toolEvents: [ToolEvent] = []
         var resultEvent: ClaudeResultEvent?
         var pendingToolCalls: [String: Int] = [:]
@@ -54,7 +54,7 @@ public struct ClaudeOutputParser: Sendable {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { continue }
 
-            if let raw = try? decoder.decode([String: EvalService.JSONValue].self, from: data) {
+            if let raw = try? decoder.decode([String: JSONValue].self, from: data) {
                 rawEvents.append(raw)
             }
 

@@ -1,7 +1,7 @@
+import AIOutputSDK
 import ClaudeCLISDK
 import CodexCLISDK
 import EvalFeature
-import EvalSDK
 import EvalService
 import Foundation
 import Testing
@@ -34,17 +34,17 @@ private func createEvalTempDirectory() throws -> URL {
 }
 
 func runEval(_ eval: EvalCase, provider: Provider = Provider(rawValue: "claude")) async throws {
-    let adapter: any ProviderAdapterProtocol
+    let client: any AIClient & EvalCapable
     if provider.rawValue == "codex" {
-        adapter = CodexAdapter(client: CodexCLIClient())
+        client = CodexProvider()
     } else {
-        adapter = ClaudeAdapter(client: ClaudeCLIClient())
+        client = ClaudeProvider()
     }
 
     let tempDir = try createEvalTempDirectory()
     defer { try? FileManager.default.removeItem(at: tempDir) }
 
-    let useCase = RunCaseUseCase(adapter: adapter)
+    let useCase = RunCaseUseCase(client: client)
     let result = try await useCase.run(
         RunCaseUseCase.Options(
             evalCase: eval,
@@ -60,17 +60,17 @@ func runEval(_ eval: EvalCase, provider: Provider = Provider(rawValue: "claude")
 }
 
 func runEvalExpectingFailure(_ eval: EvalCase, provider: Provider = Provider(rawValue: "claude")) async throws {
-    let adapter: any ProviderAdapterProtocol
+    let client: any AIClient & EvalCapable
     if provider.rawValue == "codex" {
-        adapter = CodexAdapter(client: CodexCLIClient())
+        client = CodexProvider()
     } else {
-        adapter = ClaudeAdapter(client: ClaudeCLIClient())
+        client = ClaudeProvider()
     }
 
     let tempDir = try createEvalTempDirectory()
     defer { try? FileManager.default.removeItem(at: tempDir) }
 
-    let useCase = RunCaseUseCase(adapter: adapter)
+    let useCase = RunCaseUseCase(client: client)
     let result = try await useCase.run(
         RunCaseUseCase.Options(
             evalCase: eval,

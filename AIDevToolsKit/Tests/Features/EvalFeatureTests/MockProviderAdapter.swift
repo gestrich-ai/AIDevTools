@@ -1,34 +1,73 @@
-import Foundation
-import EvalService
+import AIOutputSDK
 import EvalSDK
+import EvalService
+import Foundation
 import SkillScannerSDK
 
-struct MockProviderAdapter: ProviderAdapterProtocol {
+struct MockEvalProvider: AIClient, EvalCapable {
     var invocationMethodResult: InvocationMethod?
-    var providerCapabilities: ProviderCapabilities
+    var mockCapabilities: ProviderCapabilities
     var result: ProviderResult
-    var runHandler: (@Sendable (RunConfiguration) async throws -> ProviderResult)?
+    var runHandler: (@Sendable (String) async throws -> EvalRunOutput)?
+
+    var name: String { "claude" }
+    var displayName: String { "Mock Claude" }
 
     init(
         capabilities: ProviderCapabilities = ProviderCapabilities(),
         result: ProviderResult = ProviderResult(provider: Provider(rawValue: "claude"))
     ) {
-        self.providerCapabilities = capabilities
+        self.mockCapabilities = capabilities
         self.result = result
     }
 
-    func capabilities() -> ProviderCapabilities {
-        providerCapabilities
+    var evalCapabilities: ProviderCapabilities {
+        mockCapabilities
     }
 
-    func run(configuration: RunConfiguration, onOutput: (@Sendable (String) -> Void)? = nil) async throws -> ProviderResult {
+    var streamFormatter: any StreamFormatter {
+        MockStreamFormatter()
+    }
+
+    func run(
+        prompt: String,
+        options: AIClientOptions,
+        onOutput: (@Sendable (String) -> Void)?
+    ) async throws -> AIClientResult {
+        AIClientResult(exitCode: 0, stderr: "", stdout: "")
+    }
+
+    func runStructured<T: Decodable & Sendable>(
+        _ type: T.Type,
+        prompt: String,
+        jsonSchema: String,
+        options: AIClientOptions,
+        onOutput: (@Sendable (String) -> Void)?
+    ) async throws -> AIStructuredResult<T> {
+        fatalError("Not implemented in mock")
+    }
+
+    func runEval(
+        prompt: String,
+        outputSchemaPath: URL,
+        artifactsDirectory: URL,
+        caseId: String,
+        model: String?,
+        workingDirectory: URL?,
+        evalMode: EvalMode,
+        onOutput: (@Sendable (String) -> Void)?
+    ) async throws -> EvalRunOutput {
         if let handler = runHandler {
-            return try await handler(configuration)
+            return try await handler(prompt)
         }
-        return result
+        return EvalRunOutput(result: result, rawStdout: "", stderr: "")
     }
 
     func invocationMethod(for skillName: String, toolEvents: [ToolEvent], traceCommands: [String], skills: [SkillInfo], repoRoot: URL?) -> InvocationMethod? {
         invocationMethodResult
     }
+}
+
+private struct MockStreamFormatter: StreamFormatter {
+    func format(_ rawChunk: String) -> String { rawChunk }
 }

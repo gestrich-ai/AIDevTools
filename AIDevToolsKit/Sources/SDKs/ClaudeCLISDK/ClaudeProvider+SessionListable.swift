@@ -1,7 +1,7 @@
 import AIOutputSDK
 import Foundation
 
-extension ClaudeCLIClient: SessionListable {
+extension ClaudeProvider: SessionListable {
 
     public func listSessions(workingDirectory: String) async -> [ChatSession] {
         await Task.detached {

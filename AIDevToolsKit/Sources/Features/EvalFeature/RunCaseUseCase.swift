@@ -1,6 +1,7 @@
-import Foundation
-import EvalService
+import AIOutputSDK
 import EvalSDK
+import EvalService
+import Foundation
 import SkillScannerSDK
 
 public struct RunCaseUseCase: Sendable {
@@ -39,24 +40,27 @@ public struct RunCaseUseCase: Sendable {
         }
     }
 
-    private let adapter: any ProviderAdapterProtocol
+    private let client: any AIClient & EvalCapable
     private let promptBuilder: PromptBuilder
     private let deterministicGrader: DeterministicGrader
     private let rubricEvaluator: RubricEvaluator
     private let artifactWriter: ArtifactWriter
+    private let outputService: OutputService
 
     public init(
-        adapter: any ProviderAdapterProtocol,
+        client: any AIClient & EvalCapable,
         promptBuilder: PromptBuilder = PromptBuilder(),
         deterministicGrader: DeterministicGrader = DeterministicGrader(),
         rubricEvaluator: RubricEvaluator = RubricEvaluator(),
-        artifactWriter: ArtifactWriter = ArtifactWriter()
+        artifactWriter: ArtifactWriter = ArtifactWriter(),
+        outputService: OutputService = OutputService()
     ) {
-        self.adapter = adapter
+        self.client = client
         self.promptBuilder = promptBuilder
         self.deterministicGrader = deterministicGrader
         self.rubricEvaluator = rubricEvaluator
         self.artifactWriter = artifactWriter
+        self.outputService = outputService
     }
 
     public func run(_ options: Options, onOutput: (@Sendable (String) -> Void)? = nil) async throws -> CaseResult {
@@ -65,17 +69,23 @@ public struct RunCaseUseCase: Sendable {
 
         let prompt = try promptBuilder.buildPrimaryPrompt(for: evalCase)
 
-        let configuration = RunConfiguration(
+        let evalOutput = try await client.runEval(
             prompt: prompt,
             outputSchemaPath: options.resultSchemaPath,
             artifactsDirectory: options.artifactsDirectory,
-            provider: options.provider,
             caseId: caseId,
             model: options.model,
             workingDirectory: options.repoRoot,
-            evalMode: evalCase.mode
+            evalMode: evalCase.mode,
+            onOutput: onOutput
         )
-        let providerResult = try await adapter.run(configuration: configuration, onOutput: onOutput)
+
+        let providerResult = try outputService.writeEvalArtifacts(
+            evalOutput: evalOutput,
+            provider: options.provider,
+            caseId: caseId,
+            artifactsDirectory: options.artifactsDirectory
+        )
 
         if options.keepTraces && !providerResult.events.isEmpty {
             let tracesDirectory = options.artifactsDirectory.appendingPathComponent("traces")
@@ -99,7 +109,7 @@ public struct RunCaseUseCase: Sendable {
 
         let resultText = providerResult.resultText ?? ""
         let traceCommands = providerResult.toolEvents.compactMap(\.command)
-        let capabilities = adapter.capabilities()
+        let capabilities = client.evalCapabilities
 
         let skillChecks = resolveSkillChecks(
             evalCase: evalCase,
@@ -128,7 +138,7 @@ public struct RunCaseUseCase: Sendable {
                 evalCase: evalCase,
                 caseId: caseId,
                 resultText: resultText,
-                adapter: adapter,
+                client: client,
                 rubricSchemaPath: options.rubricSchemaPath,
                 artifactsDirectory: options.artifactsDirectory,
                 provider: options.provider,
@@ -169,7 +179,7 @@ public struct RunCaseUseCase: Sendable {
             if !capabilities.supportsToolEventAssertions {
                 checks.append(.skipped(skillName: skillName, reason: "provider lacks support"))
             } else {
-                let method = adapter.invocationMethod(for: skillName, toolEvents: toolEvents, traceCommands: traceCommands, skills: skills, repoRoot: repoRoot)
+                let method = client.invocationMethod(for: skillName, toolEvents: toolEvents, traceCommands: traceCommands, skills: skills, repoRoot: repoRoot)
                 if let method {
                     let skill = skills.first(where: { $0.name == skillName }) ?? SkillInfo(name: skillName, path: URL(fileURLWithPath: skillName))
                     checks.append(.invoked(skill, method: method))

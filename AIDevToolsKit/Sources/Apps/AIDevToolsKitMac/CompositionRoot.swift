@@ -1,8 +1,6 @@
-import AIOutputSDK
 import ClaudeCLISDK
 import CodexCLISDK
 import DataPathsService
-import EvalSDK
 import EvalService
 import PlanRunnerService
 import ProviderRegistryService
@@ -33,12 +31,9 @@ struct CompositionRoot {
             filePath: try dataPathsService.path(for: .planSettings).appending(path: "plan-settings.json")
         )
 
-        let claude = ClaudeCLIClient()
-        let codex = CodexCLIClient()
-
         let evalProviderRegistry = EvalProviderRegistry(entries: [
-            EvalProviderEntry(client: claude, adapter: ClaudeAdapter(client: claude)),
-            EvalProviderEntry(client: codex, adapter: CodexAdapter(client: codex)),
+            EvalProviderEntry(client: ClaudeProvider()),
+            EvalProviderEntry(client: CodexProvider()),
         ])
 
         return CompositionRoot(

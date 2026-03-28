@@ -1,8 +1,9 @@
-import Testing
+import AIOutputSDK
 import Foundation
+import Testing
 @testable import EvalFeature
-@testable import EvalService
 @testable import EvalSDK
+@testable import EvalService
 
 @Suite("RunCaseUseCase")
 struct RunCaseUseCaseTests {
@@ -25,11 +26,11 @@ struct RunCaseUseCaseTests {
 
     @Test func passingCaseWithExactMatch() async throws {
         let evalCase = EvalCase(id: "exact-1", suite: "suite", task: "task", input: "input", expected: "hello world")
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "hello world"
         ))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -48,11 +49,11 @@ struct RunCaseUseCaseTests {
 
     @Test func passingCaseWithMustInclude() async throws {
         let evalCase = EvalCase(id: "mi-1", suite: "s", task: "task", input: "input", mustInclude: ["Button", "action"])
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "Button(action: { })"
         ))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -72,11 +73,11 @@ struct RunCaseUseCaseTests {
 
     @Test func failingExactMatch() async throws {
         let evalCase = EvalCase(id: "fail-1", suite: "s", task: "task", input: "input", expected: "Color.gray1")
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "Color.blue5"
         ))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -94,11 +95,11 @@ struct RunCaseUseCaseTests {
 
     @Test func failingMustNotInclude() async throws {
         let evalCase = EvalCase(id: "fail-2", suite: "s", task: "task", input: "input", mustNotInclude: ["dkColor"])
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "let c = dkColor(.gray)"
         ))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -117,11 +118,11 @@ struct RunCaseUseCaseTests {
     // MARK: - Provider Error
 
     @Test func providerErrorReturnsFailure() async throws {
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             error: ProviderError(message: "CLI process exited with code 1")
         ))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
 
         let result = try await useCase.run(defaultOptions)
 
@@ -134,12 +135,12 @@ struct RunCaseUseCaseTests {
 
     @Test func tracesWrittenWhenKeepTracesEnabled() async throws {
         let artifactsDir = tempDir.appendingPathComponent("trace-test")
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "ok",
             events: [["type": .string("assistant")]]
         ))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: EvalCase(id: "trace-1", suite: "s", task: "task", input: "input"),
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -158,12 +159,12 @@ struct RunCaseUseCaseTests {
 
     @Test func tracesNotWrittenWhenKeepTracesDisabled() async throws {
         let artifactsDir = tempDir.appendingPathComponent("no-trace-test")
-        let adapter = MockProviderAdapter(result: ProviderResult(
+        let adapter = MockEvalProvider(result: ProviderResult(
             provider: Provider(rawValue: "claude"),
             resultText: "ok",
             events: [["type": .string("assistant")]]
         ))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: EvalCase(id: "trace-2", suite: "s", task: "task", input: "input"),
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -184,13 +185,13 @@ struct RunCaseUseCaseTests {
 
     @Test func rubricPassingCase() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
-        adapter.runHandler = { config in
+        var adapter = MockEvalProvider()
+        adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "migrated code")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "migrated code"), rawStdout: "", stderr: "")
             } else {
-                return ProviderResult(
+                return EvalRunOutput(result: ProviderResult(
                     provider: Provider(rawValue: "claude"),
                     structuredOutput: [
                         "overall_pass": .bool(true),
@@ -203,7 +204,7 @@ struct RunCaseUseCaseTests {
                             ])
                         ])
                     ]
-                )
+                ), rawStdout: "", stderr: "")
             }
         }
 
@@ -214,7 +215,7 @@ struct RunCaseUseCaseTests {
             input: "input",
             rubric: RubricConfig(prompt: "Grade this: {{result}}", requireOverallPass: true)
         )
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -232,20 +233,20 @@ struct RunCaseUseCaseTests {
 
     @Test func rubricFailingCase() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
-        adapter.runHandler = { config in
+        var adapter = MockEvalProvider()
+        adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "bad code")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "bad code"), rawStdout: "", stderr: "")
             } else {
-                return ProviderResult(
+                return EvalRunOutput(result: ProviderResult(
                     provider: Provider(rawValue: "claude"),
                     structuredOutput: [
                         "overall_pass": .bool(false),
                         "score": .int(2),
                         "checks": .array([])
                     ]
-                )
+                ), rawStdout: "", stderr: "")
             }
         }
 
@@ -256,7 +257,7 @@ struct RunCaseUseCaseTests {
             input: "input",
             rubric: RubricConfig(prompt: "Grade: {{result}}", requireOverallPass: true)
         )
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -274,16 +275,16 @@ struct RunCaseUseCaseTests {
 
     @Test func rubricProviderErrorReturnsRubricError() async throws {
         var callCount = 0
-        var adapter = MockProviderAdapter()
-        adapter.runHandler = { config in
+        var adapter = MockEvalProvider()
+        adapter.runHandler = { _ in
             callCount += 1
             if callCount == 1 {
-                return ProviderResult(provider: Provider(rawValue: "claude"), resultText: "some result")
+                return EvalRunOutput(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "some result"), rawStdout: "", stderr: "")
             } else {
-                return ProviderResult(
+                return EvalRunOutput(result: ProviderResult(
                     provider: Provider(rawValue: "claude"),
                     error: ProviderError(message: "rubric CLI failed")
-                )
+                ), rawStdout: "", stderr: "")
             }
         }
 
@@ -294,7 +295,7 @@ struct RunCaseUseCaseTests {
             input: "input",
             rubric: RubricConfig(prompt: "Grade: {{result}}")
         )
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -314,8 +315,8 @@ struct RunCaseUseCaseTests {
 
     @Test func caseIdIncludesSuiteAndId() async throws {
         let evalCase = EvalCase(id: "my-case", suite: "my-suite", task: "task", input: "input")
-        let adapter = MockProviderAdapter(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "ok"))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let adapter = MockEvalProvider(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "ok"))
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -332,8 +333,8 @@ struct RunCaseUseCaseTests {
 
     @Test func caseIdUsesUnknownWhenNoSuite() async throws {
         let evalCase = EvalCase(id: "orphan", task: "task", input: "input")
-        let adapter = MockProviderAdapter(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "ok"))
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let adapter = MockEvalProvider(result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "ok"))
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),
@@ -358,11 +359,11 @@ struct RunCaseUseCaseTests {
             input: "input",
             deterministic: DeterministicChecks(traceCommandContains: ["grep"])
         )
-        let adapter = MockProviderAdapter(
+        let adapter = MockEvalProvider(
             capabilities: ProviderCapabilities(supportsToolEventAssertions: false),
             result: ProviderResult(provider: Provider(rawValue: "claude"), resultText: "ok")
         )
-        let useCase = RunCaseUseCase(adapter: adapter)
+        let useCase = RunCaseUseCase(client: adapter)
         let options = RunCaseUseCase.Options(
             evalCase: evalCase,
             resultSchemaPath: tempDir.appendingPathComponent("r.json"),

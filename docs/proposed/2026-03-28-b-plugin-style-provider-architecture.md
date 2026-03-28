@@ -69,7 +69,7 @@ ReadCaseOutputUseCase gets client from registry
 
 ## Phases
 
-## - [ ] Phase 1: Move provider-facing eval types to AIOutputSDK
+## - [x] Phase 1: Move provider-facing eval types to AIOutputSDK
 
 **Skills to read**: `swift-architecture`
 
@@ -104,7 +104,7 @@ These types describe what a provider can produce, which is part of the output co
 - `EvalService/Models/ProviderTypes.swift` — remove moved types, keep eval-specific types
 - All importers of these types — verify they still compile
 
-## - [ ] Phase 2: Add EvalCapable protocol to AIOutputSDK
+## - [x] Phase 2: Add EvalCapable protocol to AIOutputSDK
 
 **Skills to read**: `swift-architecture`
 
@@ -163,7 +163,7 @@ Not all providers need eval support. `AnthropicAIClient` may not implement evals
 
 - `AIOutputSDK/StreamFormatter.swift` — already exists, no changes needed
 
-## - [ ] Phase 3: Establish clean provider plugin types
+## - [x] Phase 3: Establish clean provider plugin types
 
 **Skills to read**: `swift-architecture`
 
@@ -218,7 +218,7 @@ Search for `ClaudeCLIClient`, `CodexCLIClient`, `AnthropicAIClient` across the c
 - Tests
 - `ChatSessionDetailView` (creates `ClaudeCLIClient()` directly — should use registry instead, but rename for now)
 
-## - [ ] Phase 4: Move output parsers into provider SDKs
+## - [x] Phase 4: Move output parsers into provider SDKs
 
 **Skills to read**: `swift-architecture`
 
@@ -249,7 +249,7 @@ Move the output parsing logic from EvalSDK into the provider SDKs where it belon
 - `CodexCLISDK` same
 - `EvalSDK` removes whatever was only needed for parsing
 
-## - [ ] Phase 5: Implement EvalCapable on providers
+## - [x] Phase 5: Implement EvalCapable on providers
 
 **Skills to read**: `swift-architecture`
 
@@ -291,7 +291,7 @@ Same pattern, using `CodexOutputParser` (now local to CodexCLISDK) and Codex-spe
 - `ClaudeCLISDK/ClaudeProvider+EvalCapable.swift` (new extension file)
 - `CodexCLISDK/CodexProvider+EvalCapable.swift` (new extension file)
 
-## - [ ] Phase 6: Make EvalSDK provider-agnostic
+## - [x] Phase 6: Make EvalSDK provider-agnostic
 
 **Skills to read**: `swift-architecture`
 
@@ -350,7 +350,7 @@ let formatter = client.streamFormatter  // no switch needed
 - `EvalFeature/ReadCaseOutputUseCase.swift` — get formatter from client
 - `EvalFeature/RunCaseUseCase.swift` — if exists, update similarly
 
-## - [ ] Phase 7: Remove provider-name switches from App layer
+## - [x] Phase 7: Remove provider-name switches from App layer
 
 **Skills to read**: `swift-architecture`
 
@@ -400,7 +400,7 @@ let entry = EvalProviderEntry(client: claude)  // provider IS the adapter
 - `CompositionRoot.swift` — simplify eval registration
 - `CLIRegistryFactory.swift` — simplify eval registration
 
-## - [ ] Phase 8: Clean up Package.swift dependencies
+## - [x] Phase 8: Clean up Package.swift dependencies
 
 **Skills to read**: `swift-architecture`
 
@@ -440,7 +440,7 @@ grep -r "import ClaudeCLISDK\|import CodexCLISDK" --include="*.swift" \
 
 Expected: zero matches.
 
-## - [ ] Phase 9: Validation
+## - [x] Phase 9: Validation
 
 **Skills to read**: `ai-dev-tools-debug`
 

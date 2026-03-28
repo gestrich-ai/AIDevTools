@@ -1,6 +1,5 @@
 import AIOutputSDK
 import ClaudeCLISDK
-import CodexCLISDK
 import EvalFeature
 import EvalSDK
 import EvalService
@@ -234,8 +233,8 @@ final class EvalRunnerModel {
             qualifiedId = evalCase.qualifiedId
         }
 
-        let formatter: any StreamFormatter = registry.entries.first(where: { $0.name == provider })
-            .flatMap { _ in formatterForProvider(provider) } ?? ClaudeStreamFormatter()
+        let formatter: any StreamFormatter = registry.entries.first(where: { $0.name == provider })?.client.streamFormatter
+            ?? ClaudeStreamFormatter()
 
         let options = ReadCaseOutputUseCase.Options(
             caseId: qualifiedId,
@@ -245,13 +244,6 @@ final class EvalRunnerModel {
             rubricFormatter: ClaudeStreamFormatter()
         )
         return try? ReadCaseOutputUseCase().run(options)
-    }
-
-    private func formatterForProvider(_ name: String) -> any StreamFormatter {
-        switch name {
-        case "codex": CodexStreamFormatter()
-        default: ClaudeStreamFormatter()
-        }
     }
 
     private func loadLastResults() {

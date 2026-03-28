@@ -1,6 +1,4 @@
 import AIOutputSDK
-import EvalSDK
-import EvalService
 
 public struct ProviderRegistry: Sendable {
     public let providers: [any AIClient]
@@ -19,16 +17,14 @@ public struct ProviderRegistry: Sendable {
 }
 
 public struct EvalProviderEntry: Sendable {
-    public let client: any AIClient
-    public let adapter: any ProviderAdapterProtocol
+    public let client: any AIClient & EvalCapable
 
     public var provider: Provider { Provider(client: client) }
     public var name: String { client.name }
     public var displayName: String { client.displayName }
 
-    public init(client: any AIClient, adapter: any ProviderAdapterProtocol) {
+    public init(client: any AIClient & EvalCapable) {
         self.client = client
-        self.adapter = adapter
     }
 }
 

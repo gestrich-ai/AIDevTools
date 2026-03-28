@@ -1,13 +1,13 @@
 import Foundation
 
 public enum JSONValue: Sendable, Equatable, Hashable {
-    case string(String)
-    case int(Int)
-    case double(Double)
-    case bool(Bool)
-    case null
     case array([JSONValue])
+    case bool(Bool)
+    case double(Double)
+    case int(Int)
+    case null
     case object([String: JSONValue])
+    case string(String)
 }
 
 extension JSONValue: Codable {
@@ -38,25 +38,25 @@ extension JSONValue: Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
-        case .string(let value): try container.encode(value)
-        case .int(let value): try container.encode(value)
-        case .double(let value): try container.encode(value)
-        case .bool(let value): try container.encode(value)
-        case .null: try container.encodeNil()
         case .array(let value): try container.encode(value)
+        case .bool(let value): try container.encode(value)
+        case .double(let value): try container.encode(value)
+        case .int(let value): try container.encode(value)
+        case .null: try container.encodeNil()
         case .object(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
         }
     }
 }
 
 extension JSONValue {
-    public var stringValue: String? {
-        if case .string(let value) = self { return value }
+    public var arrayValue: [JSONValue]? {
+        if case .array(let value) = self { return value }
         return nil
     }
 
-    public var intValue: Int? {
-        if case .int(let value) = self { return value }
+    public var boolValue: Bool? {
+        if case .bool(let value) = self { return value }
         return nil
     }
 
@@ -66,18 +66,18 @@ extension JSONValue {
         return nil
     }
 
-    public var boolValue: Bool? {
-        if case .bool(let value) = self { return value }
-        return nil
-    }
-
-    public var arrayValue: [JSONValue]? {
-        if case .array(let value) = self { return value }
+    public var intValue: Int? {
+        if case .int(let value) = self { return value }
         return nil
     }
 
     public var objectValue: [String: JSONValue]? {
         if case .object(let value) = self { return value }
+        return nil
+    }
+
+    public var stringValue: String? {
+        if case .string(let value) = self { return value }
         return nil
     }
 

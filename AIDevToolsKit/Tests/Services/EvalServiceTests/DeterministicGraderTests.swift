@@ -1,6 +1,7 @@
+import AIOutputSDK
 import Foundation
-import Testing
 import SkillScannerSDK
+import Testing
 @testable import EvalService
 
 @Suite("DeterministicGrader")

@@ -1,6 +1,6 @@
 import AIOutputSDK
 
-extension ClaudeCLIClient: AIClient {
+extension ClaudeProvider: AIClient {
     public var name: String { "claude" }
     public var displayName: String { "Claude CLI" }
 

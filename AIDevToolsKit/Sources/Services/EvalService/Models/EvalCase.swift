@@ -1,9 +1,5 @@
+import AIOutputSDK
 import Foundation
-
-public enum EvalMode: String, Codable, Sendable {
-    case structured
-    case edit
-}
 
 public struct SkillAssertion: Codable, Sendable {
     public let skill: String

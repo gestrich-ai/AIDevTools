@@ -2,7 +2,7 @@ import AIOutputSDK
 import Foundation
 @preconcurrency import SwiftAnthropic
 
-public actor AnthropicAIClient: AIClient, SessionListable {
+public actor AnthropicProvider: AIClient, SessionListable {
     public nonisolated var name: String { "anthropic-api" }
     public nonisolated var displayName: String { "Anthropic API" }
 

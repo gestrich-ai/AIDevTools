@@ -71,7 +71,7 @@ struct ChatSessionDetailView: View {
                 let workDir = chatModel.workingDirectory
                 let s = session
                 let details = await Task.detached {
-                    ClaudeCLIClient().getSessionDetails(
+                    ClaudeProvider().getSessionDetails(
                         sessionId: s.id,
                         summary: s.summary,
                         lastModified: s.lastModified,

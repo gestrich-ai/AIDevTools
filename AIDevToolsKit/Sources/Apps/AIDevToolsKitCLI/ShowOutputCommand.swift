@@ -1,12 +1,11 @@
 import AIOutputSDK
 import ArgumentParser
 import ClaudeCLISDK
-import CodexCLISDK
 import DataPathsService
 import EvalFeature
-import EvalSDK
 import EvalService
 import Foundation
+import ProviderRegistryService
 import RepositorySDK
 
 struct ShowOutputCommand: ParsableCommand {
@@ -54,10 +53,13 @@ struct ShowOutputCommand: ParsableCommand {
             throw ValidationError("Must specify either --output-dir or --repo")
         }
 
+        let registry = makeEvalRegistry()
         let resolvedProvider = Provider(rawValue: provider)
+        let formatter = registry.entries.first(where: { $0.name == provider })?.client.streamFormatter
+            ?? ClaudeStreamFormatter()
         let options = ReadCaseOutputUseCase.Options(
             caseId: caseId,
-            formatter: Self.formatter(for: resolvedProvider),
+            formatter: formatter,
             provider: resolvedProvider,
             outputDirectory: resolvedOutputDir,
             rubricFormatter: ClaudeStreamFormatter()
@@ -69,13 +71,6 @@ struct ShowOutputCommand: ParsableCommand {
         if let rubricOutput = output.rubricOutput {
             print("\n--- Rubric Evaluation ---\n")
             print(rubricOutput)
-        }
-    }
-
-    private static func formatter(for provider: Provider) -> any StreamFormatter {
-        switch provider.rawValue {
-        case "codex": CodexStreamFormatter()
-        default: ClaudeStreamFormatter()
         }
     }
 }

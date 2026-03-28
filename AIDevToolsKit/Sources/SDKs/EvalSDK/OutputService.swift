@@ -34,32 +34,31 @@ public struct OutputService: Sendable {
 
     // MARK: - Writing
 
-    public func writeArtifacts(
-        result: ProviderResult,
-        stderr: String,
-        session: AIRunSession,
-        configuration: RunConfiguration
+    public func writeEvalArtifacts(
+        evalOutput: EvalRunOutput,
+        provider: Provider,
+        caseId: String,
+        artifactsDirectory: URL
     ) throws -> ProviderResult {
-        var result = result
+        var result = evalOutput.result
 
-        result.rawStdoutPath = session.store.url(for: session.key)
-
-        let stderrPath = configuration.artifactsDirectory
+        let rawDir = artifactsDirectory
             .appendingPathComponent("raw")
-            .appendingPathComponent(configuration.provider.rawValue)
-            .appendingPathComponent("\(configuration.caseId).stderr")
-        try FileManager.default.createDirectory(
-            at: stderrPath.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try stderr.write(to: stderrPath, atomically: true, encoding: .utf8)
+            .appendingPathComponent(provider.rawValue)
+        try FileManager.default.createDirectory(at: rawDir, withIntermediateDirectories: true)
+
+        let stdoutPath = rawDir.appendingPathComponent("\(caseId).stdout")
+        try evalOutput.rawStdout.write(to: stdoutPath, atomically: true, encoding: .utf8)
+        result.rawStdoutPath = stdoutPath
+
+        let stderrPath = rawDir.appendingPathComponent("\(caseId).stderr")
+        try evalOutput.stderr.write(to: stderrPath, atomically: true, encoding: .utf8)
         result.rawStderrPath = stderrPath
 
-        let providerDir = configuration.providerDirectory
+        let providerDir = Self.providerDirectory(artifactsDirectory: artifactsDirectory, provider: provider.rawValue)
         try FileManager.default.createDirectory(at: providerDir, withIntermediateDirectories: true)
         if let structured = result.structuredOutput {
-            let outputFile = providerDir
-                .appendingPathComponent("\(configuration.caseId).json")
+            let outputFile = providerDir.appendingPathComponent("\(caseId).json")
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(structured).write(to: outputFile)

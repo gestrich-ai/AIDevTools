@@ -1,3 +1,4 @@
+import AIOutputSDK
 import Foundation
 
 public struct CaseResult: Codable, Sendable {
