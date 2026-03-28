@@ -180,7 +180,8 @@ public final class ClaudeStreamFormatter: StreamFormatter, Sendable {
         do {
             envelope = try decoder.decode(ClaudeEventEnvelope.self, from: data)
         } catch {
-            return [.textDelta(rawLine + "\n")]
+            // Don't emit raw JSON as text — unrecognized lines are dropped
+            return []
         }
 
         switch envelope.type {

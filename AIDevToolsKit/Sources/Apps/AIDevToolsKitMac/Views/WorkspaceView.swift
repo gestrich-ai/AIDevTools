@@ -119,7 +119,7 @@ struct WorkspaceView: View {
                     }
                 }
                 .sheet(isPresented: $showGenerateSheet) {
-                    GeneratePlanSheet()
+                    GeneratePlanSheet(selectedItem: $selectedItem)
                 }
             } else {
                 ContentUnavailableView("Select a Repository", systemImage: "folder", description: Text("Choose a repository from the sidebar."))
@@ -287,6 +287,7 @@ private struct GeneratePlanSheet: View {
     @Environment(MarkdownPlannerModel.self) var markdownPlannerModel
     @Environment(\.dismiss) var dismiss
 
+    @Binding var selectedItem: WorkspaceItem?
     @State private var promptText = ""
     @AppStorage("planGenerateMatchRepo") private var matchRepo = false
 
@@ -325,7 +326,9 @@ private struct GeneratePlanSheet: View {
                     let selected = matchRepo ? nil : model.selectedRepository
                     dismiss()
                     Task {
-                        await markdownPlannerModel.generate(prompt: text, repositories: repos, selectedRepository: selected)
+                        if let planName = await markdownPlannerModel.generate(prompt: text, repositories: repos, selectedRepository: selected) {
+                            selectedItem = .plan(planName)
+                        }
                     }
                 }
                 .keyboardShortcut(.defaultAction)

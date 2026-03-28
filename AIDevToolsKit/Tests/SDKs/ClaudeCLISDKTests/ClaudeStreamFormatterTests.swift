@@ -214,4 +214,32 @@ struct ClaudeStreamFormatterTests {
         // Assert
         #expect(events.isEmpty)
     }
+
+    @Test func invalidJSONIsDropped() {
+        // Arrange
+        let invalidJSON = "this is not valid JSON at all"
+
+        // Act
+        let events = formatter.formatStructured(invalidJSON)
+
+        // Assert
+        #expect(events.isEmpty)
+    }
+
+    @Test func toolResultArrayContentExtractsTextSummary() {
+        // Arrange — array-format tool result (e.g., Read file output)
+        let arrayResult = #"{"type":"user","message":{"content":[{"type":"tool_result","content":[{"type":"text","text":"line 1\nline 2\nline 3"}],"tool_use_id":"toolu_003"}]}}"#
+
+        // Act
+        let events = formatter.formatStructured(arrayResult)
+
+        // Assert
+        #expect(events.count == 1)
+        if case .toolResult(_, let summary, let isError) = events[0] {
+            #expect(summary.contains("line 1"))
+            #expect(isError == false)
+        } else {
+            Issue.record("Expected .toolResult, got \(events[0])")
+        }
+    }
 }

@@ -229,6 +229,44 @@ struct ChatMessageRow: View {
     }
 }
 
+// MARK: - Collapsible Tool Content
+
+private struct CollapsibleToolContent: View {
+    let text: String
+    let previewLineCount: Int
+    @State private var isExpanded = false
+
+    private var lines: [String] {
+        text.components(separatedBy: .newlines)
+    }
+
+    private var needsCollapsing: Bool {
+        lines.count > previewLineCount
+    }
+
+    var body: some View {
+        if needsCollapsing {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(isExpanded ? text : lines.prefix(previewLineCount).joined(separator: "\n"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                Button(action: { isExpanded.toggle() }) {
+                    Text(isExpanded ? "Show less" : "+\(lines.count - previewLineCount) lines (click to expand)")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+            }
+        } else {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+        }
+    }
+}
+
 // MARK: - Formatted Content
 
 struct ChatFormattedContent: View {
@@ -269,9 +307,7 @@ struct ChatFormattedContent: View {
                             Image(systemName: "brain")
                                 .font(.caption)
                                 .foregroundStyle(.purple)
-                            Text(content)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
+                            CollapsibleToolContent(text: content, previewLineCount: 6)
                         }
                         .padding(10)
                         .background(
@@ -285,16 +321,22 @@ struct ChatFormattedContent: View {
                     }
                 case .toolUse(let name, let detail):
                     if showThinkingAndTools || !hasText {
-                        HStack(spacing: 6) {
-                            Image(systemName: "terminal")
-                                .font(.caption2)
-                            Text("[\(name)]")
-                                .fontWeight(.medium)
-                            Text(detail)
-                                .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "terminal")
+                                    .font(.caption2)
+                                Text("[\(name)]")
+                                    .fontWeight(.medium)
+                                Text(detail.components(separatedBy: .newlines).first ?? detail)
+                                    .lineLimit(1)
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            if detail.components(separatedBy: .newlines).count > 1 {
+                                CollapsibleToolContent(text: detail, previewLineCount: 1)
+                                    .padding(.leading, 20)
+                            }
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
@@ -308,9 +350,7 @@ struct ChatFormattedContent: View {
                             Image(systemName: isError ? "xmark.circle" : "checkmark.circle")
                                 .font(.caption2)
                                 .foregroundStyle(isError ? .red : .green)
-                            Text(summary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            CollapsibleToolContent(text: summary, previewLineCount: 4)
                         }
                         .padding(.leading, 16)
                     }

@@ -96,7 +96,13 @@ public enum ToolResultContent: Codable, Sendable {
         switch self {
         case .string(let str):
             return str.isEmpty ? nil : String(str.prefix(200))
-        case .array:
+        case .array(let items):
+            // Extract text content from array-format tool results (e.g., Read file results)
+            for item in items {
+                if case .string(let text) = item["text"] {
+                    return text.isEmpty ? nil : String(text.prefix(200))
+                }
+            }
             return nil
         }
     }
