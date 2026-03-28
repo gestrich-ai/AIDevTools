@@ -47,7 +47,10 @@ Implement adapters that conform the existing services to the new protocol:
 
 Replace the two chat views with a single `ChatView` that works with the chat protocol. The mode picker (API/CLI) becomes a provider selector. Consolidate shared UI (message list, input bar, streaming indicators) and keep provider-specific UI (e.g., Claude Code settings) behind conditional checks.
 
-## - [ ] Phase 4: Clean Up
+## - [x] Phase 4: Clean Up
+
+**Skills used**: none
+**Principles applied**: Removed dead ChatService module (ChatSessionManager, Conversation, ChatMessageRecord, ChatStreamEvent) and its tests — no code in the app imported it after the Phase 1-3 unification. Updated Package.swift to remove the library, target, and test target. Updated ARCHITECTURE.md and README.md to reflect the current unified ChatFeature and remove references to deleted AnthropicChatFeature, ClaudeCodeChatFeature, AnthropicChatService, and ClaudeCodeChatService.
 
 Remove the old separate chat views and models. Update `WorkspaceView` to use the unified chat view. Remove any dead code from the consolidation.
 
