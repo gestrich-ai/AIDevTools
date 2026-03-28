@@ -16,7 +16,10 @@ The current "Plan Runner" feature generates phased markdown plans and executes t
 
 See [architecture-planner-vs-plans-evaluation.md](architecture-planner-vs-plans-evaluation.md) for the full feature comparison that motivated this refactor.
 
-## - [ ] Phase 1: Rename PlanRunner to MarkdownPlanner across all layers
+## - [x] Phase 1: Rename PlanRunner to MarkdownPlanner across all layers
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Mechanical rename across all 4 layers (Apps, Features, Services, SDKs) preserving existing architecture
 
 **Skills to read**: `swift-architecture`
 
@@ -44,7 +47,10 @@ Rename all types, files, targets, and module references from `PlanRunner` to `Ma
 
 **Expected outcome:** `swift build` passes, all tests pass, no remaining references to `PlanRunner` in source code.
 
-## - [ ] Phase 2: Rewrite plan generation to produce complete plans
+## - [x] Phase 2: Rewrite plan generation to produce complete plans
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Rewrote AI prompt to produce complete plans upfront (no dynamic phase generation). Added CLAUDE.md reading for skill discovery. Added YYYY-MM-DD-alpha filename convention. Removed architecture diagram generation from plan step.
 
 **Skills to read**: `swift-architecture`
 
