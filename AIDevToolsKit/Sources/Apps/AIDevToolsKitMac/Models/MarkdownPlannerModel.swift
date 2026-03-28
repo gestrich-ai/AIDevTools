@@ -246,10 +246,13 @@ final class MarkdownPlannerModel {
     }
 
     func makeChatModel(workingDirectory: String, systemPrompt: String? = nil) -> ChatModel {
-        ChatModel(
+        let settings = ChatSettings()
+        settings.resumeLastSession = false
+        return ChatModel(
             sendMessageUseCase: SendChatMessageUseCase(client: activeClient),
             client: activeClient,
             workingDirectory: workingDirectory,
+            settings: settings,
             systemPrompt: systemPrompt
         )
     }
