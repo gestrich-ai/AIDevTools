@@ -61,7 +61,10 @@ A `UseCase` (or `StreamingUseCase` if progress reporting is desired) that execut
 
 No new target needed — these use cases go into the existing `ClaudeChainFeature` target. However, `ClaudeChainFeature` may need a dependency on `ClaudeCLISDK` if we use `ClaudeProvider` for execution. Evaluate whether to use `ClaudeProvider` or just shell out to `claude` CLI directly. Shelling out is simpler for the first pass.
 
-## - [ ] Phase 2: Create ClaudeChainModel in Apps Layer
+## - [x] Phase 2: Create ClaudeChainModel in Apps Layer
+
+**Skills used**: `swift-swiftui` (model-state.md, model-composition.md)
+**Principles applied**: Enum-based state with five cases matching the spec. Injected use cases via constructor with defaults. Async task management in `loadChains` and `executeChain` methods following MarkdownPlannerModel patterns. Added `ClaudeChainFeature` to Package.swift dependencies (pulled forward from Phase 4 since the model needs it to compile).
 
 **Skills to read**: `swift-swiftui` (model-state.md, model-composition.md)
 
