@@ -5,7 +5,7 @@
  */
 
 import XCTest
-@testable import ClaudeChainServices
+@testable import ClaudeChainFeature
 @testable import ClaudeChainService
 @testable import ClaudeChainSDK
 

@@ -8,7 +8,7 @@
 import Foundation
 import XCTest
 import ClaudeChainService
-import ClaudeChainServices
+import ClaudeChainFeature
 
 /// Shared test fixtures and helpers for ClaudeChain tests
 ///

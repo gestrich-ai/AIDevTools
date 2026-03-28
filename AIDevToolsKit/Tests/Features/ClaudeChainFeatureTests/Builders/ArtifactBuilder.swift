@@ -6,7 +6,7 @@
 
 import Foundation
 import ClaudeChainService
-import ClaudeChainServices
+import ClaudeChainFeature
 
 // MARK: - Test-specific Models (matching Python test builders)
 

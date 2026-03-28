@@ -77,7 +77,10 @@ ClaudeChainMain → ClaudeChainCLI → ClaudeChainFeature → ClaudeChainService
 5. Update all dependency references in `Package.swift` from `"ClaudeChainInfrastructure"` → `"ClaudeChainSDK"`
 6. Build to verify: `swift build --target ClaudeChainSDK`
 
-## - [ ] Phase 3: Move ClaudeChainServices → ClaudeChainFeature (Features layer)
+## - [x] Phase 3: Move ClaudeChainServices → ClaudeChainFeature (Features layer)
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Placed multi-step orchestration services in Features layer per 4-layer architecture. Updated all imports and Package.swift references. Added ClaudeChainFeature dependency to ClaudeChainServiceTests since SlackBlockLimitTests imports it.
 
 **Skills to read**: `swift-architecture`
 

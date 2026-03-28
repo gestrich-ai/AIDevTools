@@ -1,6 +1,6 @@
 import XCTest
 @testable import ClaudeChainService
-@testable import ClaudeChainServices
+@testable import ClaudeChainFeature
 import Foundation
 
 /// Tests for Slack block limit and completed project filtering

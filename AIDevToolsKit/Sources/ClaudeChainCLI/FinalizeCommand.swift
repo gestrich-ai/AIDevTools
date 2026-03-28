@@ -1,7 +1,7 @@
 import ArgumentParser
 import ClaudeChainService
 import ClaudeChainSDK
-import ClaudeChainServices
+import ClaudeChainFeature
 import Foundation
 
 public struct FinalizeCommand: ParsableCommand {

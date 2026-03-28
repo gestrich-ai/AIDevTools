@@ -6,7 +6,7 @@
 
 import XCTest
 @testable import ClaudeChainService
-@testable import ClaudeChainServices
+@testable import ClaudeChainFeature
 
 final class ArtifactBuilderTests: XCTestCase {
     

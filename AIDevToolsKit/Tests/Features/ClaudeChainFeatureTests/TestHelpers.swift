@@ -6,7 +6,7 @@
 
 import Foundation
 import ClaudeChainService
-import ClaudeChainServices
+import ClaudeChainFeature
 import ClaudeChainSDK
 import XCTest
 
