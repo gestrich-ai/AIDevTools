@@ -7,6 +7,16 @@ import MarkdownPlannerService
 import ProviderRegistryService
 import RepositorySDK
 
+struct QueuedTask: Identifiable {
+    let id: UUID
+    let description: String
+
+    init(id: UUID = UUID(), description: String) {
+        self.id = id
+        self.description = description
+    }
+}
+
 struct PlanPhase: Identifiable {
     var id: Int { index }
     let index: Int
@@ -46,6 +56,8 @@ final class MarkdownPlannerModel {
     var executionCompleteCount: Int = 0
     var phaseCompleteCount: Int = 0
     private(set) var currentRepository: RepositoryInfo?
+    private(set) var lastExecutionPhases: [PhaseStatus] = []
+    private(set) var queuedTasks: [QueuedTask] = []
     var executionProgressObserver: (@MainActor (ExecutePlanUseCase.Progress) -> Void)?
 
     var selectedProviderName: String {
@@ -161,6 +173,9 @@ final class MarkdownPlannerModel {
                     self.handleExecutionProgress(progress)
                 }
             }
+            if case .executing(let progress) = state {
+                lastExecutionPhases = progress.phases
+            }
             state = .completed(result)
             executionCompleteCount += 1
             await loadPlans(for: repository)
@@ -169,7 +184,9 @@ final class MarkdownPlannerModel {
         }
     }
 
-    func generate(prompt: String, repositories: [RepositoryInfo], selectedRepository: RepositoryInfo? = nil) async {
+    /// Generates a plan and returns the plan name (filename without extension) on success.
+    @discardableResult
+    func generate(prompt: String, repositories: [RepositoryInfo], selectedRepository: RepositoryInfo? = nil) async -> String? {
         state = .generating(step: selectedRepository != nil ? "Generating plan..." : "Matching repository...")
 
         let settingsStore = planSettingsStore
@@ -207,10 +224,13 @@ final class MarkdownPlannerModel {
                 }
             }
             await loadPlans(for: result.repository)
+            let planName = result.planURL.deletingPathExtension().lastPathComponent
             state = .idle
+            return planName
         } catch {
             logger.error("Plan generation failed: \(error.localizedDescription)")
             state = .error(error)
+            return nil
         }
     }
 
@@ -221,6 +241,16 @@ final class MarkdownPlannerModel {
             workingDirectory: workingDirectory,
             systemPrompt: systemPrompt
         )
+    }
+
+    func queueTask(_ description: String) {
+        queuedTasks.append(QueuedTask(description: description))
+    }
+
+    func clearQueue() -> [QueuedTask] {
+        let tasks = queuedTasks
+        queuedTasks = []
+        return tasks
     }
 
     func reset() {
