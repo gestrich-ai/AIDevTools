@@ -126,7 +126,10 @@ The CLI uses `ProviderRegistry` as a value passed into commands. Since CLI comma
 - `WorkspaceView.swift` — remove `chatProviders` computed property, use `providerRegistry.providers` for picker; remove manual `"anthropic-api"` append
 - `CLIRegistryFactory.swift` — minor adjustments if needed for class vs struct
 
-## - [ ] Phase 2: Unify ChatManager
+## - [x] Phase 2: Unify ChatManager
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Created `ChatManagerService` at Services layer with `AIOutputSDK` dependency only; combined streaming, queuing, and image handling from both managers into a single provider-agnostic `ChatManager`
 
 **Skills to read**: `swift-architecture`
 
