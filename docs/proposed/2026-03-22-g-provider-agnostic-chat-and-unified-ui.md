@@ -12,7 +12,10 @@ There are currently two separate chat implementations: one for the Anthropic HTT
 
 ## Phases
 
-## - [ ] Phase 1: Define Chat Protocol
+## - [x] Phase 1: Define Chat Protocol
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Protocol placed in ChatFeature (Features layer) following 4-layer architecture. Reuses existing AIOutputSDK types (AIStreamEvent, ImageAttachment, ChatSession, ChatSessionMessage) for streaming and session data. Created focused ChatProviderOptions/ChatProviderResult types rather than reusing general-purpose AIClient types. Default protocol extensions for optional capabilities (session history, cancellation) so providers only implement what they support.
 
 **Skills to read**: `swift-architecture`
 
