@@ -387,7 +387,10 @@ Once understood, implement:
 
 - `CodexCLISDK/CodexCLIClient.swift` — conform to `SessionListable`
 
-## - [ ] Phase 9: Validation (persistence)
+## - [x] Phase 9: Validation (persistence)
+
+**Skills used**: `ai-dev-tools-debug`
+**Principles applied**: Build verification for CLI and Mac app; full test suite run; CLI chat regression for all three providers; session resume verified for Claude, Anthropic API, and Codex; grep checks confirmed zero provider-specific references in WorkspaceView and zero dead code references
 
 **Skills to read**: `ai-dev-tools-debug`
 
