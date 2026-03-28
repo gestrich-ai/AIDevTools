@@ -313,6 +313,11 @@ let package = Package(
 
         // Test Targets (alphabetical)
         .testTarget(
+            name: "AIDevToolsKitMacTests",
+            dependencies: ["AIDevToolsKitMac", "ClaudeChainFeature"],
+            path: "Tests/Apps/AIDevToolsKitMacTests"
+        ),
+        .testTarget(
             name: "AIOutputSDKTests",
             dependencies: ["AIOutputSDK"],
             path: "Tests/SDKs/AIOutputSDKTests"

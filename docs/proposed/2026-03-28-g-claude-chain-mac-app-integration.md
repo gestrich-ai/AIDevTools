@@ -180,7 +180,10 @@ This phase verifies that the underlying chain execution works end-to-end using t
 
 If execution fails, debug and fix before proceeding. This is the first time running claude-chain locally (outside GitHub Actions), so expect potential issues with environment assumptions (e.g., `GITHUB_REPOSITORY` env var, `gh` auth).
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Created `AIDevToolsKitMacTests` test target for the Mac app layer. Tests cover ClaudeChainModel state machine transitions (idle, loadingChains, loaded, executing, error) using temp directories with real spec.md files rather than mocks. Follows Arrange-Act-Assert pattern with `@Test` and `#expect` per swift-testing skill. Full package `swift build` verified. All 7 model tests pass alongside the 9 existing use case tests from Phase 5.
 
 **Skills to read**: `swift-testing`
 
