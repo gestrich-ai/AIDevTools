@@ -2,7 +2,6 @@ import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import DataPathsService
 import EvalService
-import LoggingSDK
 import MarkdownPlannerFeature
 import MarkdownPlannerService
 import ProviderRegistryService
@@ -21,7 +20,6 @@ public struct AIDevToolsKitMacEntryView: View {
     private let evalProviderRegistry: EvalProviderRegistry
 
     public init() {
-        AIDevToolsLogging.bootstrap()
         guard let root = try? CompositionRoot.create() else {
             fatalError("Failed to initialize app services. Check data directory permissions.")
         }

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A9273F0C2F6F65430061B956 /* AIDevToolsKitMac in Frameworks */ = {isa = PBXBuildFile; productRef = A9273F0B2F6F65430061B956 /* AIDevToolsKitMac */; };
+		A9273F0E2F6F65430061B956 /* LoggingSDK in Frameworks */ = {isa = PBXBuildFile; productRef = A9273F0D2F6F65430061B956 /* LoggingSDK */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A9273F0C2F6F65430061B956 /* AIDevToolsKitMac in Frameworks */,
+				A9273F0E2F6F65430061B956 /* LoggingSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,6 +81,7 @@
 			name = AIDevTools;
 			packageProductDependencies = (
 				A9273F0B2F6F65430061B956 /* AIDevToolsKitMac */,
+				A9273F0D2F6F65430061B956 /* LoggingSDK */,
 			);
 			productName = AIDevTools;
 			productReference = A98A54F62F5C3B1A00D52127 /* AIDevTools.app */;
@@ -359,6 +362,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A9273F092F6F65180061B956 /* XCLocalSwiftPackageReference "AIDevToolsKit" */;
 			productName = AIDevToolsKitMac;
+		};
+		A9273F0D2F6F65430061B956 /* LoggingSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A9273F092F6F65180061B956 /* XCLocalSwiftPackageReference "AIDevToolsKit" */;
+			productName = LoggingSDK;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
