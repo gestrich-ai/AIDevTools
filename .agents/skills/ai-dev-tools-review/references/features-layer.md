@@ -186,3 +186,15 @@ public struct ImportUseCase: StreamingUseCase {
 **Severity: 9/10** — Features must be platform-agnostic to be shared across entry points.
 
 **Incremental fix:** Remove the SwiftUI import. If the use case needs something that lives in SwiftUI (like `Color`), define a platform-agnostic equivalent in Services or accept it as a parameter from the App layer.
+
+## Cross-Cutting Check: Entry Point Parity
+
+Every use case should be consumed by **both** the Mac app (via an `@Observable` model) and the CLI (via an `AsyncParsableCommand`). When reviewing a use case, check that both entry points exist and call the same use case.
+
+**What to check:**
+1. Search for a Mac app model that consumes this use case (e.g., `ImportUseCase` → `ImportModel`)
+2. Search for a CLI command that consumes this use case (e.g., `ImportUseCase` → `ImportCommand`)
+3. If either is missing, flag it — the use case exists to enable reuse across entry points, so a missing consumer means the benefit is unrealized
+4. If both exist, verify they call the same use case rather than duplicating orchestration logic inline
+
+**Why this matters:** The architectural reason for extracting logic into a use case is shared reuse between the Mac app and CLI. If only one entry point consumes the use case while the other duplicates the logic or lacks the capability entirely, the architecture isn't delivering its intended value.

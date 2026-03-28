@@ -17,19 +17,6 @@ struct QueuedTask: Identifiable {
     }
 }
 
-struct PlanPhase: Identifiable {
-    var id: Int { index }
-    let index: Int
-    let description: String
-    let isCompleted: Bool
-
-    init(index: Int, description: String, isCompleted: Bool) {
-        self.index = index
-        self.description = description
-        self.isCompleted = isCompleted
-    }
-}
-
 @MainActor @Observable
 final class MarkdownPlannerModel {
 
@@ -315,23 +302,6 @@ final class MarkdownPlannerModel {
 
         state = .executing(progress: current)
         executionProgressObserver?(progress)
-    }
-
-    static func parsePhases(from content: String) -> [PlanPhase] {
-        var phases: [PlanPhase] = []
-        var index = 0
-        for line in content.components(separatedBy: "\n") {
-            if line.hasPrefix("## - [x] ") {
-                let desc = String(line.dropFirst("## - [x] ".count))
-                phases.append(PlanPhase(index: index, description: desc, isCompleted: true))
-                index += 1
-            } else if line.hasPrefix("## - [ ] ") {
-                let desc = String(line.dropFirst("## - [ ] ".count))
-                phases.append(PlanPhase(index: index, description: desc, isCompleted: false))
-                index += 1
-            }
-        }
-        return phases
     }
 
     private func resolvedProposedDirectory(for repo: RepositoryInfo) throws -> URL {

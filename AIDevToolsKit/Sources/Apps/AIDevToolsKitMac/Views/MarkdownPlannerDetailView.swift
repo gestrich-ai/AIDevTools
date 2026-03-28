@@ -482,7 +482,7 @@ struct MarkdownPlannerDetailView: View {
         do {
             let updatedContent = try markdownPlannerModel.togglePhase(plan: plan, phaseIndex: index)
             planContent = updatedContent
-            localPhases = MarkdownPlannerModel.parsePhases(from: updatedContent)
+            localPhases = PlanPhase.parsePhases(from: updatedContent)
         } catch {
             markdownPlannerModel.state = .error(error)
         }
@@ -502,7 +502,7 @@ struct MarkdownPlannerDetailView: View {
         do {
             let content = try String(contentsOf: plan.planURL, encoding: .utf8)
             planContent = content
-            localPhases = MarkdownPlannerModel.parsePhases(from: content)
+            localPhases = PlanPhase.parsePhases(from: content)
             loadError = nil
         } catch {
             planContent = nil

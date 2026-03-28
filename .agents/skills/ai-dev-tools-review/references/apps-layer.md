@@ -166,3 +166,18 @@ class ImportModel { ... }
 **Severity: 9/10** — The use case can't be shared with the CLI or other entry points.
 
 **Incremental fix:** Move the `UseCase` struct to `features/ImportFeature/usecases/`. The model file should only contain the model.
+
+## Cross-Cutting Check: CLI Parity
+
+When a review suggests extracting logic into a use case, check whether an associated CLI command exists for the same workflow. CLI commands live alongside models as entry points in the Apps layer and should consume the same use cases.
+
+**What to check:**
+1. Search for a CLI command that corresponds to the model's functionality (e.g., `ImportModel` → `ImportCommand`)
+2. If a CLI command exists, verify it calls the same use case as the model
+3. If a CLI command does not exist, note this as an opportunity — the extracted use case enables adding one
+
+**Why this matters:** The whole point of extracting orchestration into a use case is reuse across entry points. If the model calls a use case but the CLI command duplicates the logic inline (or doesn't exist), the architectural benefit is unrealized.
+
+When recommending a use case extraction, include a note about the CLI command:
+- If one exists: verify it shares the use case and flag if it doesn't
+- If one doesn't exist: mention that the new use case enables adding a CLI command

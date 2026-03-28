@@ -1,20 +1,46 @@
-import AIOutputSDK
 import Foundation
+import MarkdownPlannerFeature
 import Observation
 
 @Observable
 @MainActor
 final class ActivePlanModel {
-    private(set) var content: String = ""
-    private(set) var phases: [PlanPhase] = []
+
+    enum ModelState {
+        case idle
+        case watching(content: String, phases: [PlanPhase])
+        case error(Error, prior: (content: String, phases: [PlanPhase])?)
+    }
+
+    private(set) var state: ModelState = .idle
     private var watchTask: Task<Void, Never>?
+    private let watchPlanUseCase: WatchPlanUseCase
+
+    init(watchPlanUseCase: WatchPlanUseCase = WatchPlanUseCase()) {
+        self.watchPlanUseCase = watchPlanUseCase
+    }
+
+    var content: String {
+        switch state {
+        case .idle: ""
+        case .watching(let content, _): content
+        case .error(_, let prior): prior?.content ?? ""
+        }
+    }
+
+    var phases: [PlanPhase] {
+        switch state {
+        case .idle: []
+        case .watching(_, let phases): phases
+        case .error(_, let prior): prior?.phases ?? []
+        }
+    }
 
     func startWatching(url: URL) {
         watchTask?.cancel()
         watchTask = Task {
-            for await newContent in FileWatcher(url: url).contentStream() {
-                self.content = newContent
-                self.phases = MarkdownPlannerModel.parsePhases(from: newContent)
+            for await (content, phases) in watchPlanUseCase.stream(url: url) {
+                self.state = .watching(content: content, phases: phases)
             }
         }
     }
@@ -22,5 +48,6 @@ final class ActivePlanModel {
     func stopWatching() {
         watchTask?.cancel()
         watchTask = nil
+        state = .idle
     }
 }
