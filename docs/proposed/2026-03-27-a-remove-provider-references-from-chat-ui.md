@@ -192,7 +192,10 @@ This is exactly what both existing managers do. The unified version drops:
 - New or renamed service with `ChatManager.swift` and `ChatMessage.swift`
 - `Package.swift` — update target if renamed
 
-## - [ ] Phase 3: Add session listing as a capability on AIClient
+## - [x] Phase 3: Add session listing as a capability on AIClient
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Added `SessionListable` protocol and `ChatSession`/`ChatSessionMessage` types to `AIOutputSDK`; `ClaudeCLIClient` conforms with JSONL parsing moved from `ClaudeCodeChatManager`; `ChatManager` uses `client is SessionListable` capability check
 
 **Skills to read**: `swift-architecture`
 
@@ -243,7 +246,10 @@ public struct ChatSession: Identifiable, Sendable {
 - `ChatManager` — use `SessionListable` for session list/resume
 - Remove `ClaudeCodeChatSession.swift` types that are now generalized
 
-## - [ ] Phase 4: Unify chat views
+## - [x] Phase 4: Unify chat views
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Single `ChatPanelView` works with any provider via `ChatManager`; capability-driven UI (session picker only shown when `supportsSessionHistory`); merged rich input area from `ClaudeCodeChatView` as the unified input
 
 **Skills to read**: `swift-architecture`
 
@@ -290,7 +296,10 @@ Merge the input areas. `ClaudeCodeChatView`'s input is richer (image paste, queu
 - `WorkspaceView.swift` — single `@State var chatManager: ChatManager?`, single `chatPanelView`, single rebuild method
 - Remove imports of `AnthropicSDK`, `ClaudeCLISDK`, `AnthropicChatService`, `ClaudeCodeChatService` from `WorkspaceView`
 
-## - [ ] Phase 5: Clean up
+## - [x] Phase 5: Clean up
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Removed `ClaudeCodeChatService`, `AnthropicChatService` targets entirely; moved `ImageAttachment` to `AIOutputSDK` as shared type; deleted `ChatViewModel`, `ClaudeCodeChatManager`, `ConversationManager`, and all duplicate message types
 
 Remove dead code:
 - `ClaudeCodeChatManager` — replaced by unified `ChatManager`
@@ -305,7 +314,10 @@ Remove dead code:
 
 Update `Package.swift` to remove dead targets and add new ones.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Build passes for both CLI and Mac app; all new tests pass; zero `ClaudeCodeChatManager`/`ChatViewModel` references remain; no concrete SDK imports in `WorkspaceView`
 
 **Skills to read**: `swift-architecture`, `ai-dev-tools-debug`
 
