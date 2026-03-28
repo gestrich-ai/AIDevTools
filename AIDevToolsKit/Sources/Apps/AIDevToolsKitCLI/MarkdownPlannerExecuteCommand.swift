@@ -126,6 +126,8 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
 
         case .phaseOutput(let text):
             timer.setStatusLine(text)
+        case .phaseStreamEvent:
+            break
 
         case .phaseCompleted(let index, let elapsed, let totalElapsed):
             timer.stop()

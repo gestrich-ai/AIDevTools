@@ -138,6 +138,39 @@ public final class ChatModel {
         )
     }
 
+    public func updateCurrentStreamingBlocks(_ blocks: [AIContentBlock]) {
+        guard let id = currentStreamingMessageId,
+              let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        let existing = messages[index]
+        messages[index] = ChatMessage(
+            id: existing.id,
+            role: existing.role,
+            contentBlocks: blocks,
+            images: existing.images,
+            timestamp: existing.timestamp,
+            isComplete: false
+        )
+    }
+
+    public nonisolated func consumeStream(
+        _ stream: AsyncStream<AIStreamEvent>,
+        messageId: UUID
+    ) async {
+        let accumulator = StreamAccumulator()
+        for await event in stream {
+            let updatedBlocks = await accumulator.apply(event)
+            await MainActor.run { [updatedBlocks] in
+                guard let index = self.messages.firstIndex(where: { $0.id == messageId }) else { return }
+                self.messages[index] = ChatMessage(
+                    id: messageId,
+                    role: .assistant,
+                    contentBlocks: updatedBlocks,
+                    timestamp: self.messages[index].timestamp
+                )
+            }
+        }
+    }
+
     public func finalizeCurrentStreamingMessage() {
         guard let id = currentStreamingMessageId,
               let index = messages.firstIndex(where: { $0.id == id }) else {
@@ -220,8 +253,6 @@ public final class ChatModel {
             messages.append(placeholderMessage)
         }
 
-        let accumulator = StreamAccumulator()
-
         let options = SendChatMessageUseCase.Options(
             message: content,
             workingDirectory: workingDir,
@@ -231,26 +262,21 @@ public final class ChatModel {
         )
 
         do {
+            let (stream, continuation) = AsyncStream<AIStreamEvent>.makeStream()
+            let consumeTask = Task {
+                await self.consumeStream(stream, messageId: assistantMessageId)
+            }
+
             let result = try await sendMessageUseCase.run(options) { @Sendable progress in
                 switch progress {
                 case .streamEvent(let event):
-                    Task {
-                        let updatedBlocks = await accumulator.apply(event)
-                        await MainActor.run { [updatedBlocks] in
-                            if let index = self.messages.firstIndex(where: { $0.id == assistantMessageId }) {
-                                self.messages[index] = ChatMessage(
-                                    id: assistantMessageId,
-                                    role: .assistant,
-                                    contentBlocks: updatedBlocks,
-                                    timestamp: self.messages[index].timestamp
-                                )
-                            }
-                        }
-                    }
+                    continuation.yield(event)
                 case .completed:
                     break
                 }
             }
+            continuation.finish()
+            await consumeTask.value
 
             await MainActor.run {
                 let displayName = providerDisplayName
@@ -377,29 +403,5 @@ public struct QueuedMessage: Identifiable, Sendable {
         self.content = content
         self.images = images
         self.timestamp = timestamp
-    }
-}
-
-private actor StreamAccumulator {
-    var blocks: [AIContentBlock] = []
-
-    func apply(_ event: AIStreamEvent) -> [AIContentBlock] {
-        switch event {
-        case .textDelta(let chunk):
-            if case .text(let existing) = blocks.last {
-                blocks[blocks.count - 1] = .text(existing + chunk)
-            } else {
-                blocks.append(.text(chunk))
-            }
-        case .thinking(let content):
-            blocks.append(.thinking(content))
-        case .toolUse(let name, let detail):
-            blocks.append(.toolUse(name: name, detail: detail))
-        case .toolResult(let name, let summary, let isError):
-            blocks.append(.toolResult(name: name, summary: summary, isError: isError))
-        case .metrics(let duration, let cost, let turns):
-            blocks.append(.metrics(duration: duration, cost: cost, turns: turns))
-        }
-        return blocks
     }
 }

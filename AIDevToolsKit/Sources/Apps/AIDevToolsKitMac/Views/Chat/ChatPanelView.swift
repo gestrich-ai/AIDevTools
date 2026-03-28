@@ -147,91 +147,185 @@ struct ChatPanelView: View {
 
 }
 
-// MARK: - Message Row
+// MARK: - Message Header Row
 
-struct ChatMessageRow: View {
+struct ChatMessageHeaderRow: View {
     let message: ChatMessage
-    @Environment(ChatModel.self) private var chatModel: ChatModel?
+    let providerDisplayName: String
+    let isCollapsed: Bool
+    let onToggleCollapse: () -> Void
+
+    private var hasThinkingOrTools: Bool {
+        message.contentBlocks.contains { block in
+            switch block {
+            case .thinking, .toolUse, .toolResult: return true
+            default: return false
+            }
+        }
+    }
+
+    private var hasText: Bool {
+        message.contentBlocks.contains { if case .text = $0 { return true }; return false }
+    }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            if message.role == .user {
-                Image(systemName: "person.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.blue)
-            } else {
-                Image(systemName: "terminal.fill")
-                    .font(.title2)
-                    .foregroundStyle(.purple)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(message.role == .user ? "You" : (chatModel?.providerDisplayName ?? "Assistant"))
-                        .font(.headline)
-                    Spacer()
-                    Text(message.timestamp, style: .time)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top, spacing: 12) {
+                if message.role == .user {
+                    Image(systemName: "person.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                } else {
+                    Image(systemName: "terminal.fill")
+                        .font(.title2)
+                        .foregroundStyle(.purple)
                 }
 
-                let isCurrentlyStreaming = message.role == .assistant &&
-                    (chatModel?.isProcessing ?? false) &&
-                    chatModel?.messages.last?.id == message.id
-
-                if message.contentBlocks.isEmpty && message.role == .assistant {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("Thinking...")
-                            .font(.caption)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(message.role == .user ? "You" : providerDisplayName)
+                            .font(.headline)
+                        Spacer()
+                        Text(message.timestamp, style: .time)
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if !message.images.isEmpty {
-                            ForEach(message.images) { imageAttachment in
-                                if let nsImage = imageAttachment.toNSImage() {
-                                    Image(nsImage: nsImage)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(maxWidth: 300)
-                                        .cornerRadius(8)
-                                }
+
+                    if message.contentBlocks.isEmpty && message.role == .assistant {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Thinking...")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if !message.images.isEmpty {
+                        ForEach(message.images) { imageAttachment in
+                            if let nsImage = imageAttachment.toNSImage() {
+                                Image(nsImage: nsImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: 300)
+                                    .cornerRadius(8)
                             }
                         }
+                    }
 
-                        if !message.contentBlocks.isEmpty {
-                            ChatFormattedContent(message: message, isProcessing: chatModel?.isProcessing ?? false)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-
-                        if isCurrentlyStreaming {
-                            HStack(spacing: 6) {
-                                ProgressView()
-                                    .controlSize(.small)
-                                Text("Streaming...")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                    if hasText && hasThinkingOrTools {
+                        Button(action: onToggleCollapse) {
+                            HStack(spacing: 4) {
+                                Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                                    .font(.caption)
+                                Text(isCollapsed ? "Show thinking & tools" : "Hide thinking & tools")
+                                    .font(.caption)
                             }
-                            .padding(.top, 4)
+                            .foregroundStyle(.secondary)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
         }
-        .padding()
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            UnevenRoundedRectangle(topLeadingRadius: 8, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 8)
                 .fill(message.role == .user ? Color.blue.opacity(0.1) : Color.purple.opacity(0.1))
         )
     }
 }
 
+// MARK: - Block Row
+
+struct ChatBlockRow: View {
+    let block: AIContentBlock
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Color.clear.frame(width: 36)
+            blockContent
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .textSelection(.enabled)
+    }
+
+    @ViewBuilder
+    private var blockContent: some View {
+        switch block {
+        case .thinking(let content):
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "brain")
+                    .font(.caption)
+                    .foregroundStyle(.purple)
+                CollapsibleToolContent(text: content, previewLineCount: 6)
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.purple.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.purple.opacity(0.2), lineWidth: 1)
+            )
+        case .toolUse(let name, let detail):
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "terminal")
+                        .font(.caption2)
+                    Text("[\(name)]")
+                        .fontWeight(.medium)
+                    Text(detail.components(separatedBy: .newlines).first ?? detail)
+                        .lineLimit(1)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                if detail.components(separatedBy: .newlines).count > 1 {
+                    CollapsibleToolContent(text: detail, previewLineCount: 1)
+                        .padding(.leading, 20)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.secondary.opacity(0.1))
+            )
+        case .toolResult(_, let summary, let isError):
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: isError ? "xmark.circle" : "checkmark.circle")
+                    .font(.caption2)
+                    .foregroundStyle(isError ? .red : .green)
+                CollapsibleToolContent(text: summary, previewLineCount: 4)
+            }
+            .padding(.leading, 16)
+        case .metrics(let duration, let cost, let turns):
+            HStack(spacing: 12) {
+                if let duration {
+                    Text(String(format: "%.1fs", duration))
+                }
+                if let cost {
+                    Text(String(format: "$%.4f", cost))
+                }
+                if let turns {
+                    Text("\(turns) turns")
+                }
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
+        case .text(let text):
+            Text(text)
+                .font(.body)
+        }
+    }
+}
+
 // MARK: - Collapsible Tool Content
 
-private struct CollapsibleToolContent: View {
+struct CollapsibleToolContent: View {
     let text: String
     let previewLineCount: Int
     @State private var isExpanded = false
@@ -263,124 +357,6 @@ private struct CollapsibleToolContent: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-        }
-    }
-}
-
-// MARK: - Formatted Content
-
-struct ChatFormattedContent: View {
-    let message: ChatMessage
-    let isProcessing: Bool
-    @State private var showThinkingAndTools = true
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            let blocks = message.contentBlocks
-            let hasText = blocks.contains { if case .text = $0 { return true }; return false }
-            let hasThinkingOrTools = blocks.contains { block in
-                switch block {
-                case .thinking, .toolUse, .toolResult: return true
-                default: return false
-                }
-            }
-
-            if hasText && hasThinkingOrTools {
-                Button(action: { showThinkingAndTools.toggle() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: showThinkingAndTools ? "chevron.down" : "chevron.right")
-                            .font(.caption)
-                        Text(showThinkingAndTools ? "Hide thinking & tools" : "Show thinking & tools")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .padding(.bottom, 4)
-            }
-
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                switch block {
-                case .thinking(let content):
-                    if showThinkingAndTools || !hasText {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "brain")
-                                .font(.caption)
-                                .foregroundStyle(.purple)
-                            CollapsibleToolContent(text: content, previewLineCount: 6)
-                        }
-                        .padding(10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.purple.opacity(0.08))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.purple.opacity(0.2), lineWidth: 1)
-                        )
-                    }
-                case .toolUse(let name, let detail):
-                    if showThinkingAndTools || !hasText {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "terminal")
-                                    .font(.caption2)
-                                Text("[\(name)]")
-                                    .fontWeight(.medium)
-                                Text(detail.components(separatedBy: .newlines).first ?? detail)
-                                    .lineLimit(1)
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            if detail.components(separatedBy: .newlines).count > 1 {
-                                CollapsibleToolContent(text: detail, previewLineCount: 1)
-                                    .padding(.leading, 20)
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.secondary.opacity(0.1))
-                        )
-                    }
-                case .toolResult(_, let summary, let isError):
-                    if showThinkingAndTools || !hasText {
-                        HStack(alignment: .top, spacing: 6) {
-                            Image(systemName: isError ? "xmark.circle" : "checkmark.circle")
-                                .font(.caption2)
-                                .foregroundStyle(isError ? .red : .green)
-                            CollapsibleToolContent(text: summary, previewLineCount: 4)
-                        }
-                        .padding(.leading, 16)
-                    }
-                case .metrics(let duration, let cost, let turns):
-                    HStack(spacing: 12) {
-                        if let duration {
-                            Text(String(format: "%.1fs", duration))
-                        }
-                        if let cost {
-                            Text(String(format: "$%.4f", cost))
-                        }
-                        if let turns {
-                            Text("\(turns) turns")
-                        }
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                case .text(let text):
-                    Text(text)
-                        .font(.body)
-                }
-            }
-        }
-        .onAppear {
-            showThinkingAndTools = !message.shouldCollapseThinking
-        }
-        .onChange(of: message.isComplete) { _, isComplete in
-            if isComplete && message.shouldCollapseThinking {
-                showThinkingAndTools = false
-            }
         }
     }
 }

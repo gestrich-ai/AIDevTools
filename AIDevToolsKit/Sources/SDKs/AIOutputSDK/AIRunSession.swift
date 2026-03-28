@@ -44,7 +44,8 @@ public struct AIRunSession: Sendable {
         prompt: String,
         jsonSchema: String,
         options: AIClientOptions = AIClientOptions(),
-        onOutput: (@Sendable (String) -> Void)? = nil
+        onOutput: (@Sendable (String) -> Void)? = nil,
+        onStreamEvent: (@Sendable (AIStreamEvent) -> Void)? = nil
     ) async throws -> AIStructuredResult<T> {
         guard let client else {
             throw AIRunSessionError.noClient
@@ -54,10 +55,79 @@ public struct AIRunSession: Sendable {
             prompt: prompt,
             jsonSchema: jsonSchema,
             options: options,
-            onOutput: onOutput
+            onOutput: onOutput,
+            onStreamEvent: onStreamEvent
         )
         try? store.write(output: result.rawOutput, key: key)
         return result
+    }
+
+    // MARK: - Stream-based execution
+
+    public func startRun(
+        prompt: String,
+        options: AIClientOptions = AIClientOptions(),
+        onOutput: (@Sendable (String) -> Void)? = nil
+    ) throws -> AIRunHandle {
+        guard let client else {
+            throw AIRunSessionError.noClient
+        }
+        let (stream, continuation) = AsyncStream<AIStreamEvent>.makeStream()
+        let holder = ResultHolder<AIClientResult>()
+        let store = self.store
+        let key = self.key
+        Task {
+            do {
+                let result = try await client.run(
+                    prompt: prompt,
+                    options: options,
+                    onOutput: onOutput,
+                    onStreamEvent: { event in continuation.yield(event) }
+                )
+                try? store.write(output: result.stdout, key: key)
+                continuation.finish()
+                await holder.succeed(result)
+            } catch {
+                continuation.finish()
+                await holder.fail(error)
+            }
+        }
+        return AIRunHandle(events: stream, result: { try await holder.value })
+    }
+
+    public func startStructuredRun<T: Decodable & Sendable>(
+        _ type: T.Type,
+        prompt: String,
+        jsonSchema: String,
+        options: AIClientOptions = AIClientOptions(),
+        onOutput: (@Sendable (String) -> Void)? = nil
+    ) throws -> AIStructuredRunHandle<T> {
+        guard let client else {
+            throw AIRunSessionError.noClient
+        }
+        let (stream, continuation) = AsyncStream<AIStreamEvent>.makeStream()
+        let holder = ResultHolder<AIStructuredResult<T>>()
+        let store = self.store
+        let key = self.key
+        Task {
+            do {
+                let result = try await client.runStructured(
+                    type,
+                    prompt: prompt,
+                    jsonSchema: jsonSchema,
+                    options: options,
+                    onOutput: onOutput,
+                    onStreamEvent: { event in continuation.yield(event) }
+                )
+                try? store.write(output: result.rawOutput, key: key)
+                continuation.finish()
+                await holder.succeed(result)
+            } catch {
+                continuation.finish()
+                await holder.fail(error)
+            }
+        }
+        return AIStructuredRunHandle(events: stream, result: { try await holder.value })
     }
 
     // MARK: - Legacy closure-based execution

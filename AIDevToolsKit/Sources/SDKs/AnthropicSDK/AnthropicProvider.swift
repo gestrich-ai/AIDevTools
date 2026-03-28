@@ -102,7 +102,8 @@ public actor AnthropicProvider: AIClient {
         prompt: String,
         jsonSchema: String,
         options: AIClientOptions,
-        onOutput: (@Sendable (String) -> Void)?
+        onOutput: (@Sendable (String) -> Void)?,
+        onStreamEvent: (@Sendable (AIStreamEvent) -> Void)?
     ) async throws -> AIStructuredResult<T> {
         let structuredPrompt = """
             \(prompt)

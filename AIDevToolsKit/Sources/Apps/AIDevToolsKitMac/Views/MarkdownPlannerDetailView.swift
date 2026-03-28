@@ -1,3 +1,4 @@
+import AIOutputSDK
 import MarkdownUI
 import MarkdownPlannerFeature
 import MarkdownPlannerService
@@ -413,6 +414,7 @@ struct MarkdownPlannerDetailView: View {
         iterationChatModel = nil
         activePlanModel.stopWatching()
 
+        let accumulator = StreamAccumulator()
         markdownPlannerModel.executionProgressObserver = { @MainActor [weak chatModel] progress in
             guard let chatModel else { return }
             switch progress {
@@ -420,8 +422,16 @@ struct MarkdownPlannerDetailView: View {
                 chatModel.finalizeCurrentStreamingMessage()
                 chatModel.appendStatusMessage("Starting Phase \(index + 1): \(desc)")
                 chatModel.beginStreamingMessage()
-            case .phaseOutput(let text):
-                chatModel.appendTextToCurrentStreamingMessage(text)
+                Task { await accumulator.reset() }
+            case .phaseStreamEvent(let event):
+                Task {
+                    let updatedBlocks = await accumulator.apply(event)
+                    await MainActor.run {
+                        chatModel.updateCurrentStreamingBlocks(updatedBlocks)
+                    }
+                }
+            case .phaseOutput:
+                break
             case .phaseCompleted:
                 chatModel.finalizeCurrentStreamingMessage()
             case .phaseFailed(_, let desc, let error):

@@ -294,6 +294,8 @@ final class MarkdownPlannerModel {
             current.currentOutput = ""
         case .phaseOutput(let text):
             current.currentOutput += text
+        case .phaseStreamEvent:
+            break
         case .phaseCompleted(let index, _, _):
             current.phasesCompleted = index + 1
             current.currentOutput = ""
