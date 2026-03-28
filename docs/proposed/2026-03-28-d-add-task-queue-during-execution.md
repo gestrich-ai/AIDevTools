@@ -59,7 +59,10 @@ Modify `ExecutePlanUseCase` to support a callback between phases:
 - Call it in the main `while` loop after `phaseCompleted` progress is reported and before fetching the next phase status (line ~237 area, after the `executeMode == .next` early return and architecture diagram check, but before `getPhaseStatus`)
 - This is the natural integration point: the closure runs, potentially modifying the plan file, then `getPhaseStatus` re-reads the plan and picks up any new phases
 
-## - [ ] Phase 4: Wire up queue processing in MarkdownPlannerModel
+## - [x] Phase 4: Wire up queue processing in MarkdownPlannerModel
+
+**Skills used**: none
+**Principles applied**: Used `MainActor.run` to safely read and drain the queue from the `@Sendable` closure. Batches all queued tasks into a single AI call via `IntegrateTaskIntoPlanUseCase` rather than one call per task.
 
 Connect the queue to the execution flow:
 

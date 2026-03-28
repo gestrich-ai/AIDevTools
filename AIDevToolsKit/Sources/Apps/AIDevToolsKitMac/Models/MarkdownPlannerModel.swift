@@ -167,12 +167,23 @@ final class MarkdownPlannerModel {
                 repository: repository,
                 stopAfterArchitectureDiagram: stopAfterArchitectureDiagram
             )
-            let result = try await useCase.run(options) { [weak self] progress in
+            let integrateUseCase = IntegrateTaskIntoPlanUseCase(client: activeClient)
+            let result = try await useCase.run(options, onProgress: { [weak self] progress in
                 guard let self else { return }
                 Task { @MainActor in
                     self.handleExecutionProgress(progress)
                 }
-            }
+            }, betweenPhases: { [weak self] in
+                guard let self else { return }
+                let tasks = await MainActor.run { self.clearQueue() }
+                guard !tasks.isEmpty else { return }
+                let integrateOptions = IntegrateTaskIntoPlanUseCase.Options(
+                    planPath: plan.planURL,
+                    repoPath: repository.path,
+                    taskDescriptions: tasks.map(\.description)
+                )
+                _ = try await integrateUseCase.run(integrateOptions)
+            })
             if case .executing(let progress) = state {
                 lastExecutionPhases = progress.phases
             }
