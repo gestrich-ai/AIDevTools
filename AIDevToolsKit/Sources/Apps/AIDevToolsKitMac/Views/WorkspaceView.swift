@@ -1,5 +1,6 @@
 import AIOutputSDK
 import ArchitecturePlannerService
+import ClaudeChainFeature
 import MarkdownPlannerService
 import ProviderRegistryService
 import RepositorySDK
@@ -7,6 +8,7 @@ import SwiftUI
 
 enum WorkspaceItem: Hashable {
     case architecturePlanner
+    case claudeChain
     case evals
     case plan(String)
     case skill(String)
@@ -14,6 +16,7 @@ enum WorkspaceItem: Hashable {
 
 struct WorkspaceView: View {
     @Environment(ArchitecturePlannerModel.self) var architecturePlannerModel
+    @Environment(ClaudeChainModel.self) var claudeChainModel
     @Environment(WorkspaceModel.self) var model
     @Environment(MarkdownPlannerModel.self) var markdownPlannerModel
     @Environment(ProviderModel.self) var providerModel
@@ -21,6 +24,7 @@ struct WorkspaceView: View {
     let evalProviderRegistry: EvalProviderRegistry
 
     @AppStorage("selectedArchPlanner") private var storedArchPlanner = false
+    @AppStorage("selectedClaudeChain") private var storedClaudeChain = false
     @AppStorage("selectedEvalsView") private var storedEvalsView = false
     @AppStorage("selectedRepositoryID") private var storedRepoID: String = ""
     @AppStorage("selectedPlanName") private var storedPlanName: String?
@@ -50,16 +54,21 @@ struct WorkspaceView: View {
         } content: {
             if model.selectedRepository != nil {
                 List(selection: $selectedItem) {
+                    Section("Architecture Planner") {
+                        Text("Architecture Planner")
+                            .tag(WorkspaceItem.architecturePlanner)
+                    }
+
+                    Section("Claude Chain") {
+                        Text("Claude Chain")
+                            .tag(WorkspaceItem.claudeChain)
+                    }
+
                     if let repo = model.selectedRepository, model.evalConfig(for: repo) != nil {
                         Section("Evals") {
                             Text("All Evals")
                                 .tag(WorkspaceItem.evals)
                         }
-                    }
-
-                    Section("Architecture Planner") {
-                        Text("Architecture Planner")
-                            .tag(WorkspaceItem.architecturePlanner)
                     }
 
                     Section("Plans") {
@@ -89,32 +98,27 @@ struct WorkspaceView: View {
                     }
                 }
                 .onChange(of: selectedItem) { _, newValue in
+                    storedArchPlanner = false
+                    storedClaudeChain = false
+                    storedEvalsView = false
+                    storedPlanName = nil
+                    storedSkillName = nil
                     switch newValue {
                     case .architecturePlanner:
                         storedArchPlanner = true
-                        storedEvalsView = false
-                        storedPlanName = nil
-                        storedSkillName = nil
+                    case .claudeChain:
+                        storedClaudeChain = true
+                        if let repo = model.selectedRepository {
+                            claudeChainModel.loadChains(for: repo.path)
+                        }
                     case .evals:
-                        storedArchPlanner = false
                         storedEvalsView = true
-                        storedPlanName = nil
-                        storedSkillName = nil
                     case .plan(let name):
-                        storedArchPlanner = false
-                        storedEvalsView = false
                         storedPlanName = name
-                        storedSkillName = nil
                     case .skill(let name):
-                        storedArchPlanner = false
-                        storedEvalsView = false
-                        storedPlanName = nil
                         storedSkillName = name
                     case nil:
-                        storedArchPlanner = false
-                        storedEvalsView = false
-                        storedPlanName = nil
-                        storedSkillName = nil
+                        break
                     }
                 }
                 .sheet(isPresented: $showGenerateSheet) {
@@ -136,6 +140,9 @@ struct WorkspaceView: View {
                 architecturePlannerModel.loadJobs(repoName: repo.name, repoPath: repo.path.path())
                 if storedArchPlanner {
                     selectedItem = .architecturePlanner
+                } else if storedClaudeChain {
+                    selectedItem = .claudeChain
+                    claudeChainModel.loadChains(for: repo.path)
                 } else if storedEvalsView {
                     selectedItem = .evals
                 } else if let planName = storedPlanName {
@@ -156,6 +163,8 @@ struct WorkspaceView: View {
             switch selectedItem {
             case .architecturePlanner:
                 ArchitecturePlannerView(model: architecturePlannerModel)
+            case .claudeChain:
+                ClaudeChainView(repository: repo)
             case .evals:
                 if let config = model.evalConfig(for: repo) {
                     EvalResultsView(config: config, registry: evalProviderRegistry)

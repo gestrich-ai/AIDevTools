@@ -2,7 +2,7 @@ import ClaudeChainSDK
 import ClaudeChainService
 import Foundation
 
-public struct ChainProject: Sendable {
+public struct ChainProject: Hashable, Sendable {
     public let name: String
     public let specPath: String
     public let completedTasks: Int

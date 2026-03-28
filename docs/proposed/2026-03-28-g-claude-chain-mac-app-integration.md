@@ -87,7 +87,10 @@ Create `Sources/Apps/AIDevToolsKitMac/Models/ClaudeChainModel.swift`:
   - `executeChain(projectName: String, repoPath: URL)` — calls `ExecuteChainUseCase`, updates state
 - Follow the same patterns as `MarkdownPlannerModel` for async task management
 
-## - [ ] Phase 3: Create ClaudeChainView and Wire into WorkspaceView
+## - [x] Phase 3: Create ClaudeChainView and Wire into WorkspaceView
+
+**Skills used**: `swift-swiftui` (dependency-injection.md, view-state.md)
+**Principles applied**: Selection state (`selectedProject`) owned by the view via `@State` per view-state.md conventions. ClaudeChainModel injected via `@Environment` following dependency-injection.md patterns. Sidebar sections ordered alphabetically (Claude Chain before Evals). AppStorage persistence follows existing pattern with a `storedClaudeChain` bool. Simplified onChange handler by resetting all stored values first then setting the active one.
 
 **Skills to read**: `swift-swiftui` (dependency-injection.md, view-state.md)
 
