@@ -212,7 +212,10 @@ For feature views, they embed `ChatMessagesView` directly (read-only) or `ChatPa
 - Create: `Apps/AIDevToolsKitMac/Views/Chat/ChatMessagesView.swift` — extracted message list
 - Modify: `Apps/AIDevToolsKitMac/Views/Chat/ChatPanelView.swift` — compose using `ChatMessagesView`
 
-## - [ ] Phase 5: Integrate chat into MarkdownPlannerDetailView
+## - [x] Phase 5: Integrate chat into MarkdownPlannerDetailView
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Added `executionProgressObserver` on `MarkdownPlannerModel` (called on `@MainActor`) so the view can bridge execution progress events into a view-owned `ChatModel` without crossing concurrency boundaries. `ActivePlanModel` owns `FileWatcher` task lifecycle; `makeChatModel(workingDirectory:systemPrompt:)` encapsulates client wiring. `ChatModel` gained `systemPrompt` threading, `beginStreamingMessage/appendTextToCurrentStreamingMessage/finalizeCurrentStreamingMessage` for programmatic injection, and `appendStatusMessage` to avoid `ChatMessage` leaking into the detail view. `MarkdownPlannerDetailView` uses `VSplitView` with `ChatMessagesView` (read-only during execution) and `ChatPanelView` (interactive iteration chat). `OutputPanel` is removed.
 
 **Skills to read**: `swift-architecture`
 

@@ -18,6 +18,14 @@ struct MarkdownPlannerDetailView: View {
     @State private var executeNextOnly = false
     @AppStorage("planStopAfterArchitectureDiagram") private var stopAfterArchitectureDiagram = false
 
+    @State private var executionChatModel: ChatModel?
+    @State private var iterationChatModel: ChatModel?
+    @State private var activePlanModel = ActivePlanModel()
+
+    private var activeChatModel: ChatModel? {
+        iterationChatModel ?? executionChatModel
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             headerBar
@@ -26,64 +34,87 @@ struct MarkdownPlannerDetailView: View {
                 errorBanner(error)
             }
 
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        phaseSection
-
-                        if let diagram = architectureDiagram {
-                            DisclosureGroup("Architecture", isExpanded: $isArchitectureExpanded) {
-                                ArchitectureDiagramView(
-                                    diagram: diagram,
-                                    selectedModule: $selectedModule
-                                )
-                            }
-                        }
-
-                        if case .executing(let progress) = markdownPlannerModel.state,
-                           !progress.currentOutput.isEmpty {
-                            outputPanel(progress.currentOutput)
-                                .id("live-output")
-                        }
-
-                        if case .completed(let result) = markdownPlannerModel.state {
-                            completionBanner(result)
-                        }
-
-                        if let planContent {
-                            Divider()
-                            Markdown(planContent)
-                                .markdownTheme(.gitHub.text {
-                                    ForegroundColor(.primary)
-                                    FontSize(14)
-                                })
-                                .textSelection(.enabled)
-                        } else if let loadError {
-                            ContentUnavailableView(
-                                "Failed to Load Plan",
-                                systemImage: "exclamationmark.triangle",
-                                description: Text(loadError)
-                            )
-                        }
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            if activeChatModel != nil {
+                VSplitView {
+                    planContentView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    chatBottomPanel
+                        .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
                 }
-                .onChange(of: executionOutput) {
-                    proxy.scrollTo("live-output", anchor: .bottom)
-                }
+            } else {
+                planContentView
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(plan.name)
         .task(id: plan.id) {
+            executionChatModel = nil
+            iterationChatModel = nil
+            activePlanModel.stopWatching()
             loadPlan()
         }
         .onChange(of: markdownPlannerModel.phaseCompleteCount) {
             loadArchitectureDiagram()
         }
         .onChange(of: markdownPlannerModel.executionCompleteCount) {
-            loadPlan()
+            handleExecutionComplete()
+        }
+        .onChange(of: activePlanModel.content) { _, newContent in
+            guard !newContent.isEmpty else { return }
+            planContent = newContent
+            localPhases = activePlanModel.phases
+        }
+    }
+
+    // MARK: - Sub-views
+
+    private var planContentView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                phaseSection
+
+                if let diagram = architectureDiagram {
+                    DisclosureGroup("Architecture", isExpanded: $isArchitectureExpanded) {
+                        ArchitectureDiagramView(
+                            diagram: diagram,
+                            selectedModule: $selectedModule
+                        )
+                    }
+                }
+
+                if case .completed(let result) = markdownPlannerModel.state {
+                    completionBanner(result)
+                }
+
+                if let planContent {
+                    Divider()
+                    Markdown(planContent)
+                        .markdownTheme(.gitHub.text {
+                            ForegroundColor(.primary)
+                            FontSize(14)
+                        })
+                        .textSelection(.enabled)
+                } else if let loadError {
+                    ContentUnavailableView(
+                        "Failed to Load Plan",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text(loadError)
+                    )
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var chatBottomPanel: some View {
+        if let iterationModel = iterationChatModel {
+            ChatPanelView()
+                .environment(iterationModel)
+        } else if let executionModel = executionChatModel {
+            ChatMessagesView()
+                .environment(executionModel)
         }
     }
 
@@ -100,13 +131,6 @@ struct MarkdownPlannerDetailView: View {
     }
 
     private var isBusy: Bool { isExecuting || isGenerating }
-
-    private var executionOutput: String {
-        if case .executing(let progress) = markdownPlannerModel.state {
-            return progress.currentOutput
-        }
-        return ""
-    }
 
     private var headerBar: some View {
         HStack(spacing: 12) {
@@ -157,16 +181,7 @@ struct MarkdownPlannerDetailView: View {
             .disabled(isBusy)
 
             Button {
-                let stopForDiagram = stopAfterArchitectureDiagram
-                let mode: ExecutePlanUseCase.ExecuteMode = executeNextOnly ? .next : .all
-                Task {
-                    await markdownPlannerModel.execute(
-                        plan: plan,
-                        repository: repository,
-                        executeMode: mode,
-                        stopAfterArchitectureDiagram: stopForDiagram
-                    )
-                }
+                startExecution()
             } label: {
                 Label(executeNextOnly ? "Execute Next" : "Execute All", systemImage: "play.fill")
             }
@@ -252,12 +267,6 @@ struct MarkdownPlannerDetailView: View {
         }
     }
 
-    // MARK: - Output Panel
-
-    private func outputPanel(_ text: String) -> some View {
-        OutputPanel(title: "Live Output", text: text, autoScroll: true)
-    }
-
     // MARK: - Completion / Error
 
     private func completionBanner(_ result: ExecutePlanUseCase.Result) -> some View {
@@ -316,6 +325,67 @@ struct MarkdownPlannerDetailView: View {
     }
 
     // MARK: - Actions
+
+    private func startExecution() {
+        let chatModel = markdownPlannerModel.makeChatModel(
+            workingDirectory: repository.path.path()
+        )
+        executionChatModel = chatModel
+        iterationChatModel = nil
+        activePlanModel.stopWatching()
+
+        markdownPlannerModel.executionProgressObserver = { @MainActor [weak chatModel] progress in
+            guard let chatModel else { return }
+            switch progress {
+            case .startingPhase(let index, _, let desc):
+                chatModel.finalizeCurrentStreamingMessage()
+                chatModel.appendStatusMessage("Starting Phase \(index + 1): \(desc)")
+                chatModel.beginStreamingMessage()
+            case .phaseOutput(let text):
+                chatModel.appendTextToCurrentStreamingMessage(text)
+            case .phaseCompleted:
+                chatModel.finalizeCurrentStreamingMessage()
+            case .phaseFailed(_, let desc, let error):
+                chatModel.finalizeCurrentStreamingMessage()
+                chatModel.appendStatusMessage("Phase failed: \(desc)\n\(error)")
+            default:
+                break
+            }
+        }
+
+        let stopForDiagram = stopAfterArchitectureDiagram
+        let mode: ExecutePlanUseCase.ExecuteMode = executeNextOnly ? .next : .all
+        Task {
+            await markdownPlannerModel.execute(
+                plan: plan,
+                repository: repository,
+                executeMode: mode,
+                stopAfterArchitectureDiagram: stopForDiagram
+            )
+        }
+    }
+
+    private func handleExecutionComplete() {
+        loadPlan()
+        executionChatModel?.finalizeCurrentStreamingMessage()
+        markdownPlannerModel.executionProgressObserver = nil
+
+        iterationChatModel = markdownPlannerModel.makeChatModel(
+            workingDirectory: repository.path.path(),
+            systemPrompt: makeIterationSystemPrompt()
+        )
+        activePlanModel.startWatching(url: plan.planURL)
+    }
+
+    private func makeIterationSystemPrompt() -> String {
+        """
+        You are helping the user iterate on an implementation plan.
+        The plan is located at: \(plan.planURL.path)
+
+        The user may ask you to refine this plan. Read the plan file, make requested changes, and save the updated file.
+        Distinguish between brainstorming questions (just discuss) and edit requests (read, modify, and save the file).
+        """
+    }
 
     private func togglePhase(at index: Int) {
         do {

@@ -27,6 +27,7 @@ public final class ChatModel {
     public let providerDisplayName: String
     public let settings: ChatSettings
     public private(set) var workingDirectory: String
+    public private(set) var currentStreamingMessageId: UUID?
 
     public var currentSessionId: String? { sessionId }
     public var providerName: String { client.name }
@@ -34,6 +35,7 @@ public final class ChatModel {
 
     private let sendMessageUseCase: SendChatMessageUseCase
     private let client: any AIClient
+    private let systemPrompt: String?
     private var sessionId: String?
     private var currentTask: Task<Void, Never>?
     private var hasStartedSession: Bool = false
@@ -42,12 +44,14 @@ public final class ChatModel {
         sendMessageUseCase: SendChatMessageUseCase,
         client: any AIClient,
         workingDirectory: String?,
-        settings: ChatSettings = ChatSettings()
+        settings: ChatSettings = ChatSettings(),
+        systemPrompt: String? = nil
     ) {
         self.sendMessageUseCase = sendMessageUseCase
         self.client = client
         self.settings = settings
         self.providerDisplayName = client.displayName
+        self.systemPrompt = systemPrompt
 
         let rawWorkingDir = workingDirectory ?? FileManager.default.currentDirectoryPath
         self.workingDirectory = Self.resolveSymlinks(in: rawWorkingDir)
@@ -109,6 +113,56 @@ public final class ChatModel {
 
     public func clearQueue() {
         messageQueue.removeAll()
+    }
+
+    // MARK: - Programmatic Message Injection
+
+    public func appendStatusMessage(_ content: String) {
+        messages.append(ChatMessage(role: .assistant, content: content, isComplete: true))
+    }
+
+    public func beginStreamingMessage() {
+        let id = UUID()
+        messages.append(ChatMessage(id: id, role: .assistant, contentBlocks: [], timestamp: Date()))
+        currentStreamingMessageId = id
+    }
+
+    public func appendTextToCurrentStreamingMessage(_ text: String) {
+        guard let id = currentStreamingMessageId,
+              let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        let existing = messages[index]
+        var blocks = existing.contentBlocks
+        if case .text(let prev) = blocks.last {
+            blocks[blocks.count - 1] = .text(prev + text)
+        } else {
+            blocks.append(.text(text))
+        }
+        messages[index] = ChatMessage(
+            id: existing.id,
+            role: existing.role,
+            contentBlocks: blocks,
+            images: existing.images,
+            timestamp: existing.timestamp,
+            isComplete: false
+        )
+    }
+
+    public func finalizeCurrentStreamingMessage() {
+        guard let id = currentStreamingMessageId,
+              let index = messages.firstIndex(where: { $0.id == id }) else {
+            currentStreamingMessageId = nil
+            return
+        }
+        let existing = messages[index]
+        messages[index] = ChatMessage(
+            id: existing.id,
+            role: existing.role,
+            contentBlocks: existing.contentBlocks,
+            images: existing.images,
+            timestamp: existing.timestamp,
+            isComplete: true
+        )
+        currentStreamingMessageId = nil
     }
 
     // MARK: - Session Management
@@ -219,7 +273,8 @@ public final class ChatModel {
             message: content,
             workingDirectory: workingDir,
             sessionId: resumeId,
-            images: images
+            images: images,
+            systemPrompt: systemPrompt
         )
 
         do {

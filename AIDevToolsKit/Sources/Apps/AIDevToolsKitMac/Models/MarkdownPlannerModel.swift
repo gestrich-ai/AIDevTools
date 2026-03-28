@@ -1,4 +1,5 @@
 import AIOutputSDK
+import ChatFeature
 import Foundation
 import Logging
 import MarkdownPlannerFeature
@@ -45,6 +46,7 @@ final class MarkdownPlannerModel {
     var executionCompleteCount: Int = 0
     var phaseCompleteCount: Int = 0
     private(set) var currentRepository: RepositoryInfo?
+    var executionProgressObserver: (@MainActor (ExecutePlanUseCase.Progress) -> Void)?
 
     var selectedProviderName: String {
         didSet {
@@ -212,6 +214,15 @@ final class MarkdownPlannerModel {
         }
     }
 
+    func makeChatModel(workingDirectory: String, systemPrompt: String? = nil) -> ChatModel {
+        ChatModel(
+            sendMessageUseCase: SendChatMessageUseCase(client: activeClient),
+            client: activeClient,
+            workingDirectory: workingDirectory,
+            systemPrompt: systemPrompt
+        )
+    }
+
     func reset() {
         state = .idle
     }
@@ -255,6 +266,7 @@ final class MarkdownPlannerModel {
         }
 
         state = .executing(progress: current)
+        executionProgressObserver?(progress)
     }
 
     static func parsePhases(from content: String) -> [PlanPhase] {
