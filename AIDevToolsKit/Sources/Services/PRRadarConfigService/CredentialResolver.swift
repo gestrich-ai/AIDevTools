@@ -35,7 +35,7 @@ public struct CredentialResolver: Sendable {
     public static func createPlatform(githubAccount: String) -> CredentialResolver {
         let keychain: KeychainStoring
         #if os(macOS)
-        keychain = SecurityCLIKeychainStore(identifier: "com.gestrich.PRRadar")
+        keychain = SecurityCLIKeychainStore(identifier: "com.gestrich.AIDevTools")
         #else
         keychain = EnvironmentKeychainStore()
         #endif

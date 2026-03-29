@@ -306,7 +306,27 @@ This is not an automated integration test — it's a manual verification step wh
 - Comments are posted to the test PR on GitHub
 - Artifacts are written to the correct `DataPathsService`-managed path
 
-## - [ ] Phase 9: Migrate skills, scripts, docs, and remaining assets
+## - [x] Phase 9: Fix credential resolution in Mac app + migrate remaining assets
+
+**Skills used**: none
+**Principles applied**: Root cause was `PRRadarConfigService.CredentialResolver.createPlatform` using `"com.gestrich.PRRadar"` as the keychain service identifier instead of `"com.gestrich.AIDevTools"` — one-line fix. Added `inTabErrorMessage` helper in `PRRadarContentView` to show a friendly "No GitHub credentials configured" inline message instead of the raw `GitHubServiceError.missingToken` text when credentials are missing. Migrated all remaining PRRadar assets: 4 skills → `.agents/skills/`, `daily-review.sh` and `run-pr-radar.sh` → `scripts/prradar/` (paths updated for AIDevTools), Python agent bridge (`claude_agent.py` + `requirements.txt`) → `PRRadarLibrary/claude-agent/`, 30 completed docs + 17 proposed docs + rule-examples + plugin docs + ci-setup.md → `docs/`, PRRadar skill hints merged into `CLAUDE.md`.
+
+**Bug context:** Opening the PR Radar tab with an iOS (or any non-PRRadar-TestRepo) repo selected throws "No GitHub token found. Set GITHUB_TOKEN env var, add to .env file, or store credentials in the Keychain via 'config credentials add'." This means `OctokitClient` is not finding the token that AIDevTools already stores in its Keychain under `RepositoryInfo.credentialAccount`.
+
+**Root cause investigation:**
+1. Trace `PRRadarContentView` → `AllPRsModel` init → wherever `OctokitClient` is constructed
+2. Confirm `CredentialResolver.createPlatform(githubAccount:)` is being called with `repository.credentialAccount` (not a hardcoded string or empty value)
+3. Verify the Keychain service identifier used by `OctokitClient` / `CredentialResolver` matches what AIDevTools stores under `KeychainSDK` (same service name, same account key)
+
+**Fix steps:**
+1. Read `AllPRsModel.swift` and `PRRadarContentView.swift` to find where `OctokitClient` is initialized
+2. Ensure `credentialAccount` from `RepositoryInfo` is passed all the way through to `CredentialResolver.createPlatform(githubAccount:)`
+3. If `credentialAccount` is empty or credentials are missing, surface a clear in-tab error message (e.g., "No GitHub credentials configured for this repo. Add them in Settings → Credentials.") instead of propagating the raw error string
+4. Confirm the fix works for an iOS repo whose `credentialAccount` is already set in AIDevTools
+
+**Verification:** Open PR Radar tab with an iOS repo selected — either PR list loads (if token exists) or a friendly "configure credentials" message appears (if not). No raw "No GitHub token found" error thrown.
+
+---
 
 Nothing left behind in the old repo. Every useful asset lives in AIDevTools.
 

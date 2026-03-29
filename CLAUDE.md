@@ -6,3 +6,7 @@
 ### Skills to use
 
 * swift-architecture: For any architecture or planning activities
+* pr-radar-debug: When debugging PRRadar behavior, inspecting pipeline output, or reproducing Mac app issues via CLI
+* pr-radar-add-rule: When adding new PRRadar code review rules
+* pr-radar-todo: When adding items to the PRRadar TODO list
+* pr-radar-verify-work: When verifying PRRadar changes against the test repo

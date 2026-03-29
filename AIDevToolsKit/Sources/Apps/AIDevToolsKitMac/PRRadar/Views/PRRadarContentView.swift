@@ -192,11 +192,19 @@ struct PRRadarContentView: View {
                 prViolationNavigationBar
                 Divider()
                 if filteredPRModels.isEmpty {
-                    ContentUnavailableView(
-                        "No Reviews Found",
-                        systemImage: "doc.text.magnifyingglass",
-                        description: Text(allPRsModel?.showOnlyWithPendingComments == true ? "No PRs with pending comments found." : "No PR review data found in the output directory.")
-                    )
+                    if let model = allPRsModel, case .failed(let error, let prior) = model.state, prior == nil {
+                        ContentUnavailableView(
+                            "PR Radar Unavailable",
+                            systemImage: "exclamationmark.triangle",
+                            description: Text(inTabErrorMessage(error))
+                        )
+                    } else {
+                        ContentUnavailableView(
+                            "No Reviews Found",
+                            systemImage: "doc.text.magnifyingglass",
+                            description: Text(allPRsModel?.showOnlyWithPendingComments == true ? "No PRs with pending comments found." : "No PR review data found in the output directory.")
+                        )
+                    }
                 } else {
                     ScrollViewReader { proxy in
                         List(filteredPRModels, selection: $selectedPR) { prModel in
@@ -744,5 +752,12 @@ struct PRRadarContentView: View {
            let json = String(data: data, encoding: .utf8) {
             savedRuleFilePathsJSON = json
         }
+    }
+
+    private func inTabErrorMessage(_ error: String) -> String {
+        if error.contains("No GitHub token") || error.contains("GITHUB_TOKEN") {
+            return "No GitHub credentials configured for this repo. Add them in Settings → Credentials."
+        }
+        return error
     }
 }

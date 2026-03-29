@@ -23,7 +23,6 @@ The goal of this plan is to extract a **Unified Pipeline Model**: a protocol-bas
 - `codeChange` — run Claude with a prompt, modify files (both current features)
 - `review` — inspect a change set with AI and emit new steps (new)
 - `createPR` — create a GitHub draft PR (extracted from ClaudeChain's tail logic)
-- `maintenance` — scan codebase against a spec, discover work, emit new `codeChange` steps (new)
 
 **Pipeline source** — what produces the list of steps:
 - Markdown file (existing MarkdownPlanner and ClaudeChain format)
@@ -55,7 +54,6 @@ Concrete step types conforming to `PipelineStep`:
 - `CodeChangeStep` — holds a Claude prompt and optional skills/context. Equivalent to `PlanPhase` and `SpecTask` today.
 - `ReviewStep` — holds a scope descriptor (e.g., "all steps since last review" or "last N steps"), the AI prompt for the review, and a reference to the steps it reviews.
 - `CreatePRStep` — holds title template, body template, label. Equivalent to ClaudeChain's tail logic today.
-- `MaintenanceStep` — holds a reference to a maintenance spec (path to a Claude Code skill or inline spec string).
 
 **`Pipeline`** — an ordered, mutable-at-runtime list of steps:
 
@@ -169,13 +167,6 @@ Implement the concrete `StepHandler` types. Each lives in the Features layer and
 - Posts a PR summary comment via Claude (same as ClaudeChain's tail today)
 - Returns `[]`
 
-**`MaintenanceStepHandler`**
-- Loads the maintenance spec from `step.specPath`
-- Calls Claude to scan the codebase against the spec and return a list of needed changes
-- Optionally checks last-run timestamp (stored in a sidecar file or git notes) to skip items changed recently
-- Converts findings into `CodeChangeStep` instances
-- Returns those new steps for dynamic insertion
-
 ## - [ ] Phase 5: Migrate MarkdownPlanner to Unified Pipeline (Features layer)
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `ai-dev-tools-review`
@@ -215,7 +206,11 @@ Replace ClaudeChain's execution with the unified pipeline:
 - `ExecutePipelineUseCase` with a mock `PipelineSource` and mock step handlers — verify sequential dispatch, dynamic step insertion, progress events
 - `ReviewStepHandler` with a mock AI client — verify it returns correctly-typed `CodeChangeStep` instances
 
-**Manual smoke tests**
-- Run an existing MarkdownPlanner plan end-to-end — verify behavior unchanged
-- Run a ClaudeChain task end-to-end — verify PR is created, task marked complete
-- Author a pipeline that includes a `ReviewStep` after a `CodeChangeStep` — verify the review generates new steps that then execute
+**CLI smoke tests**
+
+All pipeline capabilities must be exercisable from the CLI — the CLI is the primary validation harness. For each scenario, author a markdown file and run it via the CLI command:
+
+- **MarkdownPlanner migration** — run an existing `## - [ ]` plan to completion; verify checkboxes update on disk as each phase finishes
+- **ClaudeChain migration** — run a `- [ ]` task spec; verify the task is checked off and a PR is created
+- **Dynamic step insertion** — author a pipeline with a `ReviewStep` after a `CodeChangeStep`; verify the review generates new steps that are appended to the markdown and then executed
+- **Partial resume** — partially complete a pipeline (some checkboxes already checked), re-run; verify only incomplete steps execute
