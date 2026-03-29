@@ -155,6 +155,9 @@ struct UpdateRepo: ParsableCommand {
     @Option(help: "New completed plans directory path (absolute or relative to repo, default: docs/completed)")
     var completedDir: String?
 
+    @Option(help: "Credential account name for GitHub auth")
+    var credentialAccount: String?
+
     @Option(help: "New proposed plans directory path (absolute or relative to repo, default: docs/proposed)")
     var proposedDir: String?
 
@@ -208,6 +211,7 @@ struct UpdateRepo: ParsableCommand {
                 id: repo.id,
                 path: URL(filePath: path, relativeTo: cwd),
                 name: name ?? repo.name,
+                credentialAccount: repo.credentialAccount,
                 description: repo.description,
                 githubUser: repo.githubUser,
                 recentFocus: repo.recentFocus,
@@ -217,7 +221,8 @@ struct UpdateRepo: ParsableCommand {
                 pullRequest: repo.pullRequest
             )
         }
-        if let name { repo = RepositoryInfo(id: repo.id, path: repo.path, name: name, description: repo.description, githubUser: repo.githubUser, recentFocus: repo.recentFocus, skills: repo.skills, architectureDocs: repo.architectureDocs, verification: repo.verification, pullRequest: repo.pullRequest) }
+        if let name { repo = RepositoryInfo(id: repo.id, path: repo.path, name: name, credentialAccount: repo.credentialAccount, description: repo.description, githubUser: repo.githubUser, recentFocus: repo.recentFocus, skills: repo.skills, architectureDocs: repo.architectureDocs, verification: repo.verification, pullRequest: repo.pullRequest) }
+        if let credentialAccount { repo.credentialAccount = credentialAccount }
         if let description { repo.description = description }
         if let githubUser { repo.githubUser = githubUser }
         if let recentFocus { repo.recentFocus = recentFocus }

@@ -79,7 +79,10 @@ Replace the "GitHub User" TextField in `ConfigurationEditSheet` with a "Credenti
    - Replace `detailRow("GitHub User", value: config.githubUser)` with `detailRow("Credential Account", value: config.credentialAccount)`
 3. Build: `swift build --target AIDevToolsKitMac`
 
-## - [ ] Phase 3: Update CLI `repos update` command
+## - [x] Phase 3: Update CLI `repos update` command
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Added `--credential-account` option alphabetically among existing options. Passed `credentialAccount` through both `RepositoryInfo` constructor call sites in the update path to preserve the field during path/name changes.
 
 **Skills to read**: `swift-architecture`
 
