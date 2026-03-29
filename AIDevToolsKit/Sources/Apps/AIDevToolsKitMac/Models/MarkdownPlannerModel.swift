@@ -3,6 +3,7 @@ import ChatFeature
 import Foundation
 import MarkdownPlannerFeature
 import MarkdownPlannerService
+import PipelineSDK
 import ProviderRegistryService
 import RepositorySDK
 
@@ -265,6 +266,22 @@ final class MarkdownPlannerModel {
         let tasks = queuedTasks
         queuedTasks = []
         return tasks
+    }
+
+    func appendReviewTemplate(_ template: ReviewTemplate, to planURL: URL) async throws {
+        let service = ReviewTemplateService(reviewsDirectory: template.url.deletingLastPathComponent())
+        let descriptions = try service.loadSteps(from: template)
+        let steps: [CodeChangeStep] = descriptions.map { description in
+            CodeChangeStep(
+                id: UUID().uuidString,
+                description: description,
+                isCompleted: false,
+                prompt: description,
+                skills: [],
+                context: .empty
+            )
+        }
+        try await MarkdownPipelineSource(fileURL: planURL, format: .phase).appendSteps(steps)
     }
 
     func reset() {

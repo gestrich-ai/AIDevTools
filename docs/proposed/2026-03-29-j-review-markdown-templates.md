@@ -93,9 +93,10 @@ This service takes a `reviewsDirectory` URL so it works for any directory, not j
 **Files to create:**
 - A new `ReviewTemplateService` file in an appropriate existing Service target (e.g., `MarkdownPlannerService` or a shared utility target)
 
-## - [ ] Phase 3: Append logic in `MarkdownPlannerModel`
+## - [x] Phase 3: Append logic in `MarkdownPlannerModel`
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added `appendReviewTemplate(_:to:)` to `MarkdownPlannerModel` (Apps layer — `@Observable` model). Constructs `ReviewTemplateService` using the template's parent directory, converts descriptions to `CodeChangeStep` values with `isCompleted: false` and `.empty` context, then delegates to `MarkdownPipelineSource(fileURL:format:.phase).appendSteps(_:)`. Added `PipelineSDK` import to bring `CodeChangeStep` and `MarkdownPipelineSource` into scope.
 
 Add a method to `MarkdownPlannerModel` that appends review steps from a template to the selected plan.
 
