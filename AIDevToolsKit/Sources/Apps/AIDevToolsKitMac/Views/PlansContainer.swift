@@ -23,10 +23,8 @@ struct PlansContainer: View {
             detail
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task {
+        .task(id: repository.id) {
             await markdownPlannerModel.loadPlans(for: repository)
-        }
-        .onAppear {
             if selectedPlanName == nil, !storedPlanName.isEmpty {
                 selectedPlanName = storedPlanName
             }

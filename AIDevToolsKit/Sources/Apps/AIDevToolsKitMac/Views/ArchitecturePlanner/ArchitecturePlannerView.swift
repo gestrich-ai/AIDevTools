@@ -1,8 +1,11 @@
 import ArchitecturePlannerService
+import RepositorySDK
 import SwiftUI
 
 struct ArchitecturePlannerView: View {
-    @Bindable var model: ArchitecturePlannerModel
+    @Environment(ArchitecturePlannerModel.self) var model
+
+    let repository: RepositoryInfo
 
     var body: some View {
         HSplitView {
@@ -10,7 +13,7 @@ struct ArchitecturePlannerView: View {
                 .workspaceSidebar()
 
             if let job = model.selectedJob {
-                ArchitecturePlannerDetailView(model: model, job: job)
+                ArchitecturePlannerDetailView(job: job)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
@@ -21,10 +24,14 @@ struct ArchitecturePlannerView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .task(id: repository.id) {
+            model.loadJobs(repoName: repository.name, repoPath: repository.path.path())
+        }
     }
 
     private var jobListSidebar: some View {
-        VStack(spacing: 0) {
+        @Bindable var model = model
+        return VStack(spacing: 0) {
             List(selection: Binding(
                 get: { model.selectedJob?.jobId },
                 set: { newId in

@@ -1,11 +1,9 @@
-import ArchitecturePlannerService
 import Combine
 import ProviderRegistryService
 import RepositorySDK
 import SwiftUI
 
 struct WorkspaceView: View {
-    @Environment(ArchitecturePlannerModel.self) var architecturePlannerModel
     @Environment(WorkspaceModel.self) var model
     @Environment(ProviderModel.self) var providerModel
 
@@ -24,9 +22,7 @@ struct WorkspaceView: View {
             .onChange(of: selectedRepoID) { _, newValue in
                 storedRepoID = newValue?.uuidString ?? ""
                 if let id = newValue, let repo = model.repositories.first(where: { $0.id == id }) {
-                    Task {
-                        await model.selectRepository(repo)
-                    }
+                    Task { await model.selectRepository(repo) }
                 }
             }
         } detail: {
@@ -56,10 +52,9 @@ struct WorkspaceView: View {
     @ViewBuilder
     private func tabContent(for repo: RepositoryInfo) -> some View {
         TabView(selection: $selectedTab) {
-            ArchitecturePlannerView(model: architecturePlannerModel)
+            ArchitecturePlannerView(repository: repo)
                 .tabItem { Label("Architecture", systemImage: "building.columns") }
                 .tag("architecture")
-                .task { architecturePlannerModel.loadJobs(repoName: repo.name, repoPath: repo.path.path()) }
 
             ClaudeChainView(repository: repo)
                 .tabItem { Label("Claude Chain", systemImage: "link") }

@@ -2,7 +2,7 @@ import ArchitecturePlannerService
 import SwiftUI
 
 struct ArchitecturePlannerDetailView: View {
-    @Bindable var model: ArchitecturePlannerModel
+    @Environment(ArchitecturePlannerModel.self) var model
     let job: PlanningJob
     @AppStorage("archPlannerProviderName") private var storedProviderName: String = ""
     @State private var expandedOutputStepIndex: Int?
@@ -302,7 +302,7 @@ struct ArchitecturePlannerDetailView: View {
 
     private var actionBar: some View {
         HStack {
-            Picker("Provider", selection: $model.selectedProviderName) {
+            Picker("Provider", selection: Bindable(model).selectedProviderName) {
                 ForEach(model.availableProviders, id: \.name) { entry in
                     Text(entry.displayName).tag(entry.name)
                 }
