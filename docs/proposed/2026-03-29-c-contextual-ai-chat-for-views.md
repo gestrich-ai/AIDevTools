@@ -331,7 +331,10 @@ Composes stable system prompt from:
 - `AIDevToolsKitMac/Views/Chat/ContextualChatPanel.swift`
 - `AIDevToolsKitMac/Views/Chat/SystemPromptBuilder.swift`
 
-## - [ ] Phase 5: PlansChatContext and PlansContainer integration
+## - [x] Phase 5: PlansChatContext and PlansContainer integration
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: `PlansChatContext` is a `@MainActor final class` holding references to `MarkdownPlannerModel` and `WorkspaceModel`. Route handlers use `await MainActor.run` to access main-actor state from `@Sendable` closures. `selectedPlanName` Binding is captured directly (Swift 5 mode). `navigateToTab` writes to `UserDefaults.standard` with key `"selectedWorkspaceTab"` (the same key as `@AppStorage("selectedWorkspaceTab")` in `WorkspaceView`). `PlansContainer` wraps `HSplitView` in `VSplitView` with `ContextualChatPanel` at bottom; context is created at the start of `.task(id: repository.id)` so it's ready before plans finish loading.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 

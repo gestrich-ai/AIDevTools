@@ -9,6 +9,7 @@ struct PlansContainer: View {
     let repository: RepositoryInfo
 
     @AppStorage("selectedPlanName") private var storedPlanName: String = ""
+    @State private var chatContext: PlansChatContext?
     @State private var selectedPlanName: String?
     @State private var showGenerateSheet = false
 
@@ -18,12 +19,24 @@ struct PlansContainer: View {
     }
 
     var body: some View {
-        HSplitView {
-            sidebar
-            detail
+        VSplitView {
+            HSplitView {
+                sidebar
+                detail
+            }
+
+            if let context = chatContext {
+                ContextualChatPanel(context: context)
+                    .frame(minHeight: 160)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: repository.id) {
+            chatContext = PlansChatContext(
+                plannerModel: markdownPlannerModel,
+                workspaceModel: model,
+                selectedPlanName: $selectedPlanName
+            )
             await markdownPlannerModel.loadPlans(for: repository)
             if selectedPlanName == nil, !storedPlanName.isEmpty {
                 selectedPlanName = storedPlanName
