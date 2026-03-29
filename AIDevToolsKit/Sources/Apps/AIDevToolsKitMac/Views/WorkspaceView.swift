@@ -53,11 +53,11 @@ struct WorkspaceView: View {
     private func tabContent(for repo: RepositoryInfo) -> some View {
         TabView(selection: $selectedTab) {
             ArchitecturePlannerView(repository: repo)
-                .tabItem { Label("Architecture", systemImage: "building.columns") }
+                .tabItem { Image(systemName: "building.columns") }
                 .tag("architecture")
 
             ClaudeChainView(repository: repo)
-                .tabItem { Label("Claude Chain", systemImage: "link") }
+                .tabItem { Image(systemName: "link") }
                 .tag("claudeChain")
 
             Group {
@@ -67,15 +67,15 @@ struct WorkspaceView: View {
                     ContentUnavailableView("No Evals Configured", systemImage: "checkmark.shield", description: Text("This repository has no eval cases configured."))
                 }
             }
-            .tabItem { Label("Evals", systemImage: "checkmark.shield") }
+            .tabItem { Image(systemName: "checkmark.shield") }
             .tag("evals")
 
             PlansContainer(repository: repo)
-                .tabItem { Label("Plans", systemImage: "doc.text") }
+                .tabItem { Image(systemName: "doc.text") }
                 .tag("plans")
 
             SkillsContainer(repository: repo, evalProviderRegistry: evalProviderRegistry)
-                .tabItem { Label("Skills", systemImage: "star") }
+                .tabItem { Image(systemName: "star") }
                 .tag("skills")
         }
     }
