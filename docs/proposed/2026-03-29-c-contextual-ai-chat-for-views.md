@@ -85,7 +85,10 @@ Phase 1 experiments will determine which approach is feasible.
 
 ## Phases
 
-## - [ ] Phase 1: Feasibility experiments
+## - [x] Phase 1: Feasibility experiments
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Ran all 4 experiments against Claude CLI and Codex CLI. Key findings: Claude CLI (`--json-schema`) streams conversational text natively before the StructuredOutput tool call — text and structured data coexist. Codex CLI always delivers conversational text via shell command execution and a pure-JSON final `agent_message`; it also enforces very strict schema requirements (no generic `data: object` fields). The text convention approach (XML `<app-response>` tags embedded in streaming text) is the only approach that works consistently across both providers with generic action data and natural streaming. **Recommendation: Approach B — text convention with XML tags.**
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

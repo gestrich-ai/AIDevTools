@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["text", "tab"],
+  "properties": {
+    "text": {"type": "string", "description": "Your conversational response to the user"},
+    "tab": {"type": "string", "description": "Tab to navigate to", "enum": ["plans", "evals", "chains", "skills", ""]}
+  }
+}

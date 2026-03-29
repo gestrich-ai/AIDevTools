@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mood"],
+  "properties": {
+    "mood": {
+      "type": "string",
+      "enum": ["happy", "sad", "neutral"],
+      "description": "The mood conveyed by the joke"
+    }
+  }
+}
