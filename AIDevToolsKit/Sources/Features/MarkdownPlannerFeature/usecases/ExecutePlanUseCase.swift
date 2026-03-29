@@ -4,6 +4,7 @@ import Foundation
 import GitSDK
 import Logging
 import MarkdownPlannerService
+import PipelineSDK
 import RepositorySDK
 
 public struct ExecutePlanUseCase: Sendable {
@@ -134,11 +135,9 @@ public struct ExecutePlanUseCase: Sendable {
         let maxRuntimeSeconds = options.maxMinutes * 60
         let scriptStart = Date()
 
+        let pipelineSource = MarkdownPipelineSource(fileURL: options.planPath, format: .phase)
         onProgress?(.fetchingStatus)
-        var statusResponse = try await getPhaseStatus(
-            planPath: options.planPath,
-            repoPath: options.repoPath
-        )
+        var statusResponse = try await loadPhaseStatus(from: pipelineSource)
         var phases = statusResponse.phases
         var nextIndex = statusResponse.nextPhaseIndex
 
@@ -179,7 +178,7 @@ public struct ExecutePlanUseCase: Sendable {
                     repoPath: options.repoPath,
                     repository: repository,
                     onOutput: { text in
-                        outputAccumulator.append(text)
+                        Task { await outputAccumulator.append(text) }
                         onProgress?(.phaseOutput(text: text))
                     },
                     onStreamEvent: { event in
@@ -189,7 +188,7 @@ public struct ExecutePlanUseCase: Sendable {
             } catch {
                 let phaseElapsed = Int(Date().timeIntervalSince(phaseStart))
                 let totalElapsed = Int(Date().timeIntervalSince(scriptStart))
-                let logPath = writePhaseLog(output: outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
+                let logPath = writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
                 logger.error("Phase \(nextIndex + 1) failed: \(error.localizedDescription)", metadata: [
                     "plan": "\(options.planPath.lastPathComponent)",
                     "logFile": "\(logPath?.path ?? "none")",
@@ -203,7 +202,7 @@ public struct ExecutePlanUseCase: Sendable {
             let totalElapsed = Int(Date().timeIntervalSince(scriptStart))
 
             if !phaseResult.success {
-                let logPath = writePhaseLog(output: outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
+                let logPath = writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
                 let reason = "Phase reported failure"
                 logger.error("Phase \(nextIndex + 1) failed: \(reason)", metadata: [
                     "plan": "\(options.planPath.lastPathComponent)",
@@ -214,7 +213,18 @@ public struct ExecutePlanUseCase: Sendable {
                 throw ExecuteError.phaseFailed(index: nextIndex, description: phase.description, underlyingError: reason)
             }
 
-            writePhaseLog(output: outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
+            // Ensure the phase checkbox is marked complete in the source
+            let completedStep = CodeChangeStep(
+                id: String(nextIndex),
+                description: phase.description,
+                isCompleted: false,
+                prompt: phase.description,
+                skills: [],
+                context: .empty
+            )
+            try await pipelineSource.markStepCompleted(completedStep)
+
+            writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
             logger.info("Phase \(nextIndex + 1) completed in \(phaseElapsed)s", metadata: [
                 "plan": "\(options.planPath.lastPathComponent)"
             ])
@@ -243,10 +253,7 @@ public struct ExecutePlanUseCase: Sendable {
             try await betweenPhases?()
 
             onProgress?(.fetchingStatus)
-            statusResponse = try await getPhaseStatus(
-                planPath: options.planPath,
-                repoPath: options.repoPath
-            )
+            statusResponse = try await loadPhaseStatus(from: pipelineSource)
             phases = statusResponse.phases
             nextIndex = statusResponse.nextPhaseIndex
 
@@ -271,41 +278,26 @@ public struct ExecutePlanUseCase: Sendable {
         )
     }
 
-    // MARK: - AI Calls
+    // MARK: - Phase Status
 
-    private static let statusSchema = """
-    {"type":"object","properties":{"phases":{"type":"array","items":{"type":"object","properties":{"description":{"type":"string"},"status":{"type":"string","enum":["pending","in_progress","completed"]}},"required":["description","status"]}},"nextPhaseIndex":{"type":"integer","description":"Index of the next phase to execute (0-based), or -1 if all complete"}},"required":["phases","nextPhaseIndex"]}
-    """
+    private func loadPhaseStatus(from source: MarkdownPipelineSource) async throws -> PhaseStatusResponse {
+        let pipeline = try await source.load()
+        let phases = pipeline.steps.compactMap { step -> PhaseStatus? in
+            guard let codeStep = step as? CodeChangeStep else { return nil }
+            return PhaseStatus(
+                description: codeStep.description,
+                status: codeStep.isCompleted ? "completed" : "pending"
+            )
+        }
+        let nextPhaseIndex = phases.firstIndex(where: { !$0.isCompleted }) ?? -1
+        return PhaseStatusResponse(phases: phases, nextPhaseIndex: nextPhaseIndex)
+    }
+
+    // MARK: - AI Calls
 
     private static let executionSchema = """
     {"type":"object","properties":{"success":{"type":"boolean","description":"Whether the phase was completed successfully"}},"required":["success"]}
     """
-
-    private func getPhaseStatus(planPath: URL, repoPath: URL?) async throws -> PhaseStatusResponse {
-        let prompt = """
-        Look at \(planPath.path) and analyze the phased implementation plan.
-
-        Return a JSON with:
-        1. phases: Array of all phases with their description and current status (pending/in_progress/completed)
-        2. nextPhaseIndex: The index (0-based) of the next phase to execute, or -1 if all phases are complete
-
-        Determine status by checking if each phase has been marked as complete in the document.
-        """
-
-        let options = AIClientOptions(
-            dangerouslySkipPermissions: true,
-            workingDirectory: repoPath?.path
-        )
-
-        let output = try await client.runStructured(
-            PhaseStatusResponse.self,
-            prompt: prompt,
-            jsonSchema: Self.statusSchema,
-            options: options,
-            onOutput: nil
-        )
-        return output.value
-    }
 
     private func executePhase(
         planPath: URL,
@@ -459,22 +451,5 @@ public struct ExecutePlanUseCase: Sendable {
         } catch {
             // Non-fatal: plan stays in proposed/
         }
-    }
-}
-
-private final class OutputAccumulator: @unchecked Sendable {
-    private let lock = NSLock()
-    private var buffer = ""
-
-    var content: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return buffer
-    }
-
-    func append(_ text: String) {
-        lock.lock()
-        defer { lock.unlock() }
-        buffer += text
     }
 }
