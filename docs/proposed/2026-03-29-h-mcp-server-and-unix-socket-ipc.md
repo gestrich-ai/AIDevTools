@@ -104,7 +104,10 @@ Add `AppIPCServer` to the Mac app that listens on the Unix domain socket and res
 **Files to modify:**
 - `AIDevToolsKitMac/AIDevToolsApp.swift` — start `AppIPCServer` in `.task`
 
-## - [ ] Phase 3: MCPCommand in ai-dev-tools-kit CLI
+## - [x] Phase 3: MCPCommand in ai-dev-tools-kit CLI
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Placed `MCPCommand` in the Apps layer (CLI). Used `modelcontextprotocol/swift-sdk` for the stdio MCP server. Tool handlers call `LoadPlansUseCase` and `AppIPCClient` directly (not shelling out to CLI subcommands). Deep link tools write to `~/Library/Application Support/AIDevTools/deeplink.txt`, matching the existing `DeepLinkWatcher` path. `arguments` on `CallTool.Parameters` is `[String: Value]?` (optional), so handlers unwrap with `?? [:]` at the call site.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
