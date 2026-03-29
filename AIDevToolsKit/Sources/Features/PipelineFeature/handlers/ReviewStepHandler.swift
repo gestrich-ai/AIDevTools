@@ -67,7 +67,9 @@ public struct ReviewStepHandler: StepHandler {
             arguments = ["diff", "HEAD"]
         case .lastN(let n):
             arguments = ["diff", "HEAD~\(n)...HEAD"]
-        case .stepIDs:
+        case .stepIDs(_):
+            // For now, fall back to diff HEAD since we don't have commit mapping for step IDs
+            // TODO: Implement proper step ID to commit mapping
             arguments = ["diff", "HEAD"]
         }
         let result = try await cliClient.execute(
@@ -84,16 +86,5 @@ public struct ReviewStepHandler: StepHandler {
             )
         }
         return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
-enum ReviewStepError: Error, LocalizedError {
-    case gitDiffFailed(arguments: String, output: String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .gitDiffFailed(let arguments, let output):
-            return "Git diff failed with arguments: \(arguments)\nOutput: \(output)"
-        }
     }
 }

@@ -178,7 +178,7 @@ public struct ExecutePlanUseCase: Sendable {
                     repoPath: options.repoPath,
                     repository: repository,
                     onOutput: { text in
-                        outputAccumulator.append(text)
+                        Task { await outputAccumulator.append(text) }
                         onProgress?(.phaseOutput(text: text))
                     },
                     onStreamEvent: { event in
@@ -188,7 +188,7 @@ public struct ExecutePlanUseCase: Sendable {
             } catch {
                 let phaseElapsed = Int(Date().timeIntervalSince(phaseStart))
                 let totalElapsed = Int(Date().timeIntervalSince(scriptStart))
-                let logPath = writePhaseLog(output: outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
+                let logPath = writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
                 logger.error("Phase \(nextIndex + 1) failed: \(error.localizedDescription)", metadata: [
                     "plan": "\(options.planPath.lastPathComponent)",
                     "logFile": "\(logPath?.path ?? "none")",
@@ -202,7 +202,7 @@ public struct ExecutePlanUseCase: Sendable {
             let totalElapsed = Int(Date().timeIntervalSince(scriptStart))
 
             if !phaseResult.success {
-                let logPath = writePhaseLog(output: outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
+                let logPath = writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
                 let reason = "Phase reported failure"
                 logger.error("Phase \(nextIndex + 1) failed: \(reason)", metadata: [
                     "plan": "\(options.planPath.lastPathComponent)",
@@ -224,7 +224,7 @@ public struct ExecutePlanUseCase: Sendable {
             )
             try await pipelineSource.markStepCompleted(completedStep)
 
-            writePhaseLog(output: outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
+            writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
             logger.info("Phase \(nextIndex + 1) completed in \(phaseElapsed)s", metadata: [
                 "plan": "\(options.planPath.lastPathComponent)"
             ])
@@ -451,22 +451,5 @@ public struct ExecutePlanUseCase: Sendable {
         } catch {
             // Non-fatal: plan stays in proposed/
         }
-    }
-}
-
-private final class OutputAccumulator: @unchecked Sendable {
-    private let lock = NSLock()
-    private var buffer = ""
-
-    var content: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return buffer
-    }
-
-    func append(_ text: String) {
-        lock.lock()
-        defer { lock.unlock() }
-        buffer += text
     }
 }
