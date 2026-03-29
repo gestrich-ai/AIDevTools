@@ -7,10 +7,46 @@ struct ArchitecturePlannerView: View {
 
     let repository: RepositoryInfo
 
+    @State private var showCreateSheet = false
+
     var body: some View {
         HSplitView {
-            jobListSidebar
-                .workspaceSidebar()
+            WorkspaceSidebar {
+                showCreateSheet = true
+            } content: {
+                List(selection: Binding(
+                    get: { model.selectedJob?.jobId },
+                    set: { newId in
+                        model.selectedJob = model.jobs.first { $0.jobId == newId }
+                    }
+                )) {
+                    ForEach(model.jobs, id: \.jobId) { job in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(job.request?.text.prefix(60).description ?? "Untitled")
+                                .font(.headline)
+                                .lineLimit(2)
+                            HStack {
+                                Text(job.createdAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                let completedSteps = job.processSteps.filter { $0.status == "completed" }.count
+                                Text("\(completedSteps)/\(job.processSteps.count)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tag(job.jobId)
+                        .padding(.vertical, 2)
+                        .contextMenu {
+                            Button("Delete", role: .destructive) {
+                                model.deleteJob(job)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+            }
 
             if let job = model.selectedJob {
                 ArchitecturePlannerDetailView(job: job)
@@ -27,56 +63,42 @@ struct ArchitecturePlannerView: View {
         .task(id: repository.id) {
             model.loadJobs(repoName: repository.name, repoPath: repository.path.path())
         }
+        .sheet(isPresented: $showCreateSheet) {
+            CreateArchitectureJobSheet()
+        }
     }
+}
 
-    private var jobListSidebar: some View {
-        @Bindable var model = model
-        return VStack(spacing: 0) {
-            List(selection: Binding(
-                get: { model.selectedJob?.jobId },
-                set: { newId in
-                    model.selectedJob = model.jobs.first { $0.jobId == newId }
-                }
-            )) {
-                ForEach(model.jobs, id: \.jobId) { job in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(job.request?.text.prefix(60).description ?? "Untitled")
-                            .font(.headline)
-                            .lineLimit(2)
-                        HStack {
-                            Text(job.createdAt.formatted(date: .abbreviated, time: .shortened))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            let completedSteps = job.processSteps.filter { $0.status == "completed" }.count
-                            Text("\(completedSteps)/\(job.processSteps.count)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .tag(job.jobId)
-                    .padding(.vertical, 2)
-                    .contextMenu {
-                        Button("Delete", role: .destructive) {
-                            model.deleteJob(job)
-                        }
-                    }
-                }
-            }
+// MARK: - Create Job Sheet
 
-            Divider()
+private struct CreateArchitectureJobSheet: View {
+    @Environment(ArchitecturePlannerModel.self) var model
+    @Environment(\.dismiss) var dismiss
 
-            VStack(spacing: 8) {
-                TextField("Describe your feature...", text: $model.featureDescription, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(3...6)
+    @State private var featureDescription = ""
 
-                Button("Create Job") {
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("New Architecture Job").font(.headline)
+
+            TextField("Describe your feature...", text: $featureDescription, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(3...6)
+
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Create") {
+                    model.featureDescription = featureDescription
+                    dismiss()
                     Task { await model.createJob() }
                 }
-                .disabled(model.featureDescription.isEmpty)
+                .keyboardShortcut(.defaultAction)
+                .disabled(featureDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .padding()
         }
+        .padding()
+        .frame(minWidth: 400)
     }
 }

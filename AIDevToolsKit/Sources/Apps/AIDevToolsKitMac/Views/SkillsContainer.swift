@@ -11,6 +11,7 @@ struct SkillsContainer: View {
 
     @AppStorage("selectedSkillName") private var storedSkillName: String = ""
     @State private var selectedSkillName: String?
+    @State private var showCreateSheet = false
 
     private var selectedSkill: SkillInfo? {
         guard let name = selectedSkillName else { return nil }
@@ -31,19 +32,26 @@ struct SkillsContainer: View {
         .onChange(of: selectedSkillName) { _, newValue in
             storedSkillName = newValue ?? ""
         }
+        .sheet(isPresented: $showCreateSheet) {
+            CreateSkillSheet()
+        }
     }
 
     private var sidebar: some View {
-        List(model.skills, id: \.name, selection: $selectedSkillName) { skill in
-            Text(skill.name)
-                .tag(skill.name)
-        }
-        .overlay {
-            if model.isLoadingSkills {
-                ProgressView("Loading skills...")
+        WorkspaceSidebar {
+            showCreateSheet = true
+        } content: {
+            List(model.skills, id: \.name, selection: $selectedSkillName) { skill in
+                Text(skill.name)
+                    .tag(skill.name)
+            }
+            .listStyle(.sidebar)
+            .overlay {
+                if model.isLoadingSkills {
+                    ProgressView("Loading skills...")
+                }
             }
         }
-        .workspaceSidebar()
     }
 
     @ViewBuilder
@@ -58,5 +66,24 @@ struct SkillsContainer: View {
             ContentUnavailableView("Select a Skill", systemImage: "star", description: Text("Choose a skill to view details."))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+}
+
+// MARK: - Create Skill Sheet
+
+private struct CreateSkillSheet: View {
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("New Skill").font(.headline)
+            Text("Skill creation is not yet implemented.\nAdd a skill file to .agents/skills/ in your repo.")
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("OK") { dismiss() }
+                .keyboardShortcut(.defaultAction)
+        }
+        .padding()
+        .frame(minWidth: 300)
     }
 }

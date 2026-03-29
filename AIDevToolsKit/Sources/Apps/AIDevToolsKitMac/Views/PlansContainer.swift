@@ -38,60 +38,57 @@ struct PlansContainer: View {
     }
 
     private var sidebar: some View {
-        List(selection: $selectedPlanName) {
-            if markdownPlannerModel.isLoadingPlans {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text("Loading plans...").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-
-            if case .generating(let step) = markdownPlannerModel.state {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text(step).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-
-            if case .error(let error) = markdownPlannerModel.state {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red).font(.caption)
-                        Text("Generation Failed").font(.caption.bold()).foregroundStyle(.red)
-                        Spacer()
-                        Button("Dismiss") { markdownPlannerModel.reset() }
-                            .font(.caption).buttonStyle(.borderless)
+        WorkspaceSidebar {
+            showGenerateSheet = true
+        } content: {
+            List(selection: $selectedPlanName) {
+                if markdownPlannerModel.isLoadingPlans {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Loading plans...").font(.caption).foregroundStyle(.secondary)
                     }
-                    Text(error.localizedDescription)
-                        .font(.caption).foregroundStyle(.red).textSelection(.enabled)
                 }
-                .padding(6)
-                .background(.red.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
 
-            ForEach(markdownPlannerModel.plans) { plan in
-                PlanListRow(plan: plan)
-                    .tag(plan.name)
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            if selectedPlanName == plan.name { selectedPlanName = nil }
-                            try? markdownPlannerModel.deletePlan(plan)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                if case .generating(let step) = markdownPlannerModel.state {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text(step).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+
+                if case .error(let error) = markdownPlannerModel.state {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red).font(.caption)
+                            Text("Generation Failed").font(.caption.bold()).foregroundStyle(.red)
+                            Spacer()
+                            Button("Dismiss") { markdownPlannerModel.reset() }
+                                .font(.caption).buttonStyle(.borderless)
                         }
+                        Text(error.localizedDescription)
+                            .font(.caption).foregroundStyle(.red).textSelection(.enabled)
                     }
-            }
+                    .padding(6)
+                    .background(.red.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
 
-            Button {
-                showGenerateSheet = true
-            } label: {
-                Image(systemName: "plus")
+                ForEach(markdownPlannerModel.plans) { plan in
+                    PlanListRow(plan: plan)
+                        .tag(plan.name)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                if selectedPlanName == plan.name { selectedPlanName = nil }
+                                try? markdownPlannerModel.deletePlan(plan)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                }
             }
-            .buttonStyle(.plain)
+            .listStyle(.sidebar)
         }
-        .workspaceSidebar()
     }
 
     @ViewBuilder

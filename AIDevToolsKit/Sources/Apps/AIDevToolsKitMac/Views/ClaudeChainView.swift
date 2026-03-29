@@ -11,26 +11,37 @@ struct ClaudeChainView: View {
     @AppStorage("selectedChainProject") private var storedChainProject: String = ""
     @State private var selectedProject: ChainProject?
 
+    @State private var showCreateSheet = false
+
     var body: some View {
-        Group {
-            switch model.state {
-            case .idle:
-                ContentUnavailableView("No Chains Loaded", systemImage: "link")
-            case .loadingChains where model.lastLoadedProjects.isEmpty:
-                ProgressView("Loading chains...")
-            default:
-                if model.lastLoadedProjects.isEmpty {
-                    ContentUnavailableView(
-                        "No Chains Found",
-                        systemImage: "link",
-                        description: Text("No claude-chain projects found in this repository.")
-                    )
-                } else {
-                    chainContent
+        HSplitView {
+            WorkspaceSidebar {
+                showCreateSheet = true
+            } content: {
+                List(model.lastLoadedProjects, id: \.name, selection: $selectedProject) { project in
+                    ChainProjectRow(project: project)
+                        .tag(project)
+                }
+                .listStyle(.sidebar)
+                .overlay {
+                    if case .loadingChains = model.state, model.lastLoadedProjects.isEmpty {
+                        ProgressView("Loading chains...")
+                    }
                 }
             }
+
+            if let project = selectedProject {
+                ChainProjectDetailView(project: project, repository: repository)
+            } else {
+                ContentUnavailableView(
+                    "Select a Chain",
+                    systemImage: "link",
+                    description: Text("Choose a chain project to view details.")
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
-        .navigationTitle("Claude Chain")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: repository.id) {
             model.loadChains(for: repository.path)
         }
@@ -47,29 +58,9 @@ struct ClaudeChainView: View {
         .onChange(of: selectedProject) { _, newValue in
             storedChainProject = newValue?.name ?? ""
         }
-    }
-
-    @ViewBuilder
-    private var chainContent: some View {
-        HSplitView {
-            List(model.lastLoadedProjects, id: \.name, selection: $selectedProject) { project in
-                ChainProjectRow(project: project)
-                    .tag(project)
-            }
-            .workspaceSidebar()
-
-            if let project = selectedProject {
-                ChainProjectDetailView(project: project, repository: repository)
-            } else {
-                ContentUnavailableView(
-                    "Select a Chain",
-                    systemImage: "link",
-                    description: Text("Choose a chain project to view details.")
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+        .sheet(isPresented: $showCreateSheet) {
+            CreateChainSheet()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -438,5 +429,24 @@ private struct ChainProjectDetailView: View {
         }
 
         model.executeChain(projectName: project.name, repoPath: repository.path)
+    }
+}
+
+// MARK: - Create Chain Sheet
+
+private struct CreateChainSheet: View {
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("New Chain").font(.headline)
+            Text("Chain creation is not yet implemented.\nAdd a claude-chain/<name>/spec.md to your repo.")
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("OK") { dismiss() }
+                .keyboardShortcut(.defaultAction)
+        }
+        .padding()
+        .frame(minWidth: 300)
     }
 }

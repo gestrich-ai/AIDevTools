@@ -4,17 +4,26 @@ enum WorkspaceStyle {
     static let sidebarWidth: CGFloat = 250
 }
 
-struct WorkspaceSidebarModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .frame(maxHeight: .infinity)
-            .frame(width: WorkspaceStyle.sidebarWidth)
-            .listStyle(.sidebar)
-    }
-}
+struct WorkspaceSidebar<Content: View>: View {
+    let onAdd: () -> Void
+    @ViewBuilder let content: () -> Content
 
-extension View {
-    func workspaceSidebar() -> some View {
-        modifier(WorkspaceSidebarModifier())
+    var body: some View {
+        VStack(spacing: 0) {
+            content()
+                .frame(maxHeight: .infinity)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button { onAdd() } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+                .padding(8)
+            }
+        }
+        .frame(width: WorkspaceStyle.sidebarWidth)
     }
 }
