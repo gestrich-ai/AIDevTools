@@ -1,0 +1,99 @@
+import ArgumentParser
+import Foundation
+import PRRadarConfigService
+import PRRadarModels
+import PRReviewFeature
+
+struct PRRadarRunAllCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "run-all",
+        abstract: "Run the full pipeline for all PRs matching a date and state filter"
+    )
+
+    @OptionGroup var filterOptions: PRRadarFilterOptions
+
+    @Option(name: .long, help: "Repository name (from repos list)")
+    var config: String?
+
+    @Option(name: .long, help: "Rule path name (uses the default rule path if omitted)")
+    var rulesPathName: String?
+
+    @Option(name: .long, help: "Minimum violation score")
+    var minScore: String?
+
+    @Option(name: .long, help: "GitHub repo (owner/name)")
+    var repo: String?
+
+    @Flag(name: .long, help: "Post comments to GitHub (default: dry-run)")
+    var comment: Bool = false
+
+    @Option(name: .long, help: "Maximum number of PRs to process")
+    var limit: String?
+
+    @Option(name: .long, help: "Diff source: 'git' (local git history) or 'github-api' (GitHub REST API)")
+    var diffSource: DiffSource?
+
+    @Option(name: .long, help: "Analysis mode: regex, script, ai, or all (default: all)")
+    var mode: AnalysisMode = .all
+
+    @Flag(name: .long, help: "Suppress AI output (show only status logs)")
+    var quiet: Bool = false
+
+    @Flag(name: .long, help: "Show full AI output including tool use events")
+    var verbose: Bool = false
+
+    func run() async throws {
+        let prRadarConfig = try resolvePRRadarConfig(repoName: config, diffSource: diffSource)
+        let prFilter = try filterOptions.buildFilter(config: prRadarConfig)
+        guard prFilter.dateFilter != nil else {
+            throw ValidationError("A date filter is required. Use --since, --lookback-hours, --updated-since, or --updated-lookback-hours.")
+        }
+
+        let useCase = RunAllUseCase(config: prRadarConfig)
+
+        for try await progress in useCase.execute(
+            filter: prFilter,
+            rulesDir: try resolveRulesDir(rulesPathName: rulesPathName, config: prRadarConfig),
+            minScore: minScore,
+            repo: repo,
+            comment: comment,
+            limit: limit,
+            analysisMode: mode
+        ) {
+            switch progress {
+            case .running:
+                break
+            case .progress:
+                break
+            case .log(let text):
+                print(text, terminator: "")
+            case .prepareOutput(let text):
+                if !quiet {
+                    printPRRadarAIOutput(text, verbose: verbose)
+                }
+            case .prepareToolUse(let name):
+                if !quiet && verbose {
+                    printPRRadarAIToolUse(name)
+                }
+            case .taskEvent(_, let event):
+                switch event {
+                case .output(let text):
+                    if !quiet {
+                        printPRRadarAIOutput(text, verbose: verbose)
+                    }
+                case .toolUse(let name):
+                    if !quiet && verbose {
+                        printPRRadarAIToolUse(name)
+                    }
+                case .prompt, .completed:
+                    break
+                }
+            case .completed(let output):
+                print("\nRun-all complete: \(output.analyzedCount) succeeded, \(output.failedCount) failed")
+            case .failed(let error, let logs):
+                if !logs.isEmpty { printPRRadarError(logs) }
+                throw PRRadarCLIError.phaseFailed("run-all failed: \(error)")
+            }
+        }
+    }
+}

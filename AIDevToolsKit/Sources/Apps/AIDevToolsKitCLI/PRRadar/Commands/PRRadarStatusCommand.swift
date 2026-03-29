@@ -1,0 +1,92 @@
+import ArgumentParser
+import Foundation
+import PRRadarCLIService
+import PRRadarConfigService
+import PRRadarModels
+import PRReviewFeature
+
+struct PRRadarStatusCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "status",
+        abstract: "Show pipeline status for a PR"
+    )
+
+    @OptionGroup var options: PRRadarCLIOptions
+
+    func run() async throws {
+        let config = try resolvePRRadarConfigFromOptions(options)
+
+        let detail = LoadPRDetailUseCase(config: config).execute(prNumber: options.prNumber, commitHash: options.commit)
+
+        struct DisplayStatus {
+            let phase: PRRadarPhase
+            let status: String
+            let fileCount: Int
+        }
+
+        var statuses: [DisplayStatus] = []
+        for phase in PRRadarPhase.allCases {
+            let phaseStatus = detail.phaseStatuses[phase]!
+            let statusText: String
+            if !phaseStatus.exists {
+                statusText = "not started"
+            } else if phaseStatus.isComplete {
+                statusText = "complete"
+            } else if phaseStatus.isPartial {
+                statusText = "partial"
+            } else {
+                statusText = "failed"
+            }
+            statuses.append(DisplayStatus(
+                phase: phase,
+                status: statusText,
+                fileCount: phaseStatus.completedCount
+            ))
+        }
+
+        if options.json {
+            var jsonOutput: [String: Any] = [:]
+            if let commitHash = detail.commitHash { jsonOutput["commitHash"] = commitHash }
+            if let baseRefName = detail.baseRefName { jsonOutput["baseRefName"] = baseRefName }
+            jsonOutput["availableCommits"] = detail.availableCommits
+            var phases: [[String: Any]] = []
+            for s in statuses {
+                phases.append([
+                    "phase": s.phase.rawValue,
+                    "status": s.status,
+                    "artifacts": s.fileCount,
+                ])
+            }
+            jsonOutput["phases"] = phases
+            let data = try JSONSerialization.data(withJSONObject: jsonOutput, options: [.prettyPrinted, .sortedKeys])
+            print(String(data: data, encoding: .utf8)!)
+        } else {
+            let branchSuffix = detail.baseRefName.map { " → \($0)" } ?? ""
+            if let commitHash = detail.commitHash {
+                print("Pipeline status for PR #\(options.prNumber)\(branchSuffix) @ \(commitHash):")
+            } else {
+                print("Pipeline status for PR #\(options.prNumber)\(branchSuffix):")
+            }
+            print("")
+            print("  \("Phase".padding(toLength: 30, withPad: " ", startingAt: 0))  \("Status".padding(toLength: 12, withPad: " ", startingAt: 0))  Artifacts")
+            print("  \("-----".padding(toLength: 30, withPad: " ", startingAt: 0))  \("------".padding(toLength: 12, withPad: " ", startingAt: 0))  ---------")
+            for s in statuses {
+                let statusIcon: String
+                switch s.status {
+                case "complete": statusIcon = "\u{001B}[32m\u{2713}\u{001B}[0m"
+                case "partial": statusIcon = "\u{001B}[33m~\u{001B}[0m"
+                case "not started": statusIcon = " "
+                default: statusIcon = "\u{001B}[31m\u{2717}\u{001B}[0m"
+                }
+                print("  \(statusIcon) \(s.phase.rawValue.padding(toLength: 28, withPad: " ", startingAt: 0))  \(s.status.padding(toLength: 12, withPad: " ", startingAt: 0))  \(s.fileCount)")
+            }
+            if detail.availableCommits.count > 1 {
+                print("\n  Available commits:")
+                for c in detail.availableCommits {
+                    let marker = (c == detail.commitHash) ? " (current)" : ""
+                    print("    \(c)\(marker)")
+                }
+            }
+        }
+    }
+}

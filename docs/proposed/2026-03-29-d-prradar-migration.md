@@ -231,7 +231,10 @@ PRRadar UI appears as a new tab in the AIDevTools workspace.
 
 **Verification:** Mac app builds, new tab appears, PR list loads for a configured repo.
 
-## - [ ] Phase 6: Migrate CLI commands
+## - [x] Phase 6: Migrate CLI commands
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Dropped `ConfigCommand`, `CredentialsCommand`, and `SettingsCommand` — replaced by AIDevTools' `repos`, `credentials`, and data-path management. Config resolution changed from `LoadSettingsUseCase(settingsService:)` to `RepositoryStore` + `PRRadarRepoSettingsStore` + `DataPathsService`. All types prefixed with `PRRadar` to avoid conflicts with existing CLI types. `SyncCommand` updated to use `PRRadarPhasePaths.phaseDirectory()` instead of the old `DataPathsService` static method. Helper functions (`printAIOutput`, `parseDateString`, etc.) prefixed with `prRadar` to avoid future collisions.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
