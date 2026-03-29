@@ -100,7 +100,10 @@ Steps parsed from markdown become `CodeChangeStep` instances. The `CreatePRStep`
 
 `appendSteps` adds new `- [ ]` lines to the markdown file (used by dynamic step insertion from Review and Maintenance steps).
 
-## - [ ] Phase 3: Implement Pipeline Executor (Features layer)
+## - [x] Phase 3: Implement Pipeline Executor (Features layer)
+
+**Skills used**: `ai-dev-tools-review:features-layer`
+**Principles applied**: Created `PipelineFeature` target with three files: `PipelineContext.swift` (a `Sendable` struct carrying repo path, working directory, branch, and accumulated logs), `StepHandler.swift` (the `StepHandler` protocol with associated type + `AnyStepHandler` type-eraser using a closure-based dispatch that returns `nil` on type mismatch), and `ExecutePipelineUseCase.swift` (a plain struct with `run(options:onProgress:)` callback pattern, seeding a local mutable step array from `source.load()`, dispatching each pending step to the first matching `AnyStepHandler`, persisting completion via `source.markStepCompleted`, appending dynamic steps to both the local array and `source.appendSteps`, and yielding `PipelineProgress` events). No `@Observable`, no UI imports, no feature-to-feature dependencies.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

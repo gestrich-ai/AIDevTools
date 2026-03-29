@@ -33,6 +33,7 @@ let package = Package(
         .library(name: "LoggingSDK", targets: ["LoggingSDK"]),
         .library(name: "MarkdownPlannerFeature", targets: ["MarkdownPlannerFeature"]),
         .library(name: "MarkdownPlannerService", targets: ["MarkdownPlannerService"]),
+        .library(name: "PipelineFeature", targets: ["PipelineFeature"]),
         .library(name: "PipelineSDK", targets: ["PipelineSDK"]),
         .library(name: "ProviderRegistryService", targets: ["ProviderRegistryService"]),
         .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
@@ -156,6 +157,14 @@ let package = Package(
                 "RepositorySDK",
             ],
             path: "Sources/Features/MarkdownPlannerFeature"
+        ),
+        .target(
+            name: "PipelineFeature",
+            dependencies: [
+                "AIOutputSDK",
+                "PipelineSDK",
+            ],
+            path: "Sources/Features/PipelineFeature"
         ),
         .target(
             name: "SkillBrowserFeature",
