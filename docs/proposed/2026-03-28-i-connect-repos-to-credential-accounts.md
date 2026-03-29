@@ -33,7 +33,10 @@ This spec connects repositories to credential accounts so that:
 
 ## Phases
 
-## - [ ] Phase 1: Add `credentialAccount` to RepositoryInfo
+## - [x] Phase 1: Add `credentialAccount` to RepositoryInfo
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Added field alphabetically between `description` and `githubUser` per SDK layer conventions. Kept `githubUser` intact for non-breaking migration. All optional params default to `nil` so no callers needed updating.
 
 **Skills to read**: `swift-architecture`
 

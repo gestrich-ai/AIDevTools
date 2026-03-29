@@ -24,6 +24,7 @@ struct RepositoryInfoTests {
         let repo = RepositoryInfo(
             path: URL(filePath: "/Users/test/my-repo"),
             name: "my-repo",
+            credentialAccount: "gestrich",
             description: "A test repository",
             githubUser: "testuser",
             recentFocus: "Adding auth",
@@ -46,6 +47,7 @@ struct RepositoryInfoTests {
         #expect(decoded.id == repo.id)
         #expect(decoded.path == repo.path)
         #expect(decoded.name == "my-repo")
+        #expect(decoded.credentialAccount == "gestrich")
         #expect(decoded.description == "A test repository")
         #expect(decoded.githubUser == "testuser")
         #expect(decoded.recentFocus == "Adding auth")
@@ -72,6 +74,7 @@ struct RepositoryInfoTests {
         #expect(decoded.id == repo.id)
         #expect(decoded.path == repo.path)
         #expect(decoded.name == "repo")
+        #expect(decoded.credentialAccount == nil)
         #expect(decoded.description == nil)
         #expect(decoded.githubUser == nil)
         #expect(decoded.verification == nil)
