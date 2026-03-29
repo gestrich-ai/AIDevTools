@@ -31,7 +31,7 @@ struct ClaudeChainView: View {
             }
         }
         .navigationTitle("Claude Chain")
-        .task {
+        .task(id: repository.id) {
             model.loadChains(for: repository.path)
         }
         .onChange(of: model.lastLoadedProjects) { _, newProjects in
