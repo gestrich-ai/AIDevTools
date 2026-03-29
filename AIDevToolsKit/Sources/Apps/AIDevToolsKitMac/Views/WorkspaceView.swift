@@ -60,11 +60,15 @@ struct WorkspaceView: View {
                 .tabItem { Label("Claude Chain", systemImage: "link") }
                 .tag("claudeChain")
 
-            if model.evalConfig(for: repo) != nil {
-                EvalResultsView(config: model.evalConfig(for: repo)!, registry: evalProviderRegistry)
-                    .tabItem { Label("Evals", systemImage: "checkmark.shield") }
-                    .tag("evals")
+            Group {
+                if let config = model.evalConfig(for: repo) {
+                    EvalResultsView(config: config, registry: evalProviderRegistry)
+                } else {
+                    ContentUnavailableView("No Evals Configured", systemImage: "checkmark.shield", description: Text("This repository has no eval cases configured."))
+                }
             }
+            .tabItem { Label("Evals", systemImage: "checkmark.shield") }
+            .tag("evals")
 
             PlansContainer(repository: repo)
                 .tabItem { Label("Plans", systemImage: "doc.text") }
