@@ -1,0 +1,308 @@
+import Foundation
+@preconcurrency import OctoKit
+import OctokitSDK
+import PRRadarConfigService
+import PRRadarModels
+
+public struct GitHubService: Sendable {
+    private let octokitClient: OctokitClient
+    private let owner: String
+    private let repo: String
+
+    public init(octokitClient: OctokitClient, owner: String, repo: String) {
+        self.octokitClient = octokitClient
+        self.owner = owner
+        self.repo = repo
+    }
+
+    // MARK: - Pull Request Operations
+
+    public func getPRDiff(number: Int) async throws -> String {
+        try await octokitClient.getPullRequestDiff(owner: owner, repository: repo, number: number)
+    }
+
+    public func getPullRequest(number: Int) async throws -> GitHubPullRequest {
+        let pr = try await octokitClient.pullRequest(owner: owner, repository: repo, number: number)
+        let files = try await octokitClient.listPullRequestFiles(owner: owner, repository: repo, number: number)
+        return pr.toGitHubPullRequest(files: files)
+    }
+
+    public func getPullRequestComments(number: Int) async throws -> GitHubPullRequestComments {
+        let issueComments = try await octokitClient.issueComments(
+            owner: owner, repository: repo, number: number
+        )
+        let comments = issueComments.map { comment in
+            GitHubComment(
+                id: String(comment.id),
+                body: comment.body,
+                author: comment.user.toGitHubAuthor(),
+                createdAt: formatISO8601(comment.createdAt),
+                url: comment.htmlURL.absoluteString
+            )
+        }
+
+        let reviewList = try await octokitClient.listReviews(
+            owner: owner, repository: repo, number: number
+        )
+        let reviews = reviewList.map { review in
+            GitHubReview(
+                id: String(review.id),
+                body: review.body,
+                state: review.state.rawValue,
+                author: review.user.toGitHubAuthor(),
+                submittedAt: review.submittedAt.map { formatISO8601($0) }
+            )
+        }
+
+        let reviewCommentList = try await octokitClient.listPullRequestReviewComments(
+            owner: owner, repository: repo, number: number
+        )
+        let reviewComments = reviewCommentList.map { rc in
+            GitHubReviewComment(
+                id: String(rc.id),
+                body: rc.body,
+                path: rc.path,
+                line: rc.line,
+                startLine: rc.startLine,
+                author: rc.userLogin.map { GitHubAuthor(login: $0, id: rc.userId.map(String.init)) },
+                createdAt: rc.createdAt,
+                url: rc.htmlUrl,
+                inReplyToId: rc.inReplyToId.map(String.init),
+                isOutdated: rc.position == nil
+            )
+        }
+
+        return GitHubPullRequestComments(comments: comments, reviews: reviews, reviewComments: reviewComments)
+    }
+
+    public func listPullRequests(
+        limit: Int,
+        filter: PRFilter = PRFilter()
+    ) async throws -> [GitHubPullRequest] {
+        let dateFilter = filter.dateFilter
+
+        let openness: Openness
+        if let apiStateOverride = dateFilter?.requiresClosedAPIState, apiStateOverride {
+            openness = .closed
+        } else if let state = filter.state {
+            switch state.apiStateValue {
+            case "closed": openness = .closed
+            default: openness = .open
+            }
+        } else {
+            openness = .all
+        }
+
+        let sort: SortType = dateFilter?.sortsByCreated == true ? .created : .updated
+
+        var allPRs: [GitHubPullRequest] = []
+        var page = 1
+        let perPage = 100
+        let formatter = ISO8601DateFormatter()
+        let baseBranch = filter.baseBranch?.isEmpty == false ? filter.baseBranch : nil
+
+        while true {
+            let prs = try await octokitClient.listPullRequests(
+                owner: owner,
+                repository: repo,
+                state: openness,
+                sort: sort,
+                direction: .desc,
+                base: baseBranch,
+                page: String(page),
+                perPage: String(perPage)
+            )
+
+            if prs.isEmpty {
+                break
+            }
+
+            let mapped = prs.map { $0.toGitHubPullRequest() }
+
+            if let dateFilter {
+                let since = dateFilter.date
+                var hitOldPRs = false
+
+                for pr in mapped {
+                    if let earlyStopStr = dateFilter.extractEarlyStopDate(pr),
+                       let earlyStopDate = formatter.date(from: earlyStopStr),
+                       earlyStopDate < since {
+                        hitOldPRs = true
+                        break
+                    }
+
+                    if let dateStr = dateFilter.extractDate(pr),
+                       let prDate = formatter.date(from: dateStr),
+                       prDate >= since {
+                        allPRs.append(pr)
+                    }
+                }
+
+                if hitOldPRs {
+                    break
+                }
+            } else {
+                allPRs.append(contentsOf: mapped)
+            }
+
+            if allPRs.count >= limit {
+                break
+            }
+
+            if prs.count < perPage {
+                break
+            }
+
+            page += 1
+        }
+
+        var result = Array(allPRs.prefix(limit))
+
+        if let state = filter.state {
+            result = result.filter { $0.enhancedState == state }
+        }
+        if let authorLogin = filter.authorLogin, !authorLogin.isEmpty {
+            result = result.filter { $0.author?.login == authorLogin }
+        }
+        return result
+    }
+
+    public func getPRUpdatedAt(number: Int) async throws -> String {
+        try await octokitClient.pullRequestUpdatedAt(owner: owner, repository: repo, number: number)
+    }
+
+    public func getRepository() async throws -> GitHubRepository {
+        let repo = try await octokitClient.repository(owner: owner, name: self.repo)
+        return repo.toGitHubRepository()
+    }
+
+    // MARK: - GraphQL Operations
+
+    public func fetchBodyHTML(number: Int) async throws -> String {
+        try await octokitClient.pullRequestBodyHTML(owner: owner, repository: repo, number: number)
+    }
+
+    /// Fetches the set of review comment IDs whose threads are resolved on GitHub.
+    public func fetchResolvedReviewCommentIDs(number: Int) async throws -> Set<String> {
+        try await octokitClient.fetchResolvedReviewCommentIDs(
+            owner: owner, repository: repo, number: number
+        )
+    }
+
+    // MARK: - Comment Operations
+
+    public func getPRHeadSHA(number: Int) async throws -> String {
+        try await octokitClient.getPullRequestHeadSHA(owner: owner, repository: repo, number: number)
+    }
+
+    public func postIssueComment(number: Int, body: String) async throws {
+        _ = try await octokitClient.postIssueComment(owner: owner, repository: repo, number: number, body: body)
+    }
+
+    public func postReviewComment(
+        number: Int,
+        commitId: String,
+        path: String,
+        line: Int,
+        body: String
+    ) async throws {
+        _ = try await octokitClient.postReviewComment(
+            owner: owner,
+            repository: repo,
+            number: number,
+            commitId: commitId,
+            path: path,
+            line: line,
+            body: body
+        )
+    }
+
+    public func editReviewComment(commentId: Int, body: String) async throws {
+        _ = try await octokitClient.updateReviewComment(
+            owner: owner,
+            repository: repo,
+            commentId: commentId,
+            body: body
+        )
+    }
+
+    public func editIssueComment(commentId: Int, body: String) async throws {
+        _ = try await octokitClient.updateIssueComment(
+            owner: owner,
+            repository: repo,
+            commentId: commentId,
+            body: body
+        )
+    }
+
+    // MARK: - Git History Operations
+
+    public func getFileContent(path: String, ref: String) async throws -> String {
+        try await octokitClient.getFileContent(owner: owner, repository: repo, path: path, ref: ref)
+    }
+
+    public func compareCommits(base: String, head: String) async throws -> CompareResult {
+        try await octokitClient.compareCommits(owner: owner, repository: repo, base: base, head: head)
+    }
+
+    public func getFileSHA(path: String, ref: String) async throws -> String {
+        try await octokitClient.getFileSHA(owner: owner, repository: repo, path: path, ref: ref)
+    }
+
+    // MARK: - Author Name Resolution
+
+    public func resolveAuthorNames(logins: Set<String>, cache: AuthorCacheService) async throws -> [String: String] {
+        var result: [String: String] = [:]
+
+        for login in logins {
+            if let cached = cache.lookup(login: login) {
+                result[login] = cached.name
+                continue
+            }
+
+            do {
+                let user = try await octokitClient.getUser(login: login)
+                let displayName = user.name ?? login
+                try cache.update(login: login, name: displayName)
+                result[login] = displayName
+            } catch {
+                result[login] = login
+            }
+        }
+
+        return result
+    }
+
+    // MARK: - Factory
+
+    /// Parse owner and repo name from a git remote URL.
+    ///
+    /// Supports formats:
+    /// - `https://github.com/owner/repo.git`
+    /// - `git@github.com:owner/repo.git`
+    /// - URLs with or without `.git` suffix
+    public static func parseOwnerRepo(from remoteURL: String) -> (owner: String, repo: String)? {
+        let trimmed = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // SSH format: git@github.com:owner/repo.git
+        if trimmed.contains("@") && trimmed.contains(":") {
+            let afterColon = trimmed.split(separator: ":", maxSplits: 1).last.map(String.init) ?? ""
+            let parts = afterColon
+                .replacingOccurrences(of: ".git", with: "")
+                .split(separator: "/")
+            guard parts.count >= 2 else { return nil }
+            return (String(parts[parts.count - 2]), String(parts[parts.count - 1]))
+        }
+
+        // HTTPS format: https://github.com/owner/repo.git
+        if let url = URL(string: trimmed) {
+            let parts = url.pathComponents
+                .filter { $0 != "/" }
+                .map { $0.replacingOccurrences(of: ".git", with: "") }
+            guard parts.count >= 2 else { return nil }
+            return (parts[parts.count - 2], parts[parts.count - 1])
+        }
+
+        return nil
+    }
+}

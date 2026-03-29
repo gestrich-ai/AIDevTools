@@ -154,7 +154,10 @@ AIDevTools' shared SDKs must cover all functionality PRRadar needs.
 
 **Verification:** All existing tests still pass; new methods compile.
 
-## - [ ] Phase 3: Migrate services layer
+## - [x] Phase 3: Migrate services layer
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Renamed PRRadar's `DataPathsService` enum to `PRRadarPhasePaths` to avoid naming collision with AIDevTools' `DataPathsService` class. Dropped `SettingsService`, `AppSettings`, `RepositoryConfigurationJSON`; replaced with `PRRadarRepoSettings` + `PRRadarRepoSettingsStore` following `EvalRepoSettingsStore` pattern. Updated `CredentialResolver` to take `KeychainStoring` directly instead of `SettingsService`, with a `createPlatform(githubAccount:)` factory for callers. Added `GitOperationsService` wrapper to `GitSDK` (Option A from plan) delegating to `GitClient`. Added `prradarSettings` and `prradarOutput` cases to `ServicePath` in AIDevTools' `DataPathsService`. All three targets (`PRRadarModels`, `PRRadarConfigService`, `PRRadarCLIService`) build successfully.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

@@ -21,6 +21,8 @@ public enum ServicePath {
     case architecturePlanner
     case evalSettings
     case planSettings
+    case prradarOutput(String)
+    case prradarSettings
     case repoOutput(String)
     case repositories
 
@@ -32,6 +34,10 @@ public enum ServicePath {
             return "eval/settings"
         case .planSettings:
             return "plan/settings"
+        case .prradarOutput(let repoName):
+            return "prradar/repos/\(repoName)"
+        case .prradarSettings:
+            return "prradar/settings"
         case .repoOutput(let repoName):
             return "repos/\(repoName)"
         case .repositories:

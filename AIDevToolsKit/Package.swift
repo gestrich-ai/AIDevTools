@@ -38,6 +38,9 @@ let package = Package(
         .library(name: "PipelineFeature", targets: ["PipelineFeature"]),
         .library(name: "PipelineSDK", targets: ["PipelineSDK"]),
         .library(name: "PipelineService", targets: ["PipelineService"]),
+        .library(name: "PRRadarCLIService", targets: ["PRRadarCLIService"]),
+        .library(name: "PRRadarConfigService", targets: ["PRRadarConfigService"]),
+        .library(name: "PRRadarModels", targets: ["PRRadarModels"]),
         .library(name: "ProviderRegistryService", targets: ["ProviderRegistryService"]),
         .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
         .library(name: "SkillBrowserFeature", targets: ["SkillBrowserFeature"]),
@@ -229,6 +232,37 @@ let package = Package(
                 "PipelineSDK",
             ],
             path: "Sources/Services/PipelineService"
+        ),
+        .target(
+            name: "PRRadarCLIService",
+            dependencies: [
+                .product(name: "CLISDK", package: "SwiftCLI"),
+                "ClaudeAgentSDK",
+                "EnvironmentSDK",
+                "GitSDK",
+                "OctokitSDK",
+                "PRRadarConfigService",
+                "PRRadarModels",
+            ],
+            path: "Sources/Services/PRRadarCLIService"
+        ),
+        .target(
+            name: "PRRadarConfigService",
+            dependencies: [
+                "DataPathsService",
+                "EnvironmentSDK",
+                "KeychainSDK",
+                "PRRadarModels",
+                "RepositorySDK",
+            ],
+            path: "Sources/Services/PRRadarConfigService"
+        ),
+        .target(
+            name: "PRRadarModels",
+            dependencies: [
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
+            ],
+            path: "Sources/Services/PRRadarModels"
         ),
         .target(
             name: "ProviderRegistryService",

@@ -1,0 +1,228 @@
+import Foundation
+import PRRadarConfigService
+import PRRadarModels
+
+public struct ReportGeneratorService: Sendable {
+    public init() {}
+
+    /// Generate a complete review report from evaluation results.
+    ///
+    /// - Parameters:
+    ///   - prNumber: PR number
+    ///   - minScore: Minimum violation score to include
+    ///   - evalsDir: Directory containing evaluation result files
+    ///   - tasksDir: Directory containing task files
+    ///   - focusAreasDir: Directory containing focus area files
+    public func generateReport(
+        prNumber: Int,
+        baseRefName: String? = nil,
+        minScore: Int,
+        evalsDir: String,
+        tasksDir: String,
+        focusAreasDir: String
+    ) throws -> ReviewReport {
+        let totals = loadViolations(
+            evaluationsDir: evalsDir,
+            tasksDir: tasksDir,
+            minScore: minScore
+        )
+
+        let focusAreaCost = loadFocusAreaGenerationCost(focusAreasDir: focusAreasDir)
+        let combinedCost = totals.totalCost + focusAreaCost
+
+        let summary = calculateSummary(violations: totals.violations, totalTasks: totals.totalTasks, totalCost: combinedCost, modelsUsed: totals.modelsUsed, totalDurationMs: totals.totalDurationMs)
+
+        let sortedViolations = totals.violations.sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            return $0.filePath < $1.filePath
+        }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        return ReviewReport(
+            prNumber: prNumber,
+            baseRefName: baseRefName,
+            generatedAt: formatter.string(from: Date()),
+            minScoreThreshold: minScore,
+            summary: summary,
+            violations: sortedViolations
+        )
+    }
+
+    /// Save report to JSON and markdown files.
+    public func saveReport(report: ReviewReport, reportDir: String) throws -> (jsonPath: String, mdPath: String) {
+        try FileManager.default.createDirectory(atPath: reportDir, withIntermediateDirectories: true)
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let jsonData = try encoder.encode(report)
+
+        let jsonPath = "\(reportDir)/\(PRRadarPhasePaths.summaryJSONFilename)"
+        try jsonData.write(to: URL(fileURLWithPath: jsonPath))
+
+        let mdPath = "\(reportDir)/\(PRRadarPhasePaths.summaryMarkdownFilename)"
+        try report.toMarkdown().write(toFile: mdPath, atomically: true, encoding: .utf8)
+
+        return (jsonPath, mdPath)
+    }
+
+    // MARK: - Private
+
+    private struct EvaluationTotals {
+        var violations: [ViolationRecord] = []
+        var totalTasks: Int = 0
+        var totalCost: Double = 0.0
+        var modelSet: Set<String> = []
+        var totalDurationMs: Int = 0
+
+        var modelsUsed: [String] { modelSet.sorted() }
+    }
+
+    private func loadViolations(
+        evaluationsDir: String,
+        tasksDir: String,
+        minScore: Int
+    ) -> EvaluationTotals {
+        let fm = FileManager.default
+        var totals = EvaluationTotals()
+
+        let taskMetadata = loadTaskMetadata(tasksDir: tasksDir)
+
+        guard let evalFiles = try? fm.contentsOfDirectory(atPath: evaluationsDir) else {
+            return totals
+        }
+
+        for file in evalFiles where file.hasPrefix(PRRadarPhasePaths.dataFilePrefix) {
+            let path = "\(evaluationsDir)/\(file)"
+            guard let data = fm.contents(atPath: path) else { continue }
+
+            guard let result = try? JSONDecoder().decode(RuleOutcome.self, from: data) else { continue }
+            totals.totalTasks += 1
+            totals.totalDurationMs += result.durationMs
+            totals.modelSet.insert(result.analysisMethod.displayName)
+
+            if let cost = result.costUsd {
+                totals.totalCost += cost
+            }
+
+            guard let successResult = result.success, successResult.violatesRule else { continue }
+
+            let documentationLink: String?
+            let relevantClaudeSkill: String?
+            let methodName: String?
+
+            if let taskData = taskMetadata[successResult.taskId] {
+                documentationLink = taskData.rule.documentationLink
+                relevantClaudeSkill = nil
+                methodName = taskData.focusArea.description
+            } else {
+                documentationLink = nil
+                relevantClaudeSkill = nil
+                methodName = nil
+            }
+
+            for v in successResult.violations where v.score >= minScore {
+                totals.violations.append(ViolationRecord(
+                    ruleName: successResult.ruleName,
+                    score: v.score,
+                    filePath: v.filePath,
+                    lineNumber: v.lineNumber,
+                    comment: v.comment,
+                    methodName: methodName,
+                    documentationLink: documentationLink,
+                    relevantClaudeSkill: relevantClaudeSkill
+                ))
+            }
+        }
+
+        return totals
+    }
+
+    private func loadFocusAreaGenerationCost(focusAreasDir: String) -> Double {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(atPath: focusAreasDir) else { return 0.0 }
+
+        var total = 0.0
+        for file in files where file.hasPrefix(PRRadarPhasePaths.dataFilePrefix) {
+            let path = "\(focusAreasDir)/\(file)"
+            guard let data = fm.contents(atPath: path),
+                  let typeOutput = try? JSONDecoder().decode(FocusAreaTypeOutput.self, from: data) else { continue }
+            total += typeOutput.generationCostUsd
+        }
+        return total
+    }
+
+    private func loadTaskMetadata(tasksDir: String) -> [String: RuleRequest] {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(atPath: tasksDir) else { return [:] }
+
+        var metadata: [String: RuleRequest] = [:]
+        for file in files where file.hasPrefix(PRRadarPhasePaths.dataFilePrefix) {
+            let path = "\(tasksDir)/\(file)"
+            guard let data = fm.contents(atPath: path),
+                  let task = try? JSONDecoder().decode(RuleRequest.self, from: data) else { continue }
+            metadata[task.taskId] = task
+        }
+        return metadata
+    }
+
+    private func calculateSummary(
+        violations: [ViolationRecord],
+        totalTasks: Int,
+        totalCost: Double,
+        modelsUsed: [String],
+        totalDurationMs: Int
+    ) -> ReportSummary {
+        let highestSeverity = violations.map(\.score).max() ?? 0
+
+        var bySeverity: [String: Int] = [:]
+        for v in violations {
+            let level: String
+            if v.score >= 8 {
+                level = "Severe (8-10)"
+            } else if v.score >= 5 {
+                level = "Moderate (5-7)"
+            } else {
+                level = "Minor (1-4)"
+            }
+            bySeverity[level, default: 0] += 1
+        }
+
+        var byFile: [String: Int] = [:]
+        for v in violations {
+            byFile[v.filePath, default: 0] += 1
+        }
+
+        var byRule: [String: Int] = [:]
+        for v in violations {
+            byRule[v.ruleName, default: 0] += 1
+        }
+
+        var byMethod: [String: [String: [[String: AnyCodableValue]]]] = [:]
+        for v in violations {
+            let methodKey = v.methodName ?? "(unknown)"
+            var fileDict = byMethod[v.filePath] ?? [:]
+            var methodList = fileDict[methodKey] ?? []
+            methodList.append([
+                "rule": .string(v.ruleName),
+                "score": .int(v.score),
+            ])
+            fileDict[methodKey] = methodList
+            byMethod[v.filePath] = fileDict
+        }
+
+        return ReportSummary(
+            totalTasksEvaluated: totalTasks,
+            violationsFound: violations.count,
+            highestSeverity: highestSeverity,
+            totalCostUsd: totalCost,
+            bySeverity: bySeverity,
+            byFile: byFile,
+            byRule: byRule,
+            byMethod: byMethod.isEmpty ? nil : byMethod,
+            modelsUsed: modelsUsed,
+            totalDurationMs: totalDurationMs
+        )
+    }
+}
