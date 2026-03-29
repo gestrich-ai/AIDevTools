@@ -1,5 +1,6 @@
 import Foundation
 import PipelineSDK
+import PipelineService
 
 public struct ExecutePipelineOptions: Sendable {
     public let source: any PipelineSource

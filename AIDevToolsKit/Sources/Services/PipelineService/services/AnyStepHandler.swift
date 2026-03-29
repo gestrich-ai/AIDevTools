@@ -13,7 +13,7 @@ public struct AnyStepHandler: Sendable {
     }
 
     /// Returns `nil` if this handler does not handle the given step type.
-    func tryExecute(_ step: any PipelineStep, context: PipelineContext) async throws -> [any PipelineStep]? {
+    public func tryExecute(_ step: any PipelineStep, context: PipelineContext) async throws -> [any PipelineStep]? {
         try await _tryExecute(step, context)
     }
 }

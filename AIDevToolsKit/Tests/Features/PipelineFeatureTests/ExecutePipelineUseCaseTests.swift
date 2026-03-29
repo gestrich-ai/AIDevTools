@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import PipelineFeature
 import PipelineSDK
+import PipelineService
 
 // MARK: - Test doubles
 

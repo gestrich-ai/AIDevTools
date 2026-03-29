@@ -35,6 +35,7 @@ let package = Package(
         .library(name: "MarkdownPlannerService", targets: ["MarkdownPlannerService"]),
         .library(name: "PipelineFeature", targets: ["PipelineFeature"]),
         .library(name: "PipelineSDK", targets: ["PipelineSDK"]),
+        .library(name: "PipelineService", targets: ["PipelineService"]),
         .library(name: "ProviderRegistryService", targets: ["ProviderRegistryService"]),
         .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
         .library(name: "SkillBrowserFeature", targets: ["SkillBrowserFeature"]),
@@ -162,10 +163,8 @@ let package = Package(
         .target(
             name: "PipelineFeature",
             dependencies: [
-                "AIOutputSDK",
-                .product(name: "CLISDK", package: "SwiftCLI"),
-                "GitSDK",
                 "PipelineSDK",
+                "PipelineService",
             ],
             path: "Sources/Features/PipelineFeature"
         ),
@@ -215,6 +214,16 @@ let package = Package(
             name: "MarkdownPlannerService",
             dependencies: [],
             path: "Sources/Services/MarkdownPlannerService"
+        ),
+        .target(
+            name: "PipelineService",
+            dependencies: [
+                "AIOutputSDK",
+                .product(name: "CLISDK", package: "SwiftCLI"),
+                "GitSDK",
+                "PipelineSDK",
+            ],
+            path: "Sources/Services/PipelineService"
         ),
         .target(
             name: "ProviderRegistryService",
@@ -493,7 +502,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PipelineFeatureTests",
-            dependencies: ["PipelineFeature", "PipelineSDK"],
+            dependencies: ["PipelineFeature", "PipelineSDK", "PipelineService"],
             path: "Tests/Features/PipelineFeatureTests"
         ),
         .testTarget(
