@@ -11,14 +11,13 @@ public struct ReviewStepHandler: StepHandler {
     {"type":"object","properties":{"fixes":{"type":"array","items":{"type":"object","properties":{"description":{"type":"string"},"prompt":{"type":"string"}},"required":["description","prompt"]}}},"required":["fixes"]}
     """
 
-    public init(client: any AIClient, cliClient: CLIClient = CLIClient(printOutput: false)) {
+    public init(client: any AIClient, cliClient: CLIClient) {
         self.client = client
         self.cliClient = cliClient
     }
 
     public func execute(_ step: ReviewStep, context: PipelineContext) async throws -> [any PipelineStep] {
-        let workDir = context.workingDirectory ?? context.repoPath?.path ?? "."
-        let diff = await getGitDiff(scope: step.scope, workingDirectory: workDir)
+        let diff = try await getGitDiff(scope: step.scope, workingDirectory: context.workingDirectory)
 
         let prompt = buildReviewPrompt(step: step, diff: diff)
         let options = AIClientOptions(
@@ -38,7 +37,10 @@ public struct ReviewStepHandler: StepHandler {
             CodeChangeStep(
                 id: "\(step.id)-fix-\(index)",
                 description: fix.description,
-                prompt: fix.prompt
+                isCompleted: false,
+                prompt: fix.prompt,
+                skills: [],
+                context: .empty
             )
         }
     }
@@ -58,7 +60,7 @@ public struct ReviewStepHandler: StepHandler {
         """
     }
 
-    private func getGitDiff(scope: ReviewScope, workingDirectory: String) async -> String {
+    private func getGitDiff(scope: ReviewScope, workingDirectory: String) async throws -> String {
         let arguments: [String]
         switch scope {
         case .allSinceLastReview:
@@ -68,22 +70,30 @@ public struct ReviewStepHandler: StepHandler {
         case .stepIDs:
             arguments = ["diff", "HEAD"]
         }
-        let result = try? await cliClient.execute(
+        let result = try await cliClient.execute(
             command: "git",
             arguments: arguments,
             workingDirectory: workingDirectory,
             environment: nil,
             printCommand: false
         )
-        return result?.stdout.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard result.isSuccess else {
+            throw ReviewStepError.gitDiffFailed(
+                arguments: arguments.joined(separator: " "),
+                output: result.errorOutput
+            )
+        }
+        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
-private struct ReviewResult: Decodable, Sendable {
-    let fixes: [Fix]
-
-    struct Fix: Decodable, Sendable {
-        let description: String
-        let prompt: String
+enum ReviewStepError: Error, LocalizedError {
+    case gitDiffFailed(arguments: String, output: String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .gitDiffFailed(let arguments, let output):
+            return "Git diff failed with arguments: \(arguments)\nOutput: \(output)"
+        }
     }
 }

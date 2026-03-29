@@ -3,57 +3,12 @@ import PipelineSDK
 
 public struct ExecutePipelineUseCase: Sendable {
 
-    public struct Options: Sendable {
-        public let source: any PipelineSource
-        public let context: PipelineContext
-        public let handlers: [AnyStepHandler]
-
-        public init(
-            source: any PipelineSource,
-            context: PipelineContext,
-            handlers: [AnyStepHandler]
-        ) {
-            self.source = source
-            self.context = context
-            self.handlers = handlers
-        }
-    }
-
-    public struct Result: Sendable {
-        public let stepsExecuted: Int
-        public let allCompleted: Bool
-
-        public init(stepsExecuted: Int, allCompleted: Bool) {
-            self.stepsExecuted = stepsExecuted
-            self.allCompleted = allCompleted
-        }
-    }
-
-    public enum Progress: Sendable {
-        case stepStarted(stepDescription: String, index: Int, total: Int)
-        case stepOutput(text: String)
-        case stepCompleted(stepDescription: String, index: Int)
-        case stepsAppended(count: Int)
-        case allCompleted(stepsExecuted: Int)
-    }
-
-    public enum ExecuteError: Error, LocalizedError {
-        case noHandlerFound(stepDescription: String)
-
-        public var errorDescription: String? {
-            switch self {
-            case .noHandlerFound(let desc):
-                return "No handler registered for step: \(desc)"
-            }
-        }
-    }
-
     public init() {}
 
     public func run(
-        _ options: Options,
-        onProgress: (@Sendable (Progress) -> Void)? = nil
-    ) async throws -> Result {
+        _ options: ExecutePipelineOptions,
+        onProgress: (@Sendable (ExecutePipelineProgress) -> Void)? = nil
+    ) async throws -> ExecutePipelineResult {
         let pipeline = try await options.source.load()
 
         // Seed the local mutable array — the execution loop appends dynamic steps here
@@ -88,7 +43,7 @@ public struct ExecutePipelineUseCase: Sendable {
             }
 
             guard handled else {
-                throw ExecuteError.noHandlerFound(stepDescription: step.description)
+                throw ExecutePipelineError.noHandlerFound(stepDescription: step.description)
             }
 
             // Persist completion before moving on
@@ -107,6 +62,6 @@ public struct ExecutePipelineUseCase: Sendable {
         }
 
         onProgress?(.allCompleted(stepsExecuted: stepsExecuted))
-        return Result(stepsExecuted: stepsExecuted, allCompleted: true)
+        return ExecutePipelineResult(stepsExecuted: stepsExecuted, allCompleted: true)
     }
 }

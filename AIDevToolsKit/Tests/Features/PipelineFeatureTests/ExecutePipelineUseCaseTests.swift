@@ -14,7 +14,11 @@ private struct MockPipelineSource: PipelineSource {
         Pipeline(
             id: "mock-pipeline",
             steps: steps,
-            metadata: PipelineMetadata(name: "Mock")
+            metadata: PipelineMetadata(
+                name: "Mock",
+                sourceURL: nil,
+                createdAt: Date()
+            )
         )
     }
 
@@ -41,7 +45,11 @@ private actor TrackingPipelineSource: PipelineSource {
         Pipeline(
             id: "tracking-pipeline",
             steps: steps,
-            metadata: PipelineMetadata(name: "Tracking")
+            metadata: PipelineMetadata(
+                name: "Tracking",
+                sourceURL: nil,
+                createdAt: Date()
+            )
         )
     }
 
@@ -93,7 +101,23 @@ private struct DynamicInsertionHandler: StepHandler {
 struct ExecutePipelineUseCaseTests {
 
     private func makeStep(id: String, description: String = "", isCompleted: Bool = false) -> CodeChangeStep {
-        CodeChangeStep(id: id, description: description.isEmpty ? id : description, isCompleted: isCompleted, prompt: id)
+        CodeChangeStep(
+            id: id, 
+            description: description.isEmpty ? id : description, 
+            isCompleted: isCompleted, 
+            prompt: id,
+            skills: [],
+            context: .empty
+        )
+    }
+
+    private func makeTestContext() -> PipelineContext {
+        PipelineContext(
+            repoPath: URL(fileURLWithPath: "/tmp"),
+            workingDirectory: "/tmp",
+            gitBranch: nil,
+            accumulatedLogs: ""
+        )
     }
 
     // MARK: Sequential dispatch
@@ -110,9 +134,9 @@ struct ExecutePipelineUseCaseTests {
         let source = TrackingPipelineSource(steps: steps)
 
         let useCase = ExecutePipelineUseCase()
-        let options = ExecutePipelineUseCase.Options(
+        let options = ExecutePipelineOptions(
             source: source,
-            context: PipelineContext(),
+            context: makeTestContext(),
             handlers: [AnyStepHandler(handler)]
         )
 
@@ -135,9 +159,9 @@ struct ExecutePipelineUseCaseTests {
         let source = TrackingPipelineSource(steps: steps)
 
         let useCase = ExecutePipelineUseCase()
-        let options = ExecutePipelineUseCase.Options(
+        let options = ExecutePipelineOptions(
             source: source,
-            context: PipelineContext(),
+            context: makeTestContext(),
             handlers: [AnyStepHandler(handler)]
         )
 
@@ -159,9 +183,9 @@ struct ExecutePipelineUseCaseTests {
         let source = TrackingPipelineSource(steps: steps)
 
         let useCase = ExecutePipelineUseCase()
-        let options = ExecutePipelineUseCase.Options(
+        let options = ExecutePipelineOptions(
             source: source,
-            context: PipelineContext(),
+            context: makeTestContext(),
             handlers: [AnyStepHandler(handler)]
         )
 
@@ -185,9 +209,9 @@ struct ExecutePipelineUseCaseTests {
         let source = TrackingPipelineSource(steps: steps)
 
         let useCase = ExecutePipelineUseCase()
-        let options = ExecutePipelineUseCase.Options(
+        let options = ExecutePipelineOptions(
             source: source,
-            context: PipelineContext(),
+            context: makeTestContext(),
             handlers: [AnyStepHandler(handler)]
         )
 
@@ -207,11 +231,11 @@ struct ExecutePipelineUseCaseTests {
         let steps: [any PipelineStep] = [makeStep(id: "0")]
         let source = TrackingPipelineSource(steps: steps)
 
-        var progressEvents: [ExecutePipelineUseCase.Progress] = []
+        var progressEvents: [ExecutePipelineProgress] = []
         let useCase = ExecutePipelineUseCase()
-        let options = ExecutePipelineUseCase.Options(
+        let options = ExecutePipelineOptions(
             source: source,
-            context: PipelineContext(),
+            context: makeTestContext(),
             handlers: [AnyStepHandler(insertionHandler)]
         )
 
@@ -242,11 +266,11 @@ struct ExecutePipelineUseCaseTests {
         let steps: [any PipelineStep] = [makeStep(id: "0", description: "Step Zero")]
         let source = TrackingPipelineSource(steps: steps)
 
-        var progressEvents: [ExecutePipelineUseCase.Progress] = []
+        var progressEvents: [ExecutePipelineProgress] = []
         let useCase = ExecutePipelineUseCase()
-        let options = ExecutePipelineUseCase.Options(
+        let options = ExecutePipelineOptions(
             source: source,
-            context: PipelineContext(),
+            context: makeTestContext(),
             handlers: [AnyStepHandler(handler)]
         )
 
@@ -289,13 +313,13 @@ struct ExecutePipelineUseCaseTests {
         let source = TrackingPipelineSource(steps: steps)
 
         let useCase = ExecutePipelineUseCase()
-        let options = ExecutePipelineUseCase.Options(
+        let options = ExecutePipelineOptions(
             source: source,
-            context: PipelineContext(),
+            context: makeTestContext(),
             handlers: []
         )
 
-        await #expect(throws: ExecutePipelineUseCase.ExecuteError.self) {
+        await #expect(throws: ExecutePipelineError.self) {
             _ = try await useCase.run(options)
         }
     }

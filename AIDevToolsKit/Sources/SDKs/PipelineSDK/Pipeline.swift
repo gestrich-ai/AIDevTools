@@ -17,7 +17,7 @@ public struct PipelineMetadata: Sendable {
     public let sourceURL: URL?
     public let createdAt: Date
 
-    public init(name: String, sourceURL: URL? = nil, createdAt: Date = Date()) {
+    public init(name: String, sourceURL: URL?, createdAt: Date) {
         self.name = name
         self.sourceURL = sourceURL
         self.createdAt = createdAt

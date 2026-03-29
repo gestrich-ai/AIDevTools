@@ -11,8 +11,8 @@ public struct CreatePRStepHandler: StepHandler {
 
     public init(
         client: any AIClient,
-        cliClient: CLIClient = CLIClient(printOutput: false),
-        git: GitClient = GitClient()
+        cliClient: CLIClient,
+        git: GitClient
     ) {
         self.client = client
         self.cliClient = cliClient
@@ -20,19 +20,23 @@ public struct CreatePRStepHandler: StepHandler {
     }
 
     public func execute(_ step: CreatePRStep, context: PipelineContext) async throws -> [any PipelineStep] {
-        let workDir = context.workingDirectory ?? context.repoPath?.path ?? "."
         let branch: String
         if let contextBranch = context.gitBranch {
             branch = contextBranch
         } else {
-            branch = try await git.getCurrentBranch(workingDirectory: workDir)
+            branch = try await git.getCurrentBranch(workingDirectory: context.workingDirectory)
         }
 
         // Push the branch
-        try await git.push(remote: "origin", branch: branch, setUpstream: true, workingDirectory: workDir)
+        try await git.push(
+            remote: "origin", 
+            branch: branch, 
+            setUpstream: true, 
+            workingDirectory: context.workingDirectory
+        )
 
         // Detect repo slug for gh commands
-        let repoSlug = await detectRepo(workingDirectory: workDir)
+        let repoSlug = try await detectRepo(workingDirectory: context.workingDirectory)
 
         // Create draft PR
         var prCreateArgs = [
@@ -51,7 +55,7 @@ public struct CreatePRStepHandler: StepHandler {
         let prURLResult = try await cliClient.execute(
             command: "gh",
             arguments: prCreateArgs,
-            workingDirectory: workDir,
+            workingDirectory: context.workingDirectory,
             environment: nil,
             printCommand: false
         )
@@ -62,77 +66,105 @@ public struct CreatePRStepHandler: StepHandler {
             )
         }
         let prURL = prURLResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Validate PR URL is not empty
+        guard !prURL.isEmpty else {
+            throw CreatePRError.commandFailed(
+                command: "gh \(prCreateArgs.joined(separator: " "))",
+                output: "Empty PR URL returned"
+            )
+        }
 
         // Get PR number
         var prViewArgs = ["pr", "view", branch, "--json", "number"]
         if !repoSlug.isEmpty {
             prViewArgs += ["--repo", repoSlug]
         }
-        let prViewResult = try? await cliClient.execute(
+        let prViewResult = try await cliClient.execute(
             command: "gh",
             arguments: prViewArgs,
-            workingDirectory: workDir,
+            workingDirectory: context.workingDirectory,
             environment: nil,
             printCommand: false
         )
-        let prNumber = prViewResult.flatMap { parsePRNumber(from: $0.stdout) }
-
-        // Post PR summary comment via Claude
-        if let prNumber {
-            await postPRSummary(
-                prNumber: prNumber,
-                repoSlug: repoSlug,
-                workingDirectory: workDir
+        guard prViewResult.isSuccess else {
+            throw CreatePRError.commandFailed(
+                command: "gh \(prViewArgs.joined(separator: " "))",
+                output: prViewResult.errorOutput
             )
         }
+        let prNumber = try parsePRNumber(from: prViewResult.stdout)
 
-        _ = prURL
+        // Post PR summary comment via Claude
+        try await postPRSummary(
+            prNumber: prNumber,
+            repoSlug: repoSlug,
+            workingDirectory: context.workingDirectory
+        )
+
         return []
     }
 
-    private func postPRSummary(prNumber: String, repoSlug: String, workingDirectory: String) async {
-        do {
-            let summaryPrompt = """
-            You are reviewing a pull request. Analyze the changes made by running \
-            `git diff HEAD~1...HEAD` and write a concise markdown summary of what was changed \
-            and why. Output ONLY the markdown summary text.
-            """
-            let options = AIClientOptions(
-                dangerouslySkipPermissions: true,
-                workingDirectory: workingDirectory
+    private func postPRSummary(prNumber: String, repoSlug: String, workingDirectory: String) async throws {
+        let summaryPrompt = """
+        You are reviewing a pull request. Analyze the changes made by running \
+        `git diff HEAD~1...HEAD` and write a concise markdown summary of what was changed \
+        and why. Output ONLY the markdown summary text.
+        """
+        let options = AIClientOptions(
+            dangerouslySkipPermissions: true,
+            workingDirectory: workingDirectory
+        )
+        let summaryResult = try await client.run(prompt: summaryPrompt, options: options, onOutput: nil)
+        guard summaryResult.exitCode == 0 else {
+            throw CreatePRError.commandFailed(
+                command: "AI summary generation",
+                output: summaryResult.stderr
             )
-            let summaryResult = try await client.run(prompt: summaryPrompt, options: options, onOutput: nil)
-            let summary = summaryResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !summary.isEmpty else { return }
-
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("pr_comment_\(UUID().uuidString).md")
-            try summary.write(to: tempURL, atomically: true, encoding: .utf8)
-            defer { try? FileManager.default.removeItem(at: tempURL) }
-
-            var commentArgs = ["pr", "comment", prNumber, "--body-file", tempURL.path]
-            if !repoSlug.isEmpty {
-                commentArgs += ["--repo", repoSlug]
-            }
-            _ = try await cliClient.execute(
-                command: "gh",
-                arguments: commentArgs,
-                workingDirectory: workingDirectory,
-                environment: nil,
-                printCommand: false
+        }
+        
+        let summary = summaryResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !summary.isEmpty else { 
+            throw CreatePRError.commandFailed(
+                command: "AI summary generation", 
+                output: "Empty summary generated"
             )
-        } catch {
-            // Non-fatal: summary posting failure doesn't abort the pipeline
+        }
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pr_comment_\(UUID().uuidString).md")
+        try summary.write(to: tempURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        var commentArgs = ["pr", "comment", prNumber, "--body-file", tempURL.path]
+        if !repoSlug.isEmpty {
+            commentArgs += ["--repo", repoSlug]
+        }
+        let commentResult = try await cliClient.execute(
+            command: "gh",
+            arguments: commentArgs,
+            workingDirectory: workingDirectory,
+            environment: nil,
+            printCommand: false
+        )
+        guard commentResult.isSuccess else {
+            throw CreatePRError.commandFailed(
+                command: "gh \(commentArgs.joined(separator: " "))",
+                output: commentResult.errorOutput
+            )
         }
     }
 
-    private func detectRepo(workingDirectory: String) async -> String {
+    private func detectRepo(workingDirectory: String) async throws -> String {
         if let repo = ProcessInfo.processInfo.environment["GITHUB_REPOSITORY"], !repo.isEmpty {
             return repo
         }
-        guard let remoteURL = try? await git.remoteGetURL(workingDirectory: workingDirectory),
-              remoteURL.contains("github.com") else {
-            return ""
+        let remoteURL = try await git.remoteGetURL(workingDirectory: workingDirectory)
+        guard remoteURL.contains("github.com") else {
+            throw CreatePRError.commandFailed(
+                command: "repo detection",
+                output: "Remote URL does not contain github.com: \(remoteURL)"
+            )
         }
         return remoteURL
             .replacingOccurrences(of: "git@github.com:", with: "")
@@ -141,16 +173,14 @@ public struct CreatePRStepHandler: StepHandler {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func parsePRNumber(from jsonOutput: String) -> String? {
-        guard let data = jsonOutput.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let number = json["number"] as? Int else {
-            return nil
+    private func parsePRNumber(from jsonOutput: String) throws -> String {
+        guard let data = jsonOutput.data(using: .utf8) else {
+            throw CreatePRError.commandFailed(
+                command: "JSON parsing",
+                output: "Failed to encode JSON output as UTF-8"
+            )
         }
-        return String(number)
+        let response = try JSONDecoder().decode(PRViewResponse.self, from: data)
+        return String(response.number)
     }
-}
-
-private enum CreatePRError: Error {
-    case commandFailed(command: String, output: String)
 }

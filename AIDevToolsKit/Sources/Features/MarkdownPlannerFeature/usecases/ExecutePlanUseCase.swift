@@ -218,7 +218,9 @@ public struct ExecutePlanUseCase: Sendable {
                 id: String(nextIndex),
                 description: phase.description,
                 isCompleted: false,
-                prompt: phase.description
+                prompt: phase.description,
+                skills: [],
+                context: .empty
             )
             try await pipelineSource.markStepCompleted(completedStep)
 
