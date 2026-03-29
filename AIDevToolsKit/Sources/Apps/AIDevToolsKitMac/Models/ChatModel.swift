@@ -299,7 +299,7 @@ public final class ChatModel {
             continuation.finish()
             await consumeTask.value
 
-            await MainActor.run {
+            let responseText: String = await MainActor.run {
                 let displayName = providerDisplayName
                 if result.exitCode == 0 {
                     hasStartedSession = true
@@ -308,6 +308,7 @@ public final class ChatModel {
                     }
                 }
 
+                var rawText = ""
                 if let index = messages.firstIndex(where: { $0.id == assistantMessageId }) {
                     let existing = messages[index]
 
@@ -326,6 +327,9 @@ public final class ChatModel {
                             isComplete: true
                         )
                     } else {
+                        rawText = existing.contentBlocks.compactMap {
+                            if case .text(let t) = $0 { return t } else { return nil }
+                        }.joined()
                         let parser = StructuredOutputParser()
                         let strippedBlocks = existing.contentBlocks.map { block -> AIContentBlock in
                             if case .text(let text) = block {
@@ -344,10 +348,11 @@ public final class ChatModel {
                     }
                 }
                 state = .idle
+                return rawText
             }
 
             if result.exitCode == 0 {
-                await processStructuredOutputReplies(from: result.fullText)
+                await processStructuredOutputReplies(from: responseText)
             }
         } catch {
             await MainActor.run {
