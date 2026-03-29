@@ -81,7 +81,10 @@ Port the 3 KeychainSDK files from PRRadar as-is (minimal changes needed):
 6. Write tests: `SecurityCLIKeychainStore` round-trip (set/get/remove/allKeys), `EnvironmentKeychainStore` env var resolution, base64 encoding for multiline values
 7. Build: `swift build --target KeychainSDK`
 
-## - [ ] Phase 2: Create CredentialService in Services layer
+## - [x] Phase 2: Create CredentialService in Services layer
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Ported only credential parts of SettingsService (not AppSettings/config management); renamed to CredentialSettingsService to avoid confusion; service identifier uses `com.gestrich.AIDevTools`; CredentialResolver depends on existing EnvironmentSDK for DotEnvironmentLoader; kept alphabetical ordering of static constants and credential type iterations
 
 **Skills to read**: `swift-architecture`
 

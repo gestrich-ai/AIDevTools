@@ -21,6 +21,7 @@ let package = Package(
         .library(name: "ClaudePythonSDK", targets: ["ClaudePythonSDK"]),
         .library(name: "CodexCLISDK", targets: ["CodexCLISDK"]),
         .library(name: "ConcurrencySDK", targets: ["ConcurrencySDK"]),
+        .library(name: "CredentialService", targets: ["CredentialService"]),
         .library(name: "DataPathsService", targets: ["DataPathsService"]),
         .library(name: "EnvironmentSDK", targets: ["EnvironmentSDK"]),
         .library(name: "EvalFeature", targets: ["EvalFeature"]),
@@ -165,6 +166,14 @@ let package = Package(
                 "AIOutputSDK",
             ],
             path: "Sources/Services/ChatService"
+        ),
+        .target(
+            name: "CredentialService",
+            dependencies: [
+                "EnvironmentSDK",
+                "KeychainSDK",
+            ],
+            path: "Sources/Services/CredentialService"
         ),
         .target(
             name: "DataPathsService",
@@ -380,6 +389,11 @@ let package = Package(
             name: "ClaudePythonSDKTests",
             dependencies: ["ClaudePythonSDK"],
             path: "Tests/SDKs/ClaudePythonSDKTests"
+        ),
+        .testTarget(
+            name: "CredentialServiceTests",
+            dependencies: ["CredentialService", "KeychainSDK"],
+            path: "Tests/Services/CredentialServiceTests"
         ),
         .testTarget(
             name: "DataPathsServiceTests",
