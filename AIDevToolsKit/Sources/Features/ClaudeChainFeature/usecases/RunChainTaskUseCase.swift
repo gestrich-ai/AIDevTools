@@ -187,10 +187,12 @@ public struct RunChainTaskUseCase: Sendable {
         // Push branch
         try await git.push(remote: "origin", branch: branchName, setUpstream: true, workingDirectory: repoDir)
 
+        let repoSlug = await detectRepo(workingDirectory: repoDir)
+
         // Create draft PR
         let prTitle = buildPRTitle(projectName: options.projectName, task: task.description)
         let prBody = "Task \(task.index)/\(spec.totalTasks): \(task.description)"
-        let prURL = try GitHubOperations.runGhCommand(args: [
+        var prCreateArgs = [
             "pr", "create",
             "--draft",
             "--title", prTitle,
@@ -198,14 +200,22 @@ public struct RunChainTaskUseCase: Sendable {
             "--label", Constants.defaultPRLabel,
             "--head", branchName,
             "--base", baseBranch,
-        ])
-        .trimmingCharacters(in: .whitespacesAndNewlines)
+        ]
+        if !repoSlug.isEmpty {
+            prCreateArgs += ["--repo", repoSlug]
+        }
+        let prURL = try GitHubOperations.runGhCommand(args: prCreateArgs)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Get PR number
-        let prViewOutput = try GitHubOperations.runGhCommand(args: [
+        var prViewArgs = [
             "pr", "view", branchName,
             "--json", "number",
-        ])
+        ]
+        if !repoSlug.isEmpty {
+            prViewArgs += ["--repo", repoSlug]
+        }
+        let prViewOutput = try GitHubOperations.runGhCommand(args: prViewArgs)
         let prNumber = parsePRNumber(from: prViewOutput)
 
         if let prNumber {
@@ -260,7 +270,7 @@ public struct RunChainTaskUseCase: Sendable {
                     projectName: options.projectName,
                     task: task.description,
                     costBreakdown: costBreakdown,
-                    repo: await detectRepo(workingDirectory: repoDir),
+                    repo: repoSlug,
                     runID: "",
                     summaryContent: summaryContent,
                     progressInfo: [
@@ -277,10 +287,14 @@ public struct RunChainTaskUseCase: Sendable {
                 try comment.write(to: tempURL, atomically: true, encoding: .utf8)
                 defer { try? FileManager.default.removeItem(at: tempURL) }
 
-                _ = try GitHubOperations.runGhCommand(args: [
+                var commentArgs = [
                     "pr", "comment", prNumber,
                     "--body-file", tempURL.path,
-                ])
+                ]
+                if !repoSlug.isEmpty {
+                    commentArgs += ["--repo", repoSlug]
+                }
+                _ = try GitHubOperations.runGhCommand(args: commentArgs)
                 onProgress?(.prCommentPosted)
             } catch {
                 // Comment posting is non-fatal
