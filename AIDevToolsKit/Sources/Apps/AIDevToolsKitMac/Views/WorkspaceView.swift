@@ -30,6 +30,8 @@ struct WorkspaceView: View {
     @AppStorage("selectedRepositoryID") private var storedRepoID: String = ""
     @AppStorage("selectedPlanName") private var storedPlanName: String?
     @AppStorage("selectedSkillName") private var storedSkillName: String?
+    @AppStorage("sidebarPlansExpanded") private var plansExpanded = false
+    @AppStorage("sidebarSkillsExpanded") private var skillsExpanded = false
     @State private var selectedRepoID: UUID?
     @State private var selectedItem: WorkspaceItem?
     @State private var showGenerateSheet = false
@@ -54,28 +56,22 @@ struct WorkspaceView: View {
         } content: {
             if model.selectedRepository != nil {
                 List(selection: $selectedItem) {
-                    Section("Architecture Planner") {
-                        Text("Architecture Planner")
-                            .tag(WorkspaceItem.architecturePlanner)
-                    }
+                    Text("Architecture Planner")
+                        .tag(WorkspaceItem.architecturePlanner)
 
-                    Section("Claude Chain") {
-                        Text("Claude Chain")
-                            .tag(WorkspaceItem.claudeChain)
-                    }
+                    Text("Claude Chain")
+                        .tag(WorkspaceItem.claudeChain)
 
                     if let repo = model.selectedRepository, model.evalConfig(for: repo) != nil {
-                        Section("Evals") {
-                            Text("All Evals")
-                                .tag(WorkspaceItem.evals)
-                        }
+                        Text("Evals")
+                            .tag(WorkspaceItem.evals)
                     }
 
-                    Section("Plans") {
+                    Section("Plans", isExpanded: $plansExpanded) {
                         planListContent
                     }
 
-                    Section("Skills") {
+                    Section("Skills", isExpanded: $skillsExpanded) {
                         if model.isLoadingSkills {
                             HStack(spacing: 8) {
                                 ProgressView()

@@ -8,6 +8,7 @@ struct ClaudeChainView: View {
 
     let repository: RepositoryInfo
 
+    @AppStorage("selectedChainProject") private var storedChainProject: String = ""
     @State private var selectedProject: ChainProject?
 
     var body: some View {
@@ -34,9 +35,14 @@ struct ClaudeChainView: View {
             guard !newProjects.isEmpty else { return }
             if let selected = selectedProject {
                 selectedProject = newProjects.first(where: { $0.name == selected.name }) ?? newProjects.first
+            } else if !storedChainProject.isEmpty {
+                selectedProject = newProjects.first(where: { $0.name == storedChainProject }) ?? newProjects.first
             } else {
                 selectedProject = newProjects.first
             }
+        }
+        .onChange(of: selectedProject) { _, newValue in
+            storedChainProject = newValue?.name ?? ""
         }
     }
 
@@ -47,7 +53,7 @@ struct ClaudeChainView: View {
                 ChainProjectRow(project: project)
                     .tag(project)
             }
-            .frame(minWidth: 200, idealWidth: 250)
+            .frame(minWidth: 200, idealWidth: 250, maxHeight: .infinity)
 
             if let project = selectedProject {
                 ChainProjectDetailView(project: project, repository: repository)
@@ -57,8 +63,10 @@ struct ClaudeChainView: View {
                     systemImage: "link",
                     description: Text("Choose a chain project to view details.")
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
