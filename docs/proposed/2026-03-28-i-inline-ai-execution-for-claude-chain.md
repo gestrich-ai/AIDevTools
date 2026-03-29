@@ -87,7 +87,10 @@ Use `CredentialResolver` for GitHub auth the same way `ExecuteChainUseCase` alre
 
 Add `import AIOutputSDK` to `ClaudeChainFeature` target dependencies in `Package.swift` since it needs `AIClient` and `AIStreamEvent`.
 
-## - [ ] Phase 2: Add `run-task` CLI command
+## - [x] Phase 2: Add `run-task` CLI command
+
+**Skills used**: `swift-architecture`
+**Principles applied**: CLI command in Apps layer following existing patterns. Inline provider registry creation to avoid cross-app-layer dependency. Zero-flag auth via CredentialResolver auto-detection. Root command changed to AsyncParsableCommand to support async subcommands. Subcommand list sorted alphabetically per project conventions.
 
 **Skills to read**: `swift-architecture`
 

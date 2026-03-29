@@ -308,10 +308,15 @@ let package = Package(
         .target(
             name: "ClaudeChainCLI",
             dependencies: [
+                "AIOutputSDK",
+                "AnthropicSDK",
                 "ClaudeChainSDK",
                 "ClaudeChainService",
                 "ClaudeChainFeature",
+                "ClaudeCLISDK",
+                "CodexCLISDK",
                 "CredentialService",
+                "ProviderRegistryService",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             path: "Sources/Apps/ClaudeChainCLI"
