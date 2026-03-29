@@ -10,19 +10,19 @@ final class AutoStartServiceTests: XCTestCase {
     
     // MARK: - Test detect_changed_projects() method
     
-    func testDetectAddedProject() throws {
+    func testDetectAddedProject() async throws {
         // Mock PRService
         let mockPRService = TestMockPRService(repo: "owner/repo")
         let service = AutoStartService(repo: "owner/repo", prService: mockPRService)
-        
+
         // Note: This test would require mocking GitClient, which would need refactoring
         // to make the methods mockable. For now, we'll test the public interface behavior
         // The actual implementation calls GitClient.diffChangedFiles and GitClient.diffDeletedFiles
-        
+
         // This is a placeholder test showing the expected behavior
         // In practice, we'd need to mock the infrastructure dependencies
-        let projects = service.detectChangedProjects(refBefore: "abc123", refAfter: "def456")
-        
+        let projects = try await service.detectChangedProjects(refBefore: "abc123", refAfter: "def456")
+
         // The method should return projects found by GitClient
         let isValidProjectList = projects.isEmpty || projects.allSatisfy { project in
             project.changeType == .modified || project.changeType == .deleted

@@ -248,7 +248,10 @@ PRRadar CLI commands available through `ai-dev-tools-kit`.
 
 **Verification:** `swift build --target ai-dev-tools-kit` succeeds; `ai-dev-tools-kit prradar --help` lists subcommands.
 
-## - [ ] Phase 7: Migrate tests
+## - [x] Phase 7: Migrate tests
+
+**Skills used**: none
+**Principles applied**: Dropped 7 test files referencing removed types (`SettingsService`, `LoadSettingsUseCase`, `SaveConfigurationUseCase`, `RemoveConfigurationUseCase`, `SetDefaultConfigurationUseCase`, `SettingsModel`, `KeychainServiceTests`). Updated `import ClaudeSDK` → `import ClaudeAgentSDK` in `ClaudeAgentMessageTests`, `import GitHubSDK` → `import OctokitSDK` in `GitHistoryProviderTests`, and `DataPathsService.` → `PRRadarPhasePaths.` in three test files. Fixed a pre-existing async/throws mismatch in `AutoStartServiceTests` that was blocking `swift test` from running. `MacAppTests` skipped entirely since its only file tested the removed `SettingsModel`. All 48 migrated PRRadarModelsTests and 1 LoggingSDKTests pass; remaining `swift test` failures are pre-existing (`ClaudeChainServiceTests` missing fixtures, `SkillScannerSDKTests` environment-dependent).
 
 All PRRadar tests pass in AIDevTools.
 

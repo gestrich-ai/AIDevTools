@@ -570,6 +570,14 @@ let package = Package(
             path: "Tests/SDKs/KeychainSDKTests"
         ),
         .testTarget(
+            name: "LoggingSDKTests",
+            dependencies: [
+                .product(name: "Logging", package: "swift-log"),
+                "LoggingSDK",
+            ],
+            path: "Tests/SDKs/LoggingSDKTests"
+        ),
+        .testTarget(
             name: "MarkdownPlannerFeatureTests",
             dependencies: ["GitSDK", "MarkdownPlannerFeature", "MarkdownPlannerService", "RepositorySDK"],
             path: "Tests/Features/MarkdownPlannerFeatureTests"
@@ -588,6 +596,22 @@ let package = Package(
             name: "PipelineSDKTests",
             dependencies: ["PipelineSDK"],
             path: "Tests/SDKs/PipelineSDKTests"
+        ),
+        .testTarget(
+            name: "PRRadarModelsTests",
+            dependencies: [
+                "ClaudeAgentSDK",
+                "EnvironmentSDK",
+                "KeychainSDK",
+                "PRRadarCLIService",
+                "PRRadarConfigService",
+                "PRRadarModels",
+                "PRReviewFeature",
+            ],
+            path: "Tests/Services/PRRadarModelsTests",
+            resources: [
+                .copy("EffectiveDiffFixtures"),
+            ]
         ),
         .testTarget(
             name: "RepositorySDKTests",
