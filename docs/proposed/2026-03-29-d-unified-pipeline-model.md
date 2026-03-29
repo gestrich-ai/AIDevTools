@@ -197,7 +197,10 @@ Replace MarkdownPlanner's internal execution with the unified pipeline:
 
 Existing behavior must be preserved exactly: sequential execution, phase checkbox updates, log file output, plan moved to `completed/` on finish.
 
-## - [ ] Phase 6: Migrate ClaudeChain to Unified Pipeline (Features layer)
+## - [x] Phase 6: Migrate ClaudeChain to Unified Pipeline (Features layer)
+
+**Skills used**: `ai-dev-tools-review`
+**Principles applied**: Added `PipelineSDK` as a dependency of `ClaudeChainFeature` (no feature-to-feature dependency — same pattern as Phase 5). Replaced `spec.getNextAvailableTask()` with `MarkdownPipelineSource(format: .task).load()` to discover the next pending `CodeChangeStep`. Replaced `TaskService.markTaskComplete` with `pipelineSource.markStepCompleted(step)` for unified checkbox persistence. Step index and total/completed counts are now derived from the pipeline's `CodeChangeStep` array. `spec.content` is still loaded via `ProjectRepository` for the enriched AI prompt (spec content embedded). All git operations, scripts, and PR creation remain in `RunChainTaskUseCase` unchanged — only task discovery and persistence were migrated to the pipeline model.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `ai-dev-tools-review`
 

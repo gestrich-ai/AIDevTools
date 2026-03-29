@@ -4,6 +4,7 @@ import ClaudeChainService
 import CredentialService
 import Foundation
 import GitSDK
+import PipelineSDK
 
 public struct RunChainTaskUseCase: Sendable {
 
@@ -78,7 +79,7 @@ public struct RunChainTaskUseCase: Sendable {
     ) async throws -> Result {
         var phasesCompleted = 0
 
-        // Phase 1: Prepare — load project, find next task
+        // Phase 1: Prepare — load project config, then use MarkdownPipelineSource to find next task
         onProgress?(.preparingProject)
 
         let chainDir = options.repoPath.appendingPathComponent("claude-chain").path
@@ -92,6 +93,7 @@ public struct RunChainTaskUseCase: Sendable {
         let config = (try? repository.loadLocalConfiguration(project: project))
             ?? ProjectConfiguration.default(project: project)
 
+        // Load spec content for prompt building
         guard let spec = try repository.loadLocalSpec(project: project) else {
             onProgress?(.failed(phase: "prepare", error: "No spec.md found for project \(options.projectName)"))
             return Result(
@@ -100,7 +102,13 @@ public struct RunChainTaskUseCase: Sendable {
             )
         }
 
-        guard let task = spec.getNextAvailableTask() else {
+        // Use MarkdownPipelineSource (.task format) to discover the next pending task
+        let specURL = URL(fileURLWithPath: project.specPath)
+        let pipelineSource = MarkdownPipelineSource(fileURL: specURL, format: .task, appendCreatePRStep: false)
+        let pipeline = try await pipelineSource.load()
+        let codeSteps = pipeline.steps.compactMap { $0 as? CodeChangeStep }
+
+        guard let nextStep = codeSteps.first(where: { !$0.isCompleted }) else {
             onProgress?(.failed(phase: "prepare", error: "All tasks completed for project \(options.projectName)"))
             return Result(
                 success: false,
@@ -108,12 +116,17 @@ public struct RunChainTaskUseCase: Sendable {
             )
         }
 
-        onProgress?(.preparedTask(description: task.description, index: task.index, total: spec.totalTasks))
+        let stepIndex = (Int(nextStep.id) ?? 0) + 1
+        let totalSteps = codeSteps.count
+        let completedCount = codeSteps.filter { $0.isCompleted }.count
+
+        onProgress?(.preparedTask(description: nextStep.description, index: stepIndex, total: totalSteps))
         phasesCompleted += 1
 
         // Create branch
         let repoDir = options.repoPath.path
-        let branchName = PRService.formatBranchName(projectName: options.projectName, taskHash: task.taskHash)
+        let taskHash = TaskService.generateTaskHash(description: nextStep.description)
+        let branchName = PRService.formatBranchName(projectName: options.projectName, taskHash: taskHash)
         try await git.checkout(ref: branchName, createBranch: true, workingDirectory: repoDir)
 
         let baseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)
@@ -128,9 +141,9 @@ public struct RunChainTaskUseCase: Sendable {
         onProgress?(.preScriptCompleted(preResult))
         phasesCompleted += 1
 
-        // Phase 3: AI execution
-        let claudePrompt = buildTaskPrompt(task: task, spec: spec)
-        onProgress?(.runningAI(taskDescription: task.description))
+        // Phase 3: AI execution — use step.description embedded in the full spec prompt
+        let claudePrompt = buildTaskPrompt(taskDescription: nextStep.description, specContent: spec.content)
+        onProgress?(.runningAI(taskDescription: nextStep.description))
 
         let aiOptions = AIClientOptions(
             dangerouslySkipPermissions: true,
@@ -166,23 +179,22 @@ public struct RunChainTaskUseCase: Sendable {
         // Phase 5: Finalize — commit, push, create PR
         onProgress?(.finalizing)
 
-        // Commit any uncommitted changes
+        // Commit any uncommitted changes from the AI run
         let statusLines = try await git.status(workingDirectory: repoDir)
         if !statusLines.isEmpty {
             try await git.addAll(workingDirectory: repoDir)
             let stagedFiles = try await git.diffCachedNames(workingDirectory: repoDir)
             if !stagedFiles.isEmpty {
-                try await git.commit(message: "Complete task: \(task.description)", workingDirectory: repoDir)
+                try await git.commit(message: "Complete task: \(nextStep.description)", workingDirectory: repoDir)
             }
         }
 
-        // Mark task complete in spec.md
-        let specFilePath = project.specPath
-        try TaskService.markTaskComplete(planFile: specFilePath, task: task.description)
-        try await git.add(files: [specFilePath], workingDirectory: repoDir)
+        // Mark task complete via MarkdownPipelineSource (unified pipeline persistence)
+        try await pipelineSource.markStepCompleted(nextStep)
+        try await git.add(files: [specURL.path], workingDirectory: repoDir)
         let specStagedFiles = try await git.diffCachedNames(workingDirectory: repoDir)
         if !specStagedFiles.isEmpty {
-            try await git.commit(message: "Mark task \(task.index) as complete in spec.md", workingDirectory: repoDir)
+            try await git.commit(message: "Mark task \(stepIndex) as complete in spec.md", workingDirectory: repoDir)
         }
 
         // Push branch
@@ -191,8 +203,8 @@ public struct RunChainTaskUseCase: Sendable {
         let repoSlug = await detectRepo(workingDirectory: repoDir)
 
         // Create draft PR
-        let prTitle = buildPRTitle(projectName: options.projectName, task: task.description)
-        let prBody = "Task \(task.index)/\(spec.totalTasks): \(task.description)"
+        let prTitle = buildPRTitle(projectName: options.projectName, task: nextStep.description)
+        let prBody = "Task \(stepIndex)/\(totalSteps): \(nextStep.description)"
         var prCreateArgs = [
             "pr", "create",
             "--draft",
@@ -231,7 +243,7 @@ public struct RunChainTaskUseCase: Sendable {
 
         do {
             let summaryPrompt = buildSummaryPrompt(
-                taskDescription: task.description,
+                taskDescription: nextStep.description,
                 baseBranch: baseBranch
             )
             let summaryOptions = AIClientOptions(
@@ -269,14 +281,14 @@ public struct RunChainTaskUseCase: Sendable {
                     prNumber: prNumber,
                     prURL: prURL,
                     projectName: options.projectName,
-                    task: task.description,
+                    task: nextStep.description,
                     costBreakdown: costBreakdown,
                     repo: repoSlug,
                     runID: "",
                     summaryContent: summaryContent,
                     progressInfo: [
-                        "tasks_completed": spec.completedTasks + 1,
-                        "tasks_total": spec.totalTasks,
+                        "tasks_completed": completedCount + 1,
+                        "tasks_total": totalSteps,
                     ]
                 )
 
@@ -307,30 +319,30 @@ public struct RunChainTaskUseCase: Sendable {
 
         return Result(
             success: true,
-            message: "Task completed: \(task.description)",
+            message: "Task completed: \(nextStep.description)",
             prURL: prURL.isEmpty ? nil : prURL,
             prNumber: prNumber,
-            taskDescription: task.description,
+            taskDescription: nextStep.description,
             phasesCompleted: phasesCompleted
         )
     }
 
     // MARK: - Prompt Building
 
-    private func buildTaskPrompt(task: SpecTask, spec: SpecContent) -> String {
+    private func buildTaskPrompt(taskDescription: String, specContent: String) -> String {
         """
         Complete the following task from spec.md:
 
-        Task: \(task.description)
+        Task: \(taskDescription)
 
         Instructions: Read the entire spec.md file below to understand both WHAT to do and HOW to do it. \
         Follow all guidelines and patterns specified in the document.
 
         --- BEGIN spec.md ---
-        \(spec.content)
+        \(specContent)
         --- END spec.md ---
 
-        Now complete the task '\(task.description)' following all the details and instructions in the spec.md file above.
+        Now complete the task '\(taskDescription)' following all the details and instructions in the spec.md file above.
         """
     }
 
