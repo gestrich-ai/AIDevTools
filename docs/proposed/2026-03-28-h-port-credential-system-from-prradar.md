@@ -114,7 +114,10 @@ Port the credential-related parts of PRRadar's `PRRadarConfigService`. This does
 6. Write tests: `CredentialResolver` resolution order (env wins over keychain, keychain used when env missing), `CredentialSettingsService` CRUD with injected mock keychain
 7. Build: `swift build --target CredentialService`
 
-## - [ ] Phase 3: Create CredentialFeature in Features layer
+## - [x] Phase 3: Create CredentialFeature in Features layer
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Use cases are Sendable structs in Features layer; each use case wraps a single user action delegating to CredentialSettingsService; CredentialStatusLoader kept internal as an implementation detail; GitHubAuthStatus enum cases sorted alphabetically
 
 **Skills to read**: `swift-architecture`
 
