@@ -595,7 +595,7 @@ private func deployToGitHub(repoPath: String) async throws -> Int {
 
   Once merged, you can trigger the workflow:
     - Go to GitHub -> Actions -> \(workflowName) -> Run workflow
-    - Or run: gh workflow run "\(workflowName)" --ref \(baseBranch) -f project_name=\(projectName) -f base_branch=\(baseBranch)
+    - Or run: gh workflow run "\(workflowName)" --ref \(baseBranch) -f \(ClaudeChainConstants.workflowProjectNameKey)=\(projectName) -f \(ClaudeChainConstants.workflowBaseBranchKey)=\(baseBranch)
 """)
         }
     } else {
@@ -627,7 +627,7 @@ private func deployToGitHub(repoPath: String) async throws -> Int {
 
   You can trigger it later:
     - Go to GitHub -> Actions -> \(workflowName) -> Run workflow
-    - Or run: gh workflow run "\(workflowName)" --ref \(baseBranch) -f project_name=\(projectName) -f base_branch=\(baseBranch)
+    - Or run: gh workflow run "\(workflowName)" --ref \(baseBranch) -f \(ClaudeChainConstants.workflowProjectNameKey)=\(projectName) -f \(ClaudeChainConstants.workflowBaseBranchKey)=\(baseBranch)
 """)
             }
         }
@@ -652,8 +652,8 @@ Happy automating!
 /// Trigger the first workflow run
 private func runFirstWorkflow(repoPath: String, workflowName: String, projectName: String, baseBranch: String) async throws {
     let inputs = [
-        "project_name": projectName,
-        "base_branch": baseBranch
+        ClaudeChainConstants.workflowProjectNameKey: projectName,
+        ClaudeChainConstants.workflowBaseBranchKey: baseBranch
     ]
     
     print("""
@@ -684,11 +684,11 @@ private func runFirstWorkflow(repoPath: String, workflowName: String, projectNam
             print("  ❌ Failed to trigger workflow: \(error.localizedDescription)")
             print("\n  You can trigger it manually:")
             print("    - Go to GitHub -> Actions -> \(workflowName) -> Run workflow")
-            print("    - Or run: gh workflow run \"\(workflowName)\" --ref \(baseBranch) -f project_name=\(projectName) -f base_branch=\(baseBranch)")
+            print("    - Or run: gh workflow run \"\(workflowName)\" --ref \(baseBranch) -f \(ClaudeChainConstants.workflowProjectNameKey)=\(projectName) -f \(ClaudeChainConstants.workflowBaseBranchKey)=\(baseBranch)")
         }
     } else {
         print("  Skipped. You can trigger it later with:")
-        print("    gh workflow run \"\(workflowName)\" --ref \(baseBranch) -f project_name=\(projectName) -f base_branch=\(baseBranch)")
+        print("    gh workflow run \"\(workflowName)\" --ref \(baseBranch) -f \(ClaudeChainConstants.workflowProjectNameKey)=\(projectName) -f \(ClaudeChainConstants.workflowBaseBranchKey)=\(baseBranch)")
     }
 }
 

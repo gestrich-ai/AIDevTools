@@ -5,11 +5,13 @@ import CLISDK
 /// GitHub CLI and API operations
 public struct GitHubOperations: GitHubOperationsProtocol {
     
-    private let cliClient: CLIClient
+    private let githubClient: GitHubClient
+    private let repositoryService: RepositoryService
     
     /// Public initializer for dependency injection
-    public init(cliClient: CLIClient = CLIClient()) {
-        self.cliClient = cliClient
+    public init(githubClient: GitHubClient = GitHubClient(), repositoryService: RepositoryService = RepositoryService()) {
+        self.githubClient = githubClient
+        self.repositoryService = repositoryService
     }
     
     /// Run a GitHub CLI command and return stdout
@@ -17,8 +19,9 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     /// - Parameter args: gh command arguments (without 'gh' prefix)
     /// - Returns: Command stdout as string
     /// - Throws: GitHubAPIError if gh command fails
+    @available(*, deprecated, message: "Use specific GitHubClient methods instead")
     public static func runGhCommand(args: [String]) throws -> String {
-        // Use CLIClient synchronously for now to avoid changing all method signatures
+        // Use CLIClient synchronously for backwards compatibility
         let cliClient = CLIClient()
         
         // Create a sync wrapper using RunLoop
@@ -66,6 +69,23 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     /// - Parameter method: HTTP method (GET, POST, etc.)
     /// - Returns: Parsed JSON response
     /// - Throws: GitHubAPIError if API call fails
+    public func ghApiCall(endpoint: String, method: String = "GET") async throws -> [String: Any] {
+        let output = try await githubClient.apiCall(endpoint: endpoint, method: method)
+        
+        if output.isEmpty {
+            return [:]
+        }
+        
+        guard let data = output.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
+            throw GitHubAPIError("Invalid JSON from API: \(output)")
+        }
+        
+        return json
+    }
+    
+    /// Static version for backwards compatibility
+    @available(*, deprecated, message: "Use instance method instead")
     public static func ghApiCall(endpoint: String, method: String = "GET") throws -> [String: Any] {
         let output = try runGhCommand(args: ["api", endpoint, "--method", method])
         
@@ -607,39 +627,27 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     ///     
     ///     // Get repo from specific directory  
     ///     let repo = getCurrentRepository(workingDirectory: "/path/to/repo")
-    public static func getCurrentRepository(workingDirectory: String = ".") throws -> String {
-        // Get the remote origin URL using git
-        let result = try runGitCommand(args: ["remote", "get-url", "origin"], workingDirectory: workingDirectory)
-        let remoteUrl = result.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Parse the URL to extract owner/repo
-        // Handle both SSH (git@github.com:owner/repo.git) and HTTPS (https://github.com/owner/repo.git) formats
-        if let repo = extractRepoFromUrl(remoteUrl) {
-            return repo
-        } else {
-            throw GitHubAPIError("Unable to parse repository name from remote URL: \(remoteUrl)")
+    public func getCurrentRepository(workingDirectory: String = ".") async throws -> String {
+        do {
+            return try await repositoryService.getCurrentRepository(workingDirectory: workingDirectory)
+        } catch {
+            throw GitHubAPIError("Unable to determine repository: \(error.localizedDescription)")
         }
     }
     
-    /// Helper to run git commands
-    private static func runGitCommand(args: [String], workingDirectory: String) throws -> String {
-        let cliClient = CLIClient()
-        
-        // Create a sync wrapper using RunLoop
-        var result: ExecutionResult?
+    /// Static version for backwards compatibility
+    @available(*, deprecated, message: "Use instance method instead")
+    public static func getCurrentRepository(workingDirectory: String = ".") throws -> String {
+        // Create a sync wrapper for backwards compatibility
+        let repositoryService = RepositoryService()
+        var result: String?
         var error: Error?
         
         let semaphore = DispatchSemaphore(value: 0)
         
         Task {
             do {
-                result = try await cliClient.execute(
-                    command: "git",
-                    arguments: args,
-                    workingDirectory: workingDirectory,
-                    environment: nil,
-                    printCommand: false
-                )
+                result = try await repositoryService.getCurrentRepository(workingDirectory: workingDirectory)
             } catch let e {
                 error = e
             }
@@ -649,38 +657,14 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         semaphore.wait()
         
         if let error = error {
-            throw GitHubAPIError("Git command failed: \(args.joined(separator: " "))\n\(error.localizedDescription)")
+            throw GitHubAPIError("Unable to determine repository: \(error.localizedDescription)")
         }
         
         guard let result = result else {
-            throw GitHubAPIError("Git command failed: \(args.joined(separator: " "))\nNo result")
+            throw GitHubAPIError("Unable to determine repository: No result")
         }
         
-        if result.exitCode != 0 {
-            let stderr = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw GitHubAPIError("Git command failed: \(args.joined(separator: " "))\n\(stderr.isEmpty ? result.stdout : stderr)")
-        }
-        
-        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    /// Helper to extract owner/repo from various Git URL formats
-    private static func extractRepoFromUrl(_ url: String) -> String? {
-        // SSH format: git@github.com:owner/repo.git
-        if url.hasPrefix("git@github.com:") {
-            let withoutPrefix = String(url.dropFirst("git@github.com:".count))
-            let withoutSuffix = withoutPrefix.hasSuffix(".git") ? String(withoutPrefix.dropLast(4)) : withoutPrefix
-            return withoutSuffix
-        }
-        
-        // HTTPS format: https://github.com/owner/repo.git
-        if url.hasPrefix("https://github.com/") {
-            let withoutPrefix = String(url.dropFirst("https://github.com/".count))
-            let withoutSuffix = withoutPrefix.hasSuffix(".git") ? String(withoutPrefix.dropLast(4)) : withoutPrefix
-            return withoutSuffix
-        }
-        
-        return nil
+        return result
     }
     
     // MARK: - Workflow operations
