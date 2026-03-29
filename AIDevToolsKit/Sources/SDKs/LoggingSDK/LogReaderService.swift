@@ -23,4 +23,35 @@ public struct LogReaderService: Sendable {
             return date >= start && date <= end
         }
     }
+
+    public func readLastRun(marker: String) throws -> [LogEntry] {
+        let all = try readAll()
+        guard let lastStartIndex = all.lastIndex(where: { $0.message == marker }) else {
+            return []
+        }
+        return Array(all[lastStartIndex...])
+    }
+
+    public func readRuns(marker: String) throws -> [[LogEntry]] {
+        let all = try readAll()
+        var runs: [[LogEntry]] = []
+        var currentRun: [LogEntry] = []
+
+        for entry in all {
+            if entry.message == marker {
+                if !currentRun.isEmpty {
+                    runs.append(currentRun)
+                }
+                currentRun = [entry]
+            } else {
+                currentRun.append(entry)
+            }
+        }
+
+        if !currentRun.isEmpty {
+            runs.append(currentRun)
+        }
+
+        return runs
+    }
 }

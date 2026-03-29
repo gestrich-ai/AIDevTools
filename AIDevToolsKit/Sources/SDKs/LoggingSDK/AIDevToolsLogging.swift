@@ -7,9 +7,11 @@ public enum AIDevToolsLogging {
             .appendingPathComponent("Library/Logs/AIDevTools/aidevtools.log")
     }()
 
-    public static func bootstrap(logFileURL: URL = defaultLogFileURL) {
+    public static func bootstrap(appName: String = "AIDevTools", logFileURL: URL? = nil) {
+        let url = logFileURL ?? FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/\(appName)/\(appName.lowercased()).log")
         LoggingSystem.bootstrap { label in
-            FileLogHandler(label: label, fileURL: logFileURL)
+            FileLogHandler(label: label, fileURL: url)
         }
     }
 }

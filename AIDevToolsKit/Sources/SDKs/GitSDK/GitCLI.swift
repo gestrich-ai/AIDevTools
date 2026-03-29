@@ -29,6 +29,7 @@ public struct GitCLI {
     public struct Diff {
         @Flag("--cached") public var cached: Bool = false
         @Flag("--name-only") public var nameOnly: Bool = false
+        @Flag("--no-index") public var noIndex: Bool = false
         @Option("--diff-filter") public var diffFilter: String?
         @Positional public var ref1: String?
         @Positional public var ref2: String?
@@ -111,6 +112,25 @@ public struct GitCLI {
     @CLICommand("rev-parse")
     public struct RevParse {
         @Flag("--abbrev-ref") public var abbrevRef: Bool = false
-        @Positional public var ref: String
+        @Flag("--is-inside-work-tree") public var isInsideWorkTree: Bool = false
+        @Flag("--show-toplevel") public var showTopLevel: Bool = false
+        @Positional public var ref: String?
+    }
+
+    @CLICommand
+    public struct Clean {
+        @Flag("--force") public var force: Bool = false
+        @Flag("-d") public var directories: Bool = false
+    }
+
+    @CLICommand("merge-base")
+    public struct MergeBase {
+        @Positional public var ref1: String
+        @Positional public var ref2: String
+    }
+
+    @CLICommand
+    public struct Show {
+        @Positional public var spec: String
     }
 }

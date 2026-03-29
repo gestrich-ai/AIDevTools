@@ -228,6 +228,71 @@ public struct GitClient: Sendable {
 
     // Claude Chain specific logic moved to ClaudeChainService layer
 
+    @discardableResult
+    public func clean(force: Bool = true, directories: Bool = true, workingDirectory: String) async throws -> ExecutionResult {
+        let command = GitCLI.Clean(force: force, directories: directories)
+        return try await execute(command, workingDirectory: workingDirectory)
+    }
+
+    public func diffNoIndex(path1: String, path2: String) async throws -> String {
+        let command = GitCLI.Diff(noIndex: true, ref1: path1, ref2: path2)
+        let result = try await client.execute(
+            command: GitCLI.programName,
+            arguments: command.commandArguments,
+            workingDirectory: nil,
+            environment: environment,
+            printCommand: false
+        )
+        // exit code 1 means differences found (normal for no-index), 2+ means error
+        if result.exitCode > 1 {
+            throw CLIClientError.executionFailed(
+                command: "git diff --no-index",
+                exitCode: result.exitCode,
+                output: result.stderr
+            )
+        }
+        return result.stdout
+    }
+
+    public func getBlobHash(ref: String, path: String, workingDirectory: String) async throws -> String {
+        let command = GitCLI.RevParse(ref: "\(ref):\(path)")
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public func getFileContent(ref: String, path: String, workingDirectory: String) async throws -> String {
+        let command = GitCLI.Show(spec: "\(ref):\(path)")
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return result.stdout
+    }
+
+    public func getMergeBase(ref1: String, ref2: String, workingDirectory: String) async throws -> String {
+        let command = GitCLI.MergeBase(ref1: ref1, ref2: ref2)
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public func getRepoRoot(workingDirectory: String) async throws -> String {
+        let command = GitCLI.RevParse(showTopLevel: true)
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public func isGitRepository(at path: String) async throws -> Bool {
+        let command = GitCLI.RevParse(isInsideWorkTree: true)
+        do {
+            _ = try await execute(command, workingDirectory: path)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    public func isWorkingDirectoryClean(workingDirectory: String) async throws -> Bool {
+        let lines = try await status(workingDirectory: workingDirectory)
+        return lines.isEmpty
+    }
+
     func execute(_ command: some CLICommand, workingDirectory: String) async throws -> ExecutionResult {
         let result = try await client.execute(
             command: GitCLI.programName,

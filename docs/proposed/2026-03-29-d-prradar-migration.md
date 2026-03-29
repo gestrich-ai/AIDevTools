@@ -126,7 +126,10 @@ Get the foundation layer building by adding new package dependencies and copying
 
 **Verification:** `swift build --target OctokitSDK` and `swift build --target ClaudeAgentSDK` succeed.
 
-## - [ ] Phase 2: Extend overlapping SDKs with missing PRRadar functionality
+## - [x] Phase 2: Extend overlapping SDKs with missing PRRadar functionality
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added methods directly to existing SDK structs following the single-operation-per-method SDK pattern. `RevParse.ref` made optional to support flag-only invocations (e.g., `--show-toplevel`, `--is-inside-work-tree`). `diffNoIndex` calls `client.execute` directly (bypassing `GitClient.execute`'s exit-code guard) since `git diff --no-index` exits 1 for non-empty diffs. `bootstrap(appName:logFileURL:)` derives the log path from `appName` when no explicit URL is given, preserving backward compatibility with zero-arg callers.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
