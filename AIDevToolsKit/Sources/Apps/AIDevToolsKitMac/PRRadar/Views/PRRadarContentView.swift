@@ -18,10 +18,10 @@ struct PRRadarContentView: View {
     @State private var newPRNumber = ""
     @State private var showAnalyzeAll = false
     @State private var showAnalyzeAllProgress = false
-    @State private var analyzeAllRuleSets: [RuleSetGroup] = []
+    @State private var analyzeAllRuleSets: [RuleSetGroup]? = nil
     @State private var showRefreshProgress = false
     @State private var showAnalyzePR = false
-    @State private var analyzePRRuleSets: [RuleSetGroup] = []
+    @State private var analyzePRRuleSets: [RuleSetGroup]? = nil
     @State private var showDeleteConfirmation = false
     @State private var isDeletingPR = false
     @State private var isSearchingPR = false
@@ -64,7 +64,7 @@ struct PRRadarContentView: View {
                 .disabled(isPRActionDisabled)
 
                 Button {
-                    analyzePRRuleSets = []
+                    analyzePRRuleSets = nil
                     showAnalyzePR = true
                 } label: {
                     if let pr = selectedPR, pr.operationMode == .analyzing {
@@ -298,7 +298,7 @@ struct PRRadarContentView: View {
                     if let model = allPRsModel, model.analyzeAllState.isRunning {
                         showAnalyzeAllProgress = true
                     } else {
-                        analyzeAllRuleSets = []
+                        analyzeAllRuleSets = nil
                         showAnalyzeAll = true
                     }
                 } label: {
@@ -585,14 +585,50 @@ struct PRRadarContentView: View {
 
     @ViewBuilder
     private func rulePickerPopover(
-        ruleSets: [RuleSetGroup],
+        ruleSets: [RuleSetGroup]?,
         title: String,
         subtitle: String?,
         onLoad: @escaping () async -> Void,
         onStart: @escaping ([ReviewRule]) -> Void,
         onCancel: @escaping () -> Void
     ) -> some View {
-        if ruleSets.isEmpty {
+        if let ruleSets {
+            if ruleSets.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text("No Rules Configured")
+                        .font(.headline)
+                    Text("Add a rule path for this repo in Settings → Repositories → PR Radar.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 260)
+                    Button("Cancel") { onCancel() }
+                }
+                .padding()
+            } else {
+                VStack(spacing: 0) {
+                    Text(title)
+                        .font(.headline)
+                        .padding(.top, 12)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.bottom, 8)
+                    }
+                    Divider()
+                    RulePickerView(
+                        ruleSets: ruleSets,
+                        initialSelectedFilePaths: savedRuleFilePaths,
+                        onStart: onStart,
+                        onCancel: onCancel
+                    )
+                }
+            }
+        } else {
             VStack(spacing: 12) {
                 ProgressView()
                 Text("Loading rules...")
@@ -601,25 +637,6 @@ struct PRRadarContentView: View {
             }
             .padding()
             .task { await onLoad() }
-        } else {
-            VStack(spacing: 0) {
-                Text(title)
-                    .font(.headline)
-                    .padding(.top, 12)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 8)
-                }
-                Divider()
-                RulePickerView(
-                    ruleSets: ruleSets,
-                    initialSelectedFilePaths: savedRuleFilePaths,
-                    onStart: onStart,
-                    onCancel: onCancel
-                )
-            }
         }
     }
 
