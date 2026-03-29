@@ -95,9 +95,12 @@ public struct SyncPRUseCase: Sendable {
                             let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNumber)
                             if cachedUpdatedAt == currentUpdatedAt {
                                 let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
-                                continuation.yield(.completed(output: snapshot))
-                                continuation.finish()
-                                return
+                                // Only use cache if diff data was actually acquired (not just metadata from refresh)
+                                if snapshot.prDiff != nil {
+                                    continuation.yield(.completed(output: snapshot))
+                                    continuation.finish()
+                                    return
+                                }
                             }
                         }
                     }

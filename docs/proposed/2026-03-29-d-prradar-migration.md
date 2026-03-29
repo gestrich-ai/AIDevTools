@@ -265,7 +265,10 @@ All PRRadar tests pass in AIDevTools.
 
 **Verification:** `swift test` passes for all new and existing test targets.
 
-## - [ ] Phase 8: End-to-end CLI verification against PRRadar-TestRepo
+## - [x] Phase 8: End-to-end CLI verification against PRRadar-TestRepo
+
+**Skills used**: none
+**Principles applied**: Discovered and fixed a cache-coherency bug in `SyncPRUseCase`: the cache check returned early when `gh-pr.json` existed (written by `refresh`) but there was no analysis data on disk, causing `prDiff = nil` in Phase 2. Fix: skip the cache early-return if `prDiff` is nil, forcing a full sync so diff data is actually acquired. All four verification criteria passed: PR list refresh, regex analysis with 3 violations, comment posting (3 existing comments edited), and artifacts written to the correct `DataPathsService` path (`~/Desktop/ai-dev-tools/prradar/repos/PRRadar-TestRepo/23/`). `PRRadar-TestRepo` also required adding `credentialAccount: "gestrich"` to `repositories.json` and creating `prradar-settings.json` with the `rules/` path.
 
 Prove the migrated CLI works by running real analysis against `gestrich/PRRadar-TestRepo`.
 
