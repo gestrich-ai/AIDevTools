@@ -41,11 +41,12 @@ struct PRRadarContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        HSplitView {
             prListView
-        } detail: {
             detailView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
@@ -212,6 +213,7 @@ struct PRRadarContentView: View {
                                 .id(prModel.id)
                                 .tag(prModel)
                         }
+                        .listStyle(.sidebar)
                         .accessibilityIdentifier("prList")
                         .onChange(of: selectedPR) { _, newPR in
                             if let pr = newPR {
@@ -230,8 +232,8 @@ struct PRRadarContentView: View {
                 )
             }
         }
+        .frame(width: 300)
         .frame(maxHeight: .infinity, alignment: .top)
-        .navigationSplitViewColumnWidth(min: 200, ideal: 280)
     }
 
     private var prListFilterBar: some View {
@@ -338,12 +340,12 @@ struct PRRadarContentView: View {
                 HStack(spacing: 3) {
                     Image(systemName: "arrow.triangle.branch")
                         .foregroundStyle(.secondary)
-                    TextField("Base branch", text: $baseBranchFilter)
+                    TextField(allPRsModel?.config.defaultBaseBranch ?? "Base branch", text: $baseBranchFilter)
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 100)
                 }
                 .accessibilityIdentifier("baseBranchFilter")
-                .help("Filter by base branch (empty = config default)")
+                .help("Filter by base branch (empty uses config default: \(allPRsModel?.config.defaultBaseBranch ?? "main"))")
 
                 Menu(authorFilterLabel) {
                     Button("All Authors") { authorFilter = "" }
