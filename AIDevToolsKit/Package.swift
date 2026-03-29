@@ -154,6 +154,7 @@ let package = Package(
                 "GitSDK",
                 "LoggingSDK",
                 "MarkdownPlannerService",
+                "PipelineSDK",
                 "RepositorySDK",
             ],
             path: "Sources/Features/MarkdownPlannerFeature"

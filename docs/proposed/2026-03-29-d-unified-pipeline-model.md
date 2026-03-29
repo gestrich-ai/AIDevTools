@@ -182,7 +182,10 @@ Implement the concrete `StepHandler` types. Each lives in the Features layer and
 - Posts a PR summary comment via Claude (same as ClaudeChain's tail today)
 - Returns `[]`
 
-## - [ ] Phase 5: Migrate MarkdownPlanner to Unified Pipeline (Features layer)
+## - [x] Phase 5: Migrate MarkdownPlanner to Unified Pipeline (Features layer)
+
+**Skills used**: `swift-app-architecture:swift-architecture`, `ai-dev-tools-review`
+**Principles applied**: Added `PipelineSDK` as a dependency of `MarkdownPlannerFeature` (no feature-to-feature dependency — `MarkdownPlannerFeature` uses `PipelineSDK` types directly rather than importing `PipelineFeature`). Replaced the AI-based `getPhaseStatus` call with `loadPhaseStatus(from:)` which uses `MarkdownPipelineSource.load()` for local markdown parsing — eliminating a round-trip AI call on every status check. Added `markStepCompleted()` after each successful phase as a guaranteed persistence fallback (idempotent with Claude's own checkbox update). All other features preserved: time limits, `executeMode`, architecture diagram detection, `betweenPhases` callback, log writing, and plan move-to-completed.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `ai-dev-tools-review`
 
