@@ -400,7 +400,10 @@ When the AI modifies data via CLI, the app needs to reload. File-based trigger u
 - `AIDevToolsKitMac/Views/WorkspaceView.swift`
 - `AIDevToolsKitMac/Views/Chat/SystemPromptBuilder.swift`
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Created `AIResponseRouterTests` (routes correctly, decodes typed values, returns replies for queries, throws on malformed JSON, alphabetical descriptor sorting) and `StructuredOutputParserTests` (parses single/multiple XML tags, multi-line JSON, strips tags and trims). All 42 `AIOutputSDKTests` pass and the full package builds cleanly.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
