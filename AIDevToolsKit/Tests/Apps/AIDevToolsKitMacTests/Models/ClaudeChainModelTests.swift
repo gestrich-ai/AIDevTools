@@ -196,12 +196,12 @@ struct ClaudeChainModelTests {
         model.executeChain(projectName: "test", repoPath: tempDir)
 
         // Assert
-        guard case .executing(let name, let status) = model.state else {
+        guard case .executing(let progress) = model.state else {
             Issue.record("Expected .executing, got \(model.state)")
             return
         }
-        #expect(name == "test")
-        #expect(status == "Starting...")
+        #expect(progress.phases.count == 7)
+        #expect(progress.phases.allSatisfy { $0.status == .pending })
     }
 
     @Test("executeChain transitions to error for nonexistent project")

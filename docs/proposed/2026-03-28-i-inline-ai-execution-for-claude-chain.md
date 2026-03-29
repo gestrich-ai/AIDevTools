@@ -231,7 +231,10 @@ Phase list: Prepare → Pre-Script → AI Execution → Post-Script → Finalize
    - Script output → `chatModel.appendStatusMessage()`
 3. Show `ChatMessagesView(model: chatModel)` in the bottom panel
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Used Swift Testing framework with @Test and #expect. Followed AAA pattern. Fixed pre-existing ClaudeChainModelTests compilation error (ExecutionProgress tuple mismatch from Phase 4 changes). Tests cover error paths (no spec, all tasks completed), progress emission through prepare/script/AI phases, and script-not-found behavior. Full end-to-end PR creation/summary/comment flow verified by code inspection (requires GitHub remote for integration testing).
 
 **Skills to read**: `swift-testing`
 
