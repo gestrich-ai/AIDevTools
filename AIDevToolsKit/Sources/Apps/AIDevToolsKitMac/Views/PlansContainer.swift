@@ -78,12 +78,8 @@ struct PlansContainer: View {
                     PlanListRow(plan: plan)
                         .tag(plan.name)
                         .contextMenu {
-                            Button {
-                                let path = plan.relativePath(to: repository.path)
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(path, forType: .string)
-                            } label: {
-                                Label("Copy Path", systemImage: "doc.on.doc")
+                            Button("Copy Path", systemImage: "doc.on.doc") {
+                                copyToClipboard(plan.relativePath(to: repository.path))
                             }
                             Button(role: .destructive) {
                                 if selectedPlanName == plan.name { selectedPlanName = nil }
@@ -96,6 +92,11 @@ struct PlansContainer: View {
             }
             .listStyle(.sidebar)
         }
+    }
+
+    private func copyToClipboard(_ string: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
     }
 
     @ViewBuilder
