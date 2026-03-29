@@ -63,9 +63,10 @@ Each file uses `## - [ ]` headings. No special syntax — just the same format a
 - `docs/reviews/swift-testing.md`
 - `docs/reviews/build-quality.md`
 
-## - [ ] Phase 2: `ReviewTemplateService` (Service layer)
+## - [x] Phase 2: `ReviewTemplateService` (Service layer)
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added `ReviewTemplate` (Identifiable, Sendable) and `ReviewTemplateService` (Sendable struct) to `MarkdownPlannerService` — the natural Service-layer home since it already owns markdown planner models. `availableTemplates()` lists `.md` files sorted alphabetically; `loadSteps(from:)` strips the `## - [ ] ` / `## - [x] ` prefix and returns descriptions. No new target needed.
 
 A lightweight service that discovers and loads review template files. Lives in the Service layer since it's stateless file I/O with no AI calls.
 
