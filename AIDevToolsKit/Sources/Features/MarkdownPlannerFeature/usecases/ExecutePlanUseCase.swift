@@ -1,4 +1,5 @@
 import AIOutputSDK
+import CredentialService
 import Foundation
 import GitSDK
 import Logging
@@ -315,9 +316,20 @@ public struct ExecutePlanUseCase: Sendable {
         onOutput: (@Sendable (String) -> Void)?,
         onStreamEvent: (@Sendable (AIStreamEvent) -> Void)?
     ) async throws -> PhaseResult {
-        var ghInstructions = "\nWhen creating pull requests, ALWAYS use `gh pr create --draft`."
-        if let githubUser = repository?.githubUser {
-            ghInstructions += "\nBefore running any `gh` commands, first run `gh auth switch -u \(githubUser)`."
+        let ghInstructions = "\nWhen creating pull requests, ALWAYS use `gh pr create --draft`."
+
+        // Resolve GH_TOKEN from credential account
+        var environment: [String: String]?
+        if let credentialAccount = repository?.credentialAccount {
+            let resolver = CredentialResolver(
+                settingsService: CredentialSettingsService(),
+                githubAccount: credentialAccount
+            )
+            if case .token(let token) = resolver.getGitHubAuth() {
+                var env = ProcessInfo.processInfo.environment
+                env["GH_TOKEN"] = token
+                environment = env
+            }
         }
 
         let skillsToRead = Self.parseSkillsToRead(planPath: planPath, phaseIndex: phaseIndex)
@@ -348,6 +360,7 @@ public struct ExecutePlanUseCase: Sendable {
 
         let options = AIClientOptions(
             dangerouslySkipPermissions: true,
+            environment: environment,
             workingDirectory: repoPath?.path
         )
 

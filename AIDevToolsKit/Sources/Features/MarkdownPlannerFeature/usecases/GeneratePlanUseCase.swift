@@ -169,8 +169,8 @@ public struct GeneratePlanUseCase: Sendable {
             repoContextLines.append("PR base branch: \(pr.baseBranch)")
             repoContextLines.append("Branch naming: \(pr.branchNamingConvention)")
         }
-        if let githubUser = repo.githubUser {
-            repoContextLines.append("GitHub user: \(githubUser) (switch with `gh auth switch -u \(githubUser)` before any gh commands)")
+        if let credentialAccount = repo.credentialAccount {
+            repoContextLines.append("Credential account: \(credentialAccount) (GH_TOKEN injected automatically)")
         }
         let repoContext = repoContextLines.joined(separator: "\n")
 

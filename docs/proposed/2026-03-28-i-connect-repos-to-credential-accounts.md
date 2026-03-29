@@ -93,7 +93,10 @@ Add `--credential-account` option to the CLI repos command.
    - In the update logic, add: `if let credentialAccount { repo.credentialAccount = credentialAccount }`
 2. Build: `swift build --target AIDevToolsKitCLI`
 
-## - [ ] Phase 4: Wire CredentialResolver into ExecutePlanUseCase and GeneratePlanUseCase
+## - [x] Phase 4: Wire CredentialResolver into ExecutePlanUseCase and GeneratePlanUseCase
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Followed existing `ExecuteChainUseCase` pattern for `CredentialResolver` usage. Injected `GH_TOKEN` via `AIClientOptions.environment` (the AI subprocess environment) rather than `setenv()` to avoid global state. Replaced `gh auth switch` instructions in both use cases — `ExecutePlanUseCase` now injects the token directly, `GeneratePlanUseCase` now tells the plan that auth is handled automatically.
 
 **Skills to read**: `swift-architecture`
 

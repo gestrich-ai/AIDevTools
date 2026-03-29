@@ -148,6 +148,7 @@ let package = Package(
             name: "MarkdownPlannerFeature",
             dependencies: [
                 "AIOutputSDK",
+                "CredentialService",
                 "GitSDK",
                 "LoggingSDK",
                 "MarkdownPlannerService",
