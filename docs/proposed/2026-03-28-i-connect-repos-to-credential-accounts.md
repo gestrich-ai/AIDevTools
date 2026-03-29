@@ -150,7 +150,10 @@ Now that `credentialAccount` is wired through everywhere, remove the old `github
 
 **Migration note**: Existing `repositories.json` files with `githubUser` set will silently ignore the field (Codable skips unknown keys). Users will need to re-set the credential account for repos that had `githubUser` configured. This is acceptable since the field was just informational text before.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Verified build succeeds, all RepositorySDK tests pass (11/11), no remaining `githubUser` references in source code, no `gh auth switch` instructions in source code. Pre-existing SkillScannerTests failures are unrelated to this work.
 
 **Skills to read**: `swift-testing`
 
