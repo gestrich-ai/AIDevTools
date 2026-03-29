@@ -60,6 +60,8 @@ let package = Package(
                 "ChatFeature",
                 "ClaudeCLISDK",
                 "CodexCLISDK",
+                "CredentialFeature",
+                "CredentialService",
                 "DataPathsService",
                 "EnvironmentSDK",
                 "EvalFeature",

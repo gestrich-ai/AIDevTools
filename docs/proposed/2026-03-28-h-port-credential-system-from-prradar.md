@@ -138,7 +138,10 @@ Port the credential use cases from PRRadar's `PRReviewFeature`.
 5. Write tests: `SaveCredentialsUseCase` stores and returns updated statuses, `RemoveCredentialsUseCase` clears account
 6. Build: `swift build --target CredentialFeature`
 
-## - [ ] Phase 4: Add credential CLI commands to AIDevToolsKitCLI
+## - [x] Phase 4: Add credential CLI commands to AIDevToolsKitCLI
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Followed existing flat file convention for CLI commands (no subdirectory); registered subcommand alphabetically in EntryPoint; updated help text to reference `ai-dev-tools-kit` instead of PRRadar's `config`; Apps layer uses Feature and Service layer use cases directly per architecture pattern
 
 **Skills to read**: `swift-architecture`
 
