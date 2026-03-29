@@ -29,7 +29,7 @@ public struct RepositoryService: Sendable {
     ///     
     ///     // Get repo from specific directory  
     ///     let repo = getCurrentRepository(workingDirectory: "/path/to/repo")
-    public func getCurrentRepository(workingDirectory: String = ".") async throws -> String {
+    public func getCurrentRepository(workingDirectory: String) async throws -> String {
         // Get the remote origin URL using GitClient
         let remoteUrl = try await gitClient.remoteGetURL(name: "origin", workingDirectory: workingDirectory)
         

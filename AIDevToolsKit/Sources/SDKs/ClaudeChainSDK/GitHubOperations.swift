@@ -627,7 +627,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     ///     
     ///     // Get repo from specific directory  
     ///     let repo = getCurrentRepository(workingDirectory: "/path/to/repo")
-    public func getCurrentRepository(workingDirectory: String = ".") async throws -> String {
+    public func getCurrentRepository(workingDirectory: String) async throws -> String {
         do {
             return try await repositoryService.getCurrentRepository(workingDirectory: workingDirectory)
         } catch {
@@ -637,7 +637,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     
     /// Static version for backwards compatibility
     @available(*, deprecated, message: "Use instance method instead")
-    public static func getCurrentRepository(workingDirectory: String = ".") throws -> String {
+    public static func getCurrentRepository(workingDirectory: String) throws -> String {
         // Create a sync wrapper for backwards compatibility
         let repositoryService = RepositoryService()
         var result: String?
