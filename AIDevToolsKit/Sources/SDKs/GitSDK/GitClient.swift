@@ -153,9 +153,6 @@ public struct GitClient: Sendable {
     /// - Returns: Array of file paths that match the criteria
     /// - Throws: Error if git command fails
     public func diffChangedFiles(ref1: String, ref2: String, pattern: String, diffFilters: [DiffFilter] = [.added, .modified], workingDirectory: String) async throws -> [String] {
-        try await ensureRefAvailable(ref: ref1, workingDirectory: workingDirectory)
-        try await ensureRefAvailable(ref: ref2, workingDirectory: workingDirectory)
-        
         let command = GitCLI.Diff(
             cached: false,
             nameOnly: true,
@@ -186,9 +183,6 @@ public struct GitClient: Sendable {
     /// - Returns: Array of file paths that were deleted
     /// - Throws: Error if git command fails
     public func diffDeletedFiles(ref1: String, ref2: String, pattern: String, workingDirectory: String) async throws -> [String] {
-        try await ensureRefAvailable(ref: ref1, workingDirectory: workingDirectory)
-        try await ensureRefAvailable(ref: ref2, workingDirectory: workingDirectory)
-        
         let command = GitCLI.Diff(
             cached: false,
             nameOnly: true,

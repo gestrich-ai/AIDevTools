@@ -136,14 +136,19 @@ public struct GitOperationsService: Sendable {
         try oldText.write(to: oldPath, atomically: true, encoding: .utf8)
         try newText.write(to: newPath, atomically: true, encoding: .utf8)
 
-        var raw = try await gitClient.diffNoIndex(path1: oldPath.path, path2: newPath.path)
+        let raw = try await gitClient.diffNoIndex(path1: oldPath.path, path2: newPath.path)
         if raw.isEmpty { return "" }
 
-        let oldRel = String(oldPath.path.dropFirst())
-        let newRel = String(newPath.path.dropFirst())
-        raw = raw.replacingOccurrences(of: "a/\(oldRel)", with: "a/\(oldLabel)")
-        raw = raw.replacingOccurrences(of: "b/\(newRel)", with: "b/\(newLabel)")
+        return Self.rewriteDiffLabels(diff: raw, oldPath: oldPath.path, oldLabel: oldLabel, newPath: newPath.path, newLabel: newLabel)
+    }
 
-        return raw
+    /// Rewrites absolute temp file paths in a unified diff with human-readable labels.
+    public static func rewriteDiffLabels(diff: String, oldPath: String, oldLabel: String, newPath: String, newLabel: String) -> String {
+        let oldRel = String(oldPath.dropFirst())
+        let newRel = String(newPath.dropFirst())
+        var result = diff
+        result = result.replacingOccurrences(of: "a/\(oldRel)", with: "a/\(oldLabel)")
+        result = result.replacingOccurrences(of: "b/\(newRel)", with: "b/\(newLabel)")
+        return result
     }
 }

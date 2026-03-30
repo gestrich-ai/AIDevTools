@@ -283,7 +283,10 @@ With MCP handling tool dispatch natively, the XML tag infrastructure is no longe
 
 **Skills used**: `swift-app-architecture:swift-architecture`
 **Principles applied**: Audited all 18 SDK modules (90 Swift files) for public methods accepting or returning Feature/App layer types. All SDK public APIs exclusively use Swift standard library types, SDK-defined Codable/Sendable types, and primitives — zero imports of Feature or Service modules found. No changes required; architecture is fully compliant.
-## - [ ] Find SDK methods that orchestrate multiple operations and split them into single-operation methods
+## - [x] Find SDK methods that orchestrate multiple operations and split them into single-operation methods
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Found two violations. (1) `GitClient.diffChangedFiles` and `diffDeletedFiles` each called `ensureRefAvailable` for both refs internally — bundling a conditional fetch (I/O) with a git diff (CLI) in a single SDK method. Removed those calls so each method is a pure single-operation diff; moved the `ensureRefAvailable` calls up to `AutoStartService` (Feature layer), which now ensures refs once before both diffs. (2) `GitOperationsService.diffNoIndex` mixed temp file I/O, git CLI invocation, and path-label string rewriting. Extracted `rewriteDiffLabels(diff:oldPath:oldLabel:newPath:newLabel:) -> String` as a public static method so the string transformation is independently callable and testable; `diffNoIndex` now delegates to it.
 ## - [ ] Find SDK types that hold mutable state and refactor to stateless structs
 ## - [ ] Find error swallowing across all layers and replace with proper propagation
 ## - [ ] Verify use case types are structs conforming to `UseCase` or `StreamingUseCase`, not classes or actors

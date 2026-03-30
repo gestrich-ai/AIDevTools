@@ -60,7 +60,14 @@ public class AutoStartService {
         //     projects[0].name  // "my-project"
         //     projects[0].changeType  // ProjectChangeType.added
         var changedProjects: [AutoStartProject] = []
-        
+
+        do {
+            try await gitClient.ensureRefAvailable(ref: refBefore, workingDirectory: workingDirectory)
+            try await gitClient.ensureRefAvailable(ref: refAfter, workingDirectory: workingDirectory)
+        } catch {
+            print("Warning: Failed to ensure git refs are available: \(error)")
+        }
+
         // Detect added or modified spec files
         do {
             let changedFiles = try await gitClient.diffChangedFiles(ref1: refBefore, ref2: refAfter, pattern: specPattern, workingDirectory: workingDirectory)
@@ -81,7 +88,7 @@ public class AutoStartService {
         } catch {
             print("Warning: Failed to detect changed files: \(error)")
         }
-        
+
         // Detect deleted spec files
         do {
             let deletedFiles = try await gitClient.diffDeletedFiles(ref1: refBefore, ref2: refAfter, pattern: specPattern, workingDirectory: workingDirectory)
