@@ -29,18 +29,6 @@ public struct PRFilter: Sendable {
     }
 
     public func matches(_ metadata: PRMetadata) -> Bool {
-        if let dateFilter {
-            let since = dateFilter.date
-            let fractional = ISO8601DateFormatter()
-            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            let standard = ISO8601DateFormatter()
-            if let dateString = dateFilter.extractDate(metadata),
-               !dateString.isEmpty,
-               let date = fractional.date(from: dateString)
-                ?? standard.date(from: dateString) {
-                if date < since { return false }
-            }
-        }
         if let prState = state {
             if PRState(rawValue: metadata.state.uppercased()) != prState { return false }
         }
@@ -50,7 +38,27 @@ public struct PRFilter: Sendable {
         if let authorLogin, !authorLogin.isEmpty {
             if metadata.author.login != authorLogin { return false }
         }
+        if let dateFilter {
+            let since = dateFilter.date
+            if let dateString = dateFilter.extractDate(metadata),
+               !dateString.isEmpty,
+               let date = Self.parseDate(dateString) {
+                if date < since { return false }
+            }
+        }
         return true
+    }
+
+    private static let fractionalDateFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private static let standardDateFormatter = ISO8601DateFormatter()
+
+    private static func parseDate(_ string: String) -> Date? {
+        fractionalDateFormatter.date(from: string) ?? standardDateFormatter.date(from: string)
     }
 
 }

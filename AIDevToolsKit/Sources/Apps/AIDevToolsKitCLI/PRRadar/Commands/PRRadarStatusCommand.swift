@@ -16,7 +16,7 @@ struct PRRadarStatusCommand: AsyncParsableCommand {
     func run() async throws {
         let config = try resolvePRRadarConfigFromOptions(options)
 
-        let detail = LoadPRDetailUseCase(config: config).execute(prNumber: options.prNumber, commitHash: options.commit)
+        let detail = await LoadPRDetailUseCase(config: config).execute(prNumber: options.prNumber, commitHash: options.commit)
 
         struct DisplayStatus {
             let phase: PRRadarPhase

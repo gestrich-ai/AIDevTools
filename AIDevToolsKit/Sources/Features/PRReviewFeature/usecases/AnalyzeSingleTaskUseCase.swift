@@ -29,7 +29,12 @@ public struct AnalyzeSingleTaskUseCase: StreamingUseCase {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    let resolvedCommit: String?
+                    if let hash = commitHash {
+                        resolvedCommit = hash
+                    } else {
+                        resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    }
 
                     let evalsDir = PRRadarPhasePaths.phaseDirectory(
                         outputDir: config.resolvedOutputDir,

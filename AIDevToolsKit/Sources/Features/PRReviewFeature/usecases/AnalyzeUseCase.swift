@@ -30,7 +30,12 @@ public struct AnalyzeUseCase: StreamingUseCase {
 
             Task {
                 do {
-                    let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    let resolvedCommit: String?
+                    if let hash = commitHash {
+                        resolvedCommit = hash
+                    } else {
+                        resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    }
 
                     let allTasks = tasks.sorted().filter { analysisMode.matches($0) }
 
@@ -133,7 +138,12 @@ public struct AnalyzeUseCase: StreamingUseCase {
 
             Task {
                 do {
-                    let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    let resolvedCommit: String?
+                    if let hash = commitHash {
+                        resolvedCommit = hash
+                    } else {
+                        resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    }
 
                     let allTasks = tasks.sorted()
 
@@ -267,7 +277,7 @@ public struct AnalyzeUseCase: StreamingUseCase {
         prNumber: Int,
         continuation: AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error>.Continuation
     ) async throws {
-        guard let pr = PRDiscoveryService.loadGitHubPR(config: config, prNumber: prNumber),
+        guard let pr = await PRDiscoveryService.loadGitHubPR(config: config, prNumber: prNumber),
               let fullHash = pr.headRefOid else {
             continuation.yield(.log(text: "Warning: Could not read head commit from metadata — skipping checkout\n"))
             return
@@ -337,8 +347,13 @@ public struct AnalyzeUseCase: StreamingUseCase {
         )
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> PRReviewResult {
-        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) async throws -> PRReviewResult {
+        let resolvedCommit: String?
+        if let hash = commitHash {
+            resolvedCommit = hash
+        } else {
+            resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+        }
 
         let summary: PRReviewSummary = try PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .analyze, filename: PRRadarPhasePaths.summaryJSONFilename, commitHash: resolvedCommit

@@ -23,7 +23,13 @@ struct PRRadarPostCommentCommand: AsyncParsableCommand {
     func run() async throws {
         let config = try resolvePRRadarConfigFromOptions(options)
 
-        guard let commitSHA = options.commit ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber) else {
+        let resolvedCommitSHA: String?
+        if let hash = options.commit {
+            resolvedCommitSHA = hash
+        } else {
+            resolvedCommitSHA = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
+        }
+        guard let commitSHA = resolvedCommitSHA else {
             throw PRRadarCLIError.phaseFailed("Could not resolve commit SHA. Use --commit to specify one, or run 'sync' first.")
         }
 

@@ -15,7 +15,12 @@ struct PRRadarEffectiveDiffCommand: AsyncParsableCommand {
 
     func run() async throws {
         let config = try resolvePRRadarConfigFromOptions(options)
-        let commitHash = options.commit ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
+        let commitHash: String?
+        if let hash = options.commit {
+            commitHash = hash
+        } else {
+            commitHash = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
+        }
 
         guard let diff = PhaseOutputParser.loadEffectiveDiff(config: config, prNumber: options.prNumber, commitHash: commitHash) else {
             printPRRadarError("No effective diff found for PR #\(options.prNumber). Run 'sync' first.")

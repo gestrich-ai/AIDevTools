@@ -12,21 +12,26 @@ public struct LoadPRDetailUseCase: UseCase {
         self.config = config
     }
 
-    public func execute(prNumber: Int, commitHash: String? = nil) -> PRDetail {
-        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
-        let ghPR = PRDiscoveryService.loadGitHubPR(config: config, prNumber: prNumber)
+    public func execute(prNumber: Int, commitHash: String? = nil) async -> PRDetail {
+        let resolvedCommit: String?
+        if let hash = commitHash {
+            resolvedCommit = hash
+        } else {
+            resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+        }
+        let ghPR = await PRDiscoveryService.loadGitHubPR(config: config, prNumber: prNumber)
 
-        let syncSnapshot: SyncSnapshot? = {
-            let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+        let syncSnapshot: SyncSnapshot? = await {
+            let snapshot = await SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
             if snapshot.prDiff != nil {
                 return snapshot
             }
             return nil
         }()
 
-        let preparation = try? PrepareUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
-        let analysis = try? AnalyzeUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
-        let report = try? GenerateReportUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+        let preparation = try? await PrepareUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+        let analysis = try? await AnalyzeUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+        let report = try? await GenerateReportUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
         let phaseStatuses = PRRadarPhasePaths.allPhaseStatuses(
             outputDir: config.resolvedOutputDir,
@@ -34,7 +39,7 @@ public struct LoadPRDetailUseCase: UseCase {
             commitHash: resolvedCommit
         )
 
-        let postedComments = PRDiscoveryService.loadComments(config: config, prNumber: prNumber)
+        let postedComments = await PRDiscoveryService.loadComments(config: config, prNumber: prNumber)
 
         var imageURLMap: [String: String] = [:]
         var imageBaseDir: String?
@@ -63,7 +68,7 @@ public struct LoadPRDetailUseCase: UseCase {
             commitHash: resolvedCommit
         )
 
-        let reviewComments = FetchReviewCommentsUseCase(config: config)
+        let reviewComments = await FetchReviewCommentsUseCase(config: config)
             .execute(prNumber: prNumber, commitHash: resolvedCommit)
 
         return PRDetail(

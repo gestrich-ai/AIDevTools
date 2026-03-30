@@ -83,8 +83,8 @@ final class PRModel: Identifiable, Hashable {
 
     // MARK: - Summary Loading (lightweight, for list badges)
 
-    func loadSummary() {
-        let commitHash = SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+    func loadSummary() async {
+        let commitHash = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let analysisSummary: PRReviewSummary? = try? PhaseOutputParser.parsePhaseOutput(
             config: config,
@@ -96,7 +96,7 @@ final class PRModel: Identifiable, Hashable {
 
         guard let summary = analysisSummary else {
             analysisState = .unavailable
-            reviewComments = FetchReviewCommentsUseCase(config: config)
+            reviewComments = await FetchReviewCommentsUseCase(config: config)
                 .execute(prNumber: prNumber, minScore: 1, commitHash: commitHash)
             return
         }
@@ -114,7 +114,7 @@ final class PRModel: Identifiable, Hashable {
             postedCommentCount: postedCount
         )
 
-        reviewComments = FetchReviewCommentsUseCase(config: config)
+        reviewComments = await FetchReviewCommentsUseCase(config: config)
             .execute(prNumber: prNumber, minScore: 1, commitHash: commitHash)
     }
 
@@ -254,19 +254,16 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - Detail Loading
 
     private func reloadDetail(commitHash: String? = nil) {
-        let newDetail = LoadPRDetailUseCase(config: config)
-            .execute(prNumber: prNumber, commitHash: commitHash ?? detail?.commitHash)
-        applyDetail(newDetail)
-        detailLoaded = true
+        Task {
+            await reloadDetailAsync(commitHash: commitHash)
+        }
     }
 
     private func reloadDetailAsync(commitHash: String? = nil) async {
         let useCase = LoadPRDetailUseCase(config: config)
         let prNum = prNumber
         let commit = commitHash ?? detail?.commitHash
-        let newDetail = await Task.detached {
-            useCase.execute(prNumber: prNum, commitHash: commit)
-        }.value
+        let newDetail = await useCase.execute(prNumber: prNum, commitHash: commit)
         applyDetail(newDetail)
         detailLoaded = true
     }
@@ -322,8 +319,10 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func reloadReviewComments() {
-        reviewComments = FetchReviewCommentsUseCase(config: config)
-            .execute(prNumber: prNumber, minScore: 1, commitHash: currentCommitHash)
+        Task {
+            reviewComments = await FetchReviewCommentsUseCase(config: config)
+                .execute(prNumber: prNumber, minScore: 1, commitHash: currentCommitHash)
+        }
     }
 
     func loadDetail() {

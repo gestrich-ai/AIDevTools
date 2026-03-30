@@ -6,7 +6,7 @@ public protocol GitHubPRServiceProtocol: Sendable {
     func repository(useCache: Bool) async throws -> GitHubRepository
     func updatePR(number: Int) async throws
     func updatePRs(numbers: [Int]) async throws
-    func updateAllPRs() async throws -> [GitHubPullRequest]
+    func updateAllPRs(filter: PRFilter) async throws -> [GitHubPullRequest]
     func updateRepository() async throws
     func writePR(_ pr: GitHubPullRequest, number: Int) async throws
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws

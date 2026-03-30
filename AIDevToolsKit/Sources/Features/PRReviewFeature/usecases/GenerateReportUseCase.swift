@@ -28,7 +28,12 @@ public struct GenerateReportUseCase: StreamingUseCase {
 
             Task {
                 do {
-                    let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    let resolvedCommit: String?
+                    if let hash = commitHash {
+                        resolvedCommit = hash
+                    } else {
+                        resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    }
                     let scoreThreshold = Int(minScore ?? "5") ?? 5
 
                     continuation.yield(.log(text: "Generating report (min score: \(scoreThreshold))...\n"))
@@ -45,7 +50,7 @@ public struct GenerateReportUseCase: StreamingUseCase {
                         subdirectory: PRRadarPhasePaths.prepareFocusAreasSubdir, commitHash: resolvedCommit
                     )
 
-                    let baseRefName = PRDiscoveryService.loadGitHubPR(config: config, prNumber: prNumber)?.baseRefName
+                    let baseRefName = await PRDiscoveryService.loadGitHubPR(config: config, prNumber: prNumber)?.baseRefName
 
                     let reportService = ReportGeneratorService()
                     let report = try reportService.generateReport(
@@ -87,8 +92,13 @@ public struct GenerateReportUseCase: StreamingUseCase {
         }
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> ReportPhaseOutput {
-        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) async throws -> ReportPhaseOutput {
+        let resolvedCommit: String?
+        if let hash = commitHash {
+            resolvedCommit = hash
+        } else {
+            resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+        }
 
         let report: ReviewReport = try PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .report, filename: PRRadarPhasePaths.summaryJSONFilename, commitHash: resolvedCommit

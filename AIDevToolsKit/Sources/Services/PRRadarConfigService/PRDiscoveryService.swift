@@ -6,64 +6,85 @@ public enum PRDiscoveryService {
 
     // MARK: - Discovery
 
-    /// Discover PRs from the shared GitHub cache directory.
-    public static func discoverPRs(gitHubCacheURL: URL) -> [PRMetadata] {
-        let fileManager = FileManager.default
-        let path = gitHubCacheURL.path(percentEncoded: false)
+    /// Discover PRs from the shared GitHub cache directory. Performs disk I/O on a background thread.
+    public static func discoverPRs(gitHubCacheURL: URL) async -> [PRMetadata] {
+        await Task.detached(priority: .userInitiated) {
+            let fileManager = FileManager.default
+            let path = gitHubCacheURL.path(percentEncoded: false)
 
-        guard fileManager.fileExists(atPath: path),
-              let contents = try? fileManager.contentsOfDirectory(atPath: path)
-        else {
-            return []
-        }
+            guard fileManager.fileExists(atPath: path),
+                  let contents = try? fileManager.contentsOfDirectory(atPath: path)
+            else {
+                return []
+            }
 
-        let prs: [PRMetadata] = contents.compactMap { dirName in
-            guard let prNumber = Int(dirName) else { return nil }
-            guard let ghPR = loadGitHubPR(gitHubCacheURL: gitHubCacheURL, prNumber: prNumber),
-                  let metadata = try? ghPR.toPRMetadata() else { return nil }
-            return metadata
-        }
+            let prs: [PRMetadata] = contents.compactMap { dirName in
+                guard let prNumber = Int(dirName) else { return nil }
+                guard let ghPR = loadGitHubPRSync(gitHubCacheURL: gitHubCacheURL, prNumber: prNumber),
+                      let metadata = try? ghPR.toPRMetadata() else { return nil }
+                return metadata
+            }
 
-        return prs.sorted { $0.number > $1.number }
+            return prs.sorted { $0.number > $1.number }
+        }.value
     }
 
     /// Discover PRs using the shared GitHub cache path from the repository configuration.
-    public static func discoverPRs(config: RepositoryConfiguration) -> [PRMetadata] {
+    public static func discoverPRs(config: RepositoryConfiguration) async -> [PRMetadata] {
         guard let cacheURL = config.gitHubCacheURL else { return [] }
-        return discoverPRs(gitHubCacheURL: cacheURL)
+        return await discoverPRs(gitHubCacheURL: cacheURL)
     }
 
-    /// Discover a single PR using the appropriate path from the repository configuration.
-    public static func discoverPR(number: Int, config: RepositoryConfiguration) -> PRMetadata? {
-        discoverPRs(config: config).first(where: { $0.number == number })
+    /// Load a single PR's metadata directly from the cache without scanning all directories.
+    public static func discoverPR(number: Int, config: RepositoryConfiguration) async -> PRMetadata? {
+        guard let cacheURL = config.gitHubCacheURL else { return nil }
+        return await Task.detached(priority: .userInitiated) {
+            guard let ghPR = loadGitHubPRSync(gitHubCacheURL: cacheURL, prNumber: number),
+                  let metadata = try? ghPR.toPRMetadata() else { return nil }
+            return metadata
+        }.value
     }
 
     // MARK: - Load from GitHub cache
 
-    /// Load a PR from the shared GitHub cache directory.
-    public static func loadGitHubPR(gitHubCacheURL: URL, prNumber: Int) -> GitHubPullRequest? {
+    /// Load a PR from the shared GitHub cache directory. Performs disk I/O on a background thread.
+    public static func loadGitHubPR(gitHubCacheURL: URL, prNumber: Int) async -> GitHubPullRequest? {
+        await Task.detached(priority: .userInitiated) {
+            loadGitHubPRSync(gitHubCacheURL: gitHubCacheURL, prNumber: prNumber)
+        }.value
+    }
+
+    /// Load a PR using the shared GitHub cache path from the repository configuration.
+    public static func loadGitHubPR(config: RepositoryConfiguration, prNumber: Int) async -> GitHubPullRequest? {
+        guard let cacheURL = config.gitHubCacheURL else { return nil }
+        return await loadGitHubPR(gitHubCacheURL: cacheURL, prNumber: prNumber)
+    }
+
+    /// Load PR comments from the shared GitHub cache directory. Performs disk I/O on a background thread.
+    public static func loadComments(gitHubCacheURL: URL, prNumber: Int) async -> GitHubPullRequestComments? {
+        await Task.detached(priority: .userInitiated) {
+            loadCommentsSync(gitHubCacheURL: gitHubCacheURL, prNumber: prNumber)
+        }.value
+    }
+
+    /// Load PR comments using the shared GitHub cache path from the repository configuration.
+    public static func loadComments(config: RepositoryConfiguration, prNumber: Int) async -> GitHubPullRequestComments? {
+        guard let cacheURL = config.gitHubCacheURL else { return nil }
+        return await loadComments(gitHubCacheURL: cacheURL, prNumber: prNumber)
+    }
+
+    // MARK: - Sync helpers (for use inside Task.detached blocks)
+
+    static func loadGitHubPRSync(gitHubCacheURL: URL, prNumber: Int) -> GitHubPullRequest? {
         let url = gitHubCacheURL.appendingPathComponent("\(prNumber)/gh-pr.json")
         guard let data = FileManager.default.contents(atPath: url.path(percentEncoded: false)) else { return nil }
         return try? JSONDecoder().decode(GitHubPullRequest.self, from: data)
     }
 
-    /// Load a PR using the shared GitHub cache path from the repository configuration.
-    public static func loadGitHubPR(config: RepositoryConfiguration, prNumber: Int) -> GitHubPullRequest? {
-        guard let cacheURL = config.gitHubCacheURL else { return nil }
-        return loadGitHubPR(gitHubCacheURL: cacheURL, prNumber: prNumber)
-    }
-
-    /// Load PR comments from the shared GitHub cache directory.
-    public static func loadComments(gitHubCacheURL: URL, prNumber: Int) -> GitHubPullRequestComments? {
+    static func loadCommentsSync(gitHubCacheURL: URL, prNumber: Int) -> GitHubPullRequestComments? {
         let url = gitHubCacheURL.appendingPathComponent("\(prNumber)/gh-comments.json")
         guard let data = FileManager.default.contents(atPath: url.path(percentEncoded: false)) else { return nil }
         return try? JSONDecoder().decode(GitHubPullRequestComments.self, from: data)
-    }
-
-    /// Load PR comments using the shared GitHub cache path from the repository configuration.
-    public static func loadComments(config: RepositoryConfiguration, prNumber: Int) -> GitHubPullRequestComments? {
-        guard let cacheURL = config.gitHubCacheURL else { return nil }
-        return loadComments(gitHubCacheURL: cacheURL, prNumber: prNumber)
     }
 
     // MARK: - Repo slug helpers

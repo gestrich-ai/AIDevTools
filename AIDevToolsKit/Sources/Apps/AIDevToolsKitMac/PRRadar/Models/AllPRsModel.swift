@@ -1,9 +1,12 @@
 import Foundation
 import GitHubService
+import Logging
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModelsService
 import PRReviewFeature
+
+private let logger = Logger(label: "PRRadar.AllPRsModel")
 
 @Observable
 @MainActor
@@ -30,15 +33,16 @@ final class AllPRsModel {
 
     func load() async {
         state = .loading
-        discoverAndMerge()
+        await discoverAndMerge(filter: config.makeFilter())
     }
 
-    /// Reads PR metadata from the output directory and updates state, reusing existing
-    /// `PRModel` instances to keep SwiftUI `List` selection stable.
+    /// Reads PR metadata from the cache on a background thread, then updates state on the main actor.
     @discardableResult
-    private func discoverAndMerge() -> [PRModel] {
-        let metadata = PRDiscoveryService.discoverPRs(config: config)
-        let models = buildPRModels(from: metadata, reusingExisting: currentPRModels)
+    private func discoverAndMerge(filter: PRFilter? = nil) async -> [PRModel] {
+        let all = await PRDiscoveryService.discoverPRs(config: config)
+        let metadata = filter.map { f in all.filter { f.matches($0) } } ?? all
+        let prior = currentPRModels
+        let models = await buildPRModels(from: metadata, reusingExisting: prior)
         state = .ready(models)
         return models
     }
@@ -54,7 +58,7 @@ final class AllPRsModel {
             default: break
             }
         }
-        return discoverAndMerge().first(where: { $0.metadata.number == prNumber })
+        return await discoverAndMerge(filter: config.makeFilter()).first(where: { $0.metadata.number == prNumber })
     }
 
     enum SyncError: LocalizedError {
@@ -88,26 +92,29 @@ final class AllPRsModel {
                 case .prepareToolUse: break
                 case .taskEvent: break
                 case .completed(let result):
-                    updatedMetadata = PRDiscoveryService.discoverPRs(config: config)
+                    updatedMetadata = result.prList
                     startObservingChanges(service: result.gitHubPRService)
                 case .failed(let error, _):
+                    logger.error("refresh() use case failed", metadata: ["error": "\(error)", "repo": "\(config.name)"])
                     self.state = .failed(error, prior: prior)
                     refreshAllState = .completed(logs: refreshAllLogs + "Failed: \(error)\n")
                     return
                 }
             }
         } catch {
+            logger.error("refresh() threw", metadata: ["error": "\(error.localizedDescription)", "repo": "\(config.name)"])
             self.state = .failed(error.localizedDescription, prior: prior)
             refreshAllState = .completed(logs: refreshAllLogs + "Failed: \(error.localizedDescription)\n")
             return
         }
 
         guard let metadata = updatedMetadata else {
+            logger.warning("refresh() no metadata after use case completed", metadata: ["repo": "\(config.name)"])
             refreshAllState = .completed(logs: refreshAllLogs + "No PRs found.\n")
             return
         }
 
-        let mergedModels = buildPRModels(from: metadata, reusingExisting: prior)
+        let mergedModels = await buildPRModels(from: metadata, reusingExisting: prior)
         self.state = .ready(mergedModels)
 
         let prsToRefresh = filteredPRs(mergedModels, filter: filter)
@@ -215,10 +222,11 @@ final class AllPRsModel {
         changesTask = Task { [weak self] in
             for await prNumber in service.changes() {
                 guard let self else { break }
-                if let updated = PRDiscoveryService.discoverPR(number: prNumber, config: self.config),
-                   let model = self.currentPRModels?.first(where: { $0.prNumber == prNumber }) {
+                let updated = await PRDiscoveryService.discoverPR(number: prNumber, config: self.config)
+                guard let updated else { continue }
+                if let model = self.currentPRModels?.first(where: { $0.prNumber == prNumber }) {
                     model.updateMetadata(updated)
-                    model.loadSummary()
+                    await model.loadSummary()
                 }
             }
         }
@@ -234,7 +242,6 @@ final class AllPRsModel {
         default: return nil
         }
     }
-
 
     private var refreshAllLogs: String {
         if case .running(let logs, _, _) = refreshAllState { return logs }
@@ -258,18 +265,21 @@ final class AllPRsModel {
     /// - Parameters:
     ///   - metadata: The discovered PR metadata to build models from.
     ///   - prior: Existing models whose instances should be reused when IDs match.
-    private func buildPRModels(from metadata: [PRMetadata], reusingExisting prior: [PRModel]? = nil) -> [PRModel] {
+    private func buildPRModels(from metadata: [PRMetadata], reusingExisting prior: [PRModel]? = nil) async -> [PRModel] {
         let existingByID = Dictionary(uniqueKeysWithValues: (prior ?? []).map { ($0.id, $0) })
-        return metadata.map { meta -> PRModel in
+        var models: [PRModel] = []
+        for meta in metadata {
             if let existing = existingByID[meta.id] {
                 existing.updateMetadata(meta)
-                existing.loadSummary()
-                return existing
+                await existing.loadSummary()
+                models.append(existing)
+            } else {
+                let model = PRModel(metadata: meta, config: config)
+                await model.loadSummary()
+                models.append(model)
             }
-            let model = PRModel(metadata: meta, config: config)
-            model.loadSummary()
-            return model
         }
+        return models
     }
 
     enum State {

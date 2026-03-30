@@ -39,7 +39,7 @@ struct PRRadarAnalyzeCommand: AsyncParsableCommand {
             ruleNames: rule.isEmpty ? nil : rule
         )
 
-        let prepareOutput = try PrepareUseCase.parseOutput(config: config, prNumber: options.prNumber, commitHash: options.commit)
+        let prepareOutput = try await PrepareUseCase.parseOutput(config: config, prNumber: options.prNumber, commitHash: options.commit)
 
         let useCase = AnalyzeUseCase(config: config)
         let request = PRReviewRequest(

@@ -1,9 +1,12 @@
 import Foundation
 import GitHubService
+import Logging
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModelsService
 import UseCaseSDK
+
+private let logger = Logger(label: "PRRadar.FetchPRListUseCase")
 
 public struct FetchPRListUseCase: StreamingUseCase {
 
@@ -21,24 +24,25 @@ public struct FetchPRListUseCase: StreamingUseCase {
 
             Task {
                 do {
-                    guard let cacheURL = config.gitHubCacheURL else {
-                        throw FetchError.noDataRoot
-                    }
-
+                    let cacheURL = try config.requireGitHubCacheURL()
                     let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
 
                     continuation.yield(.log(text: "Fetching PRs from GitHub...\n"))
 
                     let service = GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
+                    let fetchedPRs = try await service.updateAllPRs(filter: PRFilter(state: .open))
 
-                    _ = try await service.updateAllPRs()
                     try await service.updateRepository()
 
-                    let discoveredPRs = PRDiscoveryService.discoverPRs(gitHubCacheURL: cacheURL)
-                    let filteredPRs = discoveredPRs.filter { filter.matches($0) }
+                    let filteredPRs = fetchedPRs
+                        .compactMap { try? $0.toPRMetadata() }
+                        .filter { filter.matches($0) }
+                        .sorted { $0.number > $1.number }
+
                     continuation.yield(.completed(output: FetchPRListResult(prList: filteredPRs, gitHubPRService: service)))
                     continuation.finish()
                 } catch {
+                    logger.error("execute() error", metadata: ["error": "\(error.localizedDescription)"])
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()
                 }
@@ -46,11 +50,4 @@ public struct FetchPRListUseCase: StreamingUseCase {
         }
     }
 
-    private enum FetchError: LocalizedError {
-        case noDataRoot
-
-        var errorDescription: String? {
-            "GitHub cache URL not configured; ensure dataRootURL is set on RepositoryConfiguration"
-        }
-    }
 }

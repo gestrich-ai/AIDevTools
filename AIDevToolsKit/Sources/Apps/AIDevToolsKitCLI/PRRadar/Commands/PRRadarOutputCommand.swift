@@ -24,7 +24,12 @@ struct PRRadarOutputCommand: AsyncParsableCommand {
 
     func run() async throws {
         let config = try resolvePRRadarConfigFromOptions(options)
-        let commitHash = options.commit ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
+        let commitHash: String?
+        if let hash = options.commit {
+            commitHash = hash
+        } else {
+            commitHash = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
+        }
 
         let phasesToCheck: [PRRadarPhase]
         if let phaseStr = phase {

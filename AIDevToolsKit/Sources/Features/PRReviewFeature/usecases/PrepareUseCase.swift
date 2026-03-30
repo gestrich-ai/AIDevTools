@@ -37,9 +37,14 @@ public struct PrepareUseCase: StreamingUseCase {
 
             Task {
                 do {
-                    let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    let resolvedCommit: String?
+                    if let hash = commitHash {
+                        resolvedCommit = hash
+                    } else {
+                        resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+                    }
 
-                    let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+                    let diffSnapshot = await SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
                     guard let prDiff = diffSnapshot.prDiff else {
                         continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
@@ -238,8 +243,13 @@ public struct PrepareUseCase: StreamingUseCase {
             .count
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> PrepareOutput {
-        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) async throws -> PrepareOutput {
+        let resolvedCommit: String?
+        if let hash = commitHash {
+            resolvedCommit = hash
+        } else {
+            resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+        }
 
         let focusFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: PRRadarPhasePaths.prepareFocusAreasSubdir, commitHash: resolvedCommit

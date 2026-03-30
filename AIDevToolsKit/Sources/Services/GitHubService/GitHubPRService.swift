@@ -51,8 +51,8 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
         }
     }
 
-    public func updateAllPRs() async throws -> [GitHubPullRequest] {
-        let prs = try await apiClient.listPullRequests(limit: .max, filter: PRFilter())
+    public func updateAllPRs(filter: PRFilter) async throws -> [GitHubPullRequest] {
+        let prs = try await apiClient.listPullRequests(limit: .max, filter: filter)
         for pr in prs {
             try await cache.writePR(pr, number: pr.number)
         }

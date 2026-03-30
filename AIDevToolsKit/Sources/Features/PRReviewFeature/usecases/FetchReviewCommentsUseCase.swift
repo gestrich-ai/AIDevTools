@@ -24,9 +24,7 @@ public struct FetchReviewCommentsUseCase: UseCase {
         cachedOnly: Bool
     ) async throws -> [ReviewComment] {
         if !cachedOnly {
-            guard let cacheURL = config.gitHubCacheURL else {
-                throw FetchError.noDataRoot
-            }
+            let cacheURL = try config.requireGitHubCacheURL()
             let (gitHub, gitOps) = try await GitHubServiceFactory.create(
                 repoPath: config.repoPath, githubAccount: config.githubAccount
             )
@@ -44,12 +42,17 @@ public struct FetchReviewCommentsUseCase: UseCase {
             )
         }
 
-        return execute(prNumber: prNumber, minScore: minScore, commitHash: commitHash)
+        return await execute(prNumber: prNumber, minScore: minScore, commitHash: commitHash)
     }
 
     /// Loads review comments from disk cache.
-    public func execute(prNumber: Int, minScore: Int = 5, commitHash: String? = nil) -> [ReviewComment] {
-        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+    public func execute(prNumber: Int, minScore: Int = 5, commitHash: String? = nil) async -> [ReviewComment] {
+        let resolvedCommit: String?
+        if let hash = commitHash {
+            resolvedCommit = hash
+        } else {
+            resolvedCommit = await SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+        }
 
         let evalsDir = PRRadarPhasePaths.phaseDirectory(
             outputDir: config.resolvedOutputDir, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
@@ -65,17 +68,10 @@ public struct FetchReviewCommentsUseCase: UseCase {
         )
 
         let posted: [GitHubReviewComment] =
-            PRDiscoveryService.loadComments(config: config, prNumber: prNumber)?.reviewComments ?? []
+            (await PRDiscoveryService.loadComments(config: config, prNumber: prNumber))?.reviewComments ?? []
 
         let reconciled = ViolationService.reconcile(pending: pending, posted: posted)
         return CommentSuppressionService.applySuppression(to: reconciled).comments
     }
 
-    private enum FetchError: LocalizedError {
-        case noDataRoot
-
-        var errorDescription: String? {
-            "GitHub cache URL not configured; ensure dataRootURL is set on RepositoryConfiguration"
-        }
-    }
 }

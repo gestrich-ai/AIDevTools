@@ -68,7 +68,7 @@ public struct PostCommentsUseCase: StreamingUseCase {
         let scoreThreshold = Int(minScore ?? "") ?? defaultMinScore
 
         let fetchUseCase = FetchReviewCommentsUseCase(config: config)
-        let allComments = fetchUseCase.execute(prNumber: prNumber, minScore: scoreThreshold, commitHash: commitHash)
+        let allComments = await fetchUseCase.execute(prNumber: prNumber, minScore: scoreThreshold, commitHash: commitHash)
 
         let categorized = categorize(allComments)
 

@@ -13,8 +13,13 @@ public struct SyncPRUseCase: StreamingUseCase {
         self.config = config
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) -> SyncSnapshot {
-        let resolvedCommit = commitHash ?? resolveCommitHash(config: config, prNumber: prNumber)
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) async -> SyncSnapshot {
+        let resolvedCommit: String?
+        if let hash = commitHash {
+            resolvedCommit = hash
+        } else {
+            resolvedCommit = await resolveCommitHash(config: config, prNumber: prNumber)
+        }
 
         let files = OutputFileReader.files(
             in: config,
@@ -23,9 +28,9 @@ public struct SyncPRUseCase: StreamingUseCase {
             commitHash: resolvedCommit
         )
 
-        let prDiff = LoadPRDiffUseCase(config: config).execute(prNumber: prNumber, commitHash: resolvedCommit)
+        let prDiff = await LoadPRDiffUseCase(config: config).execute(prNumber: prNumber, commitHash: resolvedCommit)
 
-        let comments = PRDiscoveryService.loadComments(config: config, prNumber: prNumber)
+        let comments = await PRDiscoveryService.loadComments(config: config, prNumber: prNumber)
 
         return SyncSnapshot(
             prDiff: prDiff,
@@ -38,8 +43,8 @@ public struct SyncPRUseCase: StreamingUseCase {
     }
 
     /// Resolve the commit hash from cached PR metadata, or scan analysis/ for the latest commit directory.
-    public static func resolveCommitHash(config: RepositoryConfiguration, prNumber: Int) -> String? {
-        if let pr = PRDiscoveryService.loadGitHubPR(config: config, prNumber: prNumber),
+    public static func resolveCommitHash(config: RepositoryConfiguration, prNumber: Int) async -> String? {
+        if let pr = await PRDiscoveryService.loadGitHubPR(config: config, prNumber: prNumber),
            let fullHash = pr.headRefOid {
             return String(fullHash.prefix(7))
         }
@@ -62,9 +67,7 @@ public struct SyncPRUseCase: StreamingUseCase {
 
                     try Task.checkCancellation()
 
-                    guard let cacheURL = config.gitHubCacheURL else {
-                        throw SyncError.noDataRoot
-                    }
+                    let cacheURL = try config.requireGitHubCacheURL()
                     let gitHubPRService = GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
 
                     if !force {
@@ -72,7 +75,7 @@ public struct SyncPRUseCase: StreamingUseCase {
                         if let cachedUpdatedAt = cachedPR?.updatedAt {
                             let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNumber)
                             if cachedUpdatedAt == currentUpdatedAt {
-                                let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
+                                let snapshot = await Self.parseOutput(config: config, prNumber: prNumber)
                                 if snapshot.prDiff != nil {
                                     continuation.yield(.completed(output: snapshot))
                                     continuation.finish()
@@ -124,7 +127,7 @@ public struct SyncPRUseCase: StreamingUseCase {
                         continuation.yield(.log(text: "  [\(author)] \(file):\(rc.line ?? 0) — \(rc.body.prefix(80))\n"))
                     }
 
-                    let snapshot = Self.parseOutput(config: config, prNumber: prNumber, commitHash: result.commitHash)
+                    let snapshot = await Self.parseOutput(config: config, prNumber: prNumber, commitHash: result.commitHash)
                     continuation.yield(.completed(output: snapshot))
                     continuation.finish()
                 } catch is CancellationError {
@@ -137,11 +140,4 @@ public struct SyncPRUseCase: StreamingUseCase {
         }
     }
 
-    private enum SyncError: LocalizedError {
-        case noDataRoot
-
-        var errorDescription: String? {
-            "GitHub cache URL not configured; ensure dataRootURL is set on RepositoryConfiguration"
-        }
-    }
 }
