@@ -22,6 +22,7 @@ public final class ChatModel {
     private let getSessionDetailsUseCase: GetSessionDetailsUseCase
     private let listSessionsUseCase: ListSessionsUseCase
     private let loadSessionMessagesUseCase: LoadSessionMessagesUseCase
+    private let mcpConfigPath: String?
     private let responseHandler: (any AIResponseHandling)?
     private let sendMessageUseCase: SendChatMessageUseCase
     private let systemPrompt: String?
@@ -37,6 +38,7 @@ public final class ChatModel {
         providerDisplayName: String,
         providerName: String,
         workingDirectory: String?,
+        mcpConfigPath: String? = nil,
         settings: ChatSettings = ChatSettings(),
         systemPrompt: String? = nil,
         responseHandler: (any AIResponseHandling)? = nil
@@ -44,6 +46,7 @@ public final class ChatModel {
         self.getSessionDetailsUseCase = getSessionDetailsUseCase
         self.listSessionsUseCase = listSessionsUseCase
         self.loadSessionMessagesUseCase = loadSessionMessagesUseCase
+        self.mcpConfigPath = mcpConfigPath
         self.responseHandler = responseHandler
         self.sendMessageUseCase = sendMessageUseCase
         self.settings = settings
@@ -76,6 +79,7 @@ public final class ChatModel {
             providerDisplayName: client.displayName,
             providerName: client.name,
             workingDirectory: configuration.workingDirectory,
+            mcpConfigPath: configuration.mcpConfigPath,
             settings: configuration.settings,
             systemPrompt: configuration.systemPrompt,
             responseHandler: configuration.responseHandler
@@ -260,6 +264,7 @@ public final class ChatModel {
         }
         let workingDir = await MainActor.run { workingDirectory }
         let descriptors = await MainActor.run { responseHandler?.responseDescriptors ?? [] }
+        let mcpPath = await MainActor.run { mcpConfigPath }
 
         let assistantMessageId = UUID()
         let placeholderMessage = ChatMessage(
@@ -278,6 +283,7 @@ public final class ChatModel {
             workingDirectory: workingDir,
             sessionId: resumeId,
             images: images,
+            mcpConfigPath: mcpPath,
             systemPrompt: systemPrompt,
             responseDescriptors: descriptors
         )
@@ -455,6 +461,7 @@ public final class ChatModel {
 
 public struct ChatModelConfiguration {
     public let client: any AIClient
+    public let mcpConfigPath: String?
     public let responseHandler: (any AIResponseHandling)?
     public let settings: ChatSettings
     public let systemPrompt: String?
@@ -462,12 +469,14 @@ public struct ChatModelConfiguration {
 
     public init(
         client: any AIClient,
+        mcpConfigPath: String? = nil,
         responseHandler: (any AIResponseHandling)? = nil,
         settings: ChatSettings = ChatSettings(),
         systemPrompt: String? = nil,
         workingDirectory: String? = nil
     ) {
         self.client = client
+        self.mcpConfigPath = mcpConfigPath
         self.responseHandler = responseHandler
         self.settings = settings
         self.systemPrompt = systemPrompt

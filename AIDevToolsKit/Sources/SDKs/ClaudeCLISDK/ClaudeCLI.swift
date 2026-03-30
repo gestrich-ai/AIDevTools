@@ -11,6 +11,7 @@ public struct Claude {
     @Flag("--continue") public var continueConversation: Bool = false
     @Flag("--dangerously-skip-permissions") public var dangerouslySkipPermissions: Bool = false
     @Option("--json-schema") public var jsonSchema: String?
+    @Option("--mcp-config") public var mcpConfig: String?
     @Option public var model: String?
     @Option("--output-format") public var outputFormat: String?
     @Flag("-p") public var printMode: Bool = false

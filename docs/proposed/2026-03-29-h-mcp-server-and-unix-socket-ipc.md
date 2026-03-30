@@ -138,7 +138,10 @@ Tool handlers call existing use cases directly rather than shelling out to CLI s
 - `AIDevToolsKit/Sources/Apps/AIDevToolsKitCLI/EntryPoint.swift` — add `MCPCommand` to subcommands (alphabetical)
 - `AIDevToolsKit/Package.swift` — add `modelcontextprotocol/swift-sdk` dependency
 
-## - [ ] Phase 4: Mac app integration — swap XML approach for MCP
+## - [x] Phase 4: Mac app integration — swap XML approach for MCP
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Threaded `mcpConfigPath` from `AIClientOptions` through `ClaudeProvider`, `SendChatMessageUseCase`, `ChatModelConfiguration`, and `ChatModel`. `ContextualChatPanel` writes the MCP config JSON to a stable path in Application Support and passes it to `ChatModelConfiguration`. `ViewChatContext` loses the `responseRouter` requirement; `PlansChatContext` drops all route handlers and only provides the three protocol properties. `SystemPromptBuilder` is deleted; `ContextualChatPanel` uses `context.chatSystemPrompt` directly.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
@@ -225,3 +228,17 @@ With MCP handling tool dispatch natively, the XML tag infrastructure is no longe
 - Execution/iteration chat in `MarkdownPlannerDetailView` unchanged
 - `ClaudeChainModel` chat unchanged
 - PRRadar unaffected
+## - [ ] Find new features architected as afterthoughts and refactor them to integrate cleanly with the existing system
+## - [ ] Identify the architectural layer for every new or modified file; read the reference doc for that layer before reviewing anything else
+## - [ ] Find code placed in the wrong layer entirely and move it to the correct one
+## - [ ] Find upward dependencies (lower layers importing higher layers) and remove them
+## - [ ] Find `@Observable` or `@MainActor` outside the Apps layer and move it up
+## - [ ] Find multi-step orchestration that belongs in a use case and extract it
+## - [ ] Find feature-to-feature imports and replace with a shared Service or SDK abstraction
+## - [ ] Find SDK methods that accept or return app-specific or feature-specific types and replace them with generic parameters
+## - [ ] Find SDK methods that orchestrate multiple operations and split them into single-operation methods
+## - [ ] Find SDK types that hold mutable state and refactor to stateless structs
+## - [ ] Find error swallowing across all layers and replace with proper propagation
+## - [ ] Verify use case types are structs conforming to `UseCase` or `StreamingUseCase`, not classes or actors
+## - [ ] Verify type names follow the `<Name><Layer>` convention and rename any that don't
+## - [ ] Verify both a Mac app model and a CLI command consume each new use case

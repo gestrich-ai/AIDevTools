@@ -13,6 +13,7 @@ extension ClaudeProvider: AIClient {
         var command = Claude(prompt: prompt)
         command.dangerouslySkipPermissions = options.dangerouslySkipPermissions
         command.jsonSchema = options.jsonSchema
+        command.mcpConfig = options.mcpConfigPath
         command.model = options.model
         command.outputFormat = ClaudeOutputFormat.streamJSON.rawValue
         command.resume = options.sessionId
@@ -40,6 +41,7 @@ extension ClaudeProvider: AIClient {
         var command = Claude(prompt: prompt)
         command.dangerouslySkipPermissions = options.dangerouslySkipPermissions
         command.jsonSchema = jsonSchema
+        command.mcpConfig = options.mcpConfigPath
         command.model = options.model
         command.resume = options.sessionId
         command.systemPrompt = options.systemPrompt

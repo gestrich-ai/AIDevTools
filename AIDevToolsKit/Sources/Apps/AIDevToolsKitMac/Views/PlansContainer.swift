@@ -32,11 +32,7 @@ struct PlansContainer: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: repository.id) {
-            chatContext = PlansChatContext(
-                plannerModel: markdownPlannerModel,
-                workspaceModel: model,
-                selectedPlanName: $selectedPlanName
-            )
+            chatContext = PlansChatContext(workspaceModel: model)
             await markdownPlannerModel.loadPlans(for: repository)
             if selectedPlanName == nil, !storedPlanName.isEmpty {
                 selectedPlanName = storedPlanName
