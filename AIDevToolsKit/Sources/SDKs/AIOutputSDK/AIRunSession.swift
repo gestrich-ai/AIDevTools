@@ -30,13 +30,9 @@ public struct AIRunSession: Sendable {
         guard let client else {
             throw AIRunSessionError.noClient
         }
-        do {
-            let result = try await client.run(prompt: prompt, options: options, onOutput: onOutput, onStreamEvent: onStreamEvent)
-            try? store.write(output: result.stdout, key: key)
-            return result
-        } catch {
-            throw error
-        }
+        let result = try await client.run(prompt: prompt, options: options, onOutput: onOutput, onStreamEvent: onStreamEvent)
+        try store.write(output: result.stdout, key: key)
+        return result
     }
 
     public func runStructured<T: Decodable & Sendable>(
@@ -58,7 +54,7 @@ public struct AIRunSession: Sendable {
             onOutput: onOutput,
             onStreamEvent: onStreamEvent
         )
-        try? store.write(output: result.rawOutput, key: key)
+        try store.write(output: result.rawOutput, key: key)
         return result
     }
 
@@ -84,7 +80,7 @@ public struct AIRunSession: Sendable {
                     onOutput: onOutput,
                     onStreamEvent: { event in continuation.yield(event) }
                 )
-                try? store.write(output: result.stdout, key: key)
+                try store.write(output: result.stdout, key: key)
                 continuation.finish()
                 await holder.succeed(result)
             } catch {
@@ -119,7 +115,7 @@ public struct AIRunSession: Sendable {
                     onOutput: onOutput,
                     onStreamEvent: { event in continuation.yield(event) }
                 )
-                try? store.write(output: result.rawOutput, key: key)
+                try store.write(output: result.rawOutput, key: key)
                 continuation.finish()
                 await holder.succeed(result)
             } catch {
@@ -148,7 +144,7 @@ public struct AIRunSession: Sendable {
         do {
             try await work(handler)
             let output = accumulator.value
-            try? store.write(output: output, key: key)
+            try store.write(output: output, key: key)
             return output
         } catch {
             let output = accumulator.value

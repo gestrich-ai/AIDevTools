@@ -84,7 +84,7 @@ public actor AnthropicProvider: AIClient {
             }
             return (role: role, content: content)
         }
-        try? await storage.save(sessionId: sessionId, messages: messageTuples)
+        try await storage.save(sessionId: sessionId, messages: messageTuples)
 
         return AIClientResult(exitCode: 0, sessionId: sessionId, stderr: "", stdout: fullResponse)
     }
