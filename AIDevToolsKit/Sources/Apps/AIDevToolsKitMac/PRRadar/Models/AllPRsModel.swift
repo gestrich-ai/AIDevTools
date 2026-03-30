@@ -1,4 +1,5 @@
 import Foundation
+import GitHubService
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModelsService
@@ -73,6 +74,8 @@ final class AllPRsModel {
     var showOnlyWithPendingComments: Bool = false
 
     let config: RepositoryConfiguration
+    private var gitHubPRService: (any GitHubPRServiceProtocol)?
+    private var changesTask: Task<Void, Never>?
 
     init(config: RepositoryConfiguration) {
         self.config = config
@@ -130,11 +133,12 @@ final class AllPRsModel {
         self.state = .refreshing(prior ?? [])
         refreshAllState = .running(logs: "Fetching PR list from GitHub...\n", current: 0, total: 0)
 
+        let sharedService = await makeGitHubPRService()
         let useCase = FetchPRListUseCase(config: config)
 
         var updatedMetadata: [PRMetadata]?
         do {
-            for try await progress in useCase.execute(filter: filter, repoSlug: nil) {
+            for try await progress in useCase.execute(filter: filter, repoSlug: nil, gitHubPRService: sharedService) {
                 switch progress {
                 case .running, .progress:
                     break
@@ -260,6 +264,37 @@ final class AllPRsModel {
             result = result.filter { $0.hasPendingComments }
         }
         return result
+    }
+
+    // MARK: - GitHub PR Service
+
+    private func makeGitHubPRService() async -> (any GitHubPRServiceProtocol)? {
+        if let existing = gitHubPRService {
+            return existing
+        }
+        guard let cacheURL = config.gitHubCacheURL else { return nil }
+        guard let (gitHub, _) = try? await GitHubServiceFactory.create(
+            repoPath: config.repoPath,
+            githubAccount: config.githubAccount
+        ) else { return nil }
+        let service = GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
+        startObservingChanges(service: service)
+        return service
+    }
+
+    private func startObservingChanges(service: any GitHubPRServiceProtocol) {
+        changesTask?.cancel()
+        gitHubPRService = service
+        changesTask = Task { [weak self] in
+            for await prNumber in service.changes() {
+                guard let self else { break }
+                if let updated = PRDiscoveryService.discoverPR(number: prNumber, config: self.config),
+                   let model = self.currentPRModels?.first(where: { $0.prNumber == prNumber }) {
+                    model.updateMetadata(updated)
+                    model.loadSummary()
+                }
+            }
+        }
     }
 
     // MARK: - Helpers

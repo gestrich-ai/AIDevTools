@@ -119,7 +119,10 @@ PRRadar's existing update-all mechanism (the CLI `update` command or equivalent)
 
 The `analysis/<commit>/` subdirectories (diff, prepare, evaluate, report) and `PRRadarPhasePaths` are **unchanged** — they remain PRRadar-owned and live in the PRRadar output directory.
 
-## - [ ] Phase 4: Wire observation into PRRadar and ClaudeChain models
+## - [x] Phase 4: Wire observation into PRRadar and ClaudeChain models
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Added `gitHubPRService` and `changesTask` properties to `AllPRsModel`. `makeGitHubPRService()` lazily creates and caches a `GitHubPRService` (using `GitHubServiceFactory` for the API client); `startObservingChanges(service:)` starts a `Task` iterating `service.changes()` and calls `updateMetadata`/`loadSummary` on the affected `PRModel` when a PR number is emitted. `FetchPRListUseCase.execute()` accepts an optional `gitHubPRService` parameter so `AllPRsModel.refresh()` can pass the shared service instance, ensuring writes from the use case flow through the subscribed stream. Added `GitHubService` as a dependency to both `AIDevToolsKitMac` and `ClaudeChainFeature` in `Package.swift`.
 
 **Skills to read**: `swift-architecture`
 

@@ -16,7 +16,8 @@ public struct FetchPRListUseCase: StreamingUseCase {
     public func execute(
         limit: String? = nil,
         filter: PRFilter,
-        repoSlug: String? = nil
+        repoSlug: String? = nil,
+        gitHubPRService: (any GitHubPRServiceProtocol)? = nil
     ) -> AsyncThrowingStream<PhaseProgress<[PRMetadata]>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .diff))
@@ -32,10 +33,10 @@ public struct FetchPRListUseCase: StreamingUseCase {
                     if let dataRootURL = config.dataRootURL {
                         let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
                         let cacheURL = dataRootURL.appendingPathComponent("github/\(normalizedSlug)")
-                        let gitHubPRService = GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
+                        let service = gitHubPRService ?? GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
 
-                        _ = try await gitHubPRService.updateAllPRs()
-                        try await gitHubPRService.updateRepository()
+                        _ = try await service.updateAllPRs()
+                        try await service.updateRepository()
 
                         let discoveredPRs = PRDiscoveryService.discoverPRs(gitHubCacheURL: cacheURL)
                         let filteredPRs = discoveredPRs.filter { filter.matches($0) }
