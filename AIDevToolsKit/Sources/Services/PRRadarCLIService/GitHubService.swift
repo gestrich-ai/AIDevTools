@@ -276,6 +276,77 @@ public struct GitHubService: Sendable {
         return result
     }
 
+    // MARK: - Review and CI Operations
+
+    public func listReviews(prNumber: Int) async throws -> [GitHubReview] {
+        let reviewList = try await octokitClient.listReviews(
+            owner: owner, repository: repo, number: prNumber
+        )
+        return reviewList.map { review in
+            GitHubReview(
+                id: String(review.id),
+                body: review.body,
+                state: review.state.rawValue,
+                author: review.user.toGitHubAuthor(),
+                submittedAt: review.submittedAt.map { formatISO8601($0) }
+            )
+        }
+    }
+
+    public func requestedReviewers(prNumber: Int) async throws -> [String] {
+        let output = try runGH(["pr", "view", String(prNumber), "--json", "requestedReviewers", "--repo", repoSlug])
+        guard let json = try JSONSerialization.jsonObject(with: output) as? [String: Any],
+              let reviewers = json["requestedReviewers"] as? [[String: Any]] else {
+            return []
+        }
+        return reviewers.compactMap { $0["login"] as? String }
+    }
+
+    public func checkRuns(prNumber: Int) async throws -> [GitHubCheckRun] {
+        let output = try runGH(["pr", "checks", String(prNumber), "--json", "name,status,conclusion", "--repo", repoSlug])
+        guard let items = try JSONSerialization.jsonObject(with: output) as? [[String: Any]] else {
+            return []
+        }
+        return items.map { item in
+            GitHubCheckRun(
+                name: item["name"] as? String ?? "",
+                status: item["status"] as? String ?? "",
+                conclusion: item["conclusion"] as? String
+            )
+        }
+    }
+
+    public func isMergeable(prNumber: Int) async throws -> Bool? {
+        let output = try runGH(["pr", "view", String(prNumber), "--json", "mergeable", "--repo", repoSlug])
+        guard let json = try JSONSerialization.jsonObject(with: output) as? [String: Any],
+              let value = json["mergeable"] as? String else {
+            return nil
+        }
+        switch value {
+        case "MERGEABLE": return true
+        case "CONFLICTING": return false
+        default: return nil
+        }
+    }
+
+    private func runGH(_ args: [String]) throws -> Data {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["gh"] + args
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        try process.run()
+        process.waitUntilExit()
+        let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+        guard process.terminationStatus == 0 else {
+            let errMsg = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            throw GitHubServiceError.ghCommandFailed(args: args, stderr: errMsg)
+        }
+        return data
+    }
+
     // MARK: - Factory
 
     /// Parse owner and repo name from a git remote URL.

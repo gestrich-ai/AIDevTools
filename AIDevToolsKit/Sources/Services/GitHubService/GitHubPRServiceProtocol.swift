@@ -1,14 +1,17 @@
 import PRRadarModelsService
 
 public protocol GitHubPRServiceProtocol: Sendable {
-    func pullRequest(number: Int, useCache: Bool) async throws -> GitHubPullRequest
+    func checkRuns(number: Int, useCache: Bool) async throws -> [GitHubCheckRun]
+    func changes() -> AsyncStream<Int>
     func comments(number: Int, useCache: Bool) async throws -> GitHubPullRequestComments
+    func isMergeable(number: Int) async throws -> Bool?
+    func pullRequest(number: Int, useCache: Bool) async throws -> GitHubPullRequest
     func repository(useCache: Bool) async throws -> GitHubRepository
+    func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview]
+    func updateAllPRs(filter: PRFilter) async throws -> [GitHubPullRequest]
     func updatePR(number: Int) async throws
     func updatePRs(numbers: [Int]) async throws
-    func updateAllPRs(filter: PRFilter) async throws -> [GitHubPullRequest]
     func updateRepository() async throws
-    func writePR(_ pr: GitHubPullRequest, number: Int) async throws
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws
-    func changes() -> AsyncStream<Int>
+    func writePR(_ pr: GitHubPullRequest, number: Int) async throws
 }

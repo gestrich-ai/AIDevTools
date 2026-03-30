@@ -112,7 +112,10 @@ New file(s) in `ClaudeChainService`:
   - `enrichedTasks: [EnrichedChainTask]`
   - `actionItems: [ChainActionItem]`
 
-## - [ ] Phase 3: Extend `GitHubPRServiceProtocol` and `GitHubPRService` with review/check support
+## - [x] Phase 3: Extend `GitHubPRServiceProtocol` and `GitHubPRService` with review/check support
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Added four methods to `GitHubAPIServiceProtocol` and three to `GitHubPRServiceProtocol` (public-facing). Extended `GitHubPRCacheService` with read/write pairs for `gh-reviews.json` and `gh-checks.json`. Implemented `listReviews` via OctoKit (same client already used in `getPullRequestComments`) and `requestedReviewers`/`checkRuns`/`isMergeable` via `gh` CLI (`gh pr view`/`gh pr checks`). Added `GitHubServiceError.ghCommandFailed` for CLI failures. `isMergeable` always fetches live (no caching) since merge state changes frequently.
 
 **Skills to read**: `swift-architecture`
 

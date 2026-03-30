@@ -72,6 +72,28 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
         try await cache.writeComments(comments, number: number)
     }
 
+    public func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview] {
+        if useCache, let cached = try await cache.readReviews(number: number) {
+            return cached
+        }
+        let fetched = try await apiClient.listReviews(prNumber: number)
+        try await cache.writeReviews(fetched, number: number)
+        return fetched
+    }
+
+    public func checkRuns(number: Int, useCache: Bool) async throws -> [GitHubCheckRun] {
+        if useCache, let cached = try await cache.readCheckRuns(number: number) {
+            return cached
+        }
+        let fetched = try await apiClient.checkRuns(prNumber: number)
+        try await cache.writeCheckRuns(fetched, number: number)
+        return fetched
+    }
+
+    public func isMergeable(number: Int) async throws -> Bool? {
+        try await apiClient.isMergeable(prNumber: number)
+    }
+
     public func changes() -> AsyncStream<Int> {
         changeStream
     }
