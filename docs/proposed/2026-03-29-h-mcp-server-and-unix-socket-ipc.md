@@ -267,7 +267,10 @@ With MCP handling tool dispatch natively, the XML tag infrastructure is no longe
 
 **Skills used**: `swift-app-architecture:swift-architecture`
 **Principles applied**: Found two SDK targets importing Service-layer modules: `EvalSDK` importing `EvalService` (`OutputService`, `RubricEvaluator`), and `ClaudeChainSDK` importing `ClaudeChainService` (`ProjectRepository`, `ScriptRunner`, `FileSystemOperations`, `GitHubOperations`). Fix was to move each violating file up to the Service layer it depended on. `ClaudeChainService` now depends on `ClaudeChainSDK` (correct downward direction) and `CLISDK`. `GitHubOperationsProtocol` stays in `ClaudeChainSDK` with the unused import removed. Corresponding tests moved from `EvalSDKTests`/`ClaudeChainSDKTests` to `EvalServiceTests`/`ClaudeChainServiceTests`.
-## - [ ] Find `@Observable` or `@MainActor` outside the Apps layer and move it up
+## - [x] Find `@Observable` or `@MainActor` outside the Apps layer and move it up
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Searched all layers for `@Observable` and `@MainActor` usage. `@Observable` is correctly confined to `Apps/AIDevToolsKitMac/Models/` and `Apps/AIDevToolsKitMac/PRRadar/Models/` — no violations. `@MainActor` appears on methods in `ArchitecturePlannerFeature` use cases (12 files) and `ArchitecturePlannerService/ArchitecturePlannerStore.createContext()` — but this is a SwiftData constraint: `ModelContext` is declared `@MainActor final class`, so any code that creates or accesses a `ModelContext` must be `@MainActor`. This cascades from `ArchitecturePlannerStore.createContext()` through all ArchitecturePlanner use cases. These are SwiftData-mandated, not architectural mistakes. The proper fix (migrating to `@ModelActor` background persistence) would be a significant refactor and is tracked as future work. No changes required; build confirmed clean.
 ## - [ ] Find multi-step orchestration that belongs in a use case and extract it
 ## - [ ] Find feature-to-feature imports and replace with a shared Service or SDK abstraction
 ## - [ ] Find SDK methods that accept or return app-specific or feature-specific types and replace them with generic parameters
