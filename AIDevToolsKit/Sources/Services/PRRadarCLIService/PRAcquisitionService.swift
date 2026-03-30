@@ -56,17 +56,11 @@ public struct PRAcquisitionService: Sendable {
     }
 
     /// Fetch all PR data artifacts and write them to disk.
-    ///
-    /// Metadata (`gh-pr.json`, `gh-comments.json`, `gh-repo.json`) is written to the shared
-    /// GitHub cache. Images and phase results remain in the PRRadar output directory under `metadata/`.
-    /// Diff artifacts are written to `analysis/<commit>/diff/`.
     public func acquire(
         prNumber: Int,
         outputDir: String,
         authorCache: AuthorCacheService
     ) async throws -> AcquisitionResult {
-        // --- Fetch PR metadata ---
-
         let repository: GitHubRepository
         var pullRequest: GitHubPullRequest
 
@@ -107,8 +101,6 @@ public struct PRAcquisitionService: Sendable {
         }
         let shortCommitHash = String(fullCommitHash.prefix(7))
 
-        // --- Write metadata to PRRadar output (images + phase result) ---
-
         let metadataDir = PRRadarPhasePaths.phaseDirectory(
             outputDir: outputDir,
             prNumber: prNumber,
@@ -136,8 +128,6 @@ public struct PRAcquisitionService: Sendable {
                 metadata: ["commitHash": shortCommitHash]
             )
         )
-
-        // --- Write diff artifacts to analysis/<commit>/diff/ ---
 
         let diffDir = PRRadarPhasePaths.phaseDirectory(
             outputDir: outputDir,

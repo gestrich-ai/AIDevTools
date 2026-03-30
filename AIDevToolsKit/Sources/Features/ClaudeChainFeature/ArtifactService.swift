@@ -196,23 +196,7 @@ public class ArtifactService {
          * Returns:
          *     Dict mapping PR number -> assignee username
          */
-        let artifacts = findProjectArtifacts(
-            repo: repo,
-            project: project,
-            workflowFile: workflowFile,
-            downloadMetadata: true
-        )
-        
-        let assignments: [Int: String] = [:]
-        for artifact in artifacts {
-            if let metadata = artifact.metadata {
-                let _ = metadata.prNumber
-                // Now TaskMetadata has assignee property available
-                // assignments[prNumber] = metadata.assignee
-            }
-        }
-        
-        return assignments
+        return [:]
     }
     
     // MARK: - Module utilities

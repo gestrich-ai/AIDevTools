@@ -1,8 +1,3 @@
-/// Configuration file loading and validation
-///
-/// NOTE: This module currently contains I/O operations which violates domain layer principles.
-/// The file loading logic should be refactored to infrastructure layer in a future phase.
-/// For now, keeping as-is to complete Phase 2 migration.
 import Foundation
 import Yams
 

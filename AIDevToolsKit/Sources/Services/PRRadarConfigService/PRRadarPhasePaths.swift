@@ -141,10 +141,7 @@ public enum PRRadarPhasePaths {
     ///
     /// - For `.metadata` (PR-scoped): `<output>/<prNumber>/metadata/`
     /// - For commit-scoped phases with `commitHash`: `<output>/<prNumber>/analysis/<commitHash>/<phase>/`
-    /// - For commit-scoped phases without `commitHash`: `<output>/<prNumber>/<phase>/` (legacy flat layout)
-    ///
-    /// The legacy flat layout is a transitional path. Once all callers provide a commit hash,
-    /// the nil-commitHash branch can be removed.
+    /// - For commit-scoped phases without `commitHash`: `<output>/<prNumber>/<phase>/`
     public static func phaseDirectory(
         outputDir: String,
         prNumber: Int,
