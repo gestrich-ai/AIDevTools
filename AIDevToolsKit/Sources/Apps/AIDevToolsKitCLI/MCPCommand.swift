@@ -13,7 +13,11 @@ struct MCPCommand: AsyncParsableCommand {
     )
 
     func run() async throws {
-        let server = Server(name: "ai-dev-tools-kit", version: "1.0.0")
+        let server = Server(
+            name: "ai-dev-tools-kit",
+            version: "1.0.0",
+            capabilities: .init(tools: .init())
+        )
 
         await server.withMethodHandler(ListTools.self) { _ in
             .init(tools: Self.allTools)

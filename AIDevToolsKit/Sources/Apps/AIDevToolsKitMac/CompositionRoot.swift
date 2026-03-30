@@ -57,11 +57,19 @@ struct CompositionRoot {
     }
 
     private static func writeMCPConfig() {
+        // Prefer the CLI binary next to the app bundle (Xcode builds); fall back to PATH lookup.
+        let siblingURL = Bundle.main.bundleURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("ai-dev-tools-kit")
+        let command = FileManager.default.fileExists(atPath: siblingURL.path)
+            ? siblingURL.path
+            : "ai-dev-tools-kit"
+
         let config = """
         {
           "mcpServers": {
             "ai-dev-tools-kit": {
-              "command": "ai-dev-tools-kit",
+              "command": "\(command)",
               "args": ["mcp"]
             }
           }
