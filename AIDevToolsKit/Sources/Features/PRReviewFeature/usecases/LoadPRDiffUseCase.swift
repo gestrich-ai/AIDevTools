@@ -1,6 +1,6 @@
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import UseCaseSDK
 
 public struct LoadPRDiffUseCase: UseCase {

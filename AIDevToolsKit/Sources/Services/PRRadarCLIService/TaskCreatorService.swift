@@ -6,7 +6,7 @@ import Crypto
 import Foundation
 import GitSDK
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 /// Pairs applicable rules with focus areas to create evaluation tasks.
 ///

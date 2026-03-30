@@ -4,7 +4,7 @@ import EnvironmentSDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import UseCaseSDK
 
 public struct AnalyzeSingleTaskUseCase: StreamingUseCase {

@@ -2,7 +2,7 @@ import Foundation
 import Logging
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import PRReviewFeature
 
 private let logger = Logger(label: "PRRadar.PRModel")

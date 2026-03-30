@@ -1,6 +1,6 @@
 import Foundation
 import ClaudeAgentSDK
-import PRRadarModels
+import PRRadarModelsService
 
 // MARK: - Result Model
 

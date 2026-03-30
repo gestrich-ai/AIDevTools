@@ -1,6 +1,6 @@
 import Foundation
 import GitSDK
-import PRRadarModels
+import PRRadarModelsService
 
 public enum RuleLoaderError: LocalizedError {
     case directoryNotFound(String)

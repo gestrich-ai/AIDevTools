@@ -1,5 +1,5 @@
 import Logging
-import PRRadarModels
+import PRRadarModelsService
 
 private let logger = Logger(label: "PRRadar.DiffCommentMapper")
 

@@ -1,5 +1,5 @@
 import AppKit
-import PRRadarModels
+import PRRadarModelsService
 import SwiftUI
 
 struct CommentApprovalView: View {

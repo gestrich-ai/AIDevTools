@@ -2,7 +2,7 @@ import Foundation
 import OctokitSDK
 import GitSDK
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 public struct PRAcquisitionService: Sendable {
 

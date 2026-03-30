@@ -1,4 +1,4 @@
-import PRRadarModels
+import PRRadarModelsService
 
 public struct PRReviewRequest: Sendable {
     public let prNumber: Int

@@ -1,5 +1,5 @@
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 public enum PhaseProgress<Output: Sendable>: Sendable {
     case running(phase: PRRadarPhase)

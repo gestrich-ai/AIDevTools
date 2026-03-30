@@ -1,6 +1,6 @@
 import EnvironmentSDK
 import Foundation
-import PRRadarModels
+import PRRadarModelsService
 
 public enum PRDiscoveryService {
     public static func discoverPRs(outputDir: String, repoSlug: String? = nil) -> [PRMetadata] {

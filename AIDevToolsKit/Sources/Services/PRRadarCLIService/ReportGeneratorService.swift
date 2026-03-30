@@ -1,6 +1,6 @@
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 public struct ReportGeneratorService: Sendable {
     public init() {}

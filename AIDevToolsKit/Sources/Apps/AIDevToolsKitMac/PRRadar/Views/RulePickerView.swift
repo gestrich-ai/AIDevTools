@@ -1,5 +1,5 @@
 import SwiftUI
-import PRRadarModels
+import PRRadarModelsService
 import PRRadarConfigService
 
 struct RulePickerView: View {

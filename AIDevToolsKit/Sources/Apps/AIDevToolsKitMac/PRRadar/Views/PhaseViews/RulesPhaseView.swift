@@ -1,4 +1,4 @@
-import PRRadarModels
+import PRRadarModelsService
 import SwiftUI
 
 struct RulesPhaseView: View {

@@ -1,6 +1,6 @@
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 /// Pure transformation service for converting evaluation results into PRComment instances.
 public struct ViolationService: Sendable {

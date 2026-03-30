@@ -1,6 +1,6 @@
 import AppKit
 import Logging
-import PRRadarModels
+import PRRadarModelsService
 import SwiftUI
 
 private let logger = Logger(label: "PRRadar.RichDiffViews")

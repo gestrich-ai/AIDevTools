@@ -1,4 +1,4 @@
-import PRRadarModels
+import PRRadarModelsService
 
 public enum TaskProgress: Sendable {
     case prompt(text: String)

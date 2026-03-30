@@ -1,6 +1,6 @@
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import UseCaseSDK
 
 public struct DeletePRDataUseCase: UseCase {

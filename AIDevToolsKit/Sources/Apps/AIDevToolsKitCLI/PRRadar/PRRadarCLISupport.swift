@@ -3,7 +3,7 @@ import DataPathsService
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import PRReviewFeature
 import RepositorySDK
 

@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 struct PRRadarFilterOptions: ParsableArguments {
     @Option(name: .long, help: "Date in YYYY-MM-DD format (filter by created date)")

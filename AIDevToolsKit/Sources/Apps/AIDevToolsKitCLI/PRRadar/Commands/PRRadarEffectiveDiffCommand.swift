@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import PRReviewFeature
 
 struct PRRadarEffectiveDiffCommand: AsyncParsableCommand {

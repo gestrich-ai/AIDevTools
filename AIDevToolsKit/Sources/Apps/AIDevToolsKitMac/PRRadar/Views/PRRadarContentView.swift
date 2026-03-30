@@ -1,6 +1,6 @@
 import Logging
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import PRReviewFeature
 import RepositorySDK
 import SwiftUI

@@ -1,5 +1,5 @@
 import Foundation
-import PRRadarModels
+import PRRadarModelsService
 
 public final class AuthorCacheService: Sendable {
     private let fileURL: URL

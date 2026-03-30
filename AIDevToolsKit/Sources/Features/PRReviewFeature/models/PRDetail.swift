@@ -1,5 +1,5 @@
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 public struct PRDetail: Sendable {
     public let commitHash: String?

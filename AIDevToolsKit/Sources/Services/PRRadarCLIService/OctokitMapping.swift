@@ -1,6 +1,6 @@
 import Foundation
 @preconcurrency import OctoKit
-import PRRadarModels
+import PRRadarModelsService
 
 // MARK: - Date Formatting
 

@@ -1,6 +1,6 @@
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 /// Service for writing phase_result.json files to track phase completion status.
 public enum PhaseResultWriter {

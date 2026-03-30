@@ -1,5 +1,5 @@
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import SwiftUI
 
 struct EvaluationOutputView: View {

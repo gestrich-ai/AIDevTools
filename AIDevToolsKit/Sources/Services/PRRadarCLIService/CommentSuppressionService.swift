@@ -1,5 +1,5 @@
 import Foundation
-import PRRadarModels
+import PRRadarModelsService
 
 /// Applies per-rule-per-file comment limits to a reconciled list of review comments.
 ///

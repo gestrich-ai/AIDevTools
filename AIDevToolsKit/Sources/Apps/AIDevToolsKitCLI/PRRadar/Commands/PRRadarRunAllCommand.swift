@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 import PRReviewFeature
 
 struct PRRadarRunAllCommand: AsyncParsableCommand {

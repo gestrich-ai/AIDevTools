@@ -1,6 +1,6 @@
 import EnvironmentSDK
 import Foundation
-import PRRadarModels
+import PRRadarModelsService
 import RepositorySDK
 
 public struct RepositoryConfiguration: Sendable {

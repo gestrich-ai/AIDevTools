@@ -1,7 +1,7 @@
 import Foundation
 import ClaudeAgentSDK
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 public struct AnalysisService: Sendable {
     private let agentClient: ClaudeAgentClient

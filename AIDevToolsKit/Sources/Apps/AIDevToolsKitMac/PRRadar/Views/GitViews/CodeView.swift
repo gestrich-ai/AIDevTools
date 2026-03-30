@@ -1,5 +1,5 @@
 import AppKit
-import PRRadarModels
+import PRRadarModelsService
 import SwiftUI
 
 /// A code viewer with line numbers and an authors sidebar showing git blame information

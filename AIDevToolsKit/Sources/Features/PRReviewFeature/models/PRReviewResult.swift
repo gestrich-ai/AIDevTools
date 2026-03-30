@@ -1,6 +1,6 @@
 import Foundation
 import PRRadarCLIService
-import PRRadarModels
+import PRRadarModelsService
 
 public struct PRReviewResult: Sendable {
     public var taskEvaluations: [TaskEvaluation]

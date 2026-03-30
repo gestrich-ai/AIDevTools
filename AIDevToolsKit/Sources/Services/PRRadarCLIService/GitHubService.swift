@@ -2,7 +2,7 @@ import Foundation
 @preconcurrency import OctoKit
 import OctokitSDK
 import PRRadarConfigService
-import PRRadarModels
+import PRRadarModelsService
 
 public struct GitHubService: Sendable {
     private let octokitClient: OctokitClient

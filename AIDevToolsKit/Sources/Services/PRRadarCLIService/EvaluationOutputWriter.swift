@@ -1,5 +1,5 @@
 import Foundation
-import PRRadarModels
+import PRRadarModelsService
 
 /// Writes `EvaluationOutput` to disk as both JSON and Markdown.
 public enum EvaluationOutputWriter {

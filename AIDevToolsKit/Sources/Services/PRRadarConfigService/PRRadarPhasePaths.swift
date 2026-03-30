@@ -1,5 +1,5 @@
 import Foundation
-import PRRadarModels
+import PRRadarModelsService
 
 // MARK: - Phase Status
 

@@ -41,7 +41,7 @@ let package = Package(
         .library(name: "PipelineService", targets: ["PipelineService"]),
         .library(name: "PRRadarCLIService", targets: ["PRRadarCLIService"]),
         .library(name: "PRRadarConfigService", targets: ["PRRadarConfigService"]),
-        .library(name: "PRRadarModels", targets: ["PRRadarModels"]),
+        .library(name: "PRRadarModelsService", targets: ["PRRadarModelsService"]),
         .library(name: "PRReviewFeature", targets: ["PRReviewFeature"]),
         .library(name: "ProviderRegistryService", targets: ["ProviderRegistryService"]),
         .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
@@ -89,7 +89,7 @@ let package = Package(
                 .product(name: "MCP", package: "swift-sdk"),
                 "PRRadarCLIService",
                 "PRRadarConfigService",
-                "PRRadarModels",
+                "PRRadarModelsService",
                 "PRReviewFeature",
                 "ProviderRegistryService",
                 "RepositorySDK",
@@ -124,7 +124,7 @@ let package = Package(
                 "OctokitSDK",
                 "PRRadarCLIService",
                 "PRRadarConfigService",
-                "PRRadarModels",
+                "PRRadarModelsService",
                 "PRReviewFeature",
                 "ProviderRegistryService",
                 "RepositorySDK",
@@ -208,7 +208,7 @@ let package = Package(
                 "LoggingSDK",
                 "PRRadarCLIService",
                 "PRRadarConfigService",
-                "PRRadarModels",
+                "PRRadarModelsService",
                 "UseCaseSDK",
             ],
             path: "Sources/Features/PRReviewFeature"
@@ -282,7 +282,7 @@ let package = Package(
                 "GitSDK",
                 "OctokitSDK",
                 "PRRadarConfigService",
-                "PRRadarModels",
+                "PRRadarModelsService",
             ],
             path: "Sources/Services/PRRadarCLIService"
         ),
@@ -292,17 +292,17 @@ let package = Package(
                 "DataPathsService",
                 "EnvironmentSDK",
                 "KeychainSDK",
-                "PRRadarModels",
+                "PRRadarModelsService",
                 "RepositorySDK",
             ],
             path: "Sources/Services/PRRadarConfigService"
         ),
         .target(
-            name: "PRRadarModels",
+            name: "PRRadarModelsService",
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
             ],
-            path: "Sources/Services/PRRadarModels"
+            path: "Sources/Services/PRRadarModelsService"
         ),
         .target(
             name: "ProviderRegistryService",
@@ -631,17 +631,17 @@ let package = Package(
             path: "Tests/SDKs/PipelineSDKTests"
         ),
         .testTarget(
-            name: "PRRadarModelsTests",
+            name: "PRRadarModelsServiceTests",
             dependencies: [
                 "ClaudeAgentSDK",
                 "EnvironmentSDK",
                 "KeychainSDK",
                 "PRRadarCLIService",
                 "PRRadarConfigService",
-                "PRRadarModels",
+                "PRRadarModelsService",
                 "PRReviewFeature",
             ],
-            path: "Tests/Services/PRRadarModelsTests",
+            path: "Tests/Services/PRRadarModelsServiceTests",
             resources: [
                 .copy("EffectiveDiffFixtures"),
             ]

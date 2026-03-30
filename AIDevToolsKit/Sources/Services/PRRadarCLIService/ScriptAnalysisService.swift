@@ -1,6 +1,6 @@
 import EnvironmentSDK
 import Foundation
-import PRRadarModels
+import PRRadarModelsService
 
 public struct ScriptAnalysisService: Sendable {
 

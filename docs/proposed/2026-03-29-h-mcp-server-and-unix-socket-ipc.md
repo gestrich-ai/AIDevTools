@@ -299,5 +299,8 @@ With MCP handling tool dispatch natively, the XML tag infrastructure is no longe
 
 **Skills used**: `swift-app-architecture:swift-architecture`
 **Principles applied**: Created a new `UseCaseSDK` module with `UseCase` and `StreamingUseCase` marker protocols (both refining `Sendable`). Added `UseCaseSDK` as a dependency to all 9 Feature targets plus `DataPathsService` (which hosts 2 service-layer use cases). Added `UseCase` conformance to 58 regular use cases and `StreamingUseCase` conformance to 10 streaming ones (those returning `AsyncThrowingStream` or `AsyncStream`). All 68 `*UseCase` types were already structs — zero class or actor violations found. Build passes cleanly.
-## - [ ] Verify type names follow the `<Name><Layer>` convention and rename any that don't
+## - [x] Verify type names follow the `<Name><Layer>` convention and rename any that don't
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Audited all 42 production targets. Found one violation: `PRRadarModels` in the Services layer lacked the required `Service` suffix. Renamed to `PRRadarModelsService` (directory, Package.swift library/target/test target, and all ~80 `import`/`@testable import` statements across Features, Services, and Apps layers). One module-qualifier call `PRRadarModels.displayName(...)` inside the module itself was also updated to `PRRadarModelsService.displayName(...)`.
 ## - [ ] Verify both a Mac app model and a CLI command consume each new use case
