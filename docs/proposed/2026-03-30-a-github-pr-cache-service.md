@@ -187,7 +187,10 @@ Functional checks via CLI:
 
 **Skills used**: none
 **Principles applied**: Scanned all SDK files changed in phases 1–13 via `git log`. Zero SDK files (under `Sources/SDKs/`) were added or modified in any phase — all new code landed in Services (`GitHubService`, `PRRadarCLIService`), Features, and Apps layers. No SDK methods that orchestrate multiple operations were introduced; no code changes required.
-## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find SDK types that hold mutable state and refactor to stateless structs, and make the necessary code changes
+## - [x] Code Review: Review the code changes that have been made in these tasks for the following: Find SDK types that hold mutable state and refactor to stateless structs, and make the necessary code changes
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Scanned all SDK targets for type declarations (class, actor) and stored `var` properties. Found pre-existing actors in `AnthropicSDK`, `AIOutputSDK`, and `ConcurrencySDK`, and a class in `ClaudeChainSDK` — all predating this task chain. Zero SDK files under `Sources/SDKs/` were added or modified in phases 1–14; all new code landed in Services (`GitHubService`, `PRRadarCLIService`), Features, and Apps layers. The new `GitHubPRCache` actor is correctly placed in Services (appropriate for stateful utilities), not in SDKs. No code changes required.
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find error swallowing across all layers and replace with proper propagation, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify use case types are structs conforming to `UseCase` or `StreamingUseCase`, not classes or actors, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify type names follow the `<Name><Layer>` convention and rename any that don't, and make the necessary code changes
