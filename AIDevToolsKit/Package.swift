@@ -482,6 +482,7 @@ let package = Package(
                 .product(name: "Yams", package: "Yams"),
                 "ClaudeChainSDK",
                 "GitSDK",
+                "PRRadarModelsService",
             ],
             path: "Sources/Services/ClaudeChainService"
         ),

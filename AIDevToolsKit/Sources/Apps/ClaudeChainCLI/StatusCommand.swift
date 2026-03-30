@@ -1,5 +1,6 @@
 import ArgumentParser
 import ClaudeChainFeature
+import ClaudeChainService
 import Foundation
 
 public struct StatusCommand: ParsableCommand {

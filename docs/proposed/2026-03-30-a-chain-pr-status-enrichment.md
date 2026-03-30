@@ -62,7 +62,10 @@ The enriched data we want to show per task:
 
 Both types are `Codable`, `Sendable`.
 
-## - [ ] Phase 2: Add enrichment models to `ClaudeChainService`
+## - [x] Phase 2: Add enrichment models to `ClaudeChainService`
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Moved `ChainTask` and `ChainProject` from `ClaudeChainFeature` to `ClaudeChainService` (they are plain data models, not orchestration), added `PRRadarModelsService` as a `ClaudeChainService` dependency, used `PRRadarModelsService.GitHubPullRequest` explicitly in `EnrichedPR` to avoid ambiguity with the existing local `GitHubPullRequest` type. Added `import ClaudeChainService` to App-layer files that reference these now-relocated types.
 
 **Skills to read**: `swift-architecture`
 

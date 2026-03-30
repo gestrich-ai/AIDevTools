@@ -1,5 +1,6 @@
 import AIOutputSDK
 import ClaudeChainFeature
+import ClaudeChainService
 import Foundation
 import ProviderRegistryService
 
