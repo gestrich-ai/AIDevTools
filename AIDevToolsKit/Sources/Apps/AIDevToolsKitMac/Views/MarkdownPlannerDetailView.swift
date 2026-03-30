@@ -19,16 +19,12 @@ struct MarkdownPlannerDetailView: View {
     @State private var executeNextOnly = false
     @AppStorage("planStopAfterArchitectureDiagram") private var stopAfterArchitectureDiagram = false
 
+    @State private var chatModel: ChatModel?
     @State private var executionChatModel: ChatModel?
-    @State private var iterationChatModel: ChatModel?
     @State private var activePlanModel = ActivePlanModel()
     @State private var isAddTaskPopoverPresented = false
     @State private var isAppendReviewPopoverPresented = false
     @State private var newTaskDescription = ""
-
-    private var activeChatModel: ChatModel? {
-        iterationChatModel ?? executionChatModel
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,7 +34,7 @@ struct MarkdownPlannerDetailView: View {
                 errorBanner(error)
             }
 
-            if activeChatModel != nil {
+            if chatModel != nil {
                 VSplitView {
                     planContentView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -53,9 +49,13 @@ struct MarkdownPlannerDetailView: View {
         .navigationTitle(plan.name)
         .task(id: plan.id) {
             executionChatModel = nil
-            iterationChatModel = nil
+            chatModel = nil
             activePlanModel.stopWatching()
             await loadPlan()
+            chatModel = markdownPlannerModel.makeChatModel(
+                workingDirectory: repository.path.path(),
+                systemPrompt: makeIterationSystemPrompt()
+            )
         }
         .onChange(of: markdownPlannerModel.phaseCompleteCount) {
             loadArchitectureDiagram()
@@ -114,12 +114,20 @@ struct MarkdownPlannerDetailView: View {
 
     @ViewBuilder
     private var chatBottomPanel: some View {
-        if let iterationModel = iterationChatModel {
-            ChatPanelView()
-                .environment(iterationModel)
-        } else if let executionModel = executionChatModel {
-            ChatMessagesView()
-                .environment(executionModel)
+        if let chatModel {
+            if let executionModel = executionChatModel {
+                VSplitView {
+                    ChatMessagesView()
+                        .environment(executionModel)
+                        .frame(minHeight: 80, maxHeight: .infinity)
+                    ChatPanelView()
+                        .environment(chatModel)
+                        .frame(minHeight: 80, maxHeight: .infinity)
+                }
+            } else {
+                ChatPanelView()
+                    .environment(chatModel)
+            }
         }
     }
 
@@ -422,36 +430,35 @@ struct MarkdownPlannerDetailView: View {
     // MARK: - Actions
 
     private func startExecution() {
-        let chatModel = markdownPlannerModel.makeChatModel(
+        let executionModel = markdownPlannerModel.makeChatModel(
             workingDirectory: repository.path.path()
         )
-        executionChatModel = chatModel
-        iterationChatModel = nil
+        executionChatModel = executionModel
         activePlanModel.stopWatching()
 
         let accumulator = StreamAccumulator()
-        markdownPlannerModel.executionProgressObserver = { @MainActor [weak chatModel] progress in
-            guard let chatModel else { return }
+        markdownPlannerModel.executionProgressObserver = { @MainActor [weak executionModel] progress in
+            guard let executionModel else { return }
             switch progress {
             case .startingPhase(let index, _, let desc):
-                chatModel.finalizeCurrentStreamingMessage()
-                chatModel.appendStatusMessage("Starting Phase \(index + 1): \(desc)")
-                chatModel.beginStreamingMessage()
+                executionModel.finalizeCurrentStreamingMessage()
+                executionModel.appendStatusMessage("Starting Phase \(index + 1): \(desc)")
+                executionModel.beginStreamingMessage()
                 Task { await accumulator.reset() }
             case .phaseStreamEvent(let event):
                 Task {
                     let updatedBlocks = await accumulator.apply(event)
                     await MainActor.run {
-                        chatModel.updateCurrentStreamingBlocks(updatedBlocks)
+                        executionModel.updateCurrentStreamingBlocks(updatedBlocks)
                     }
                 }
             case .phaseOutput:
                 break
             case .phaseCompleted:
-                chatModel.finalizeCurrentStreamingMessage()
+                executionModel.finalizeCurrentStreamingMessage()
             case .phaseFailed(_, let desc, let error):
-                chatModel.finalizeCurrentStreamingMessage()
-                chatModel.appendStatusMessage("Phase failed: \(desc)\n\(error)")
+                executionModel.finalizeCurrentStreamingMessage()
+                executionModel.appendStatusMessage("Phase failed: \(desc)\n\(error)")
             default:
                 break
             }
@@ -474,11 +481,7 @@ struct MarkdownPlannerDetailView: View {
         mergeExecutionPhaseStates()
         executionChatModel?.finalizeCurrentStreamingMessage()
         markdownPlannerModel.executionProgressObserver = nil
-
-        iterationChatModel = markdownPlannerModel.makeChatModel(
-            workingDirectory: repository.path.path(),
-            systemPrompt: makeIterationSystemPrompt()
-        )
+        executionChatModel = nil
         activePlanModel.startWatching(url: plan.planURL)
     }
 
