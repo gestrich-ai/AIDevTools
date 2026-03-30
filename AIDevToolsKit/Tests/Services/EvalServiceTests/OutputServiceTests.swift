@@ -1,7 +1,7 @@
 import AIOutputSDK
 import Foundation
 import Testing
-@testable import EvalSDK
+@testable import EvalService
 
 private struct PassthroughFormatter: StreamFormatter {
     func format(_ rawChunk: String) -> String { rawChunk }

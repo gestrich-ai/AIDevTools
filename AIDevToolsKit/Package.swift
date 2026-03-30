@@ -375,7 +375,6 @@ let package = Package(
             name: "EvalSDK",
             dependencies: [
                 "AIOutputSDK",
-                "EvalService",
             ],
             path: "Sources/SDKs/EvalSDK"
         ),
@@ -442,7 +441,6 @@ let package = Package(
             name: "ClaudeChainSDK",
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
-                "ClaudeChainService",
             ],
             path: "Sources/SDKs/ClaudeChainSDK"
         ),
@@ -454,7 +452,9 @@ let package = Package(
         .target(
             name: "ClaudeChainService",
             dependencies: [
+                .product(name: "CLISDK", package: "SwiftCLI"),
                 .product(name: "Yams", package: "Yams"),
+                "ClaudeChainSDK",
                 "GitSDK",
             ],
             path: "Sources/Services/ClaudeChainService"
@@ -510,7 +510,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ClaudeChainServiceTests",
-            dependencies: ["ClaudeChainFeature", "ClaudeChainService"],
+            dependencies: ["ClaudeChainFeature", "ClaudeChainSDK", "ClaudeChainService"],
             path: "Tests/Services/ClaudeChainServiceTests"
         ),
         .testTarget(

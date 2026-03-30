@@ -1,19 +1,19 @@
-import ClaudeChainService
+import ClaudeChainSDK
 import Foundation
 import CLISDK
 
 /// GitHub CLI and API operations
 public struct GitHubOperations: GitHubOperationsProtocol {
-    
+
     private let githubClient: GitHubClient
     private let repositoryService: RepositoryService
-    
+
     /// Public initializer for dependency injection
     public init(githubClient: GitHubClient, repositoryService: RepositoryService = RepositoryService()) {
         self.githubClient = githubClient
         self.repositoryService = repositoryService
     }
-    
+
     /// Run a GitHub CLI command and return stdout
     ///
     /// - Parameter args: gh command arguments (without 'gh' prefix)
@@ -23,13 +23,13 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     public static func runGhCommand(args: [String]) throws -> String {
         // Use CLIClient synchronously for backwards compatibility
         let cliClient = CLIClient()
-        
+
         // Create a sync wrapper using RunLoop
         var result: ExecutionResult?
         var error: Error?
-        
+
         let semaphore = DispatchSemaphore(value: 0)
-        
+
         Task {
             do {
                 result = try await cliClient.execute(
@@ -44,25 +44,25 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             }
             semaphore.signal()
         }
-        
+
         semaphore.wait()
-        
+
         if let error = error {
             throw GitHubAPIError("GitHub CLI command failed: \(args.joined(separator: " "))\n\(error.localizedDescription)")
         }
-        
+
         guard let result = result else {
             throw GitHubAPIError("GitHub CLI command failed: \(args.joined(separator: " "))\nNo result")
         }
-        
+
         if result.exitCode != 0 {
             let stderr = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             throw GitHubAPIError("GitHub CLI command failed: \(args.joined(separator: " "))\n\(stderr.isEmpty ? result.stdout : stderr)")
         }
-        
+
         return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    
+
     /// Call GitHub REST API using gh CLI
     ///
     /// - Parameter endpoint: API endpoint path (e.g., "/repos/owner/repo/actions/runs")
@@ -71,36 +71,36 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     /// - Throws: GitHubAPIError if API call fails
     public func ghApiCall(endpoint: String, method: String = "GET") async throws -> [String: Any] {
         let output = try await githubClient.apiCall(endpoint: endpoint, method: method)
-        
+
         if output.isEmpty {
             return [:]
         }
-        
+
         guard let data = output.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
             throw GitHubAPIError("Invalid JSON from API: \(output)")
         }
-        
+
         return json
     }
-    
+
     /// Static version for backwards compatibility
     @available(*, deprecated, message: "Use instance method instead")
     public static func ghApiCall(endpoint: String, method: String = "GET") throws -> [String: Any] {
         let output = try runGhCommand(args: ["api", endpoint, "--method", method])
-        
+
         if output.isEmpty {
             return [:]
         }
-        
+
         guard let data = output.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
             throw GitHubAPIError("Invalid JSON from API: \(output)")
         }
-        
+
         return json
     }
-    
+
     /// Get list of changed files between two commits via GitHub API.
     ///
     /// Uses the GitHub Compare API: GET /repos/{owner}/{repo}/compare/{base}...{head}
@@ -122,14 +122,14 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     public static func compareCommits(repo: String, base: String, head: String) throws -> [String] {
         let endpoint = "/repos/\(repo)/compare/\(base)...\(head)"
         let response = try ghApiCall(endpoint: endpoint, method: "GET")
-        
+
         guard let files = response["files"] as? [[String: Any]] else {
             return []
         }
-        
+
         return files.compactMap { $0["filename"] as? String }
     }
-    
+
     /// Get list of files changed by a pull request via GitHub API.
     ///
     /// Uses the PR Files API: GET /repos/{owner}/{repo}/pulls/{pr_number}/files
@@ -153,19 +153,19 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     public static func getPullRequestFiles(repo: String, prNumber: Int) throws -> [String] {
         let endpoint = "/repos/\(repo)/pulls/\(prNumber)/files"
         let output = try runGhCommand(args: ["api", endpoint, "--method", "GET"])
-        
+
         if output.isEmpty {
             return []
         }
-        
+
         guard let data = output.data(using: .utf8),
               let files = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] else {
             return []
         }
-        
+
         return files.compactMap { $0["filename"] as? String }
     }
-    
+
     /// Extract project name from changed spec files.
     ///
     /// Looks for files matching pattern: claude-chain/{project}/spec.md
@@ -188,7 +188,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         let specPattern = #"^claude-chain/([^/]+)/spec\.md$"#
         let regex = try NSRegularExpression(pattern: specPattern, options: [])
         var projects = Set<String>()
-        
+
         for filePath in changedFiles {
             let range = NSRange(filePath.startIndex..<filePath.endIndex, in: filePath)
             if let match = regex.firstMatch(in: filePath, options: [], range: range) {
@@ -197,7 +197,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
                 projects.insert(projectName)
             }
         }
-        
+
         if projects.count == 0 {
             return nil
         } else if projects.count == 1 {
@@ -209,7 +209,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             ])
         }
     }
-    
+
     /// Download and parse artifact JSON using GitHub API
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -219,76 +219,76 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         do {
             // Get artifact download URL (returns a redirect)
             let downloadEndpoint = "/repos/\(repo)/actions/artifacts/\(artifactId)/zip"
-            
+
             // Create temp file for the zip
             let tempDir = FileManager.default.temporaryDirectory
             let tmpZipPath = tempDir.appendingPathComponent(UUID().uuidString + ".zip")
-            
+
             defer {
                 // Clean up temp file
                 try? FileManager.default.removeItem(at: tmpZipPath)
             }
-            
+
             // Download the zip file using gh api
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
             process.arguments = ["gh", "api", downloadEndpoint, "--method", "GET"]
-            
+
             let outputPipe = Pipe()
             process.standardOutput = outputPipe
             process.standardError = Pipe()
-            
+
             try process.run()
             process.waitUntilExit()
-            
+
             guard process.terminationStatus == 0 else {
                 print("Warning: Failed to download artifact \(artifactId)")
                 return nil
             }
-            
+
             let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
             try data.write(to: tmpZipPath)
-            
+
             // Extract the ZIP file using unzip command
             let unzipProcess = Process()
             unzipProcess.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
             unzipProcess.arguments = ["-j", tmpZipPath.path, "*.json", "-d", tempDir.path]
             unzipProcess.standardOutput = Pipe()
             unzipProcess.standardError = Pipe()
-            
+
             try unzipProcess.run()
             unzipProcess.waitUntilExit()
-            
+
             guard unzipProcess.terminationStatus == 0 else {
                 print("Warning: Failed to extract ZIP file")
                 return nil
             }
-            
+
             // Find the first JSON file in the temp directory
             let fileManager = FileManager.default
             let jsonFiles = try fileManager.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
                 .filter { $0.pathExtension == "json" }
-            
+
             guard let jsonFile = jsonFiles.first else {
                 print("Warning: No JSON file found in artifact \(artifactId)")
                 return nil
             }
-            
+
             // Parse the JSON file
             let jsonData = try Data(contentsOf: jsonFile)
             let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
-            
+
             // Clean up the extracted JSON file
             try? fileManager.removeItem(at: jsonFile)
-            
+
             return jsonObject as? [String: Any]
-            
+
         } catch {
             print("Warning: Failed to download/parse artifact \(artifactId): \(error)")
             return nil
         }
     }
-    
+
     /// Ensure a GitHub label exists in the repository, create if it doesn't
     ///
     /// - Parameter label: Label name to ensure exists
@@ -315,7 +315,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             }
         }
     }
-    
+
     /// Add a label to a pull request.
     ///
     /// - Parameter repo: GitHub repository in format "owner/repo"
@@ -335,7 +335,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             return false
         }
     }
-    
+
     /// Fetch file content from a specific branch via GitHub API
     ///
     /// - Parameter repo: GitHub repository in format "owner/repo"
@@ -345,23 +345,23 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     /// - Throws: GitHubAPIError if API call fails for reasons other than file not found
     public static func getFileFromBranch(repo: String, branch: String, filePath: String) throws -> String? {
         let endpoint = "/repos/\(repo)/contents/\(filePath)?ref=\(branch)"
-        
+
         do {
             let response = try ghApiCall(endpoint: endpoint, method: "GET")
-            
+
             // GitHub API returns content as Base64 encoded
             guard let encodedContent = response["content"] as? String else {
                 return nil
             }
-            
+
             // Remove newlines that GitHub adds to the base64 string
             let cleanedContent = encodedContent.replacingOccurrences(of: "\n", with: "")
-            
+
             guard let data = Data(base64Encoded: cleanedContent),
                   let decodedContent = String(data: data, encoding: .utf8) else {
                 throw GitHubAPIError("Failed to decode Base64 content")
             }
-            
+
             return decodedContent
         } catch {
             // If it's a 404 (file not found), return nil
@@ -373,14 +373,14 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             throw error
         }
     }
-    
+
     // MARK: - Protocol Implementation
-    
+
     /// Instance method that delegates to the static method for protocol conformance
     public func getFileFromBranch(repo: String, branch: String, filePath: String) throws -> String? {
         return try GitHubOperations.getFileFromBranch(repo: repo, branch: branch, filePath: filePath)
     }
-    
+
     /// Check if a file exists in a specific branch
     ///
     /// - Parameter repo: GitHub repository in format "owner/repo"
@@ -395,7 +395,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             return false
         }
     }
-    
+
     /// Fetch PRs with filtering, returns domain models
     ///
     /// This function provides GitHub PR querying capabilities for capacity
@@ -433,7 +433,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     ///     // Check capacity
     ///     let prs = listPullRequests(repo: "owner/repo", state: "open", label: "claudechain", assignee: "alice")
     ///     print("Assignee has \(prs.count) open PRs")
-    ///     
+    ///
     ///     // Statistics for large repos
     ///     let allPrs = listPullRequests(repo: "owner/repo", state: "all", label: "claudechain", limit: 500)
     ///
@@ -457,37 +457,37 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             "--limit", String(limit),
             "--json", "number,title,state,createdAt,mergedAt,assignees,labels,headRefName,baseRefName,url"
         ]
-        
+
         // Add label filter if specified
         if let label = label {
             args.append(contentsOf: ["--label", label])
         }
-        
+
         // Add assignee filter if specified
         if let assignee = assignee {
             args.append(contentsOf: ["--assignee", assignee])
         }
-        
+
         // Execute command and parse JSON
         let output = try runGhCommand(args: args)
-        
+
         guard !output.isEmpty,
               let data = output.data(using: .utf8),
               let prData = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] else {
             throw GitHubAPIError("Invalid JSON from gh pr list: \(output)")
         }
-        
+
         // Parse into domain models
         let prs = prData.map { GitHubPullRequest.fromDict($0) }
-        
+
         // Apply date filter if specified (gh pr list doesn't support --since)
         if let since = since {
             return prs.filter { $0.createdAt >= since }
         }
-        
+
         return prs
     }
-    
+
     /// Convenience function for fetching merged PRs
     ///
     /// Filters by merged state and date range (merged_at >= since).
@@ -524,7 +524,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     ) throws -> [GitHubPullRequest] {
         // Get merged PRs
         let prs = try listPullRequests(repo: repo, state: "merged", label: label, limit: limit)
-        
+
         // Filter by merged_at date (not just created_at)
         // Since gh pr list doesn't support date filtering, we do it post-fetch
         return prs.filter { pr in
@@ -532,7 +532,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             return mergedAt >= since
         }
     }
-    
+
     /// Convenience function for fetching open PRs
     ///
     /// **Current Usage**: Capacity checking (filter by assignee)
@@ -563,7 +563,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     ) throws -> [GitHubPullRequest] {
         return try listPullRequests(repo: repo, state: "open", label: label, assignee: assignee, limit: limit)
     }
-    
+
     /// Convenience function for fetching PRs for a specific project
     ///
     /// Filters PRs by label and project name based on branch naming convention
@@ -603,7 +603,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     ) throws -> [GitHubPullRequest] {
         // Get all PRs with the label
         let allPrs = try listPullRequests(repo: repo, state: state, label: label, limit: limit)
-        
+
         // Filter by branch naming convention: claude-chain-{project_name}-{hash}
         let branchPrefix = "claude-chain-\(projectName)-"
         return allPrs.filter { pr in
@@ -611,7 +611,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             return headRefName.hasPrefix(branchPrefix)
         }
     }
-    
+
     /// Get the current repository name from git remote
     ///
     /// Determines the GitHub repository name by parsing the git remote origin URL.
@@ -624,8 +624,8 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     /// Example:
     ///     // Get current repo
     ///     let repo = getCurrentRepository()  // Returns "owner/repo"
-    ///     
-    ///     // Get repo from specific directory  
+    ///
+    ///     // Get repo from specific directory
     ///     let repo = getCurrentRepository(workingDirectory: "/path/to/repo")
     public func getCurrentRepository(workingDirectory: String) async throws -> String {
         do {
@@ -634,7 +634,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             throw GitHubAPIError("Unable to determine repository: \(error.localizedDescription)")
         }
     }
-    
+
     /// Static version for backwards compatibility
     @available(*, deprecated, message: "Use instance method instead")
     public static func getCurrentRepository(workingDirectory: String) throws -> String {
@@ -642,9 +642,9 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         let repositoryService = RepositoryService()
         var result: String?
         var error: Error?
-        
+
         let semaphore = DispatchSemaphore(value: 0)
-        
+
         Task {
             do {
                 result = try await repositoryService.getCurrentRepository(workingDirectory: workingDirectory)
@@ -653,22 +653,22 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             }
             semaphore.signal()
         }
-        
+
         semaphore.wait()
-        
+
         if let error = error {
             throw GitHubAPIError("Unable to determine repository: \(error.localizedDescription)")
         }
-        
+
         guard let result = result else {
             throw GitHubAPIError("Unable to determine repository: No result")
         }
-        
+
         return result
     }
-    
+
     // MARK: - Workflow operations
-    
+
     /// List workflow runs for a specific workflow and branch
     ///
     /// Fetches workflow runs from GitHub Actions API and returns them as
@@ -707,20 +707,20 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             "--limit", String(limit),
             "--json", "databaseId,status,conclusion,createdAt,headBranch,url"
         ]
-        
+
         // Execute command and parse JSON
         let output = try runGhCommand(args: args)
-        
+
         guard !output.isEmpty,
               let data = output.data(using: .utf8),
               let runData = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] else {
             throw GitHubAPIError("Invalid JSON from gh run list: \(output)")
         }
-        
+
         // Parse into domain models
         return runData.map { WorkflowRun.fromDict($0) }
     }
-    
+
     /// Get the full logs for a workflow run.
     ///
     /// Fetches the complete logs for all jobs in a workflow run.
@@ -744,11 +744,11 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             "--repo", repo,
             "--log"
         ]
-        
+
         // Execute command
         return try runGhCommand(args: args)
     }
-    
+
     /// Trigger a GitHub Actions workflow with inputs
     ///
     /// Dispatches a workflow_dispatch event to trigger a workflow run.
@@ -787,18 +787,18 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             "--repo", repo,
             "--ref", ref
         ]
-        
+
         // Add inputs as --field arguments
         for (key, value) in inputs {
             args.append(contentsOf: ["--field", "\(key)=\(value)"])
         }
-        
+
         // Execute command (no output expected)
         _ = try runGhCommand(args: args)
     }
-    
+
     // MARK: - Pull request operations (extensions)
-    
+
     /// Get pull request for a specific branch
     ///
     /// Searches for an open PR with the given head branch name.
@@ -819,11 +819,11 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     public static func getPullRequestByBranch(repo: String, branch: String) throws -> GitHubPullRequest? {
         // Get all open PRs and filter by branch
         let openPrs = try listOpenPullRequests(repo: repo, limit: 100)
-        
+
         // Find PR with matching branch
         return openPrs.first { $0.headRefName == branch }
     }
-    
+
     /// Get comments on a pull request
     ///
     /// Fetches all comments on a PR and returns them as domain models.
@@ -846,25 +846,25 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             "--repo", repo,
             "--json", "comments"
         ]
-        
+
         // Execute command and parse JSON
         let output = try runGhCommand(args: args)
-        
+
         guard !output.isEmpty,
               let data = output.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
             throw GitHubAPIError("Invalid JSON from gh pr view: \(output)")
         }
-        
+
         // Extract comments array
         guard let commentsData = json["comments"] as? [[String: Any]] else {
             return []
         }
-        
+
         // Parse into domain models
         return commentsData.map { PRComment.fromDict($0) }
     }
-    
+
     /// Close a pull request without merging
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -880,11 +880,11 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             "pr", "close", String(prNumber),
             "--repo", repo
         ]
-        
+
         // Execute command
         _ = try runGhCommand(args: args)
     }
-    
+
     /// Merge a pull request
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -904,13 +904,13 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             "--repo", repo,
             "--\(mergeMethod)"
         ]
-        
+
         // Execute command
         _ = try runGhCommand(args: args)
     }
-    
+
     // MARK: - Comment operations
-    
+
     /// Post a comment on a pull request
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -929,11 +929,11 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             "--repo", repo,
             "--body", body
         ]
-        
+
         // Execute command (no output expected)
         _ = try runGhCommand(args: args)
     }
-    
+
     /// Post a comment on a pull request (async version using GitHubClient)
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -947,9 +947,9 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             throw GitHubAPIError("Failed to post PR comment: \(error.localizedDescription)")
         }
     }
-    
+
     // MARK: - Branch operations
-    
+
     /// Delete a remote branch
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -963,7 +963,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     public static func deleteBranch(repo: String, branch: String) throws {
         // Use GitHub API to delete the branch
         let endpoint = "/repos/\(repo)/git/refs/heads/\(branch)"
-        
+
         do {
             // Use gh api with DELETE method
             _ = try runGhCommand(args: ["api", endpoint, "--method", "DELETE"])
@@ -974,7 +974,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             }
         }
     }
-    
+
     /// Delete a remote branch (async version using GitHubClient)
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -982,7 +982,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     /// - Throws: GitHubAPIError if gh command fails
     public func deleteBranchAsync(repo: String, branch: String) async throws {
         let endpoint = "/repos/\(repo)/git/refs/heads/\(branch)"
-        
+
         do {
             _ = try await githubClient.apiCall(endpoint: endpoint, method: "DELETE")
         } catch {
@@ -992,7 +992,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
             }
         }
     }
-    
+
     /// List remote branches, optionally filtered by prefix
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -1014,32 +1014,32 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         // Use GitHub API to list branches
         let endpoint = "/repos/\(repo)/branches"
         let params = "?per_page=100"  // Get up to 100 branches per page
-        
+
         do {
             // The branches API returns an array directly, not a dict, so use gh directly
             let output = try runGhCommand(args: ["api", endpoint + params, "--method", "GET"])
-            
+
             guard !output.isEmpty,
                   let data = output.data(using: .utf8),
                   let branchArray = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] else {
                 return []
             }
-            
+
             let branches = branchArray.compactMap { $0["name"] as? String }
-            
+
             // Filter by prefix if specified
             if let prefix = prefix {
                 return branches.filter { $0.hasPrefix(prefix) }
             }
-            
+
             return branches
-            
+
         } catch {
             // Return empty list on error
             return []
         }
     }
-    
+
     /// List remote branches, optionally filtered by prefix (async version using GitHubClient)
     ///
     /// - Parameter repo: GitHub repository (owner/name)
@@ -1048,25 +1048,25 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     /// - Throws: GitHubAPIError if gh command fails
     public func listBranchesAsync(repo: String, prefix: String? = nil) async throws -> [String] {
         let endpoint = "/repos/\(repo)/branches?per_page=100"
-        
+
         do {
             let output = try await githubClient.apiCall(endpoint: endpoint, method: "GET")
-            
+
             guard !output.isEmpty,
                   let data = output.data(using: .utf8),
                   let branchArray = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] else {
                 return []
             }
-            
+
             let branches = branchArray.compactMap { $0["name"] as? String }
-            
+
             // Filter by prefix if specified
             if let prefix = prefix {
                 return branches.filter { $0.hasPrefix(prefix) }
             }
-            
+
             return branches
-            
+
         } catch {
             throw GitHubAPIError("Failed to list branches: \(error.localizedDescription)")
         }

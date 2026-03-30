@@ -1,4 +1,3 @@
-import ClaudeChainService
 import Foundation
 
 /// Protocol for GitHubOperations to enable dependency injection in tests

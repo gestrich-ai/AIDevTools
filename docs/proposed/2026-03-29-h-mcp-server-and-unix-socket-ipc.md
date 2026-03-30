@@ -263,7 +263,10 @@ With MCP handling tool dispatch natively, the XML tag infrastructure is no longe
 
 **Skills used**: `swift-app-architecture:swift-architecture`
 **Principles applied**: `ChatSettings` (`@Observable final class`) was in `Features/ChatFeature` — wrong layer, since `@Observable` is an Apps-layer concern. All callers were in `AIDevToolsKitMac`. Moved to `Apps/AIDevToolsKitMac/Models/ChatSettings.swift` and removed the now-stale `import ChatFeature` from five files that had only imported it for `ChatSettings` (`MarkdownPlannerModel`, `ClaudeChainModel`, `GeneralSettingsView`, `ChatSettingsView`, `ContextualChatPanel`). Test moved from `ChatFeatureTests` to `AIDevToolsKitMacTests`.
-## - [ ] Find upward dependencies (lower layers importing higher layers) and remove them
+## - [x] Find upward dependencies (lower layers importing higher layers) and remove them
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Found two SDK targets importing Service-layer modules: `EvalSDK` importing `EvalService` (`OutputService`, `RubricEvaluator`), and `ClaudeChainSDK` importing `ClaudeChainService` (`ProjectRepository`, `ScriptRunner`, `FileSystemOperations`, `GitHubOperations`). Fix was to move each violating file up to the Service layer it depended on. `ClaudeChainService` now depends on `ClaudeChainSDK` (correct downward direction) and `CLISDK`. `GitHubOperationsProtocol` stays in `ClaudeChainSDK` with the unused import removed. Corresponding tests moved from `EvalSDKTests`/`ClaudeChainSDKTests` to `EvalServiceTests`/`ClaudeChainServiceTests`.
 ## - [ ] Find `@Observable` or `@MainActor` outside the Apps layer and move it up
 ## - [ ] Find multi-step orchestration that belongs in a use case and extract it
 ## - [ ] Find feature-to-feature imports and replace with a shared Service or SDK abstraction

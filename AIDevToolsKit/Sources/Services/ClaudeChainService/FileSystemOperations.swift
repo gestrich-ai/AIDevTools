@@ -1,9 +1,8 @@
-import ClaudeChainService
 import Foundation
 
 /// Filesystem operations
 public struct FileSystemOperations {
-    
+
     /// Read file contents as string
     ///
     /// - Parameter path: URL to file to read
@@ -13,14 +12,14 @@ public struct FileSystemOperations {
         guard FileManager.default.fileExists(atPath: path.path) else {
             throw FileNotFoundError("File not found: \(path.path)")
         }
-        
+
         do {
             return try String(contentsOf: path, encoding: .utf8)
         } catch {
             throw error
         }
     }
-    
+
     /// Write string content to file
     ///
     /// - Parameter path: URL to file to write
@@ -33,7 +32,7 @@ public struct FileSystemOperations {
             throw error
         }
     }
-    
+
     /// Check if file exists
     ///
     /// - Parameter path: URL to check
@@ -43,7 +42,7 @@ public struct FileSystemOperations {
         let exists = FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory)
         return exists && !isDirectory.boolValue
     }
-    
+
     /// Find a file by name starting from a directory
     ///
     /// - Parameter startDir: Directory URL to start searching from
@@ -55,13 +54,13 @@ public struct FileSystemOperations {
             if let maxDepth = maxDepth, currentDepth > maxDepth {
                 return nil
             }
-            
+
             // Check current directory
             let candidate = directory.appendingPathComponent(filename)
             if fileExists(path: candidate) {
                 return candidate
             }
-            
+
             // Search subdirectories
             do {
                 let contents = try FileManager.default.contentsOfDirectory(
@@ -69,7 +68,7 @@ public struct FileSystemOperations {
                     includingPropertiesForKeys: [.isDirectoryKey],
                     options: [.skipsHiddenFiles]
                 )
-                
+
                 for subdir in contents {
                     var isDirectory: ObjCBool = false
                     if FileManager.default.fileExists(atPath: subdir.path, isDirectory: &isDirectory),
@@ -83,10 +82,10 @@ public struct FileSystemOperations {
             } catch {
                 // Ignore permission errors and continue
             }
-            
+
             return nil
         }
-        
+
         return search(directory: startDir)
     }
 }
