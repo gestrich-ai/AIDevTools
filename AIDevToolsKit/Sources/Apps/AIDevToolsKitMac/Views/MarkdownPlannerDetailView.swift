@@ -55,13 +55,13 @@ struct MarkdownPlannerDetailView: View {
             executionChatModel = nil
             iterationChatModel = nil
             activePlanModel.stopWatching()
-            loadPlan()
+            await loadPlan()
         }
         .onChange(of: markdownPlannerModel.phaseCompleteCount) {
             loadArchitectureDiagram()
         }
         .onChange(of: markdownPlannerModel.executionCompleteCount) {
-            handleExecutionComplete()
+            Task { await handleExecutionComplete() }
         }
         .onChange(of: activePlanModel.content) { _, newContent in
             guard !newContent.isEmpty else { return }
@@ -261,7 +261,7 @@ struct MarkdownPlannerDetailView: View {
                 AppendReviewPopover(
                     plan: plan,
                     reviewsDirectory: repository.path.appending(path: "docs/reviews"),
-                    onAppended: { loadPlan() }
+                    onAppended: { Task { await loadPlan() } }
                 )
             }
 
@@ -469,8 +469,8 @@ struct MarkdownPlannerDetailView: View {
         }
     }
 
-    private func handleExecutionComplete() {
-        loadPlan()
+    private func handleExecutionComplete() async {
+        await loadPlan()
         mergeExecutionPhaseStates()
         executionChatModel?.finalizeCurrentStreamingMessage()
         markdownPlannerModel.executionProgressObserver = nil
@@ -523,9 +523,9 @@ struct MarkdownPlannerDetailView: View {
 
     // MARK: - Helpers
 
-    private func loadPlan() {
+    private func loadPlan() async {
         do {
-            let content = try String(contentsOf: plan.planURL, encoding: .utf8)
+            let content = try await markdownPlannerModel.getPlanDetails(planName: plan.name, repository: repository)
             planContent = content
             localPhases = PlanPhase.parsePhases(from: content)
             loadError = nil

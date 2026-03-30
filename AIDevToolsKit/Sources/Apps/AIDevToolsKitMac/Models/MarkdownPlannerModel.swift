@@ -125,6 +125,11 @@ final class MarkdownPlannerModel {
         await loadPlans(for: repo)
     }
 
+    func getPlanDetails(planName: String, repository: RepositoryInfo) async throws -> String {
+        let proposedDir = try resolvedProposedDirectory(for: repository)
+        return try await GetPlanDetailsUseCase(proposedDirectory: proposedDir).run(planName: planName)
+    }
+
     /// Toggles a phase checkbox in the plan markdown and returns the updated content.
     func togglePhase(plan: MarkdownPlanEntry, phaseIndex: Int) throws -> String {
         let updatedContent = try togglePhaseUseCase.run(planURL: plan.planURL, phaseIndex: phaseIndex)

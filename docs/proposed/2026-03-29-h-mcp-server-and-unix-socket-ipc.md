@@ -303,4 +303,7 @@ With MCP handling tool dispatch natively, the XML tag infrastructure is no longe
 
 **Skills used**: `swift-app-architecture:swift-architecture`
 **Principles applied**: Audited all 42 production targets. Found one violation: `PRRadarModels` in the Services layer lacked the required `Service` suffix. Renamed to `PRRadarModelsService` (directory, Package.swift library/target/test target, and all ~80 `import`/`@testable import` statements across Features, Services, and Apps layers). One module-qualifier call `PRRadarModels.displayName(...)` inside the module itself was also updated to `PRRadarModelsService.displayName(...)`.
-## - [ ] Verify both a Mac app model and a CLI command consume each new use case
+## - [x] Verify both a Mac app model and a CLI command consume each new use case
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: The only new use case introduced in this document's phases is `GetPlanDetailsUseCase` (extracted from `MCPCommand` during the "Find multi-step orchestration" phase). It was already consumed by `MCPCommand.handleGetPlanDetails()` (CLI). Added `getPlanDetails(planName:repository:)` to `MarkdownPlannerModel` (Mac app model layer) delegating to the use case. Updated `MarkdownPlannerDetailView.loadPlan()` to `async` and routed it through the model method, making `handleExecutionComplete()` `async` as well to preserve the load-then-merge phase ordering.
