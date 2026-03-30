@@ -167,7 +167,10 @@ Functional checks via CLI:
 
 **Skills used**: `swift-architecture`
 **Principles applied**: Reviewed all `import` statements in every new and modified file across layers. Checked Services for Feature/App imports, and SDKs for Service/Feature imports. Found zero upward dependency violations — all dependencies correctly flow downward: Apps→Features→Services→SDKs. The new `GitHubService` module (Services) imports only `PRRadarModelsService` (also Services, lateral dependency); `PRRadarCLIService` and `PRReviewFeature` import only Services and SDKs. Build passes clean.
-## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find `@Observable` or `@MainActor` outside the Apps layer and move it up, and make the necessary code changes
+## - [x] Code Review: Review the code changes that have been made in these tasks for the following: Find `@Observable` or `@MainActor` outside the Apps layer and move it up, and make the necessary code changes
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Grepped all files changed in phases 1–9 for `@Observable` and `@MainActor`. Found zero violations — all occurrences are in the Apps layer (`AllPRsModel.swift`, `WorkspaceModel.swift`). The new `GitHubService` module (Services), `PRReviewFeature` use cases (Features), and all modified Services files contain no `@Observable` or `@MainActor` annotations. No code changes required.
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find multi-step orchestration that belongs in a use case and extract it, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find feature-to-feature imports and replace with a shared Service or SDK abstraction, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find SDK methods that accept or return app-specific or feature-specific types and replace them with generic parameters, and make the necessary code changes
