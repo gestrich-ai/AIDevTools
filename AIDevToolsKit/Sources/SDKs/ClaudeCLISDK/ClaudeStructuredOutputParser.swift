@@ -25,9 +25,11 @@ public struct ProcessDiagnostics: Sendable {
     public var sessionId: String?
     /// Last 1000 characters of stdout for context (trailing whitespace stripped)
     public var stdoutTail: String = ""
-    /// Bytes recovered by the post-exit pipe drain in CLIClient. Zero means readDataToEndOfFile()
-    /// returned empty — the kernel pipe buffer was already consumed by a concurrent readabilityHandler
-    /// callback, confirming the GCD race hypothesis.
+    /// DIAGNOSTIC FIELD — retained to investigate a suspected GCD race in the pipe drain.
+    /// See: docs/proposed/2026-03-29-f-cli-pipe-drain-and-diagnostics.md
+    ///
+    /// Populated from ExecutionResult.drainByteCount (SwiftCLI). Appears as drain_bytes=N in
+    /// the MarkdownPlanner error log. Once the race is confirmed and fixed, this can be removed.
     public var drainByteCount: Int = 0
 
     public init(exitCode: Int32, stderr: String, stdout: String, drainByteCount: Int = 0) {

@@ -127,4 +127,83 @@ If the log ends well before where the session JSONL ends (e.g., cuts off at an e
 
 1. **Drained bytes not forwarded to stream callbacks** — the phase `.stdout` log file will still be missing final events even after the fix. The parser will succeed, but the log won't show Claude's summary or the StructuredOutput call. A future improvement would forward drained bytes through the same stream pipeline.
 
-2. **No drain byte count in diagnostics** — it would be useful to log how many bytes were recovered by the drain in `CLIClient` so you can confirm the fix is active. Currently there's no logging there.
+2. ~~No drain byte count in diagnostics~~ — **Fixed (2026-03-30).** `ExecutionResult.drainByteCount` added to SwiftCLI (commit `39e0a4d`). Threaded through `ProcessDiagnostics` in AIDevTools and emitted as `drain_bytes=N` in the `MarkdownPlanner` error log.
+
+## Second Failure (2026-03-30) — Drain Fix Did Not Prevent Truncation
+
+The drain fix (ee7f06b) was in place but the failure recurred: session `8f86fc8f` (plan `2026-03-29-h-mcp-server-and-unix-socket-ipc.md`, Phase 6). Claude returned `{"success": true}` (confirmed via session JSONL), but the plan runner still threw `noResultEvent`.
+
+### What the logs showed
+
+```
+Phase 6 failed: ... exit=0, stdout=331 lines/897675 bytes,
+events=[assistant:189 system:16 user:125], json_failures=1,
+session=8f86fc8f-...
+stdout_tail: ...{"type":"assistant",...,"stop_reason":null,...}
+             {"type":"assistant","name":"TodoWrite","input":{"todos":[...,"activeForm":"Making handleCallTool i
+```
+
+- `json_failures=1` — one JSONL line was truncated (partial TodoWrite event, 372 chars)
+- No `result` in `events` list — result event was never captured
+- `stdout_tail` ends mid-JSON at that 372-char boundary
+- Session JSONL confirmed Claude completed with `{"success": true}`
+
+### Hypothesis: `readabilityHandler = nil` does not synchronize in-flight GCD callbacks
+
+The drain fix assumes that setting `readabilityHandler = nil` blocks until all in-flight GCD callbacks finish before `readDataToEndOfFile()` runs. This may not hold. The suspected sequence:
+
+1. A GCD readability callback fires and calls `handle.availableData`
+2. `availableData` reads ALL remaining bytes from the kernel pipe buffer (including the result event)
+3. `readabilityHandler = nil` is set — cancels future dispatches but does NOT wait for step 2 to finish
+4. `readDataToEndOfFile()` runs — kernel pipe buffer is now empty → returns 0 bytes
+5. The GCD callback from step 2 eventually finishes and appends its bytes to `stdoutAccumulator`...
+6. ...but `stdoutAccumulator.value` was already read into `result.stdout` before step 5 completes
+7. Result: the result event is in the accumulator but was never included in `result.stdout`
+
+### What to check next time this happens
+
+**Step 1 — Check `drain_bytes` in the error log:**
+
+```bash
+cat ~/Library/Logs/AIDevTools/aidevtools.log \
+  | jq 'select(.label == "MarkdownPlanner" and .level == "error")'
+```
+
+Look for `drain_bytes=N` in the message:
+
+- **`drain_bytes=0` + `json_failures>0`** → confirms the race: the kernel pipe buffer was empty when the drain ran, meaning a concurrent GCD callback already consumed the bytes. The hypothesis is correct — fix `readabilityHandler` synchronization.
+- **`drain_bytes>0` + `json_failures>0`** → the drain captured bytes but the result event is still missing. The problem is downstream of the drain (e.g., the drained bytes are malformed, or the parser has a bug). Look at the `ClaudeStructuredOutputParser` logs.
+- **`drain_bytes>0` + no `json_failures`** → drain worked, but the result event still wasn't found. Check `result_decode_failures`.
+
+**Step 2 — Confirm Claude actually finished (session JSONL):**
+
+The session ID is in the error log. Check whether Claude returned `StructuredOutput`:
+
+```bash
+tail -5 ~/.claude/projects/-Users-bill-Developer-personal-AIDevTools/<session-id>.jsonl \
+  | jq '.message.content[]? | select(.type == "tool_use" and .name == "StructuredOutput") | .input'
+```
+
+If `{"success": true}` is present, Claude finished — the failure is purely in the capture layer, not in Claude's execution. The committed changes are real and the phase can be re-run (or the plan markdown updated manually).
+
+### If `drain_bytes=0` is confirmed — the proper fix
+
+`readabilityHandler = nil` alone is not a synchronization barrier for in-flight callbacks. The correct fix in SwiftCLI's `CLIClient` is to dispatch the readabilityHandler on a **dedicated serial `DispatchQueue`**, then call `queue.sync {}` on that same queue after niling. Because the queue is serial, `queue.sync {}` will not return until any currently-executing callback block completes:
+
+```swift
+// Setup
+let outputQueue = DispatchQueue(label: "com.swiftcli.stdout-drain")
+outPipe.fileHandleForReading.readabilityHandler = { handle in ... }  // dispatches on outputQueue
+
+// After waitUntilExit():
+outPipe.fileHandleForReading.readabilityHandler = nil
+outputQueue.sync {}  // blocks until any in-flight callback on this queue finishes
+
+// Now drain is safe — no concurrent reader
+if let text = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8),
+   !text.isEmpty {
+    stdoutAccumulator.append(text)
+}
+```
+
+Once this fix is implemented and confirmed stable, `ExecutionResult.drainByteCount`, `ProcessDiagnostics.drainByteCount`, and the `drain_bytes` summary entry can all be removed.
