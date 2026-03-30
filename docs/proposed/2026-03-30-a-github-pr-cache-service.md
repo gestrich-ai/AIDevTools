@@ -215,7 +215,10 @@ Functional checks via CLI:
 
 **Skills used**: none
 **Principles applied**: Found two files where nested supporting enums appeared above the primary type's properties and methods. (1) `AllPRsModel.swift` had `State`, `RefreshAllState`, and `AnalyzeAllState` declared at the top of the class body before all properties — moved to the bottom of the class. (2) `PRAcquisitionService.swift` had `AcquisitionError` and `AcquisitionResult` declared before the struct's properties and init — moved to the bottom of the struct.
-## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find fallback values that hide failures and suppressed errors — remove or replace both with proper propagation, and make the necessary code changes
+## - [x] Code Review: Review the code changes that have been made in these tasks for the following: Find fallback values that hide failures and suppressed errors — remove or replace both with proper propagation, and make the necessary code changes
+
+**Skills used**: none
+**Principles applied**: Audited all `try?`, `?? default`, and catch patterns in the new/modified code from phases 1-21. All `try?` usages are for cache reads where nil is the correct fallback (consistent with pre-existing patterns in `loadGitHubPR(outputDir:)` and `discoverPRs(outputDir:)`). All `?? 0` usages are on comment/review counts where 0 is correct when cache is absent. All `?? []` are on collections that can legitimately be empty. Phase 16 already removed the two genuinely-swallowing cases in `PRAcquisitionService` (`downloadImages` and `refreshComments`). No new violations found; no code changes required.
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Remove backwards compatibility shims added before release — there is no backwards compatibility obligation for unreleased code, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Replace `String`, `[String: Any]`, and raw dictionary types in APIs with proper typed models, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Replace optional types with non-optional where the value must be present, and make the necessary code changes
