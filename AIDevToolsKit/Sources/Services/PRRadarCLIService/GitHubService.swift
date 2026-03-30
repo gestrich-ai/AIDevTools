@@ -310,4 +310,4 @@ public struct GitHubService: Sendable {
     }
 }
 
-extension GitHubService: GitHubAPIClientProtocol {}
+extension GitHubService: GitHubAPIServiceProtocol {}

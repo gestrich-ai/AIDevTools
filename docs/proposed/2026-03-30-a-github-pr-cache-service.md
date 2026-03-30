@@ -199,7 +199,10 @@ Functional checks via CLI:
 
 **Skills used**: `ai-dev-tools-review`
 **Principles applied**: Scanned all 73 use case files across all Feature targets (PRReviewFeature, MarkdownPlannerFeature, ChatFeature, SkillBrowserFeature, EvalFeature, ArchitecturePlannerFeature, ClaudeChainFeature, CredentialFeature, PipelineFeature) plus two in DataPathsService. Every type declaration is `public struct ... : UseCase` or `public struct ... : StreamingUseCase` — zero classes or actors found. No code changes required.
-## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify type names follow the `<Name><Layer>` convention and rename any that don't, and make the necessary code changes
+## - [x] Code Review: Review the code changes that have been made in these tasks for the following: Verify type names follow the `<Name><Layer>` convention and rename any that don't, and make the necessary code changes
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Found two naming violations in the `GitHubService` module. (1) `GitHubPRCache` (internal actor, Services layer) lacked the `Service` suffix — renamed to `GitHubPRCacheService`. (2) `GitHubAPIClientProtocol` used `Client` rather than the layer-appropriate `Service` suffix — renamed to `GitHubAPIServiceProtocol`, with the conformance in `PRRadarCLIService/GitHubService.swift` updated accordingly. Supporting output types (`FetchPRListResult`, `SyncSnapshot`) are data types scoped to their use cases and correctly carry no layer suffix.
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify both a Mac app model and a CLI command consume each new use case, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Split files that define multiple unrelated types into one file per type, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Move supporting enums and nested types below their primary type, not above it, and make the necessary code changes

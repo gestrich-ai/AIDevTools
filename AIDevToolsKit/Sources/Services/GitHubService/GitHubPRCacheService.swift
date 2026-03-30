@@ -1,7 +1,7 @@
 import Foundation
 import PRRadarModelsService
 
-actor GitHubPRCache {
+actor GitHubPRCacheService {
     private let rootURL: URL
     nonisolated let stream: AsyncStream<Int>
     private nonisolated let continuation: AsyncStream<Int>.Continuation

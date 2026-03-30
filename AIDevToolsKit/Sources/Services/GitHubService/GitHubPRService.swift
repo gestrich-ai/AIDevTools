@@ -2,12 +2,12 @@ import Foundation
 import PRRadarModelsService
 
 public struct GitHubPRService: GitHubPRServiceProtocol {
-    private let cache: GitHubPRCache
-    private let apiClient: any GitHubAPIClientProtocol
+    private let cache: GitHubPRCacheService
+    private let apiClient: any GitHubAPIServiceProtocol
     private let changeStream: AsyncStream<Int>
 
-    public init(rootURL: URL, apiClient: any GitHubAPIClientProtocol) {
-        let prCache = GitHubPRCache(rootURL: rootURL)
+    public init(rootURL: URL, apiClient: any GitHubAPIServiceProtocol) {
+        let prCache = GitHubPRCacheService(rootURL: rootURL)
         self.cache = prCache
         self.changeStream = prCache.stream
         self.apiClient = apiClient
