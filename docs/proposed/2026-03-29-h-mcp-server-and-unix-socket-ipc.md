@@ -259,7 +259,10 @@ With MCP handling tool dispatch natively, the XML tag infrastructure is no longe
 | `Apps/AIDevToolsKitMac/Views/Chat/ContextualChatPanel.swift` | Apps (Mac) | ✓ SwiftUI view |
 | `Apps/AIDevToolsKitMac/Views/Chat/ViewChatContext.swift` | Apps (Mac) | ✓ App-layer protocol |
 | `AIDevTools/AIDevToolsApp.swift` | Apps (Mac) | ✓ `@main` entry point |
-## - [ ] Find code placed in the wrong layer entirely and move it to the correct one
+## - [x] Find code placed in the wrong layer entirely and move it to the correct one
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: `ChatSettings` (`@Observable final class`) was in `Features/ChatFeature` — wrong layer, since `@Observable` is an Apps-layer concern. All callers were in `AIDevToolsKitMac`. Moved to `Apps/AIDevToolsKitMac/Models/ChatSettings.swift` and removed the now-stale `import ChatFeature` from five files that had only imported it for `ChatSettings` (`MarkdownPlannerModel`, `ClaudeChainModel`, `GeneralSettingsView`, `ChatSettingsView`, `ContextualChatPanel`). Test moved from `ChatFeatureTests` to `AIDevToolsKitMacTests`.
 ## - [ ] Find upward dependencies (lower layers importing higher layers) and remove them
 ## - [ ] Find `@Observable` or `@MainActor` outside the Apps layer and move it up
 ## - [ ] Find multi-step orchestration that belongs in a use case and extract it

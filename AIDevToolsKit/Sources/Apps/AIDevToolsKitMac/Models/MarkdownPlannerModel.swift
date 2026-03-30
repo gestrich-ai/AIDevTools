@@ -1,5 +1,4 @@
 import AIOutputSDK
-import ChatFeature
 import Foundation
 import MarkdownPlannerFeature
 import MarkdownPlannerService

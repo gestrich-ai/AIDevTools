@@ -1,4 +1,3 @@
-import ChatFeature
 import DataPathsService
 import ProviderRegistryService
 import SwiftUI

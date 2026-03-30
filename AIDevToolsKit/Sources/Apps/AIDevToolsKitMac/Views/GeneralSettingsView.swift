@@ -1,4 +1,3 @@
-import ChatFeature
 import SwiftUI
 
 struct GeneralSettingsView: View {

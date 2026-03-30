@@ -1,5 +1,4 @@
 import AIOutputSDK
-import ChatFeature
 import ClaudeChainFeature
 import Foundation
 import ProviderRegistryService
