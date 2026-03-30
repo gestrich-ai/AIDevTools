@@ -1,0 +1,140 @@
+## Relevant Skills
+
+| Skill | Description |
+|-------|-------------|
+| `swift-architecture` | 4-layer architecture with dependency rules and async use case patterns |
+| `pr-radar-debug` | CLI commands, PRRadar internals, and Mac app debugging |
+
+## Background
+
+PRRadar stores GitHub PR metadata (PR info, comments, repo data) under its own output directory alongside analysis artifacts (diff, prepare, evaluate, report). The metadata portion — `gh-pr.json`, `gh-comments.json`, `gh-repo.json` — is really a generic GitHub PR cache, not PRRadar-specific. Any feature that works with PRs (e.g., ClaudeChain enriched view from `2026-03-29-a-chain-pr-status-enrichment.md`) would benefit from tapping into a shared, well-managed cache rather than each feature building its own.
+
+The goal is to:
+
+1. Create a `GitHubPRService` in the Services layer that owns all GitHub PR metadata caching and API access — a single interface any client uses for PR data.
+2. Store cached PR metadata under a new top-level `github/<repo-slug>/` path in `DataPathsService` instead of inside PRRadar's output directory.
+3. Add observation support so clients are notified when cache data changes.
+4. Support both full-sweep updates (PRRadar's existing behavior) and targeted single/list updates (for detail views).
+5. Migrate PRRadar to use this service rather than managing its own PR cache.
+
+The commit-hash-based analysis paths (`analysis/<commit>/diff`, `prepare`, `evaluate`, `report`) remain PRRadar-owned — only the `metadata/` layer moves to the new service.
+
+## Phases
+
+## - [ ] Phase 1: Add `github` path to `DataPathsService`
+
+**Skills to read**: `swift-architecture`
+
+Add a new `github` case to the `ServicePath` enum in `DataPathsService.swift`:
+
+```swift
+case github(repoSlug: String)
+```
+
+With `relativePath`:
+```swift
+case .github(let repoSlug):
+    return "github/\(repoSlug)"
+```
+
+This creates `<rootPath>/github/<owner>-<repo>/` on first access, matching the convention of `prradarOutput(String)` which uses `prradar/repos/<name>`. The repo slug should be the normalized `owner-repo` form (replace `/` with `-` to be filesystem-safe).
+
+No other changes in this phase — just the path registration.
+
+## - [ ] Phase 2: Create `GitHubPRService` module
+
+**Skills to read**: `swift-architecture`
+
+Create a new Swift target `GitHubService` in the Services layer (alongside `PRRadarCLIService`, `ClaudeChainService`, etc.). This module owns all GitHub PR metadata caching and API access.
+
+**Storage layout** (mirrors existing `metadata/` structure, just relocated):
+```
+<rootPath>/github/<repo-slug>/<pr-number>/
+  gh-pr.json
+  gh-comments.json
+  gh-repo.json
+  image-url-map.json
+  images/
+```
+
+**`GitHubPRCache` actor** — internal, manages file I/O:
+- `readPR(number:) throws -> GitHubPullRequest?`
+- `readComments(number:) throws -> GitHubPullRequestComments?`
+- `readRepository() throws -> GitHubRepository?`
+- `writePR(_:number:) throws`
+- `writeComments(_:number:) throws`
+- `writeRepository(_:) throws`
+- Holds a `rootURL: URL` (the `github/<repo-slug>/` directory from `DataPathsService`)
+- Emits change events by continuing a `AsyncStream<Int>` (PR number that changed); callers observe this stream
+
+**`GitHubPRServiceProtocol`** — public protocol:
+```swift
+public protocol GitHubPRServiceProtocol: Sendable {
+    func pullRequest(number: Int, useCache: Bool) async throws -> GitHubPullRequest
+    func comments(number: Int, useCache: Bool) async throws -> GitHubPullRequestComments
+    func updatePR(number: Int) async throws
+    func updatePRs(numbers: [Int]) async throws
+    func updateAllPRs() async throws -> [GitHubPullRequest]
+    func changes() -> AsyncStream<Int>
+}
+```
+
+**`GitHubPRService` struct** — public implementation:
+- Injected with: `GitHubPRCache` (actor), `GitHubAPIClient` (existing `GitHubService` from `PRRadarCLIService`, renamed or extracted to `OctokitSDK` layer or kept as-is via protocol)
+- `pullRequest(number:useCache:)`: returns cached value if `useCache && cache.readPR(number:) != nil`, else fetches from API, writes to cache, emits change
+- `updateAllPRs()`: fetches open PRs list from API, writes each to cache, emits changes, returns full list
+- `updatePR(number:)` and `updatePRs(numbers:)`: fetch individually, write to cache, emit per-PR changes
+- `changes()`: returns the `AsyncStream<Int>` from `GitHubPRCache`
+
+**`AuthorCacheService`** can stay where it is for now — the new service accepts it as an optional dependency for comment author resolution (same as `PRAcquisitionService` today).
+
+Add `GitHubService` target to `Package.swift` with dependencies on `OctokitSDK`, `PRRadarModels` (for shared model types), and `DataPathsService`.
+
+## - [ ] Phase 3: Migrate PRRadar to use `GitHubPRService`
+
+**Skills to read**: `swift-architecture`, `pr-radar-debug`
+
+Update `PRAcquisitionService` in `PRRadarCLIService` to accept a `GitHubPRServiceProtocol` instead of directly writing `gh-pr.json`, `gh-comments.json`, `gh-repo.json` itself.
+
+Changes:
+- `PRAcquisitionService.acquire()` calls `gitHubPRService.updatePR(number:)` for metadata instead of fetching and writing files inline
+- `refreshComments()` calls `gitHubPRService.comments(number:useCache:false)` (forces fresh fetch, which writes to cache automatically)
+- Read PR metadata via `gitHubPRService.pullRequest(number:useCache:true)` where PRRadar previously read `gh-pr.json` directly
+
+`PRDiscoveryService` updates:
+- Currently scans PRRadar's `outputDir` for numeric subdirectories containing `metadata/gh-pr.json`
+- Add an overload that reads from the `GitHubPRCache` path (`github/<repo-slug>/<pr-number>/gh-pr.json`) so PRRadar can discover PRs from the shared cache
+- Keep backward compat by supporting both paths during transition if needed (but prefer single path)
+
+PRRadar's existing update-all mechanism (the CLI `update` command or equivalent) now calls `gitHubPRService.updateAllPRs()` — same behavior, just delegating to the service.
+
+The `analysis/<commit>/` subdirectories (diff, prepare, evaluate, report) and `PRRadarPhasePaths` are **unchanged** — they remain PRRadar-owned and live in the PRRadar output directory.
+
+## - [ ] Phase 4: Wire observation into PRRadar and ClaudeChain models
+
+**Skills to read**: `swift-architecture`
+
+**PRRadar Mac model** (`PRRadarModel` or equivalent in the Apps layer):
+- On init or when a repo is selected, subscribe to `gitHubPRService.changes()`
+- When a PR number is emitted, re-read that PR's data and update observable state
+- Pattern per `swift-architecture`: use a `Task` to iterate the `AsyncStream` and update `@Observable` model properties
+
+**ClaudeChain integration** (light touch, enables `2026-03-29-a-chain-pr-status-enrichment.md`):
+- `GetChainDetailUseCase` (planned in that doc) can accept a `GitHubPRServiceProtocol` for fetching PR metadata from the shared cache
+- No full integration in this plan — just ensure `GitHubPRService` is injectable and available to `ClaudeChainFeature`
+- Add `GitHubService` as a dependency of `ClaudeChainFeature` in `Package.swift`
+
+## - [ ] Phase 5: Validation
+
+**Skills to read**: `pr-radar-debug`
+
+Build verification:
+- `swift build` for `AIDevToolsKit` and all CLI targets — no regressions
+
+Functional checks via CLI:
+- Run PRRadar `acquire` on a known PR and verify `gh-pr.json`, `gh-comments.json`, `gh-repo.json` now appear under `<dataRoot>/github/<repo-slug>/<pr-number>/` instead of the old PRRadar output path
+- Confirm `analysis/<commit>/` artifacts remain in the PRRadar output directory (unchanged)
+- Run PRRadar's full-sweep update and verify all open PRs update and the observation stream emits their numbers
+- Run targeted update for a single PR number and verify only that PR is re-fetched
+- Verify PRDiscovery still finds PRs correctly from the new path
+- Confirm `DataPathsService.path(for: .github(repoSlug:))` creates the correct directory on first use
