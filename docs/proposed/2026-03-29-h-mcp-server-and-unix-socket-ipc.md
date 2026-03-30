@@ -179,7 +179,10 @@ protocol ViewChatContext: AnyObject {
 **Files to delete:**
 - `AIDevToolsKitMac/Views/Chat/SystemPromptBuilder.swift`
 
-## - [ ] Phase 5: Remove XML structured output infrastructure
+## - [x] Phase 5: Remove XML structured output infrastructure
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Deleted the four XML/structured-output source files (`AIResponseDescriptor`, `AIResponseHandling`, `AIResponseRouter`, `StructuredOutputParser`) and their corresponding tests. Removed `responseDescriptors` from `AIClientOptions` and `SendChatMessageUseCase.Options`, stripped `responseHandler` and all related XML-parsing logic from `ChatModel` and `ChatModelConfiguration`, and simplified the message-finalization path to use `existing.contentBlocks` directly (no stripping step needed).
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

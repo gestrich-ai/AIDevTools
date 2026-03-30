@@ -7,7 +7,6 @@ public struct SendChatMessageUseCase: Sendable {
         public let images: [ImageAttachment]
         public let mcpConfigPath: String?
         public let message: String
-        public let responseDescriptors: [AIResponseDescriptor]
         public let sessionId: String?
         public let systemPrompt: String?
         public let workingDirectory: String?
@@ -18,13 +17,11 @@ public struct SendChatMessageUseCase: Sendable {
             sessionId: String? = nil,
             images: [ImageAttachment] = [],
             mcpConfigPath: String? = nil,
-            systemPrompt: String? = nil,
-            responseDescriptors: [AIResponseDescriptor] = []
+            systemPrompt: String? = nil
         ) {
             self.images = images
             self.mcpConfigPath = mcpConfigPath
             self.message = message
-            self.responseDescriptors = responseDescriptors
             self.sessionId = sessionId
             self.systemPrompt = systemPrompt
             self.workingDirectory = workingDirectory
@@ -81,7 +78,6 @@ public struct SendChatMessageUseCase: Sendable {
         let aiOptions = AIClientOptions(
             dangerouslySkipPermissions: true,
             mcpConfigPath: options.mcpConfigPath,
-            responseDescriptors: options.responseDescriptors,
             sessionId: options.sessionId,
             systemPrompt: options.systemPrompt,
             workingDirectory: options.workingDirectory

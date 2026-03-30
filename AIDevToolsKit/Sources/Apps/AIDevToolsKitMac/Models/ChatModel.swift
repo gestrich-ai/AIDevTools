@@ -23,7 +23,6 @@ public final class ChatModel {
     private let listSessionsUseCase: ListSessionsUseCase
     private let loadSessionMessagesUseCase: LoadSessionMessagesUseCase
     private let mcpConfigPath: String?
-    private let responseHandler: (any AIResponseHandling)?
     private let sendMessageUseCase: SendChatMessageUseCase
     private let systemPrompt: String?
     private var currentTask: Task<Void, Never>?
@@ -40,14 +39,12 @@ public final class ChatModel {
         workingDirectory: String?,
         mcpConfigPath: String? = nil,
         settings: ChatSettings = ChatSettings(),
-        systemPrompt: String? = nil,
-        responseHandler: (any AIResponseHandling)? = nil
+        systemPrompt: String? = nil
     ) {
         self.getSessionDetailsUseCase = getSessionDetailsUseCase
         self.listSessionsUseCase = listSessionsUseCase
         self.loadSessionMessagesUseCase = loadSessionMessagesUseCase
         self.mcpConfigPath = mcpConfigPath
-        self.responseHandler = responseHandler
         self.sendMessageUseCase = sendMessageUseCase
         self.settings = settings
         self.providerDisplayName = providerDisplayName
@@ -81,8 +78,7 @@ public final class ChatModel {
             workingDirectory: configuration.workingDirectory,
             mcpConfigPath: configuration.mcpConfigPath,
             settings: configuration.settings,
-            systemPrompt: configuration.systemPrompt,
-            responseHandler: configuration.responseHandler
+            systemPrompt: configuration.systemPrompt
         )
     }
 
@@ -263,7 +259,6 @@ public final class ChatModel {
             settings.resumeLastSession && hasStartedSession ? sessionId : nil
         }
         let workingDir = await MainActor.run { workingDirectory }
-        let descriptors = await MainActor.run { responseHandler?.responseDescriptors ?? [] }
         let mcpPath = await MainActor.run { mcpConfigPath }
 
         let assistantMessageId = UUID()
@@ -284,8 +279,7 @@ public final class ChatModel {
             sessionId: resumeId,
             images: images,
             mcpConfigPath: mcpPath,
-            systemPrompt: systemPrompt,
-            responseDescriptors: descriptors
+            systemPrompt: systemPrompt
         )
 
         do {
@@ -305,7 +299,7 @@ public final class ChatModel {
             continuation.finish()
             await consumeTask.value
 
-            let responseText: String = await MainActor.run {
+            await MainActor.run {
                 let displayName = providerDisplayName
                 if result.exitCode == 0 {
                     hasStartedSession = true
@@ -314,7 +308,6 @@ public final class ChatModel {
                     }
                 }
 
-                var rawText = ""
                 if let index = messages.firstIndex(where: { $0.id == assistantMessageId }) {
                     let existing = messages[index]
 
@@ -333,20 +326,10 @@ public final class ChatModel {
                             isComplete: true
                         )
                     } else {
-                        rawText = existing.contentBlocks.compactMap {
-                            if case .text(let t) = $0 { return t } else { return nil }
-                        }.joined()
-                        let parser = StructuredOutputParser()
-                        let strippedBlocks = existing.contentBlocks.map { block -> AIContentBlock in
-                            if case .text(let text) = block {
-                                return .text(parser.stripResponses(from: text))
-                            }
-                            return block
-                        }
                         messages[index] = ChatMessage(
                             id: existing.id,
                             role: existing.role,
-                            contentBlocks: strippedBlocks,
+                            contentBlocks: existing.contentBlocks,
                             images: existing.images,
                             timestamp: existing.timestamp,
                             isComplete: true
@@ -354,11 +337,6 @@ public final class ChatModel {
                     }
                 }
                 state = .idle
-                return rawText
-            }
-
-            if result.exitCode == 0 {
-                await processStructuredOutputReplies(from: responseText)
             }
         } catch {
             await MainActor.run {
@@ -376,30 +354,6 @@ public final class ChatModel {
         }
 
         await processNextQueuedMessage()
-    }
-
-    private nonisolated func processStructuredOutputReplies(from text: String) async {
-        let handler = await MainActor.run { self.responseHandler }
-        guard let handler else { return }
-
-        let parsed = StructuredOutputParser().parse(text)
-        guard !parsed.isEmpty else { return }
-
-        var replies: [String] = []
-        for response in parsed {
-            if let reply = try? await handler.handleResponse(name: response.name, json: response.json) {
-                replies.append(reply)
-            }
-        }
-
-        guard !replies.isEmpty else { return }
-
-        let finalReplies = replies
-        await MainActor.run {
-            for reply in finalReplies.reversed() {
-                self.messageQueue.insert(QueuedMessage(content: reply), at: 0)
-            }
-        }
     }
 
     private nonisolated func processNextQueuedMessage() async {
@@ -462,7 +416,6 @@ public final class ChatModel {
 public struct ChatModelConfiguration {
     public let client: any AIClient
     public let mcpConfigPath: String?
-    public let responseHandler: (any AIResponseHandling)?
     public let settings: ChatSettings
     public let systemPrompt: String?
     public let workingDirectory: String?
@@ -470,14 +423,12 @@ public struct ChatModelConfiguration {
     public init(
         client: any AIClient,
         mcpConfigPath: String? = nil,
-        responseHandler: (any AIResponseHandling)? = nil,
         settings: ChatSettings = ChatSettings(),
         systemPrompt: String? = nil,
         workingDirectory: String? = nil
     ) {
         self.client = client
         self.mcpConfigPath = mcpConfigPath
-        self.responseHandler = responseHandler
         self.settings = settings
         self.systemPrompt = systemPrompt
         self.workingDirectory = workingDirectory
