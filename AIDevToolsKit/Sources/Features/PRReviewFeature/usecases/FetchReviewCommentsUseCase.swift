@@ -27,10 +27,8 @@ public struct FetchReviewCommentsUseCase: UseCase {
             let (gitHub, gitOps) = try await GitHubServiceFactory.create(
                 repoPath: config.repoPath, githubAccount: config.githubAccount
             )
-            let gitHubPRService: (any GitHubPRServiceProtocol)? = config.dataRootURL.map { dataRootURL in
-                let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
-                let cacheURL = dataRootURL.appendingPathComponent("github/\(normalizedSlug)")
-                return GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
+            let gitHubPRService: (any GitHubPRServiceProtocol)? = config.gitHubCacheURL.map { cacheURL in
+                GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
             }
             let historyProvider = LocalGitHistoryProvider(gitOps: gitOps, repoPath: config.repoPath)
             let acquisition = PRAcquisitionService(

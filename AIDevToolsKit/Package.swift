@@ -264,8 +264,6 @@ let package = Package(
         .target(
             name: "GitHubService",
             dependencies: [
-                "DataPathsService",
-                "OctokitSDK",
                 "PRRadarModelsService",
             ],
             path: "Sources/Services/GitHubService"
