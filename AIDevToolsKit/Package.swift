@@ -30,6 +30,7 @@ let package = Package(
         .library(name: "EvalFeature", targets: ["EvalFeature"]),
         .library(name: "EvalSDK", targets: ["EvalSDK"]),
         .library(name: "EvalService", targets: ["EvalService"]),
+        .library(name: "GitHubService", targets: ["GitHubService"]),
         .library(name: "GitSDK", targets: ["GitSDK"]),
         .library(name: "KeychainSDK", targets: ["KeychainSDK"]),
         .library(name: "LoggingSDK", targets: ["LoggingSDK"]),
@@ -257,6 +258,15 @@ let package = Package(
             name: "EvalService",
             dependencies: ["AIOutputSDK", "SkillScannerSDK"],
             path: "Sources/Services/EvalService"
+        ),
+        .target(
+            name: "GitHubService",
+            dependencies: [
+                "DataPathsService",
+                "OctokitSDK",
+                "PRRadarModelsService",
+            ],
+            path: "Sources/Services/GitHubService"
         ),
         .target(
             name: "MarkdownPlannerService",

@@ -44,7 +44,10 @@ This creates `<rootPath>/github/<owner>-<repo>/` on first access, matching the c
 
 No other changes in this phase — just the path registration.
 
-## - [ ] Phase 2: Create `GitHubPRService` module
+## - [x] Phase 2: Create `GitHubPRService` module
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Created `GitHubService` target in the Services layer with four files: `GitHubAPIClientProtocol` (abstracts the API client so `PRRadarCLIService` can conform later without circular deps), `GitHubPRCache` actor (internal, owns file I/O and emits changes via `nonisolated let stream`), `GitHubPRServiceProtocol` (public interface), and `GitHubPRService` struct (public implementation). Used `AsyncStream.makeStream()` with `nonisolated let` on the actor to allow synchronous stream access from the struct's `init`. Dependencies: `DataPathsService`, `OctokitSDK`, `PRRadarModelsService` per spec.
 
 **Skills to read**: `swift-architecture`
 
