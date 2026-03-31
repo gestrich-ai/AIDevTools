@@ -24,7 +24,10 @@ Key requirements from the conversation:
 
 ## Phases
 
-## - [ ] Phase 1: Add `reviewPath` to Project and load method to ProjectRepository
+## - [x] Phase 1: Add `reviewPath` to Project and load method to ProjectRepository
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added `reviewPath` as a computed property on `Project` alongside existing path properties. Added `loadLocalReview` to the local filesystem section of `ProjectRepository` following the same nil-on-missing/nil-on-empty pattern as `loadLocalSpec`.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

@@ -59,6 +59,16 @@ public class ProjectRepository {
         return SpecContent(project: project, content: specContent)
     }
 
+    /// Load review.md from local filesystem.
+    ///
+    /// - Parameter project: Project domain model
+    /// - Returns: Review content string, or nil if file doesn't exist or is empty
+    public func loadLocalReview(project: Project) throws -> String? {
+        guard FileManager.default.fileExists(atPath: project.reviewPath) else { return nil }
+        let content = try String(contentsOfFile: project.reviewPath, encoding: .utf8)
+        return content.isEmpty ? nil : content
+    }
+
     // MARK: - GitHub API Methods (remote fetch)
 
     /// Load and parse project configuration from GitHub

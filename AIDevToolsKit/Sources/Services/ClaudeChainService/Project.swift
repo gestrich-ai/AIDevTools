@@ -54,7 +54,10 @@ public struct Project {
     public var prTemplatePath: String {
         return "\(basePath)/pr-template.md"
     }
-    
+
+    /// Path to review.md file
+    public var reviewPath: String { "\(basePath)/review.md" }
+
     /// Path to metadata JSON file in claudechain-metadata branch
     public var metadataFilePath: String {
         return "\(name).json"
