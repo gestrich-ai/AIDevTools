@@ -396,51 +396,6 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         }
     }
 
-    /// Fetch PRs with filtering, returns domain models
-    ///
-    /// This function provides GitHub PR querying capabilities for capacity
-    /// checking and other use cases. It encapsulates all GitHub CLI command construction
-    /// and JSON parsing, returning type-safe domain models.
-    ///
-    /// **Current Usage**:
-    /// - Capacity checking (filter by assignee + state=open)
-    /// - Project detection (filter by label)
-    /// - Statistics collection (filter by label, configurable limit)
-    ///
-    /// **Design Principles**:
-    /// - Parses GitHub JSON once into GitHubPullRequest domain models
-    /// - Infrastructure layer owns GitHub CLI command construction
-    /// - Type-safe return values for service layer consumption
-    /// - Generic and reusable for any future GitHub PR query needs
-    ///
-    /// **Pagination Note**:
-    /// The limit parameter controls the maximum number of results returned. For
-    /// repositories with many PRs (>100), callers should increase the limit as needed.
-    /// The GitHub CLI ('gh pr list') handles pagination internally up to the specified
-    /// limit. Current usage in StatisticsService uses limit=500 which is sufficient
-    /// for most ClaudeChain repositories.
-    ///
-    /// - Parameter repo: GitHub repository (owner/name)
-    /// - Parameter state: "open", "closed", "merged", or "all"
-    /// - Parameter label: Optional label filter (e.g., "claudechain" for ClaudeChain PRs)
-    /// - Parameter assignee: Optional assignee filter (e.g., "username" for specific assignee)
-    /// - Parameter since: Optional date filter (filters by created_at >= since)
-    /// - Parameter limit: Max results (default 100, increase for repos with many PRs)
-    /// - Returns: Array of GitHubPullRequest domain models with type-safe properties
-    /// - Throws: GitHubAPIError if gh command fails
-    ///
-    /// Example:
-    ///     // Check capacity
-    ///     let prs = listPullRequests(repo: "owner/repo", state: "open", label: "claudechain", assignee: "alice")
-    ///     print("Assignee has \(prs.count) open PRs")
-    ///
-    ///     // Statistics for large repos
-    ///     let allPrs = listPullRequests(repo: "owner/repo", state: "all", label: "claudechain", limit: 500)
-    ///
-    /// See Also:
-    ///     - listMergedPullRequests(): Convenience wrapper for merged PRs
-    ///     - listOpenPullRequests(): Convenience wrapper for open PRs
-    ///     - GitHubPullRequest: Domain model with type-safe properties
     public static func listPullRequests(
         repo: String,
         state: String = "all",
@@ -488,34 +443,6 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         return prs
     }
 
-    /// Convenience function for fetching merged PRs
-    ///
-    /// Filters by merged state and date range (merged_at >= since).
-    ///
-    /// **Current Usage**: Not used in normal operations (statistics use metadata instead)
-    ///
-    /// **Future Usage**: Useful for:
-    /// - Synchronize command: Backfill recently merged PRs into metadata
-    /// - Audit reports: Verify all merged PRs have corresponding metadata entries
-    /// - Historical analysis: Rebuild metadata from GitHub for specific time periods
-    /// - Drift detection: Compare GitHub merge timestamps with metadata timestamps
-    ///
-    /// - Parameter repo: GitHub repository (owner/name)
-    /// - Parameter since: Only include PRs merged on or after this date (filters by merged_at)
-    /// - Parameter label: Optional label filter (e.g., "claudechain")
-    /// - Parameter limit: Max results (default 100)
-    /// - Returns: Array of merged GitHubPullRequest domain models
-    ///
-    /// Example:
-    ///     // Future synchronize command: Backfill last 30 days
-    ///     let cutoff = Date().addingTimeInterval(-30 * 24 * 60 * 60)
-    ///     let recentMerged = listMergedPullRequests(repo: "owner/repo", since: cutoff, label: "claudechain")
-    ///     print("Found \(recentMerged.count) merged PRs to backfill")
-    ///
-    /// See Also:
-    ///     - listPullRequests(): Base function with full filtering options
-    ///     - docs/specs/archive/2025-12-30-adr-001-metadata-as-source-of-truth.md: ADR on metadata-first architecture
-    ///     - docs/specs/archive/2025-12-30-refactor-statistics-service-architecture.md: Details on future synchronization
     public static func listMergedPullRequests(
         repo: String,
         since: Date,
@@ -533,28 +460,6 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         }
     }
 
-    /// Convenience function for fetching open PRs
-    ///
-    /// **Current Usage**: Capacity checking (filter by assignee)
-    ///
-    /// **Usage Examples**:
-    /// - Capacity checking: Check how many open PRs an assignee has
-    /// - Stale PR detection: Find open PRs older than expected review time
-    /// - Workload balancing: Cross-check assignee assignments
-    ///
-    /// - Parameter repo: GitHub repository (owner/name)
-    /// - Parameter label: Optional label filter (e.g., "claudechain")
-    /// - Parameter assignee: Optional assignee filter (e.g., "username")
-    /// - Parameter limit: Max results (default 100)
-    /// - Returns: Array of open GitHubPullRequest domain models
-    ///
-    /// Example:
-    ///     // Check capacity
-    ///     let openPrs = listOpenPullRequests(repo: "owner/repo", label: "claudechain", assignee: "alice")
-    ///     print("Assignee has \(openPrs.count) open PRs")
-    ///
-    /// See Also:
-    ///     - listPullRequests(): Base function with full filtering options
     public static func listOpenPullRequests(
         repo: String,
         label: String? = nil,
@@ -564,36 +469,6 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         return try listPullRequests(repo: repo, state: "open", label: label, assignee: assignee, limit: limit)
     }
 
-    /// Convenience function for fetching PRs for a specific project
-    ///
-    /// Filters PRs by label and project name based on branch naming convention
-    /// (claude-chain-{project_name}-{hash}).
-    ///
-    /// **Current Usage**: Test automation and project status queries
-    ///
-    /// **Usage Examples**:
-    /// - Test automation: Verify workflow created PRs for a project
-    /// - Project status: Check all PRs for a specific refactoring project
-    /// - Cleanup: Find and close all PRs for a project
-    ///
-    /// - Parameter repo: GitHub repository (owner/name)
-    /// - Parameter projectName: Project name to filter by (matches branch pattern)
-    /// - Parameter label: Label filter (use DEFAULT_PR_LABEL from constants)
-    /// - Parameter state: "open", "closed", "merged", or "all" (default: "all")
-    /// - Parameter limit: Max results (default 100)
-    /// - Returns: Array of GitHubPullRequest domain models for the project
-    ///
-    /// Example:
-    ///     // Verify PRs created for a project
-    ///     let projectPrs = listPullRequestsForProject(
-    ///         repo: "owner/repo",
-    ///         projectName: "my-project",
-    ///         label: Constants.defaultPRLabel
-    ///     )
-    ///     print("Found \(projectPrs.count) PRs for project")
-    ///
-    /// See Also:
-    ///     - listPullRequests(): Base function with full filtering options
     public static func listPullRequestsForProject(
         repo: String,
         projectName: String,
@@ -612,21 +487,6 @@ public struct GitHubOperations: GitHubOperationsProtocol {
         }
     }
 
-    /// Get the current repository name from git remote
-    ///
-    /// Determines the GitHub repository name by parsing the git remote origin URL.
-    /// Works with both HTTPS and SSH remote URLs.
-    ///
-    /// - Parameter workingDirectory: Directory to run git commands in (default: current directory)
-    /// - Returns: Repository name in "owner/repo" format
-    /// - Throws: GitHubAPIError if unable to determine repository
-    ///
-    /// Example:
-    ///     // Get current repo
-    ///     let repo = getCurrentRepository()  // Returns "owner/repo"
-    ///
-    ///     // Get repo from specific directory
-    ///     let repo = getCurrentRepository(workingDirectory: "/path/to/repo")
     public func getCurrentRepository(workingDirectory: String) async throws -> String {
         do {
             return try await repositoryService.getCurrentRepository(workingDirectory: workingDirectory)

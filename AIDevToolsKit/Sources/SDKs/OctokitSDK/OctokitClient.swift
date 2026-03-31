@@ -27,34 +27,10 @@ public enum OctokitClientError: Error, Sendable, LocalizedError {
     }
 }
 
-// MARK: - GitHub API Model Mismatch Workaround
-//
-// **Problem**: GitHub's REST API omits the `patch` field for certain file types:
-//   - Files with `status: "renamed"` and `changes: 0` (pure renames, no content changes)
-//   - Binary files
-//   - Files that are too large for diff generation
-//
-// **OctoKit Bug**: The OctoKit library's `PullRequest.File` model defines `patch` as a
-// non-optional `String`, which doesn't match GitHub's actual API behavior. This causes
-// JSON decoding to fail with `keyNotFound: "patch"` errors when processing PRs that
-// contain renamed files.
-//
-// **Why We Can't Fix This Properly**:
-//   1. OctoKit is a third-party dependency - we can't modify its source
-//   2. `PullRequest.File` is a public struct without a public initializer
-//   3. Filing a PR to fix OctoKit would take time and may not be accepted
-//
-// **This Workaround**:
-//   1. Define a custom `PullRequestFile` struct with an optional `patch` field
-//   2. Decode GitHub's JSON using our custom model (which handles missing patches)
-//   3. Convert to OctoKit's model via JSON round-tripping (encode dict → decode File)
-//   4. Use empty string for missing patches (maintains compatibility with existing code)
-//
-// **Tested With**: PR #18729 and #18725 in ff-ios repo (both contain renamed files)
-//
-// **Future**: If OctoKit fixes this issue upstream, we can remove this workaround
-// and use their `listPullRequestsFiles()` method directly.
-//
+// GitHub omits `patch` for renamed files, binary files, and files too large for diff
+// generation. OctoKit's `PullRequest.File.patch` is non-optional, causing decode failures.
+// Custom struct decodes optional `patch`; `toOctokitFile()` converts via JSON round-tripping
+// since `PullRequest.File` has no public initializer.
 private struct PullRequestFile: Codable {
     let sha: String
     let filename: String
@@ -74,13 +50,6 @@ private struct PullRequestFile: Codable {
         case contentsUrl = "contents_url"
     }
     
-    /// Converts to OctoKit's `PullRequest.File` model via JSON round-tripping.
-    ///
-    /// This is necessary because `PullRequest.File` doesn't have a public initializer.
-    /// We serialize to a dictionary with all required fields (using empty string for
-    /// missing patches), then decode it using OctoKit's Codable implementation.
-    ///
-    /// - Returns: An OctoKit `PullRequest.File` instance
     func toOctokitFile() -> PullRequest.File {
         let dict: [String: Any] = [
             "sha": sha,
@@ -299,19 +268,8 @@ public struct OctokitClient: Sendable {
         return try await getJSON(path: GitHubPath.pullRequests(owner, repository), queryItems: queryItems)
     }
 
-    /// Fetches the list of files changed in a pull request.
-    ///
-    /// **Implementation Note**: This method bypasses OctoKit's `listPullRequestsFiles()`
-    /// because that method uses a model with a non-optional `patch` field that doesn't
-    /// match GitHub's actual API behavior. See the `PullRequestFile` struct documentation
-    /// above for the full explanation of why this workaround is necessary.
-    ///
-    /// - Parameters:
-    ///   - owner: The repository owner
-    ///   - repository: The repository name
-    ///   - number: The pull request number
-    /// - Returns: Array of file objects, with empty string for patches that GitHub omits
-    /// - Throws: `OctokitClientError` for authentication, network, or API errors
+    /// Fetches the list of files changed in a pull request using a custom decoder to handle
+    /// GitHub's optional `patch` field, which OctoKit's model incorrectly requires.
     public func listPullRequestFiles(
         owner: String,
         repository: String,
