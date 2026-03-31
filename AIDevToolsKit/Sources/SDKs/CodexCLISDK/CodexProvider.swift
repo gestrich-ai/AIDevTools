@@ -3,11 +3,7 @@ import CLISDK
 
 public struct CodexProvider: Sendable {
 
-    private let client: CLIClient
-
-    public init(client: CLIClient = CLIClient()) {
-        self.client = client
-    }
+    public init() {}
 
     public func run(
         command: Codex.Exec,
@@ -128,6 +124,7 @@ public struct CodexProvider: Sendable {
             }
         }
 
+        let client = CLIClient()
         let result = try await client.execute(
             command: codexPath,
             arguments: arguments,

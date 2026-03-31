@@ -20,11 +20,7 @@ public struct ClaudeProvider: Sendable {
     private static let inactivityTimeout: TimeInterval = 480
     private static let logger = Logger(label: "ClaudeProvider")
 
-    private let client: CLIClient
-
-    public init(client: CLIClient = CLIClient(printOutput: false)) {
-        self.client = client
-    }
+    public init() {}
 
     public func run(
         command: Claude,
@@ -32,6 +28,7 @@ public struct ClaudeProvider: Sendable {
         environment: [String: String]? = nil,
         onOutput: (@Sendable (StreamOutput) -> Void)? = nil
     ) async throws -> ExecutionResult {
+        let client = CLIClient(printOutput: false)
         var env = environment ?? ProcessInfo.processInfo.environment
         env[ClaudeEnvironmentKey.claudeCode] = ""
         let home = env["HOME"] ?? "/Users/\(NSUserName())"

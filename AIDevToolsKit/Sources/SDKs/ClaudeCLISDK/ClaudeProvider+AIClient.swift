@@ -4,8 +4,6 @@ extension ClaudeProvider: AIClient {
     public var name: String { "claude" }
     public var displayName: String { "Claude CLI" }
 
-    public func makeIndependentCopy() -> any AIClient { ClaudeProvider() }
-
     public func run(
         prompt: String,
         options: AIClientOptions,
