@@ -51,7 +51,7 @@ public struct GitHubAPIService: Sendable {
             GitHubReview(
                 id: String(review.id),
                 body: review.body,
-                state: GitHubReviewState(rawValue: review.state.rawValue),
+                state: review.state.toGitHubReviewState,
                 author: review.user.toGitHubAuthor(),
                 submittedAt: review.submittedAt.map { formatISO8601($0) }
             )
@@ -290,7 +290,7 @@ public struct GitHubAPIService: Sendable {
             GitHubReview(
                 id: String(review.id),
                 body: review.body,
-                state: GitHubReviewState(rawValue: review.state.rawValue),
+                state: review.state.toGitHubReviewState,
                 author: review.user.toGitHubAuthor(),
                 submittedAt: review.submittedAt.map { formatISO8601($0) }
             )

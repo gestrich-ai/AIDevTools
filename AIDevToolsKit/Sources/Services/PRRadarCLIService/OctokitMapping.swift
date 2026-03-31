@@ -72,6 +72,20 @@ extension OctoKit.PullRequest.File {
     }
 }
 
+// MARK: - Review.State → GitHubReviewState
+
+extension Review.State {
+    var toGitHubReviewState: GitHubReviewState {
+        switch self {
+        case .approved: return .approved
+        case .changesRequested: return .changesRequested
+        case .comment: return .commented
+        case .dismissed: return .dismissed
+        case .pending: return .pending
+        }
+    }
+}
+
 // MARK: - Repository → GitHubRepository
 
 extension OctoKit.Repository {

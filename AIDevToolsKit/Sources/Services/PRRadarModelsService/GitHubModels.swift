@@ -87,14 +87,14 @@ public struct GitHubComment: Codable, Sendable {
 public struct GitHubReview: Codable, Sendable {
     public let id: String
     public let body: String
-    public let state: GitHubReviewState?
+    public let state: GitHubReviewState
     public let author: GitHubAuthor?
     public let submittedAt: String?
 
     public init(
         id: String,
         body: String,
-        state: GitHubReviewState? = nil,
+        state: GitHubReviewState,
         author: GitHubAuthor? = nil,
         submittedAt: String? = nil
     ) {
