@@ -402,7 +402,10 @@ Ask Bill to open the Mac app, select the `claude-chain-demo` repo, switch to the
 
 **Skills used**: `ai-dev-tools-review`
 **Principles applied**: Audited all files introduced in phases 1–7 for `try?`, empty catch blocks, and silent fallbacks. Found one harmful instance: `StatusCommand.swift`'s `--github` list mode used `try?` to silently skip projects that failed enrichment, giving users no indication of failure. Fixed to `do/catch` with an `fputs` warning to stderr. All other `try?` patterns were intentional: cache-first loading in `GetChainDetailUseCase.loadCached()` yields best-effort partial data before the authoritative network fetch; `writeCachedIndex` is explicitly non-critical; credential listing falls back to token resolution which throws its own error on missing credentials.
-## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify use case types are structs conforming to `UseCase` or `StreamingUseCase`, not classes or actors, and make the necessary code changes
+## - [x] Code Review: Review the code changes that have been made in these tasks for the following: Verify use case types are structs conforming to `UseCase` or `StreamingUseCase`, not classes or actors, and make the necessary code changes
+
+**Skills used**: none
+**Principles applied**: Searched all Sources/ for `class` or `actor` declarations conforming to `UseCase`/`StreamingUseCase` — none found. All 70+ use case types across Features and Services layers are `struct` conforming to `UseCase` or `StreamingUseCase`. `GetChainDetailUseCase` (the primary new use case from these phases) is a `public struct` conforming to both. No code changes required.
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify type names follow the `<Name><Layer>` convention and rename any that don't, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify both a Mac app model and a CLI command consume each new use case, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Split files that define multiple unrelated types into one file per type, and make the necessary code changes
