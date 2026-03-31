@@ -193,7 +193,10 @@ Create the single entry point both the CLI and Mac app call to get enriched chai
 - `.stalePR`: `ageDays > 7` and no approved reviews
 - `.needsReviewers`: `reviewStatus.pendingReviewers.isEmpty && reviewStatus.approvedBy.isEmpty`
 
-## - [ ] Phase 5: Update `ClaudeChainModel` and Mac UI detail view
+## - [x] Phase 5: Update `ClaudeChainModel` and Mac UI detail view
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Added `chainDetails`, `chainDetailLoading`, `gitHubPRService`, and `changesTask` to `ClaudeChainModel` following the `AllPRsModel` observation pattern. Injected `DataPathsService` into the model init so it can compute the GitHub cache URL from repo slug. `loadChains(for:credentialAccount:)` stores the credential account and resets GitHub state on repo change. `loadChainDetail` creates `GitHubPRService` lazily via `GitHubServiceFactory` on first call, then stores and reuses it. `startObservingChanges` watches the service's change stream and force-refreshes affected projects. View changes: `ChainProjectRow` shows an orange action count badge; `ChainProjectDetailView` adds a `.task(id:)` to trigger enrichment load, a GitHub loading indicator, an action items banner, per-task PR indicators (PR link+age, review state, build state, draft badge), and a "Refresh GitHub" button.
 
 **Skills to read**: `swift-architecture`
 

@@ -1,7 +1,11 @@
 import AIOutputSDK
 import ClaudeChainFeature
 import ClaudeChainService
+import DataPathsService
 import Foundation
+import GitHubService
+import PRRadarCLIService
+import PRRadarConfigService
 import ProviderRegistryService
 
 @MainActor @Observable
@@ -38,6 +42,12 @@ final class ClaudeChainModel {
         case loadingChains
     }
 
+    enum ModelError: Error {
+        case cannotDeriveRepoSlug
+    }
+
+    private(set) var chainDetailLoading: Set<String> = []
+    private(set) var chainDetails: [String: ChainProjectDetail] = [:]
     private(set) var lastLoadedProjects: [ChainProject] = []
     private(set) var state: State = .idle
     var executionProgressObserver: (@MainActor (RunChainTaskUseCase.Progress) -> Void)?
@@ -55,16 +65,23 @@ final class ClaudeChainModel {
     }
 
     private var activeClient: any AIClient
+    private var changesTask: Task<Void, Never>?
+    private var currentCredentialAccount: String?
+    private var currentRepoPath: URL?
+    private var gitHubPRService: (any GitHubPRServiceProtocol)?
+    private let dataPathsService: DataPathsService
     private let listChainsUseCase: ListChainsUseCase
     private let providerRegistry: ProviderRegistry
 
     init(
         listChainsUseCase: ListChainsUseCase = ListChainsUseCase(),
         providerRegistry: ProviderRegistry,
-        selectedProviderName: String? = nil
+        selectedProviderName: String? = nil,
+        dataPathsService: DataPathsService
     ) {
         self.listChainsUseCase = listChainsUseCase
         self.providerRegistry = providerRegistry
+        self.dataPathsService = dataPathsService
 
         guard let client = selectedProviderName.flatMap({ providerRegistry.client(named: $0) })
             ?? providerRegistry.defaultClient else {
@@ -74,7 +91,16 @@ final class ClaudeChainModel {
         self.activeClient = client
     }
 
-    func loadChains(for repoPath: URL) {
+    func loadChains(for repoPath: URL, credentialAccount: String?) {
+        if currentRepoPath?.path != repoPath.path {
+            chainDetails = [:]
+            chainDetailLoading = []
+            changesTask?.cancel()
+            changesTask = nil
+            gitHubPRService = nil
+        }
+        currentRepoPath = repoPath
+        currentCredentialAccount = credentialAccount
         state = .loadingChains
         Task {
             do {
@@ -85,6 +111,28 @@ final class ClaudeChainModel {
                 state = .error(error)
             }
         }
+    }
+
+    func loadChainDetail(projectName: String, repoPath: URL) {
+        guard !chainDetailLoading.contains(projectName) else { return }
+        guard chainDetails[projectName] == nil else { return }
+        chainDetailLoading.insert(projectName)
+        Task {
+            do {
+                let service = try await makeOrGetGitHubPRService(repoPath: repoPath)
+                let useCase = GetChainDetailUseCase(gitHubPRService: service)
+                let detail = try await useCase.run(options: .init(repoPath: repoPath, projectName: projectName))
+                chainDetails[projectName] = detail
+            } catch {
+                // enrichment is best-effort; don't surface as model error
+            }
+            chainDetailLoading.remove(projectName)
+        }
+    }
+
+    func refreshChainDetail(projectName: String, repoPath: URL) {
+        chainDetails.removeValue(forKey: projectName)
+        loadChainDetail(projectName: projectName, repoPath: repoPath)
     }
 
     func executeChain(projectName: String, repoPath: URL) {
@@ -102,7 +150,7 @@ final class ClaudeChainModel {
                 }
                 if result.success {
                     state = .completed(result: result)
-                    loadChains(for: repoPath)
+                    loadChains(for: repoPath, credentialAccount: currentCredentialAccount)
                 } else {
                     state = .error(
                         NSError(
@@ -122,7 +170,7 @@ final class ClaudeChainModel {
         let settings = ChatSettings()
         settings.resumeLastSession = false
         return ChatModel(configuration: ChatModelConfiguration(
-            client: activeClient.makeIndependentCopy(),
+            client: activeClient,
             settings: settings,
             workingDirectory: workingDirectory
         ))
@@ -133,6 +181,41 @@ final class ClaudeChainModel {
     }
 
     // MARK: - Private
+
+    private func makeOrGetGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
+        if let service = gitHubPRService { return service }
+        let credentialAccount = currentCredentialAccount ?? ""
+        let (gitHub, _) = try await GitHubServiceFactory.create(
+            repoPath: repoPath.path,
+            githubAccount: credentialAccount
+        )
+        guard let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoPath.path) else {
+            throw ModelError.cannotDeriveRepoSlug
+        }
+        let normalizedSlug = slug.replacingOccurrences(of: "/", with: "-")
+        let cacheURL = try dataPathsService.path(for: .github(repoSlug: normalizedSlug))
+        let service = GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
+        gitHubPRService = service
+        startObservingChanges(service: service)
+        return service
+    }
+
+    private func startObservingChanges(service: any GitHubPRServiceProtocol) {
+        changesTask?.cancel()
+        changesTask = Task { [weak self] in
+            for await prNumber in service.changes() {
+                guard let self else { break }
+                guard let repoPath = currentRepoPath else { continue }
+                let affectedProjects = chainDetails.filter { _, detail in
+                    detail.enrichedTasks.contains { $0.enrichedPR?.pr.number == prNumber }
+                }.keys
+                for projectName in affectedProjects {
+                    chainDetails.removeValue(forKey: projectName)
+                    loadChainDetail(projectName: projectName, repoPath: repoPath)
+                }
+            }
+        }
+    }
 
     private func rebuildClient() {
         guard let client = providerRegistry.client(named: selectedProviderName) else { return }
@@ -219,4 +302,3 @@ extension ClaudeChainModel.ExecutionProgress {
         phases[idx].status = status
     }
 }
-
