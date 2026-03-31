@@ -358,7 +358,10 @@ Ask Bill to open the Mac app, select the `claude-chain-demo` repo, switch to the
 - Action items banner appears if any conditions are met (e.g., no reviewers assigned)
 - Sidebar badge shows action count for the project
 - "Refresh GitHub" button re-fetches and updates the view
-## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find new features architected as afterthoughts and refactor them to integrate cleanly with the existing system, and make the necessary code changes
+## - [x] Code Review: Review the code changes that have been made in these tasks for the following: Find new features architected as afterthoughts and refactor them to integrate cleanly with the existing system, and make the necessary code changes
+
+**Skills used**: `swift-architecture`, `ai-dev-tools-review`
+**Principles applied**: The `--github` enrichment flag in `StatusCommand` was the afterthought — it duplicated `ClaudeChainModel.makeOrGetGitHubPRService` with slightly different logic (own `normalizedSlug` + `GitHubPRService` construction) rather than integrating with the existing factory. Fixed by adding `GitHubServiceFactory.createPRService(repoPath:githubAccount:dataPathsService:)` to `PRRadarCLIService` (requires adding `DataPathsService` as a direct dependency), then refactoring both `StatusCommand.makeGitHubPRService` and `ClaudeChainModel.makeOrGetGitHubPRService` to call the shared factory. Also removed the now-dead `ModelError.cannotDeriveRepoSlug` case and unused `PRRadarConfigService` import from the model.
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Identify the architectural layer for every new or modified file; read the reference doc for that layer before reviewing anything else, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find code placed in the wrong layer entirely and move it to the correct one, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find upward dependencies (lower layers importing higher layers) and remove them, and make the necessary code changes

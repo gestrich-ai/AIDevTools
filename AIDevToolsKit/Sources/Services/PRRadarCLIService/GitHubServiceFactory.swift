@@ -1,5 +1,7 @@
 import CLISDK
+import DataPathsService
 import Foundation
+import GitHubService
 import GitSDK
 import OctokitSDK
 import PRRadarConfigService
@@ -46,6 +48,17 @@ public struct GitHubServiceFactory: Sendable {
     public static func createGitOps(githubAccount: String) async throws -> GitOperationsService {
         let token = try await resolveToken(githubAccount: githubAccount)
         return createGitOps(gitHubToken: token)
+    }
+
+    public static func createPRService(
+        repoPath: String,
+        githubAccount: String,
+        dataPathsService: DataPathsService
+    ) async throws -> GitHubPRService {
+        let (gitHub, _) = try await create(repoPath: repoPath, githubAccount: githubAccount)
+        let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
+        let cacheURL = try dataPathsService.path(for: .github(repoSlug: normalizedSlug))
+        return GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
     }
 
     public static func resolveToken(githubAccount: String) async throws -> String {

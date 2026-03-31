@@ -82,20 +82,17 @@ public struct StatusCommand: AsyncParsableCommand {
     }
 
     private func makeGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
-        let credentialService = CredentialSettingsService()
-        let accounts = (try? credentialService.listCredentialAccounts()) ?? []
+        let accounts = (try? CredentialSettingsService().listCredentialAccounts()) ?? []
         let gitOps = GitHubServiceFactory.createGitOps()
         let remoteURL = try await gitOps.getRemoteURL(path: repoPath.path)
         let owner = GitHubService.parseOwnerRepo(from: remoteURL)?.owner ?? ""
         let account = accounts.first(where: { $0 == owner }) ?? accounts.first ?? "default"
-        let (gitHub, _) = try await GitHubServiceFactory.create(
+        let dataPathsService = try DataPathsService(rootPath: DataPathsService.appSupportDirectory)
+        return try await GitHubServiceFactory.createPRService(
             repoPath: repoPath.path,
-            githubAccount: account
+            githubAccount: account,
+            dataPathsService: dataPathsService
         )
-        let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
-        let cacheURL = try DataPathsService(rootPath: DataPathsService.appSupportDirectory)
-            .path(for: .github(repoSlug: normalizedSlug))
-        return GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
     }
 
     private func printEnrichedProjectDetail(_ detail: ChainProjectDetail) {

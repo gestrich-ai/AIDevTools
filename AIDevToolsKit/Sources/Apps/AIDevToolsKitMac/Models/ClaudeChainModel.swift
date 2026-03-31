@@ -4,8 +4,8 @@ import ClaudeChainService
 import DataPathsService
 import Foundation
 import GitHubService
+import Logging
 import PRRadarCLIService
-import PRRadarConfigService
 import ProviderRegistryService
 
 @MainActor @Observable
@@ -42,10 +42,7 @@ final class ClaudeChainModel {
         case loadingChains
     }
 
-    enum ModelError: Error {
-        case cannotDeriveRepoSlug
-    }
-
+    private let logger = Logger(label: "ClaudeChainModel")
     private(set) var chainDetailLoading: Set<String> = []
     private(set) var chainDetails: [String: ChainProjectDetail] = [:]
     private(set) var lastLoadedProjects: [ChainProject] = []
@@ -124,7 +121,7 @@ final class ClaudeChainModel {
                 let detail = try await useCase.run(options: .init(repoPath: repoPath, projectName: projectName))
                 chainDetails[projectName] = detail
             } catch {
-                // enrichment is best-effort; don't surface as model error
+                logger.error("Chain detail enrichment failed for '\(projectName)': \(error)")
             }
             chainDetailLoading.remove(projectName)
         }
@@ -184,17 +181,11 @@ final class ClaudeChainModel {
 
     private func makeOrGetGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
         if let service = gitHubPRService { return service }
-        let credentialAccount = currentCredentialAccount ?? ""
-        let (gitHub, _) = try await GitHubServiceFactory.create(
+        let service = try await GitHubServiceFactory.createPRService(
             repoPath: repoPath.path,
-            githubAccount: credentialAccount
+            githubAccount: currentCredentialAccount ?? "",
+            dataPathsService: dataPathsService
         )
-        guard let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoPath.path) else {
-            throw ModelError.cannotDeriveRepoSlug
-        }
-        let normalizedSlug = slug.replacingOccurrences(of: "/", with: "-")
-        let cacheURL = try dataPathsService.path(for: .github(repoSlug: normalizedSlug))
-        let service = GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
         gitHubPRService = service
         startObservingChanges(service: service)
         return service
