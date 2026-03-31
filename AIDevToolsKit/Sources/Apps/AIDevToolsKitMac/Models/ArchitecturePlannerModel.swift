@@ -171,6 +171,30 @@ final class ArchitecturePlannerModel {
         }
     }
 
+    func runStep(_ step: ArchitecturePlannerStep) async {
+        guard let job = selectedJob, let store, let repoPath = currentRepoPath else { return }
+
+        state = .running(stepName: step.name, output: "")
+        let session = makeSession(jobId: job.jobId, stepIndex: step.rawValue)
+        let options = RunPlanningStepUseCase.Options(jobId: job.jobId, repoPath: repoPath, step: step)
+
+        do {
+            if let session {
+                try await session.run(onOutput: { [weak self] text in
+                    Task { @MainActor in self?.appendOutput(text) }
+                }) { outputHandler in
+                    try await self.runStepUseCase.run(options, store: store, onOutput: outputHandler)
+                }
+            } else {
+                try await runStepUseCase.run(options, store: store)
+            }
+            reloadSelectedJob()
+            state = .idle
+        } catch {
+            state = .error(error)
+        }
+    }
+
     func runAllSteps() async {
         while let job = selectedJob,
               ArchitecturePlannerStep(rawValue: job.currentStepIndex) != nil {
