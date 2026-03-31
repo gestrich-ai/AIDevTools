@@ -61,7 +61,10 @@ Run the following commands against the iOS repo to establish ground truth and id
 
 ---
 
-## - [ ] Phase 2: Add GitHub Label-Based Chain Discovery Use Case
+## - [x] Phase 2: Add GitHub Label-Based Chain Discovery Use Case
+
+**Skills used**: none
+**Principles applied**: Placed `DiscoveredChain` struct in the same file as the use case (single use site, no premature abstraction). Used `repo: String` (GitHub owner/name) rather than a local path since this use case is purely GitHub-based. Reused `GitHubOperations.listPullRequests` static method and `BranchInfo.fromBranchName` directly. Kept first-encountered `baseRefName` per project (simplest deduplication). Properties ordered alphabetically per project convention.
 
 Create a new use case `DiscoverChainsFromGitHubUseCase` in:
 `AIDevToolsKit/Sources/Features/ClaudeChainFeature/usecases/DiscoverChainsFromGitHubUseCase.swift`
