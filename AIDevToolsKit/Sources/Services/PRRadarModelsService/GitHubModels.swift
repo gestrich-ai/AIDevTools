@@ -84,14 +84,6 @@ public struct GitHubComment: Codable, Sendable {
     }
 }
 
-public enum GitHubReviewState: String, Codable, Sendable {
-    case approved = "APPROVED"
-    case changesRequested = "CHANGES_REQUESTED"
-    case commented = "COMMENTED"
-    case dismissed = "DISMISSED"
-    case pending = "PENDING"
-}
-
 public struct GitHubReview: Codable, Sendable {
     public let id: String
     public let body: String
@@ -112,6 +104,14 @@ public struct GitHubReview: Codable, Sendable {
         self.author = author
         self.submittedAt = submittedAt
     }
+}
+
+public enum GitHubReviewState: String, Codable, Sendable {
+    case approved = "APPROVED"
+    case changesRequested = "CHANGES_REQUESTED"
+    case commented = "COMMENTED"
+    case dismissed = "DISMISSED"
+    case pending = "PENDING"
 }
 
 public struct GitHubOwner: Codable, Sendable {

@@ -1,24 +1,6 @@
 import Foundation
 import PRRadarModelsService
 
-public struct PRReviewStatus: Sendable {
-    public let approvedBy: [String]
-    public let pendingReviewers: [String]
-
-    public init(approvedBy: [String], pendingReviewers: [String]) {
-        self.approvedBy = approvedBy
-        self.pendingReviewers = pendingReviewers
-    }
-}
-
-public enum PRBuildStatus: Sendable {
-    case conflicting
-    case failing(checks: [String])
-    case passing
-    case pending(checks: [String])
-    case unknown
-}
-
 public struct EnrichedPR: Sendable {
     public let pr: PRRadarModelsService.GitHubPullRequest
     public let isDraft: Bool
@@ -52,4 +34,22 @@ public struct EnrichedPR: Sendable {
         }
         return 0
     }
+}
+
+public struct PRReviewStatus: Sendable {
+    public let approvedBy: [String]
+    public let pendingReviewers: [String]
+
+    public init(approvedBy: [String], pendingReviewers: [String]) {
+        self.approvedBy = approvedBy
+        self.pendingReviewers = pendingReviewers
+    }
+}
+
+public enum PRBuildStatus: Sendable {
+    case conflicting
+    case failing(checks: [String])
+    case passing
+    case pending(checks: [String])
+    case unknown
 }

@@ -10,14 +10,6 @@ public struct EnrichedChainTask: Sendable {
     }
 }
 
-public enum ChainActionKind: Sendable {
-    case ciFailure
-    case draftNeedsReview
-    case mergeConflict
-    case needsReviewers
-    case stalePR
-}
-
 public struct ChainActionItem: Identifiable, Sendable {
     public var id: String { "\(prNumber)-\(kind)" }
     public let kind: ChainActionKind
@@ -29,6 +21,14 @@ public struct ChainActionItem: Identifiable, Sendable {
         self.prNumber = prNumber
         self.message = message
     }
+}
+
+public enum ChainActionKind: Sendable {
+    case ciFailure
+    case draftNeedsReview
+    case mergeConflict
+    case needsReviewers
+    case stalePR
 }
 
 public struct ChainProjectDetail: Sendable {
