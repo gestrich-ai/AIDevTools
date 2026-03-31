@@ -303,16 +303,29 @@ public struct GitHubService: Sendable {
     }
 
     public func checkRuns(prNumber: Int) async throws -> [GitHubCheckRun] {
-        let output = try runGH(["pr", "checks", String(prNumber), "--json", "name,status,conclusion", "--repo", repoSlug])
+        let output: Data
+        do {
+            output = try runGH(["pr", "checks", String(prNumber), "--json", "name,state", "--repo", repoSlug])
+        } catch GitHubServiceError.ghCommandFailed(_, let stderr) where stderr.contains("no checks reported") {
+            return []
+        }
         guard let items = try JSONSerialization.jsonObject(with: output) as? [[String: Any]] else {
             return []
         }
         return items.map { item in
-            GitHubCheckRun(
-                name: item["name"] as? String ?? "",
-                status: item["status"] as? String ?? "",
-                conclusion: item["conclusion"] as? String
-            )
+            let name = item["name"] as? String ?? ""
+            let state = (item["state"] as? String ?? "").uppercased()
+            let status: String
+            let conclusion: String?
+            switch state {
+            case "SUCCESS", "FAILURE", "SKIPPED", "CANCELLED", "NEUTRAL":
+                status = "completed"
+                conclusion = state.lowercased()
+            default:
+                status = "in_progress"
+                conclusion = nil
+            }
+            return GitHubCheckRun(name: name, status: status, conclusion: conclusion)
         }
     }
 

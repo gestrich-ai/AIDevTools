@@ -265,7 +265,10 @@ After the task list, show an "Action Items" section.
 
 Wire `GetChainDetailUseCase` using the same injected services as the Mac app. The repo owner/repo is derived from the `--repo-path` argument via git remote parsing (no separate `--repo` flag needed).
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
+
+**Skills used**: `ai-dev-tools-debug`, `pr-radar-debug`
+**Principles applied**: Created `enrichment-test` chain in `claude-chain-demo` with 3 tasks; opened 2 draft PRs manually (push via `gh` since subprocess git auth differs). Fixed two bugs found during validation: (1) `StatusCommand.makeGitHubPRService` picked the first alphabetical credential account (`bill_jepp`) instead of the repo-owner-matched account (`gestrich`) — fixed to prefer account matching the remote owner; (2) `GitHubService.checkRuns` used unsupported `gh pr checks` fields (`status`, `conclusion`) — updated to use `state` field and handle "no checks reported" exit by returning empty array. Both CLI builds (`ClaudeChainMain`, `AIDevToolsKitMac`) compile cleanly. GitHub cache verified at `~/Library/Application Support/AIDevTools/github/gestrich-claude-chain-demo/` with `gh-pr.json`, `gh-reviews.json`, `gh-checks.json` per PR.
 
 **Skills to read**: `ai-dev-tools-debug`, `pr-radar-debug`
 

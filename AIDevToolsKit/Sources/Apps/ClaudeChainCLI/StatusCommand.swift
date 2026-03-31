@@ -83,7 +83,11 @@ public struct StatusCommand: AsyncParsableCommand {
 
     private func makeGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
         let credentialService = CredentialSettingsService()
-        let account = (try? credentialService.listCredentialAccounts())?.first ?? "default"
+        let accounts = (try? credentialService.listCredentialAccounts()) ?? []
+        let gitOps = GitHubServiceFactory.createGitOps()
+        let remoteURL = try await gitOps.getRemoteURL(path: repoPath.path)
+        let owner = GitHubService.parseOwnerRepo(from: remoteURL)?.owner ?? ""
+        let account = accounts.first(where: { $0 == owner }) ?? accounts.first ?? "default"
         let (gitHub, _) = try await GitHubServiceFactory.create(
             repoPath: repoPath.path,
             githubAccount: account
