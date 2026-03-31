@@ -262,34 +262,9 @@ Both providers produce a `toolCallSummary`:
 
 ## Logs
 
-AIDevTools writes structured JSON-line logs to `~/Library/Logs/AIDevTools/aidevtools.log`. Both the Mac app and CLI write to this file via `swift-log` and `LoggingSDK`.
+Logs are the primary tool for troubleshooting CLI and Mac app behavior. For reading logs, filtering output, and adding log statements for debugging, use the logging skill:
 
-```bash
-# Read all logs
-cat ~/Library/Logs/AIDevTools/aidevtools.log
-
-# Read logs as formatted JSON
-cat ~/Library/Logs/AIDevTools/aidevtools.log | jq .
-
-# Filter by label (e.g. PlanRunnerModel)
-cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.label == "PlanRunnerModel")'
-
-# Filter by level
-cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.level == "error")'
-
-# Tail live (while app is running)
-tail -f ~/Library/Logs/AIDevTools/aidevtools.log | jq .
-```
-
-### Adding Logs for Debugging
-
-Use `import Logging` and create a logger with `Logger(label: "AIDevTools.<ComponentName>")`. The `LoggingSDK` module provides `AIDevToolsLogging.bootstrap()` which is called at app startup.
-
-**For CLI debugging:** Add log statements, run the CLI command, then check output with `cat ~/Library/Logs/AIDevTools/aidevtools.log`.
-
-**For Mac app debugging:** Since the Mac app runs separately, tell Bill you are adding log statements to help troubleshoot, explain what information the logs will capture, then ask Bill to run the app and trigger the relevant action. After the run, read the log file to see what happened.
-
-Log files auto-rotate at 10MB.
+`.agents/skills/logging/SKILL.md`
 
 ## Debugging Tips
 

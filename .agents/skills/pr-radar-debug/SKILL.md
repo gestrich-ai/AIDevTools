@@ -67,7 +67,9 @@ Use `--config <config-name>` to select the repository. Run `config list` to see 
 
 ## Logs
 
-For reading logs or adding log statements for debugging, use the `logging` skill.
+Logs are the primary tool for troubleshooting CLI and Mac app behavior. For reading logs, filtering output, and adding log statements for debugging, use the logging skill:
+
+`.agents/skills/logging/SKILL.md`
 
 ## Debugging Tips
 
