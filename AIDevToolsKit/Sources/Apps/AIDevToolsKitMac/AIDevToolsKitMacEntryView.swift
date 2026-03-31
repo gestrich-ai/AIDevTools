@@ -50,6 +50,7 @@ public struct AIDevToolsKitMacEntryView: View {
         let storedPlannerProviderName = UserDefaults.standard.string(forKey: "mdPlannerProviderName")
         _markdownPlannerModel = State(initialValue: MarkdownPlannerModel(
             dataPath: root.settingsModel.dataPath,
+            mcpConfigPath: DataPathsService.mcpConfigFileURL.path,
             planSettingsStore: root.planSettingsStore,
             providerRegistry: root.providerModel.providerRegistry,
             selectedProviderName: storedPlannerProviderName

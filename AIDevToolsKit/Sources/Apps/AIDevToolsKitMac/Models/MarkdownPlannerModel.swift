@@ -69,6 +69,7 @@ final class MarkdownPlannerModel {
     private var activeClient: any AIClient
     private let dataPath: URL
     private let deletePlanUseCase: DeletePlanUseCase
+    private let mcpConfigPath: String?
     private let planSettingsStore: MarkdownPlannerRepoSettingsStore
     private let providerRegistry: ProviderRegistry
     private let togglePhaseUseCase: TogglePhaseUseCase
@@ -76,6 +77,7 @@ final class MarkdownPlannerModel {
     init(
         dataPath: URL,
         deletePlanUseCase: DeletePlanUseCase = DeletePlanUseCase(),
+        mcpConfigPath: String? = nil,
         planSettingsStore: MarkdownPlannerRepoSettingsStore,
         providerRegistry: ProviderRegistry,
         selectedProviderName: String? = nil,
@@ -83,6 +85,7 @@ final class MarkdownPlannerModel {
     ) {
         self.dataPath = dataPath
         self.deletePlanUseCase = deletePlanUseCase
+        self.mcpConfigPath = mcpConfigPath
         self.planSettingsStore = planSettingsStore
         self.providerRegistry = providerRegistry
         self.togglePhaseUseCase = togglePhaseUseCase
@@ -252,6 +255,7 @@ final class MarkdownPlannerModel {
         settings.resumeLastSession = false
         return ChatModel(configuration: ChatModelConfiguration(
             client: activeClient,
+            mcpConfigPath: mcpConfigPath,
             settings: settings,
             systemPrompt: systemPrompt,
             workingDirectory: workingDirectory
