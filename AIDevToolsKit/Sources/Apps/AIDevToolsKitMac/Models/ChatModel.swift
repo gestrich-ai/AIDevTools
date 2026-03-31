@@ -1,7 +1,6 @@
 import AIOutputSDK
 import ChatFeature
 import Foundation
-import Logging
 import Observation
 
 @Observable
@@ -26,7 +25,6 @@ public final class ChatModel {
     private let mcpConfigPath: String?
     private let sendMessageUseCase: SendChatMessageUseCase
     private let systemPrompt: String?
-    private static let logger = Logger(label: "ChatModel")
     private var currentTask: Task<Void, Never>?
     private var hasStartedSession: Bool = false
     private var sessionId: String?
@@ -251,8 +249,6 @@ public final class ChatModel {
     // MARK: - Internal
 
     private nonisolated func sendMessageInternal(_ content: String, images: [ImageAttachment] = []) async {
-        let sendStart = Date()
-
         let userMessage = ChatMessage(role: .user, content: content, images: images, isComplete: true)
         await MainActor.run {
             messages.append(userMessage)
@@ -264,8 +260,6 @@ public final class ChatModel {
         }
         let workingDir = await MainActor.run { workingDirectory }
         let mcpPath = await MainActor.run { mcpConfigPath }
-
-        Self.logger.info("[chat] sendMessage start — mcpConfig: \(mcpPath ?? "nil"), workingDir: \(workingDir)")
 
         let assistantMessageId = UUID()
         let placeholderMessage = ChatMessage(
@@ -288,28 +282,20 @@ public final class ChatModel {
             systemPrompt: systemPrompt
         )
 
-        Self.logger.info("[chat] calling sendMessageUseCase.run (+\(String(format: "%.2f", Date().timeIntervalSince(sendStart)))s)")
-
         do {
             let (stream, continuation) = AsyncStream<AIStreamEvent>.makeStream()
             let consumeTask = Task {
                 await self.consumeStream(stream, messageId: assistantMessageId)
             }
 
-            var firstEventLogged = false
             let result = try await sendMessageUseCase.run(options) { @Sendable progress in
                 switch progress {
                 case .streamEvent(let event):
-                    if !firstEventLogged {
-                        firstEventLogged = true
-                        Self.logger.info("[chat] first stream event received (+\(String(format: "%.2f", Date().timeIntervalSince(sendStart)))s)")
-                    }
                     continuation.yield(event)
                 case .completed:
                     break
                 }
             }
-            Self.logger.info("[chat] sendMessageUseCase.run complete (+\(String(format: "%.2f", Date().timeIntervalSince(sendStart)))s)")
             continuation.finish()
             await consumeTask.value
 

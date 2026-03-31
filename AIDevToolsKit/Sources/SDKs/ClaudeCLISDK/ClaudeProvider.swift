@@ -48,23 +48,16 @@ public struct ClaudeProvider: Sendable {
         let timeoutError = ClaudeCLIError.inactivityTimeout(seconds: Int(Self.inactivityTimeout))
         let watchdog = InactivityWatchdog(timeout: Self.inactivityTimeout, onTimeout: {})
         var timedOut = false
-        let processStart = Date()
-        var firstOutputLogged = false
 
         let stream = CLIOutputStream()
         let outputStream: CLIOutputStream = stream
         let outputTask = Task {
             for await item in await stream.makeStream() {
                 await watchdog.recordActivity()
-                if !firstOutputLogged {
-                    firstOutputLogged = true
-                    Self.logger.info("[claude-process] first output line (+\(String(format: "%.2f", Date().timeIntervalSince(processStart)))s)")
-                }
                 onOutput?(item)
             }
         }
 
-        Self.logger.info("[claude-process] launching: \(command.commandArguments.joined(separator: " ").prefix(200))")
         await watchdog.start()
         let result: ExecutionResult
         do {
@@ -107,7 +100,6 @@ public struct ClaudeProvider: Sendable {
         await outputStream.finishAll()
         outputTask.cancel()
 
-        Self.logger.info("[claude-process] finished (+\(String(format: "%.2f", Date().timeIntervalSince(processStart)))s), exit: \(result.exitCode)")
         return result
     }
 
