@@ -410,7 +410,10 @@ Ask Bill to open the Mac app, select the `claude-chain-demo` repo, switch to the
 
 **Skills used**: `swift-architecture`
 **Principles applied**: Searched all files changed in phases 1–19 for `<Name><Layer>` violations. Found one: the concrete GitHub API service type `GitHubService` in `PRRadarCLIService/GitHubService.swift` had the same name as the `GitHubService` module, creating a shadowing ambiguity (local type hides the module name). Since this struct implements `GitHubAPIServiceProtocol`, the correct name is `GitHubAPIService` (matching the protocol name minus the `Protocol` suffix). Renamed the struct, renamed the file to `GitHubAPIService.swift`, and updated all references in `GitHubServiceFactory`, `GitHubAPIHistoryProvider`, `CommentService`, `PRAcquisitionService`, and `StatusCommand`.
-## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify both a Mac app model and a CLI command consume each new use case, and make the necessary code changes
+## - [x] Code Review: Review the code changes that have been made in these tasks for the following: Verify both a Mac app model and a CLI command consume each new use case, and make the necessary code changes
+
+**Skills used**: none
+**Principles applied**: Audited all use cases introduced in phases 1–7. `GetChainDetailUseCase` is the only new use case from this plan; it is consumed by both `StatusCommand.swift` (CLI, line 47) and `ClaudeChainModel.swift` (Mac app, line 128). All other use cases (`ListChainsUseCase`, `ExecuteChainUseCase`, `RunChainTaskUseCase`) are pre-existing. No code changes required.
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Split files that define multiple unrelated types into one file per type, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Move supporting enums and nested types below their primary type, not above it, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find fallback values that hide failures and suppressed errors — remove or replace both with proper propagation, and make the necessary code changes
