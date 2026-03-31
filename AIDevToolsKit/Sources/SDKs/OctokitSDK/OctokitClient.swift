@@ -50,7 +50,7 @@ private struct PullRequestFile: Codable {
         case contentsUrl = "contents_url"
     }
     
-    func toOctokitFile() -> PullRequest.File {
+    func toOctokitFile() throws -> PullRequest.File {
         let dict: [String: Any] = [
             "sha": sha,
             "filename": filename,
@@ -63,10 +63,10 @@ private struct PullRequestFile: Codable {
             "contents_url": contentsUrl,
             "patch": patch ?? ""  // Empty string for renamed files without content changes
         ]
-        
-        let data = try! JSONSerialization.data(withJSONObject: dict)
+
+        let data = try JSONSerialization.data(withJSONObject: dict)
         let decoder = JSONDecoder()
-        return try! decoder.decode(PullRequest.File.self, from: data)
+        return try decoder.decode(PullRequest.File.self, from: data)
     }
 }
 
@@ -218,11 +218,16 @@ public struct OctokitClient: Sendable {
         accept: String = "application/vnd.github+json",
         queryItems: [URLQueryItem] = []
     ) -> URLRequest {
-        var components = URLComponents(string: "\(baseURL)/\(path)")!
+        guard var components = URLComponents(string: "\(baseURL)/\(path)") else {
+            preconditionFailure("Invalid URL: \(baseURL)/\(path)")
+        }
         if !queryItems.isEmpty {
             components.queryItems = queryItems
         }
-        var request = URLRequest(url: components.url!)
+        guard let url = components.url else {
+            preconditionFailure("Could not construct URL from components for path: \(path)")
+        }
+        var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue(accept, forHTTPHeaderField: "Accept")
         return request
@@ -294,7 +299,7 @@ public struct OctokitClient: Sendable {
             let customFiles = try decoder.decode([PullRequestFile].self, from: data)
             
             // Convert to OctoKit's model (see PullRequestFile.toOctokitFile() for details)
-            return customFiles.map { $0.toOctokitFile() }
+            return try customFiles.map { try $0.toOctokitFile() }
         case 401:
             throw OctokitClientError.authenticationFailed
         case 404:
