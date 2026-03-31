@@ -195,7 +195,11 @@ public struct GitHubService: Sendable {
     // MARK: - Comment Operations
 
     public func getPRHeadSHA(number: Int) async throws -> String {
-        try await octokitClient.getPullRequestHeadSHA(owner: owner, repository: repo, number: number)
+        let pr = try await octokitClient.pullRequest(owner: owner, repository: repo, number: number)
+        guard let sha = pr.head?.sha else {
+            throw OctokitClientError.requestFailed("Pull request \(number) has no head SHA")
+        }
+        return sha
     }
 
     public func postIssueComment(number: Int, body: String) async throws {

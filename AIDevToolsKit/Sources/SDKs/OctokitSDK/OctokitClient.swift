@@ -188,6 +188,10 @@ private enum GitHubPath {
         "\(pullRequest(owner, repository, number: number))/comments"
     }
 
+    static func pullRequestRequestedReviewers(_ owner: String, _ repository: String, number: Int) -> String {
+        "\(pullRequest(owner, repository, number: number))/requested_reviewers"
+    }
+
     static func pullRequestReviews(_ owner: String, _ repository: String, number: Int) -> String {
         "\(pullRequest(owner, repository, number: number))/reviews"
     }
@@ -626,8 +630,16 @@ public struct OctokitClient: Sendable {
     }
 
     public func requestedReviewers(owner: String, repository: String, number: Int) async throws -> [String] {
-        let pr = try await pullRequest(owner: owner, repository: repository, number: number)
-        return pr.requestedReviewers?.compactMap { $0.login } ?? []
+        struct RequestedReviewersResponse: Decodable {
+            struct User: Decodable {
+                let login: String
+            }
+            let users: [User]
+        }
+        let response: RequestedReviewersResponse = try await getJSON(
+            path: GitHubPath.pullRequestRequestedReviewers(owner, repository, number: number)
+        )
+        return response.users.map { $0.login }
     }
 
     public func isMergeable(owner: String, repository: String, number: Int) async throws -> Bool? {
@@ -638,18 +650,6 @@ public struct OctokitClient: Sendable {
             path: GitHubPath.pullRequest(owner, repository, number: number)
         )
         return response.mergeable
-    }
-
-    public func getPullRequestHeadSHA(
-        owner: String,
-        repository: String,
-        number: Int
-    ) async throws -> String {
-        let pr = try await pullRequest(owner: owner, repository: repository, number: number)
-        guard let sha = pr.head?.sha else {
-            throw OctokitClientError.requestFailed("Pull request \(number) has no head SHA")
-        }
-        return sha
     }
 
     public func checkRuns(
