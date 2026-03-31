@@ -59,9 +59,11 @@ public struct RunChainTaskUseCase: UseCase {
         case preparingProject
         case preparedTask(description: String, index: Int, total: Int)
         case preScriptCompleted(ActionResult)
+        case reviewCompleted(summary: String)
         case runningAI(taskDescription: String)
         case runningPostScript
         case runningPreScript
+        case runningReview
         case summaryCompleted(summary: String)
         case summaryStreamEvent(AIStreamEvent)
     }
@@ -360,6 +362,25 @@ public struct RunChainTaskUseCase: UseCase {
         """
     }
 
+    private func buildReviewPrompt(taskDescription: String, specPath: String, reviewContent: String) -> String {
+        """
+        You are in the middle of running the task chain for spec.md at \(specPath).
+
+        The last task was just completed and committed: "\(taskDescription)"
+
+        Your job is to review those changes and apply improvements based on the criteria in review.md below.
+        You should err on the side of making changes for conformance, rather than just verifying things are done.
+        Even things that are slightly not right should be fixed. Err on the side of improving the work that was done.
+
+        --- BEGIN review.md ---
+        \(reviewContent)
+        --- END review.md ---
+
+        After completing your review and making any changes, output a single final line in this exact format:
+        REVIEW_SUMMARY: <one-line description of what changed, or "No changes needed">
+        """
+    }
+
     private func buildSummaryPrompt(taskDescription: String, baseBranch: String) -> String {
         """
         You are reviewing a pull request. Analyze the changes made by running \
@@ -390,6 +411,15 @@ public struct RunChainTaskUseCase: UseCase {
     }
 
     // MARK: - Helpers
+
+    func extractReviewSummary(from output: String) -> String {
+        let lines = output.components(separatedBy: .newlines)
+        let prefix = "REVIEW_SUMMARY:"
+        if let match = lines.last(where: { $0.hasPrefix(prefix) }) {
+            return String(match.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+        }
+        return "Review completed"
+    }
 
     private func extractCost(from result: AIClientResult) -> Double {
         // Cost is typically reported in stderr as part of Claude CLI output

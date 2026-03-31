@@ -713,6 +713,10 @@ private struct ChainProjectDetailView: View {
                 } else {
                     chatModel.appendStatusMessage("Completed")
                 }
+            case .runningReview:
+                chatModel.appendStatusMessage("Running review...")
+            case .reviewCompleted(let summary):
+                chatModel.appendStatusMessage("Review: \(summary)")
             case .failed(let phase, let error):
                 chatModel.finalizeCurrentStreamingMessage()
                 chatModel.appendStatusMessage("Failed during \(phase): \(error)")

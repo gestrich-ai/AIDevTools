@@ -49,9 +49,10 @@ public func loadLocalReview(project: Project) throws -> String? {
 
 No GitHub (remote) variant needed for now — review.md is only read locally post-checkout, same as how spec.md is consumed in `RunChainTaskUseCase`.
 
-## - [ ] Phase 2: Add Progress cases and prompt builder to RunChainTaskUseCase
+## - [x] Phase 2: Add Progress cases and prompt builder to RunChainTaskUseCase
 
-**Skills to read**: `claude-chain`
+**Skills used**: `claude-chain`
+**Principles applied**: Added `reviewCompleted` and `runningReview` Progress cases in alphabetical position. Added `buildReviewPrompt` to the existing `// MARK: - Prompt Building` section. Added `extractReviewSummary` (internal access to allow testing) to `// MARK: - Helpers`. Updated all exhaustive switches in `RunTaskCommand.swift`, `ClaudeChainModel.swift`, and `ClaudeChainView.swift`.
 
 In `RunChainTaskUseCase.swift`:
 

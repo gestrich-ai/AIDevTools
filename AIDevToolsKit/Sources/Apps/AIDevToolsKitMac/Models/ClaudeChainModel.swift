@@ -280,6 +280,10 @@ final class ClaudeChainModel {
             current.setPhaseStatus(id: "prComment", status: .running)
         case .prCommentPosted:
             current.setPhaseStatus(id: "prComment", status: .completed)
+        case .runningReview:
+            current.currentPhase = "Running review..."
+        case .reviewCompleted(let summary):
+            current.currentPhase = "Review: \(summary)"
         case .completed:
             current.currentPhase = "Completed"
         case .failed(let phase, let error):

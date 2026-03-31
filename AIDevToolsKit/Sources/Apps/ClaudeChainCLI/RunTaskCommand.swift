@@ -164,6 +164,12 @@ struct RunTaskCommand: AsyncParsableCommand {
                 print("\n=== Completed ===")
             }
 
+        case .reviewCompleted(let summary):
+            print("Review completed: \(summary)")
+
+        case .runningReview:
+            print("\n=== Phase: Review ===")
+
         case .failed(let phase, let error):
             print("\nFailed during \(phase): \(error)")
         }
