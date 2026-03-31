@@ -126,7 +126,10 @@ This change is additive — local-only runs (no `--github` flag) are unchanged.
 
 ---
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
+
+**Skills used**: none
+**Principles applied**: Built release binary and ran end-to-end validation against iOS repo. Discovered stray `[]` output caused by `runGhCommand` creating `CLIClient()` with default `printOutput: true`; fixed with `CLIClient(printOutput: false)`. All 8 GitHub-discovered chains appear in output; `ios-26-ins-policy-AFWXBriefs-to-Diag` now visible with `(spec on non-default branch)` label; 19 pre-existing chains unaffected.
 
 Build the CLI and verify the fix end-to-end:
 

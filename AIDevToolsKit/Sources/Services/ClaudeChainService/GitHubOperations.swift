@@ -22,7 +22,7 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     @available(*, deprecated, message: "Use specific GitHubClient methods instead")
     public static func runGhCommand(args: [String]) throws -> String {
         // Use CLIClient synchronously for backwards compatibility
-        let cliClient = CLIClient()
+        let cliClient = CLIClient(printOutput: false)
 
         // Create a sync wrapper using RunLoop
         var result: ExecutionResult?
