@@ -226,6 +226,7 @@ final class ClaudeChainModel {
             PhaseInfo(displayName: "Prepare", id: "prepare", status: .pending),
             PhaseInfo(displayName: "Pre-Script", id: "preScript", status: .pending),
             PhaseInfo(displayName: "AI Execution", id: "ai", status: .pending),
+            PhaseInfo(displayName: "Review", id: "review", status: .pending),
             PhaseInfo(displayName: "Post-Script", id: "postScript", status: .pending),
             PhaseInfo(displayName: "Finalize / Create PR", id: "finalize", status: .pending),
             PhaseInfo(displayName: "PR Summary", id: "summary", status: .pending),
@@ -282,8 +283,10 @@ final class ClaudeChainModel {
             current.setPhaseStatus(id: "prComment", status: .completed)
         case .runningReview:
             current.currentPhase = "Running review..."
+            current.setPhaseStatus(id: "review", status: .running)
         case .reviewCompleted(let summary):
             current.currentPhase = "Review: \(summary)"
+            current.setPhaseStatus(id: "review", status: .completed)
         case .completed:
             current.currentPhase = "Completed"
         case .failed(let phase, let error):

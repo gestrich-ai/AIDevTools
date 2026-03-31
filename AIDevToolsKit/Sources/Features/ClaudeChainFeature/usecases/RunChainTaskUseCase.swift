@@ -7,6 +7,11 @@ import GitSDK
 import PipelineSDK
 import UseCaseSDK
 
+struct ReviewOutput: Decodable, Sendable {
+    let commitMessage: String
+    let summary: String
+}
+
 public struct RunChainTaskUseCase: UseCase {
 
     public struct Options: Sendable {
@@ -218,24 +223,28 @@ public struct RunChainTaskUseCase: UseCase {
                 dangerouslySkipPermissions: true,
                 workingDirectory: options.repoPath.path
             )
-            let reviewResult = try await client.run(
+            let reviewSchema = """
+            {"type":"object","properties":{"commitMessage":{"type":"string"},"summary":{"type":"string"}},"required":["commitMessage","summary"]}
+            """
+            let reviewResult = try await client.runStructured(
+                ReviewOutput.self,
                 prompt: reviewPrompt,
+                jsonSchema: reviewSchema,
                 options: reviewOptions,
                 onOutput: { text in onProgress?(.aiOutput(text)) },
                 onStreamEvent: { event in onProgress?(.aiStreamEvent(event)) }
             )
-            reviewCost = extractCost(from: reviewResult)
 
             let reviewStatus = try await git.status(workingDirectory: repoDir)
             if !reviewStatus.isEmpty {
                 try await git.addAll(workingDirectory: repoDir)
                 let staged = try await git.diffCachedNames(workingDirectory: repoDir)
                 if !staged.isEmpty {
-                    try await git.commit(message: "Review: \(nextStep.description)", workingDirectory: repoDir)
+                    try await git.commit(message: reviewResult.value.commitMessage, workingDirectory: repoDir)
                 }
             }
 
-            let reviewSummary = extractReviewSummary(from: reviewResult.stdout)
+            let reviewSummary = reviewResult.value.summary
             appendReviewNote(specPath: project.specPath, taskDescription: nextStep.description, summary: reviewSummary)
             try await git.add(files: [specURL.path], workingDirectory: repoDir)
             try await git.commit(message: "Add review note for task \(stepIndex)", workingDirectory: repoDir)
@@ -416,8 +425,9 @@ public struct RunChainTaskUseCase: UseCase {
         \(reviewContent)
         --- END review.md ---
 
-        After completing your review and making any changes, output a single final line in this exact format:
-        REVIEW_SUMMARY: <one-line description of what changed, or "No changes needed">
+        After completing your review and making any changes, respond with JSON containing:
+        - commitMessage: a short commit message describing what you changed (or "No review changes" if nothing changed)
+        - summary: a one-line description of the review findings for the spec.md annotation
         """
     }
 
@@ -460,15 +470,6 @@ public struct RunChainTaskUseCase: UseCase {
         let note = "  <!-- review: \(summary) -->\n"
         content.insert(contentsOf: note, at: insertionIndex)
         try? content.write(toFile: specPath, atomically: true, encoding: .utf8)
-    }
-
-    func extractReviewSummary(from output: String) -> String {
-        let lines = output.components(separatedBy: .newlines)
-        let prefix = "REVIEW_SUMMARY:"
-        if let match = lines.last(where: { $0.hasPrefix(prefix) }) {
-            return String(match.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
-        }
-        return "Review completed"
     }
 
     private func extractCost(from result: AIClientResult) -> Double {
