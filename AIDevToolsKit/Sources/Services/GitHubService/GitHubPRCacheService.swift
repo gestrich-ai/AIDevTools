@@ -12,38 +12,23 @@ actor GitHubPRCacheService {
     }
 
     func readPR(number: Int) throws -> GitHubPullRequest? {
-        let url = prURL(number: number)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(GitHubPullRequest.self, from: data)
+        try readFile(at: prURL(number: number))
     }
 
     func readComments(number: Int) throws -> GitHubPullRequestComments? {
-        let url = commentsURL(number: number)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(GitHubPullRequestComments.self, from: data)
+        try readFile(at: commentsURL(number: number))
     }
 
     func readRepository() throws -> GitHubRepository? {
-        let url = repositoryURL()
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(GitHubRepository.self, from: data)
+        try readFile(at: repositoryURL())
     }
 
     func writePR(_ pr: GitHubPullRequest, number: Int) throws {
-        try FileManager.default.createDirectory(at: prDirectory(number: number), withIntermediateDirectories: true)
-        let data = try JSONEncoder.prettyPrinted.encode(pr)
-        try data.write(to: prURL(number: number))
-        continuation.yield(number)
+        try writePRFile(pr, to: prURL(number: number), prNumber: number)
     }
 
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) throws {
-        try FileManager.default.createDirectory(at: prDirectory(number: number), withIntermediateDirectories: true)
-        let data = try JSONEncoder.prettyPrinted.encode(comments)
-        try data.write(to: commentsURL(number: number))
-        continuation.yield(number)
+        try writePRFile(comments, to: commentsURL(number: number), prNumber: number)
     }
 
     func writeRepository(_ repository: GitHubRepository) throws {
@@ -53,46 +38,46 @@ actor GitHubPRCacheService {
     }
 
     func readCheckRuns(number: Int) throws -> [GitHubCheckRun]? {
-        let url = checkRunsURL(number: number)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode([GitHubCheckRun].self, from: data)
+        try readFile(at: checkRunsURL(number: number))
     }
 
     func writeCheckRuns(_ checkRuns: [GitHubCheckRun], number: Int) throws {
-        try FileManager.default.createDirectory(at: prDirectory(number: number), withIntermediateDirectories: true)
-        let data = try JSONEncoder.prettyPrinted.encode(checkRuns)
-        try data.write(to: checkRunsURL(number: number))
-        continuation.yield(number)
+        try writePRFile(checkRuns, to: checkRunsURL(number: number), prNumber: number)
     }
 
     func readReviews(number: Int) throws -> [GitHubReview]? {
-        let url = reviewsURL(number: number)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode([GitHubReview].self, from: data)
+        try readFile(at: reviewsURL(number: number))
     }
 
     func writeReviews(_ reviews: [GitHubReview], number: Int) throws {
-        try FileManager.default.createDirectory(at: prDirectory(number: number), withIntermediateDirectories: true)
-        let data = try JSONEncoder.prettyPrinted.encode(reviews)
-        try data.write(to: reviewsURL(number: number))
-        continuation.yield(number)
+        try writePRFile(reviews, to: reviewsURL(number: number), prNumber: number)
     }
 
     // MARK: - Index
 
     func readIndex(key: String) throws -> [Int]? {
-        let url = indexURL(key: key)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode([Int].self, from: data)
+        try readFile(at: indexURL(key: key))
     }
 
     func writeIndex(_ numbers: [Int], key: String) throws {
         try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(numbers)
         try data.write(to: indexURL(key: key))
+    }
+
+    // MARK: - Private helpers
+
+    private func readFile<T: Decodable>(at url: URL) throws -> T? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    private func writePRFile<T: Encodable>(_ value: T, to url: URL, prNumber: Int) throws {
+        try FileManager.default.createDirectory(at: prDirectory(number: prNumber), withIntermediateDirectories: true)
+        let data = try JSONEncoder.prettyPrinted.encode(value)
+        try data.write(to: url)
+        continuation.yield(prNumber)
     }
 
     // MARK: - URLs

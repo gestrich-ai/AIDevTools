@@ -65,10 +65,7 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
             let reviewStatus = buildReviewStatus(reviews: reviews)
             let buildStatus = buildBuildStatus(checkRuns: checkRuns, isMergeable: nil)
             let enrichedPR = EnrichedPR(pr: pr, reviewStatus: reviewStatus, buildStatus: buildStatus)
-            if let headRefName = pr.headRefName,
-               let branchInfo = BranchInfo.fromBranchName(headRefName) {
-                enrichedPRsByHash[branchInfo.taskHash] = enrichedPR
-            }
+            register(enrichedPR, into: &enrichedPRsByHash)
         }
 
         let enrichedTasks = project.tasks.map { task in
@@ -127,10 +124,7 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
             let reviewStatus = buildReviewStatus(reviews: data.reviews)
             let buildStatus = buildBuildStatus(checkRuns: data.checkRuns, isMergeable: data.isMergeable)
             let enrichedPR = EnrichedPR(pr: data.pr, reviewStatus: reviewStatus, buildStatus: buildStatus)
-            if let headRefName = data.pr.headRefName,
-               let branchInfo = BranchInfo.fromBranchName(headRefName) {
-                enrichedPRsByHash[branchInfo.taskHash] = enrichedPR
-            }
+            register(enrichedPR, into: &enrichedPRsByHash)
         }
 
         // Fetch merged PR metadata for tasks not already matched to an open PR
@@ -158,10 +152,7 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
                 reviewStatus: PRReviewStatus(approvedBy: [], pendingReviewers: []),
                 buildStatus: .unknown
             )
-            if let headRefName = pr.headRefName,
-               let branchInfo = BranchInfo.fromBranchName(headRefName) {
-                enrichedPRsByHash[branchInfo.taskHash] = enrichedPR
-            }
+            register(enrichedPR, into: &enrichedPRsByHash)
         }
 
         let enrichedTasks = project.tasks.map { task in
@@ -181,6 +172,12 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
     }
 
     // MARK: - Helpers
+
+    private func register(_ enrichedPR: EnrichedPR, into dict: inout [String: EnrichedPR]) {
+        guard let headRefName = enrichedPR.pr.headRefName,
+              let branchInfo = BranchInfo.fromBranchName(headRefName) else { return }
+        dict[branchInfo.taskHash] = enrichedPR
+    }
 
     private func cacheIndexKey(projectName: String) -> String {
         "chain-\(projectName)"

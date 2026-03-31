@@ -47,13 +47,7 @@ public struct StatusCommand: AsyncParsableCommand {
             let detailUseCase = GetChainDetailUseCase(gitHubPRService: prService)
 
             if let projectName = project {
-                guard let matched = projects.first(where: { $0.name == projectName }) else {
-                    print("Project '\(projectName)' not found. Available projects:")
-                    for p in projects.sorted(by: { $0.name < $1.name }) {
-                        print("  \(p.name)")
-                    }
-                    throw ExitCode.failure
-                }
+                let matched = try findProject(named: projectName, in: projects)
                 let detail = try await detailUseCase.run(options: .init(repoPath: repoURL, projectName: matched.name))
                 printEnrichedProjectDetail(detail)
             } else {
@@ -70,18 +64,23 @@ public struct StatusCommand: AsyncParsableCommand {
             }
         } else {
             if let projectName = project {
-                guard let matched = projects.first(where: { $0.name == projectName }) else {
-                    print("Project '\(projectName)' not found. Available projects:")
-                    for p in projects.sorted(by: { $0.name < $1.name }) {
-                        print("  \(p.name)")
-                    }
-                    throw ExitCode.failure
-                }
+                let matched = try findProject(named: projectName, in: projects)
                 printProjectDetail(matched)
             } else {
                 printProjectList(projects)
             }
         }
+    }
+
+    private func findProject(named name: String, in projects: [ChainProject]) throws -> ChainProject {
+        guard let matched = projects.first(where: { $0.name == name }) else {
+            print("Project '\(name)' not found. Available projects:")
+            for p in projects.sorted(by: { $0.name < $1.name }) {
+                print("  \(p.name)")
+            }
+            throw ExitCode.failure
+        }
+        return matched
     }
 
     private func makeGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
@@ -146,9 +145,7 @@ public struct StatusCommand: AsyncParsableCommand {
             print("  \(padded)  \(bar)  \(counts)\(actionBadge)")
         }
 
-        let totalCompleted = allProjects.reduce(0) { $0 + $1.completedTasks }
-        let totalAll = allProjects.reduce(0) { $0 + $1.totalTasks }
-        print("\n\(allProjects.count) project(s), \(totalCompleted)/\(totalAll) total tasks completed")
+        printProjectSummaryFooter(allProjects)
     }
 
     private func buildStatusIndicator(_ status: PRBuildStatus) -> String {
@@ -183,9 +180,7 @@ public struct StatusCommand: AsyncParsableCommand {
             print("  \(padded)  \(bar)  \(counts)\(pending)")
         }
 
-        let totalCompleted = projects.reduce(0) { $0 + $1.completedTasks }
-        let totalAll = projects.reduce(0) { $0 + $1.totalTasks }
-        print("\n\(projects.count) project(s), \(totalCompleted)/\(totalAll) total tasks completed")
+        printProjectSummaryFooter(projects)
     }
 
     private func printProjectDetail(_ project: ChainProject) {
@@ -198,6 +193,12 @@ public struct StatusCommand: AsyncParsableCommand {
             let icon = task.isCompleted ? "✓" : "○"
             print("  \(icon) \(task.description)")
         }
+    }
+
+    private func printProjectSummaryFooter(_ projects: [ChainProject]) {
+        let totalCompleted = projects.reduce(0) { $0 + $1.completedTasks }
+        let totalAll = projects.reduce(0) { $0 + $1.totalTasks }
+        print("\n\(projects.count) project(s), \(totalCompleted)/\(totalAll) total tasks completed")
     }
 
     private func progressBar(completed: Int, total: Int, width: Int = 20) -> String {
