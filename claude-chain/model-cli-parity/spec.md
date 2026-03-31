@@ -25,7 +25,7 @@ For each task below:
 
 ## Tasks
 
-- [ ] Check `AIDevToolsKitMac/Models/ArchitecturePlannerModel.swift` and corresponding `ArchPlanner*Command.swift` files for parity
+- [x] Check `AIDevToolsKitMac/Models/ArchitecturePlannerModel.swift` and corresponding `ArchPlanner*Command.swift` files for parity
 - [ ] Check `AIDevToolsKitMac/Models/ClaudeChainModel.swift` and corresponding `ClaudeChainCLI/` commands for parity
 - [ ] Check `AIDevToolsKitMac/Models/ChatModel.swift` and corresponding `ChatCommand.swift` for parity
 - [ ] Check `AIDevToolsKitMac/Models/CredentialModel.swift` and corresponding `CredentialsCommand.swift` for parity
