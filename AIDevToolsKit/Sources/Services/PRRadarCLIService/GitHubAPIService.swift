@@ -308,7 +308,11 @@ public struct GitHubAPIService: Sendable {
             commitSHA: headSHA
         )
         return octokitRuns.map { run in
-            GitHubCheckRun(name: run.name, status: run.status, conclusion: run.conclusion)
+            GitHubCheckRun(
+                name: run.name,
+                status: GitHubCheckRunStatus(rawValue: run.status) ?? .queued,
+                conclusion: run.conclusion.flatMap { GitHubCheckRunConclusion(rawValue: $0) }
+            )
         }
     }
 

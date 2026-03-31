@@ -204,7 +204,7 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
         if !failingChecks.isEmpty {
             return .failing(checks: failingChecks)
         }
-        let pendingChecks = checkRuns.filter { $0.status != "completed" }.map { $0.name }
+        let pendingChecks = checkRuns.filter { $0.status != .completed }.map { $0.name }
         if !pendingChecks.isEmpty {
             return .pending(checks: pendingChecks)
         }
