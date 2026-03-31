@@ -43,6 +43,7 @@ final class ClaudeChainModel {
     }
 
     private let logger = Logger(label: "ClaudeChainModel")
+    private(set) var chainDetailErrors: [String: Error] = [:]
     private(set) var chainDetailLoading: Set<String> = []
     private(set) var chainDetails: [String: ChainProjectDetail] = [:]
     private(set) var lastLoadedProjects: [ChainProject] = []
@@ -90,6 +91,7 @@ final class ClaudeChainModel {
 
     func loadChains(for repoPath: URL, credentialAccount: String?) {
         if currentRepoPath?.path != repoPath.path {
+            chainDetailErrors = [:]
             chainDetails = [:]
             chainDetailLoading = []
             changesTask?.cancel()
@@ -122,6 +124,7 @@ final class ClaudeChainModel {
                 chainDetails[projectName] = detail
             } catch {
                 logger.error("Chain detail enrichment failed for '\(projectName)': \(error)")
+                chainDetailErrors[projectName] = error
             }
             chainDetailLoading.remove(projectName)
         }
@@ -129,6 +132,7 @@ final class ClaudeChainModel {
 
     func refreshChainDetail(projectName: String, repoPath: URL) {
         chainDetails.removeValue(forKey: projectName)
+        chainDetailErrors.removeValue(forKey: projectName)
         loadChainDetail(projectName: projectName, repoPath: repoPath)
     }
 

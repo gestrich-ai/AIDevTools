@@ -85,7 +85,11 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
         if useCache, let cached = try await cache.readCheckRuns(number: number) {
             return cached
         }
-        let fetched = try await apiClient.checkRuns(prNumber: number)
+        let pr = try await pullRequest(number: number, useCache: true)
+        guard let headSHA = pr.headRefOid else {
+            return []
+        }
+        let fetched = try await apiClient.checkRuns(prNumber: number, headSHA: headSHA)
         try await cache.writeCheckRuns(fetched, number: number)
         return fetched
     }

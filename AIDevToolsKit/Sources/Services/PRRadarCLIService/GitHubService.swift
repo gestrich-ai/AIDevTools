@@ -294,70 +294,22 @@ public struct GitHubService: Sendable {
     }
 
     public func requestedReviewers(prNumber: Int) async throws -> [String] {
-        let output = try runGH(["pr", "view", String(prNumber), "--json", "requestedReviewers", "--repo", repoSlug])
-        guard let json = try JSONSerialization.jsonObject(with: output) as? [String: Any],
-              let reviewers = json["requestedReviewers"] as? [[String: Any]] else {
-            return []
-        }
-        return reviewers.compactMap { $0["login"] as? String }
+        try await octokitClient.requestedReviewers(owner: owner, repository: repo, number: prNumber)
     }
 
-    public func checkRuns(prNumber: Int) async throws -> [GitHubCheckRun] {
-        let output: Data
-        do {
-            output = try runGH(["pr", "checks", String(prNumber), "--json", "name,state", "--repo", repoSlug])
-        } catch GitHubServiceError.ghCommandFailed(_, let stderr) where stderr.contains("no checks reported") {
-            return []
-        }
-        guard let items = try JSONSerialization.jsonObject(with: output) as? [[String: Any]] else {
-            return []
-        }
-        return items.map { item in
-            let name = item["name"] as? String ?? ""
-            let state = (item["state"] as? String ?? "").uppercased()
-            let status: String
-            let conclusion: String?
-            switch state {
-            case "SUCCESS", "FAILURE", "SKIPPED", "CANCELLED", "NEUTRAL":
-                status = "completed"
-                conclusion = state.lowercased()
-            default:
-                status = "in_progress"
-                conclusion = nil
-            }
-            return GitHubCheckRun(name: name, status: status, conclusion: conclusion)
+    public func checkRuns(prNumber: Int, headSHA: String) async throws -> [GitHubCheckRun] {
+        let octokitRuns = try await octokitClient.checkRuns(
+            owner: owner,
+            repository: repo,
+            commitSHA: headSHA
+        )
+        return octokitRuns.map { run in
+            GitHubCheckRun(name: run.name, status: run.status, conclusion: run.conclusion)
         }
     }
 
     public func isMergeable(prNumber: Int) async throws -> Bool? {
-        let output = try runGH(["pr", "view", String(prNumber), "--json", "mergeable", "--repo", repoSlug])
-        guard let json = try JSONSerialization.jsonObject(with: output) as? [String: Any],
-              let value = json["mergeable"] as? String else {
-            return nil
-        }
-        switch value {
-        case "MERGEABLE": return true
-        case "CONFLICTING": return false
-        default: return nil
-        }
-    }
-
-    private func runGH(_ args: [String]) throws -> Data {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["gh"] + args
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-        try process.run()
-        process.waitUntilExit()
-        let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        guard process.terminationStatus == 0 else {
-            let errMsg = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            throw GitHubServiceError.ghCommandFailed(args: args, stderr: errMsg)
-        }
-        return data
+        try await octokitClient.isMergeable(owner: owner, repository: repo, number: prNumber)
     }
 
     // MARK: - Factory

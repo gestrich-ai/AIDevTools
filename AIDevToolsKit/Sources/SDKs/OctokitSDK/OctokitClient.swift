@@ -127,6 +127,12 @@ private struct ReviewCommentResponse: Codable {
     }
 }
 
+public struct CheckRun: Codable, Sendable {
+    public let name: String
+    public let status: String
+    public let conclusion: String?
+}
+
 public struct CompareResult: Sendable {
     public let mergeBaseCommitSHA: String
 }
@@ -205,6 +211,10 @@ private enum GitHubPath {
 
     static func compare(_ owner: String, _ repository: String, base: String, head: String) -> String {
         "\(self.repository(owner, repository))/compare/\(base)...\(head)"
+    }
+
+    static func commitCheckRuns(_ owner: String, _ repository: String, commitSHA: String) -> String {
+        "\(self.repository(owner, repository))/commits/\(commitSHA)/check-runs"
     }
 
     static func user(login: String) -> String {
@@ -615,6 +625,21 @@ public struct OctokitClient: Sendable {
         try await getJSON(path: GitHubPath.pullRequestReviews(owner, repository, number: number))
     }
 
+    public func requestedReviewers(owner: String, repository: String, number: Int) async throws -> [String] {
+        let pr = try await pullRequest(owner: owner, repository: repository, number: number)
+        return pr.requestedReviewers?.compactMap { $0.login } ?? []
+    }
+
+    public func isMergeable(owner: String, repository: String, number: Int) async throws -> Bool? {
+        struct MergeableResponse: Decodable {
+            let mergeable: Bool?
+        }
+        let response: MergeableResponse = try await getJSON(
+            path: GitHubPath.pullRequest(owner, repository, number: number)
+        )
+        return response.mergeable
+    }
+
     public func getPullRequestHeadSHA(
         owner: String,
         repository: String,
@@ -625,6 +650,20 @@ public struct OctokitClient: Sendable {
             throw OctokitClientError.requestFailed("Pull request \(number) has no head SHA")
         }
         return sha
+    }
+
+    public func checkRuns(
+        owner: String,
+        repository: String,
+        commitSHA: String
+    ) async throws -> [CheckRun] {
+        struct CheckRunsResponse: Decodable {
+            let check_runs: [CheckRun]
+        }
+        let response: CheckRunsResponse = try await getJSON(
+            path: GitHubPath.commitCheckRuns(owner, repository, commitSHA: commitSHA)
+        )
+        return response.check_runs
     }
 
     // MARK: - GraphQL Operations

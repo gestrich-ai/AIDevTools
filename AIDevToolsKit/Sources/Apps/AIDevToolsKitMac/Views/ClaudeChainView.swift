@@ -143,6 +143,10 @@ private struct ChainProjectDetailView: View {
         model.chainDetails[project.name]
     }
 
+    private var chainDetailError: Error? {
+        model.chainDetailErrors[project.name]
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             headerBar
@@ -236,6 +240,10 @@ private struct ChainProjectDetailView: View {
                     actionItemsBanner(detail.actionItems)
                 }
 
+                if let error = chainDetailError {
+                    enrichmentErrorBanner(error)
+                }
+
                 taskListSection
 
                 if let progress = executionProgress {
@@ -294,6 +302,19 @@ private struct ChainProjectDetailView: View {
         }
         .padding(10)
         .background(.orange.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func enrichmentErrorBanner(_ error: Error) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.yellow)
+            Text("GitHub enrichment failed: \(error.localizedDescription)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .background(.yellow.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
