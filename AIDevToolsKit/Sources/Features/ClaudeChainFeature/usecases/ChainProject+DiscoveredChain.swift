@@ -10,6 +10,7 @@ extension ChainProject {
             completedTasks: 0,
             pendingTasks: discovered.openPRCount,
             totalTasks: discovered.openPRCount,
+            baseBranch: discovered.baseRefName,
             isGitHubOnly: true
         )
     }

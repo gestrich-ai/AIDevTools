@@ -29,6 +29,9 @@ public struct ListChainsUseCase: UseCase {
             guard let spec = try? repository.loadLocalSpec(project: absoluteProject) else {
                 return nil
             }
+            let config = (try? repository.loadLocalConfiguration(project: absoluteProject))
+                ?? ProjectConfiguration.default(project: absoluteProject)
+            let baseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)
             let tasks = spec.tasks.map { specTask in
                 ChainTask(
                     index: specTask.index,
@@ -42,7 +45,8 @@ public struct ListChainsUseCase: UseCase {
                 tasks: tasks,
                 completedTasks: spec.completedTasks,
                 pendingTasks: spec.pendingTasks,
-                totalTasks: spec.totalTasks
+                totalTasks: spec.totalTasks,
+                baseBranch: baseBranch
             )
         }
     }

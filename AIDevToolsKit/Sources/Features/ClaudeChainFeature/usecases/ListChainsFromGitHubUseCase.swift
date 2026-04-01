@@ -87,6 +87,7 @@ public struct ListChainsFromGitHubUseCase {
                 completedTasks: 0,
                 pendingTasks: 0,
                 totalTasks: 0,
+                baseBranch: baseRef,
                 isGitHubOnly: true
             )
         }
@@ -98,7 +99,8 @@ public struct ListChainsFromGitHubUseCase {
             tasks: tasks,
             completedTasks: spec.completedTasks,
             pendingTasks: spec.pendingTasks,
-            totalTasks: spec.totalTasks
+            totalTasks: spec.totalTasks,
+            baseBranch: baseRef
         )
     }
 }

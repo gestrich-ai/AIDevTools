@@ -2,6 +2,8 @@ import AIOutputSDK
 import AnthropicSDK
 import ArgumentParser
 import ClaudeChainFeature
+import ClaudeChainSDK
+import ClaudeChainService
 import ClaudeCLISDK
 import CodexCLISDK
 import CredentialService
@@ -26,6 +28,15 @@ struct RunTaskCommand: AsyncParsableCommand {
 
     @Option(help: "Credential account name to override auto-detection")
     var githubAccount: String?
+
+    @Option(help: "Base branch for this chain project (overrides configuration.yml)")
+    var baseBranch: String?
+
+    @Option(help: "1-based index of the task to run (defaults to next uncompleted task)")
+    var taskIndex: Int?
+
+    @Flag(help: "Stage work locally without pushing branch or creating a PR")
+    var stagingOnly: Bool = false
 
     public init() {}
 
@@ -62,10 +73,30 @@ struct RunTaskCommand: AsyncParsableCommand {
         print()
 
         let git = GitClient(environment: gitEnvironment)
+
+        let resolvedBaseBranch: String
+        if let baseBranch {
+            resolvedBaseBranch = baseBranch
+        } else {
+            let chainDir = repoURL.appendingPathComponent("claude-chain").path
+            let chainProject = Project(
+                name: project,
+                basePath: (chainDir as NSString).appendingPathComponent(project)
+            )
+            let githubClient = GitHubClient(workingDirectory: chainDir)
+            let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
+            let config = (try? repository.loadLocalConfiguration(project: chainProject))
+                ?? ProjectConfiguration.default(project: chainProject)
+            resolvedBaseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)
+        }
+
         let useCase = RunChainTaskUseCase(client: client, git: git)
         let options = RunChainTaskUseCase.Options(
             repoPath: repoURL,
-            projectName: project
+            projectName: project,
+            baseBranch: resolvedBaseBranch,
+            taskIndex: taskIndex,
+            stagingOnly: stagingOnly
         )
 
         let result = try await useCase.run(options: options) { progress in
