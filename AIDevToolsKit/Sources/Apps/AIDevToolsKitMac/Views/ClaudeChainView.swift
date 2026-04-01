@@ -118,6 +118,7 @@ private struct ChainProjectDetailView: View {
     let project: ChainProject
     let repository: RepositoryConfiguration
 
+    @AppStorage("chainCreatePR") private var createPR: Bool = true
     @State private var executionChatModel: ChatModel?
 
     private var isExecuting: Bool {
@@ -227,6 +228,11 @@ private struct ChainProjectDetailView: View {
             }
             .help("Refresh GitHub data")
             .disabled(isLoadingGitHub)
+
+            Toggle("Create PR", isOn: $createPR)
+                .toggleStyle(.checkbox)
+                .disabled(isExecuting)
+                .help("When checked, pushes branch and creates a draft PR after the AI completes")
 
             Button {
                 startExecution()
@@ -443,8 +449,15 @@ private struct ChainProjectDetailView: View {
                 .controlSize(.small)
                 .frame(width: 16, height: 16)
         } else {
-            Image(systemName: "circle")
-                .foregroundStyle(.secondary)
+            Button {
+                startExecution(taskIndex: task.index)
+            } label: {
+                Image(systemName: "play.circle")
+                    .foregroundStyle(isExecuting ? Color.secondary : Color.accentColor)
+            }
+            .buttonStyle(.plain)
+            .disabled(isExecuting)
+            .help("Run this task")
         }
     }
 
@@ -598,6 +611,14 @@ private struct ChainProjectDetailView: View {
                 }
             }
             Spacer()
+            if result.isStagingOnly && result.branchName != nil {
+                Button {
+                    model.createPRFromStaged(project: project, repoPath: repository.path, result: result)
+                } label: {
+                    Label("Create PR", systemImage: "arrow.up.circle")
+                }
+                .buttonStyle(.borderedProminent)
+            }
             Button("Dismiss") {
                 model.reset()
                 executionChatModel = nil
@@ -648,7 +669,7 @@ private struct ChainProjectDetailView: View {
 
     // MARK: - Execution
 
-    private func startExecution() {
+    private func startExecution(taskIndex: Int? = nil) {
         let execModel = model.makeChatModel(workingDirectory: repository.path.path())
         executionChatModel = execModel
 
@@ -723,7 +744,7 @@ private struct ChainProjectDetailView: View {
             }
         }
 
-        model.executeChain(projectName: project.name, repoPath: repository.path)
+        model.executeChain(project: project, repoPath: repository.path, taskIndex: taskIndex, stagingOnly: !createPR)
     }
 
     private func makeChainChatSystemPrompt() -> String {

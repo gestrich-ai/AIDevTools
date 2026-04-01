@@ -4,6 +4,7 @@ import ClaudeChainService
 import CredentialService
 import Foundation
 import GitSDK
+import Logging
 import PipelineSDK
 import UseCaseSDK
 
@@ -15,16 +16,24 @@ struct ReviewOutput: Decodable, Sendable {
 public struct RunChainTaskUseCase: UseCase {
 
     public struct Options: Sendable {
+        public let baseBranch: String
         public let projectName: String
         public let repoPath: URL
+        public let stagingOnly: Bool
+        public let taskIndex: Int?
 
-        public init(repoPath: URL, projectName: String) {
+        public init(repoPath: URL, projectName: String, baseBranch: String, taskIndex: Int? = nil, stagingOnly: Bool = false) {
+            self.baseBranch = baseBranch
             self.projectName = projectName
             self.repoPath = repoPath
+            self.stagingOnly = stagingOnly
+            self.taskIndex = taskIndex
         }
     }
 
     public struct Result: Sendable {
+        public let branchName: String?
+        public let isStagingOnly: Bool
         public let message: String
         public let phasesCompleted: Int
         public let prNumber: String?
@@ -35,11 +44,15 @@ public struct RunChainTaskUseCase: UseCase {
         public init(
             success: Bool,
             message: String,
+            branchName: String? = nil,
+            isStagingOnly: Bool = false,
             prURL: String? = nil,
             prNumber: String? = nil,
             taskDescription: String? = nil,
             phasesCompleted: Int = 0
         ) {
+            self.branchName = branchName
+            self.isStagingOnly = isStagingOnly
             self.message = message
             self.phasesCompleted = phasesCompleted
             self.prNumber = prNumber
@@ -75,6 +88,7 @@ public struct RunChainTaskUseCase: UseCase {
 
     private let client: any AIClient
     private let git: GitClient
+    private let logger = Logger(label: "RunChainTaskUseCase")
 
     public init(client: any AIClient, git: GitClient = GitClient()) {
         self.client = client
@@ -89,6 +103,7 @@ public struct RunChainTaskUseCase: UseCase {
 
         // Phase 1: Prepare — load project config, then use MarkdownPipelineSource to find next task
         onProgress?(.preparingProject)
+        logger.debug("prepare: project=\(options.projectName) repoPath=\(options.repoPath.path) taskIndex=\(options.taskIndex.map(String.init) ?? "nil") stagingOnly=\(options.stagingOnly)")
 
         let chainDir = options.repoPath.appendingPathComponent("claude-chain").path
         let project = Project(
@@ -98,38 +113,53 @@ public struct RunChainTaskUseCase: UseCase {
         let githubClient = GitHubClient(workingDirectory: chainDir)
         let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
 
-        let config = (try? repository.loadLocalConfiguration(project: project))
-            ?? ProjectConfiguration.default(project: project)
-
-        let baseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)
+        let baseBranch = options.baseBranch
         let repoDir = options.repoPath.path
+        logger.debug("prepare: baseBranch=\(baseBranch) repoDir=\(repoDir)")
 
         // Fetch and checkout base branch so spec.md reflects the latest remote state
+        logger.debug("prepare: fetching origin/\(baseBranch)")
         try await git.fetch(remote: "origin", branch: baseBranch, workingDirectory: repoDir)
+        logger.debug("prepare: fetch complete, checking out FETCH_HEAD")
         try await git.checkout(ref: "FETCH_HEAD", workingDirectory: repoDir)
+        logger.debug("prepare: checkout complete")
 
         // Load spec content for prompt building
+        logger.debug("prepare: loading spec")
         guard let spec = try repository.loadLocalSpec(project: project) else {
+            logger.error("prepare: no spec.md found for \(options.projectName)")
             onProgress?(.failed(phase: "prepare", error: "No spec.md found for project \(options.projectName)"))
             return Result(
                 success: false,
                 message: "No spec.md found for project \(options.projectName)"
             )
         }
+        logger.debug("prepare: spec loaded, \(spec.totalTasks) tasks")
 
         // Use MarkdownPipelineSource (.task format) to discover the next pending task
         let specURL = URL(fileURLWithPath: project.specPath)
         let pipelineSource = MarkdownPipelineSource(fileURL: specURL, format: .task, appendCreatePRStep: false)
+        logger.debug("prepare: loading pipeline from \(specURL.path)")
         let pipeline = try await pipelineSource.load()
         let codeSteps = pipeline.steps.compactMap { $0 as? CodeChangeStep }
+        logger.debug("prepare: pipeline loaded, \(codeSteps.count) code steps")
 
-        guard let nextStep = codeSteps.first(where: { !$0.isCompleted }) else {
-            onProgress?(.failed(phase: "prepare", error: "All tasks completed for project \(options.projectName)"))
-            return Result(
-                success: false,
-                message: "All tasks completed for project \(options.projectName)"
-            )
+        let nextStep: CodeChangeStep?
+        if let taskIndex = options.taskIndex {
+            nextStep = codeSteps.first(where: { Int($0.id) == taskIndex - 1 })
+        } else {
+            nextStep = codeSteps.first(where: { !$0.isCompleted })
         }
+
+        guard let nextStep else {
+            let errorMessage = options.taskIndex != nil
+                ? "Task \(options.taskIndex!) not found in project \(options.projectName)"
+                : "All tasks completed for project \(options.projectName)"
+            logger.error("prepare: \(errorMessage)")
+            onProgress?(.failed(phase: "prepare", error: errorMessage))
+            return Result(success: false, message: errorMessage)
+        }
+        logger.debug("prepare: selected task id=\(nextStep.id) description=\(nextStep.description)")
 
         let stepIndex = (Int(nextStep.id) ?? 0) + 1
         let totalSteps = codeSteps.count
@@ -176,7 +206,7 @@ public struct RunChainTaskUseCase: UseCase {
         phasesCompleted += 1
 
         // Extract cost from AI stream metrics (captured from the last metrics event)
-        let mainCost = extractCost(from: aiResult)
+        let mainCost = ChainPRHelpers.extractCost()
 
         // Phase 4: Post-action script
         onProgress?(.runningPostScript)
@@ -199,6 +229,19 @@ public struct RunChainTaskUseCase: UseCase {
             if !stagedFiles.isEmpty {
                 try await git.commit(message: "Complete task: \(nextStep.description)", workingDirectory: repoDir)
             }
+        }
+
+        // When staging only, stop here — do not update spec.md, push, or create a PR
+        if options.stagingOnly {
+            onProgress?(.completed(prURL: nil))
+            return Result(
+                success: true,
+                message: "Task staged locally (no PR created): \(nextStep.description)",
+                branchName: branchName,
+                isStagingOnly: true,
+                taskDescription: nextStep.description,
+                phasesCompleted: phasesCompleted
+            )
         }
 
         // Mark task complete via MarkdownPipelineSource (unified pipeline persistence)
@@ -255,10 +298,10 @@ public struct RunChainTaskUseCase: UseCase {
         // Push branch
         try await git.push(remote: "origin", branch: branchName, setUpstream: true, force: true, workingDirectory: repoDir)
 
-        let repoSlug = await detectRepo(workingDirectory: repoDir)
+        let repoSlug = await ChainPRHelpers.detectRepo(workingDirectory: repoDir, git: git)
 
         // Create draft PR
-        let prTitle = buildPRTitle(projectName: options.projectName, task: nextStep.description)
+        let prTitle = ChainPRHelpers.buildPRTitle(projectName: options.projectName, task: nextStep.description)
         let prBody = "Task \(stepIndex)/\(totalSteps): \(nextStep.description)"
         var prCreateArgs = [
             "pr", "create",
@@ -293,7 +336,7 @@ public struct RunChainTaskUseCase: UseCase {
             prViewArgs += ["--repo", repoSlug]
         }
         let prViewOutput = try GitHubOperations.runGhCommand(args: prViewArgs)
-        let prNumber = parsePRNumber(from: prViewOutput)
+        let prNumber = ChainPRHelpers.parsePRNumber(from: prViewOutput)
 
         if let prNumber {
             onProgress?(.prCreated(prNumber: prNumber, prURL: prURL))
@@ -324,7 +367,7 @@ public struct RunChainTaskUseCase: UseCase {
                 }
             )
             summaryContent = summaryResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            summaryCost = extractCost(from: summaryResult)
+            summaryCost = ChainPRHelpers.extractCost()
             if let summary = summaryContent, !summary.isEmpty {
                 onProgress?(.summaryCompleted(summary: summary))
             }
@@ -447,19 +490,6 @@ public struct RunChainTaskUseCase: UseCase {
         """
     }
 
-    private func buildPRTitle(projectName: String, task: String) -> String {
-        let maxTitleLength = 80
-        let titlePrefix = "ClaudeChain: [\(projectName)] "
-        let availableForTask = maxTitleLength - titlePrefix.count
-        let truncatedTask: String
-        if task.count > availableForTask {
-            truncatedTask = String(task.prefix(availableForTask - 3)) + "..."
-        } else {
-            truncatedTask = task
-        }
-        return "\(titlePrefix)\(truncatedTask)"
-    }
-
     // MARK: - Helpers
 
     func appendReviewNote(specPath: String, taskDescription: String, summary: String) {
@@ -472,34 +502,4 @@ public struct RunChainTaskUseCase: UseCase {
         try? content.write(toFile: specPath, atomically: true, encoding: .utf8)
     }
 
-    private func extractCost(from result: AIClientResult) -> Double {
-        // Cost is typically reported in stderr as part of Claude CLI output
-        // For now, return 0.0 — the cost will be populated when metrics events are available
-        return 0.0
-    }
-
-    private func parsePRNumber(from jsonOutput: String) -> String? {
-        guard let data = jsonOutput.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let number = json["number"] as? Int else {
-            return nil
-        }
-        return String(number)
-    }
-
-    private func detectRepo(workingDirectory: String) async -> String {
-        if let repo = ProcessInfo.processInfo.environment["GITHUB_REPOSITORY"], !repo.isEmpty {
-            return repo
-        }
-        guard let remoteURL = try? await git.remoteGetURL(workingDirectory: workingDirectory) else {
-            return ""
-        }
-        guard remoteURL.contains("github.com") else {
-            return ""
-        }
-        return remoteURL
-            .replacingOccurrences(of: "git@github.com:", with: "")
-            .replacingOccurrences(of: "https://github.com/", with: "")
-            .replacingOccurrences(of: ".git", with: "")
-    }
 }

@@ -12,6 +12,7 @@ public struct ClaudeChainCLI: AsyncParsableCommand {
             DiscoverCommand.self,
             DiscoverReadyCommand.self,
             FinalizeCommand.self,
+            FinalizeStagedCommand.self,
             FormatSlackNotificationCommand.self,
             ParseClaudeResultCommand.self,
             ParseEventCommand.self,

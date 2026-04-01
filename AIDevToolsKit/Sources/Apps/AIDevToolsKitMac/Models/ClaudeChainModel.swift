@@ -148,13 +148,13 @@ final class ClaudeChainModel {
         loadChainDetail(projectName: projectName, repoPath: repoPath)
     }
 
-    func executeChain(projectName: String, repoPath: URL) {
+    func executeChain(project: ChainProject, repoPath: URL, taskIndex: Int? = nil, stagingOnly: Bool = false) {
         state = .executing(progress: Self.initialProgress())
         Task {
             do {
                 let useCase = ExecuteChainUseCase(client: activeClient)
                 let result = try await useCase.run(
-                    options: .init(repoPath: repoPath, projectName: projectName, githubAccount: currentCredentialAccount)
+                    options: .init(repoPath: repoPath, projectName: project.name, baseBranch: project.baseBranch, githubAccount: currentCredentialAccount, taskIndex: taskIndex, stagingOnly: stagingOnly)
                 ) { [weak self] progress in
                     guard let self else { return }
                     Task { @MainActor in
@@ -172,10 +172,8 @@ final class ClaudeChainModel {
                         )
                     )
                 }
-                loadChains(for: repoPath, credentialAccount: currentCredentialAccount)
             } catch {
                 state = .error(error)
-                loadChains(for: repoPath, credentialAccount: currentCredentialAccount)
             }
         }
     }
@@ -207,8 +205,57 @@ final class ClaudeChainModel {
         loadChains(for: repoPath, credentialAccount: currentCredentialAccount)
     }
 
+    func createPRFromStaged(project: ChainProject, repoPath: URL, result: ExecuteChainUseCase.Result) {
+        guard let branchName = result.branchName,
+              let taskDescription = result.taskDescription else { return }
+        state = .executing(progress: Self.finalizeProgress())
+        Task {
+            do {
+                let useCase = FinalizeStagedTaskUseCase(client: activeClient)
+                let finalResult = try await useCase.run(
+                    options: .init(
+                        repoPath: repoPath,
+                        projectName: project.name,
+                        baseBranch: project.baseBranch,
+                        branchName: branchName,
+                        taskDescription: taskDescription,
+                        githubAccount: currentCredentialAccount
+                    )
+                ) { [weak self] progress in
+                    guard let self else { return }
+                    Task { @MainActor in
+                        self.handleExecutionProgress(progress)
+                    }
+                }
+                if finalResult.success {
+                    let result = ExecuteChainUseCase.Result(
+                        success: finalResult.success,
+                        message: finalResult.message,
+                        prURL: finalResult.prURL,
+                        prNumber: finalResult.prNumber,
+                        taskDescription: finalResult.taskDescription
+                    )
+                    state = .completed(result: result)
+                } else {
+                    state = .error(
+                        NSError(
+                            domain: "ClaudeChainModel",
+                            code: 0,
+                            userInfo: [NSLocalizedDescriptionKey: finalResult.message]
+                        )
+                    )
+                }
+            } catch {
+                state = .error(error)
+            }
+        }
+    }
+
     func reset() {
         state = .idle
+        if let repoPath = currentRepoPath {
+            loadChains(for: repoPath, credentialAccount: currentCredentialAccount)
+        }
     }
 
     // MARK: - Private
@@ -227,6 +274,14 @@ final class ClaudeChainModel {
     private func rebuildClient() {
         guard let client = providerRegistry.client(named: selectedProviderName) else { return }
         activeClient = client
+    }
+
+    private static func finalizeProgress() -> ExecutionProgress {
+        ExecutionProgress(phases: [
+            PhaseInfo(displayName: "Finalize / Create PR", id: "finalize", status: .pending),
+            PhaseInfo(displayName: "PR Summary", id: "summary", status: .pending),
+            PhaseInfo(displayName: "Post PR Comment", id: "prComment", status: .pending),
+        ])
     }
 
     private static func initialProgress() -> ExecutionProgress {
