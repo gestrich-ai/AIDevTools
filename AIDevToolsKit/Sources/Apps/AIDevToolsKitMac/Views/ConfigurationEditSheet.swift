@@ -97,40 +97,39 @@ struct ConfigurationEditSheet: View {
                             }
                         }
                     }
+                }
 
+                Section("Chains") {
                     LabeledContent("Recent Focus") {
                         TextField("What you're currently working on", text: $recentFocusText)
                             .textFieldStyle(.roundedBorder)
                     }
-                }
-
-                Section("Directories") {
-                    pathField(label: "Cases Directory", text: $casesDirectoryText, placeholder: "Optional — relative or absolute path")
-                    pathField(label: "Proposed Plans", text: $proposedDirectoryText, placeholder: "Optional — defaults to docs/proposed")
-                    pathField(label: "Completed Plans", text: $completedDirectoryText, placeholder: "Optional — defaults to docs/completed")
-
-                    Text("Directories can be relative to the repo path, absolute, or use ~.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Skills & Architecture") {
                     LabeledContent("Skills") {
                         multilineField(text: $skillsText, placeholder: "One skill per line")
                     }
                     LabeledContent("Architecture Docs") {
                         multilineField(text: $architectureDocsText, placeholder: "One path per line, relative to repo root")
                     }
-                }
-
-                Section("Verification") {
-                    LabeledContent("Commands") {
+                    LabeledContent("Verification Commands") {
                         multilineField(text: $verificationCommandsText, placeholder: "One command per line")
                     }
-                    LabeledContent("Notes") {
+                    LabeledContent("Verification Notes") {
                         TextField("Optional verification notes", text: $verificationNotesText)
                             .textFieldStyle(.roundedBorder)
                     }
+                }
+
+                Section("Evals") {
+                    pathField(label: "Cases Directory", text: $casesDirectoryText, placeholder: "Optional — relative or absolute path")
+                }
+
+                Section("Plans") {
+                    pathField(label: "Proposed Plans", text: $proposedDirectoryText, placeholder: "Optional — defaults to docs/proposed")
+                    pathField(label: "Completed Plans", text: $completedDirectoryText, placeholder: "Optional — defaults to docs/completed")
+
+                    Text("Directories can be relative to the repo path, absolute, or use ~.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("PR Radar") {

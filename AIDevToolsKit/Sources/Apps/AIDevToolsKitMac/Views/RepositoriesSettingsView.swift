@@ -133,24 +133,36 @@ private struct ConfigurationDetailView: View {
                 detailRow("Repo Path", value: config.path.path(percentEncoded: false))
                 detailRow("Description", value: config.description)
                 detailRow("Credential Account", value: config.credentialAccount)
-                detailRow("Recent Focus", value: config.recentFocus)
             }
 
-            Section("Directories") {
-                detailRow("Cases Directory", value: casesDirectory)
+            if config.recentFocus != nil || config.skills != nil || config.architectureDocs != nil || config.verification != nil {
+                Section("Chains") {
+                    detailRow("Recent Focus", value: config.recentFocus)
+                    detailRow("Skills", value: config.skills?.joined(separator: ", "))
+                    detailRow("Architecture Docs", value: config.architectureDocs?.joined(separator: ", "))
+                    if let verification = config.verification {
+                        detailRow("Verification Commands", value: verification.commands.joined(separator: ", "))
+                        detailRow("Verification Notes", value: verification.notes)
+                    }
+                }
+            }
+
+            if casesDirectory != nil {
+                Section("Evals") {
+                    detailRow("Cases Directory", value: casesDirectory)
+                }
+            }
+
+            Section("Plans") {
                 detailRow("Proposed Plans", value: proposedDirectory, fallback: MarkdownPlannerRepoSettings.defaultProposedDirectory)
                 detailRow("Completed Plans", value: completedDirectory, fallback: MarkdownPlannerRepoSettings.defaultCompletedDirectory)
             }
 
-            Section("Skills & Architecture") {
-                detailRow("Skills", value: config.skills?.joined(separator: ", "))
-                detailRow("Architecture Docs", value: config.architectureDocs?.joined(separator: ", "))
-            }
-
-            if let verification = config.verification {
-                Section("Verification") {
-                    detailRow("Commands", value: verification.commands.joined(separator: ", "))
-                    detailRow("Notes", value: verification.notes)
+            if let prradar = config.prradar {
+                Section("PR Radar") {
+                    detailRow("Rule Paths", value: prradar.rulePaths.map { "\($0.name):\($0.path)" }.joined(separator: ", "))
+                    detailRow("Diff Source", value: prradar.diffSource.displayName)
+                    detailRow("Agent Script Path", value: prradar.agentScriptPath)
                 }
             }
 
