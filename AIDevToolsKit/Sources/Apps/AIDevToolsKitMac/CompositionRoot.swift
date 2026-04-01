@@ -2,19 +2,13 @@ import ClaudeCLISDK
 import CodexCLISDK
 import DataPathsService
 import Foundation
-import EvalService
-import MarkdownPlannerService
-import PRRadarConfigService
 import ProviderRegistryService
 import RepositorySDK
 
 @MainActor
 struct CompositionRoot {
     let dataPathsService: DataPathsService
-    let evalSettingsStore: EvalRepoSettingsStore
     let evalProviderRegistry: EvalProviderRegistry
-    let planSettingsStore: MarkdownPlannerRepoSettingsStore
-    let prradarSettingsStore: PRRadarRepoSettingsStore
     let providerModel: ProviderModel
     let repositoryStore: RepositoryStore
     let settingsModel: SettingsModel
@@ -27,9 +21,6 @@ struct CompositionRoot {
         let repositoryStore = RepositoryStore(
             repositoriesFile: try dataPathsService.path(for: .repositories).appending(path: "repositories.json")
         )
-        let evalSettingsStore = EvalRepoSettingsStore(repositoryStore: repositoryStore)
-        let planSettingsStore = MarkdownPlannerRepoSettingsStore(repositoryStore: repositoryStore)
-        let prradarSettingsStore = PRRadarRepoSettingsStore(repositoryStore: repositoryStore)
 
         let evalProviderRegistry = EvalProviderRegistry(entries: [
             EvalProviderEntry(client: ClaudeProvider()),
@@ -40,10 +31,7 @@ struct CompositionRoot {
 
         return CompositionRoot(
             dataPathsService: dataPathsService,
-            evalSettingsStore: evalSettingsStore,
             evalProviderRegistry: evalProviderRegistry,
-            planSettingsStore: planSettingsStore,
-            prradarSettingsStore: prradarSettingsStore,
             providerModel: ProviderModel(),
             repositoryStore: repositoryStore,
             settingsModel: settingsModel

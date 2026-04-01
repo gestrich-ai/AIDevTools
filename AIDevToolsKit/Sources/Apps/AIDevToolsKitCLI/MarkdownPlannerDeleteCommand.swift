@@ -2,7 +2,6 @@ import ArgumentParser
 import DataPathsService
 import Foundation
 import MarkdownPlannerFeature
-import MarkdownPlannerService
 import RepositorySDK
 
 struct MarkdownPlannerDeleteCommand: ParsableCommand {
@@ -37,12 +36,11 @@ struct MarkdownPlannerDeleteCommand: ParsableCommand {
     private func selectPlan() throws -> URL? {
         let service = try DataPathsService.fromCLI(dataPath: dataPath)
         let store = try ReposCommand.makeStore(service)
-        let planSettings = ReposCommand.makePlanSettingsStore(repositoryStore: store)
         let repos = (try? store.loadAll()) ?? []
 
         var allPlans: [(url: URL, repoName: String)] = []
         for repo in repos {
-            let proposedDir = try planSettings.resolvedProposedDirectory(forRepo: repo)
+            let proposedDir = (repo.planner ?? MarkdownPlannerRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
             guard let files = try? FileManager.default.contentsOfDirectory(
                 at: proposedDir,
                 includingPropertiesForKeys: nil,

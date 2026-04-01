@@ -48,28 +48,6 @@ struct DataPathsServiceTests {
         #expect(path.path(percentEncoded: false).hasPrefix(root.path(percentEncoded: false)))
     }
 
-    @Test func evalSettingsResolvesToExpectedPath() throws {
-        let root = makeTempRoot()
-        defer { cleanup(root) }
-        let service = try DataPathsService(rootPath: root)
-
-        let path = try service.path(for: .evalSettings)
-
-        #expect(path.path(percentEncoded: false).hasSuffix("eval/settings"))
-        #expect(path.path(percentEncoded: false).hasPrefix(root.path(percentEncoded: false)))
-    }
-
-    @Test func planSettingsResolvesToExpectedPath() throws {
-        let root = makeTempRoot()
-        defer { cleanup(root) }
-        let service = try DataPathsService(rootPath: root)
-
-        let path = try service.path(for: .planSettings)
-
-        #expect(path.path(percentEncoded: false).hasSuffix("plan/settings"))
-        #expect(path.path(percentEncoded: false).hasPrefix(root.path(percentEncoded: false)))
-    }
-
     @Test func repositoriesResolvesToExpectedPath() throws {
         let root = makeTempRoot()
         defer { cleanup(root) }
@@ -99,7 +77,7 @@ struct DataPathsServiceTests {
         defer { cleanup(root) }
         let service = try DataPathsService(rootPath: root)
 
-        let path = try service.path(for: .evalSettings)
+        let path = try service.path(for: .repositories)
 
         var isDir: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: path.path, isDirectory: &isDir)

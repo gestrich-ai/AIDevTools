@@ -61,9 +61,10 @@ public struct RepositoryConfiguration: Codable {
 - Remove the `repoId` field from `PRRadarRepoSettings`, `EvalRepoSettings`, `MarkdownPlannerRepoSettings` (identity is now provided by the parent `RepositoryConfiguration`)
 - Update any code that reads/writes these structs to go through `RepositoryConfiguration`
 
-## - [ ] Phase 3: Write data migration and delete separate settings stores
+## - [x] Phase 3: Write data migration and delete separate settings stores
 
-**Skills to read**: `configuration-architecture`
+**Skills used**: `configuration-architecture`
+**Principles applied**: Migration uses raw `JSONSerialization` to merge old per-feature JSON files (with `repoId`) into `repositories.json` without adding a `RepositorySDK` dependency to `DataPathsService`. The three store files were deleted, `ServicePath` cases for `evalSettings`, `planSettings`, and `prradarSettings` were removed, and all call sites (CLI commands, Mac app models, use cases) were updated to read/write `RepositoryConfiguration` properties directly via `RepositoryStore`.
 
 Migrate data from the three separate JSON files into `repositories.json`:
 

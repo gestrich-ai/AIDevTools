@@ -21,9 +21,8 @@ public struct MigrateDataPathsUseCase: UseCase {
 
     public func run() throws {
         try migrateSettingsFile(name: "repositories.json", to: .repositories)
-        try migrateSettingsFile(name: "eval-settings.json", to: .evalSettings)
-        try migrateSettingsFile(name: "plan-settings.json", to: .planSettings)
         try migrateArchitecturePlannerData()
+        try migrateFeatureSettingsIntoRepositories()
     }
 
     private func migrateSettingsFile(name: String, to servicePath: ServicePath) throws {
@@ -40,6 +39,81 @@ public struct MigrateDataPathsUseCase: UseCase {
 
         try fileManager.copyItem(at: oldFile, to: newFile)
         Self.logger.info("Migrated \(name) to \(newFile.path)")
+    }
+
+    private func migrateFeatureSettingsIntoRepositories() throws {
+        let repositoriesFile = dataPathsService.rootPath
+            .appending(path: "repositories")
+            .appending(path: "repositories.json")
+        guard fileManager.fileExists(atPath: repositoriesFile.path) else { return }
+
+        guard let repositoriesData = fileManager.contents(atPath: repositoriesFile.path),
+              var repos = try JSONSerialization.jsonObject(with: repositoriesData) as? [[String: Any]] else {
+            return
+        }
+
+        var indexByRepoId: [String: Int] = [:]
+        for (i, repo) in repos.enumerated() {
+            if let id = repo["id"] as? String {
+                indexByRepoId[id] = i
+            }
+        }
+
+        var didChange = false
+
+        let prradarFile = dataPathsService.rootPath
+            .appending(path: "prradar/settings/prradar-settings.json")
+        if fileManager.fileExists(atPath: prradarFile.path),
+           let data = fileManager.contents(atPath: prradarFile.path),
+           let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            for var entry in entries {
+                guard let repoIdString = entry["repoId"] as? String,
+                      let index = indexByRepoId[repoIdString] else { continue }
+                entry.removeValue(forKey: "repoId")
+                repos[index]["prradar"] = entry
+                didChange = true
+            }
+            try fileManager.removeItem(at: prradarFile)
+            Self.logger.info("Migrated prradar settings into repositories.json")
+        }
+
+        let evalFile = dataPathsService.rootPath
+            .appending(path: "eval/settings/eval-settings.json")
+        if fileManager.fileExists(atPath: evalFile.path),
+           let data = fileManager.contents(atPath: evalFile.path),
+           let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            for var entry in entries {
+                guard let repoIdString = entry["repoId"] as? String,
+                      let index = indexByRepoId[repoIdString] else { continue }
+                entry.removeValue(forKey: "repoId")
+                repos[index]["eval"] = entry
+                didChange = true
+            }
+            try fileManager.removeItem(at: evalFile)
+            Self.logger.info("Migrated eval settings into repositories.json")
+        }
+
+        let planFile = dataPathsService.rootPath
+            .appending(path: "plan/settings/plan-settings.json")
+        if fileManager.fileExists(atPath: planFile.path),
+           let data = fileManager.contents(atPath: planFile.path),
+           let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            for var entry in entries {
+                guard let repoIdString = entry["repoId"] as? String,
+                      let index = indexByRepoId[repoIdString] else { continue }
+                entry.removeValue(forKey: "repoId")
+                repos[index]["planner"] = entry
+                didChange = true
+            }
+            try fileManager.removeItem(at: planFile)
+            Self.logger.info("Migrated plan settings into repositories.json")
+        }
+
+        guard didChange else { return }
+
+        let updatedData = try JSONSerialization.data(withJSONObject: repos, options: [.prettyPrinted, .sortedKeys])
+        try updatedData.write(to: repositoriesFile, options: .atomic)
+        Self.logger.info("Wrote merged repositories.json")
     }
 
     private func migrateArchitecturePlannerData() throws {

@@ -64,8 +64,10 @@ struct RunEvalsCommand: AsyncParsableCommand {
             let repoURL = URL(fileURLWithPath: repo, relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
             let repoStore = try ReposCommand.makeStore(service)
             let repoConfig = try repoStore.repoConfig(forRepoAt: repoURL)
-            let evalSettingsStore = ReposCommand.makeEvalSettingsStore(repositoryStore: repoStore)
-            resolvedCasesDir = try evalSettingsStore.casesDirectory(forRepo: repoConfig)
+            guard let evalSettings = repoConfig.eval else {
+                throw ValidationError("No cases directory configured for repository: \(repoConfig.name)")
+            }
+            resolvedCasesDir = evalSettings.resolvedCasesDirectory(repoPath: repoURL)
             resolvedOutputDir = try service.path(for: .repoOutput(repoConfig.name))
             resolvedRepoRoot = repoURL
         } else {

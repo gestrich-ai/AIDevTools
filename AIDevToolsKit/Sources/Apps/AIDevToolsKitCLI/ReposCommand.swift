@@ -1,8 +1,6 @@
 import ArgumentParser
 import DataPathsService
-import EvalService
 import Foundation
-import MarkdownPlannerService
 import RepositorySDK
 import SkillBrowserFeature
 
@@ -22,14 +20,6 @@ struct ReposCommand: ParsableCommand {
 
     static func makeStore(_ service: DataPathsService) throws -> RepositoryStore {
         RepositoryStore(repositoriesFile: try service.path(for: .repositories).appending(path: "repositories.json"))
-    }
-
-    static func makeEvalSettingsStore(repositoryStore: RepositoryStore) -> EvalRepoSettingsStore {
-        EvalRepoSettingsStore(repositoryStore: repositoryStore)
-    }
-
-    static func makePlanSettingsStore(repositoryStore: RepositoryStore) -> MarkdownPlannerRepoSettingsStore {
-        MarkdownPlannerRepoSettingsStore(repositoryStore: repositoryStore)
     }
 }
 
@@ -87,8 +77,7 @@ struct AddRepo: ParsableCommand {
         let store = try ReposCommand.makeStore(service)
         let useCase = ConfigureNewRepositoryUseCase(
             addRepository: AddRepositoryUseCase(store: store),
-            evalSettingsStore: ReposCommand.makeEvalSettingsStore(repositoryStore: store),
-            planSettingsStore: ReposCommand.makePlanSettingsStore(repositoryStore: store),
+            repositoryStore: store,
             updateRepository: UpdateRepositoryUseCase(store: store)
         )
         let repo = try useCase.run(
@@ -119,8 +108,6 @@ struct RemoveRepo: ParsableCommand {
         let service = try ReposCommand.makeDataPathsService(dataPath: dataPathOptions.dataPath)
         let store = try ReposCommand.makeStore(service)
         let useCase = RemoveRepositoryWithSettingsUseCase(
-            evalSettingsStore: ReposCommand.makeEvalSettingsStore(repositoryStore: store),
-            planSettingsStore: ReposCommand.makePlanSettingsStore(repositoryStore: store),
             removeRepository: RemoveRepositoryUseCase(store: store)
         )
         try useCase.run(id: uuid)
@@ -234,18 +221,24 @@ struct UpdateRepo: ParsableCommand {
             )
         }
 
-        try UpdateRepositoryUseCase(store: store).run(repo)
-
         if let casesDir {
-            let evalSettingsStore = ReposCommand.makeEvalSettingsStore(repositoryStore: store)
-            try evalSettingsStore.update(repoId: uuid, casesDirectory: casesDir)
+            repo.eval = EvalRepoSettings(casesDirectory: casesDir)
         }
 
         if completedDir != nil || proposedDir != nil {
-            let planSettingsStore = ReposCommand.makePlanSettingsStore(repositoryStore: store)
-            try planSettingsStore.update(repoId: uuid, proposedDirectory: proposedDir, completedDirectory: completedDir)
+            guard proposedDir?.isEmpty != true else {
+                throw ValidationError("proposedDirectory cannot be an empty string; pass nil to use the default")
+            }
+            guard completedDir?.isEmpty != true else {
+                throw ValidationError("completedDirectory cannot be an empty string; pass nil to use the default")
+            }
+            repo.planner = MarkdownPlannerRepoSettings(
+                proposedDirectory: proposedDir,
+                completedDirectory: completedDir
+            )
         }
 
+        try UpdateRepositoryUseCase(store: store).run(repo)
         print("Updated repository: \(repo.name) (\(repo.id))")
     }
 }

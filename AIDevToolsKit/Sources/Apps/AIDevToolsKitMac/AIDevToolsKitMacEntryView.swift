@@ -29,20 +29,15 @@ public struct AIDevToolsKitMacEntryView: View {
         _providerModel = State(initialValue: root.providerModel)
         _workspaceModel = State(initialValue: WorkspaceModel(
             dataPath: root.settingsModel.dataPath,
-            evalSettingsStore: root.evalSettingsStore,
-            planSettingsStore: root.planSettingsStore,
-            prradarSettingsStore: root.prradarSettingsStore,
+            repositoryStore: root.repositoryStore,
             loadRepositories: LoadRepositoriesUseCase(store: root.repositoryStore),
             loadSkills: LoadSkillsUseCase(),
             configureNewRepository: ConfigureNewRepositoryUseCase(
                 addRepository: AddRepositoryUseCase(store: root.repositoryStore),
-                evalSettingsStore: root.evalSettingsStore,
-                planSettingsStore: root.planSettingsStore,
+                repositoryStore: root.repositoryStore,
                 updateRepository: UpdateRepositoryUseCase(store: root.repositoryStore)
             ),
             removeRepositoryWithSettings: RemoveRepositoryWithSettingsUseCase(
-                evalSettingsStore: root.evalSettingsStore,
-                planSettingsStore: root.planSettingsStore,
                 removeRepository: RemoveRepositoryUseCase(store: root.repositoryStore)
             ),
             updateRepository: UpdateRepositoryUseCase(store: root.repositoryStore)
@@ -95,20 +90,15 @@ public struct AIDevToolsSettingsView: View {
         _settingsModel = State(initialValue: root.settingsModel)
         _workspaceModel = State(initialValue: WorkspaceModel(
             dataPath: root.settingsModel.dataPath,
-            evalSettingsStore: root.evalSettingsStore,
-            planSettingsStore: root.planSettingsStore,
-            prradarSettingsStore: root.prradarSettingsStore,
+            repositoryStore: root.repositoryStore,
             loadRepositories: LoadRepositoriesUseCase(store: root.repositoryStore),
             loadSkills: LoadSkillsUseCase(),
             configureNewRepository: ConfigureNewRepositoryUseCase(
                 addRepository: AddRepositoryUseCase(store: root.repositoryStore),
-                evalSettingsStore: root.evalSettingsStore,
-                planSettingsStore: root.planSettingsStore,
+                repositoryStore: root.repositoryStore,
                 updateRepository: UpdateRepositoryUseCase(store: root.repositoryStore)
             ),
             removeRepositoryWithSettings: RemoveRepositoryWithSettingsUseCase(
-                evalSettingsStore: root.evalSettingsStore,
-                planSettingsStore: root.planSettingsStore,
                 removeRepository: RemoveRepositoryUseCase(store: root.repositoryStore)
             ),
             updateRepository: UpdateRepositoryUseCase(store: root.repositoryStore)

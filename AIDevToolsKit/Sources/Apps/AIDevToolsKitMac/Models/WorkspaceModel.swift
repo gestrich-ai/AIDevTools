@@ -1,6 +1,4 @@
-import EvalService
 import Foundation
-import MarkdownPlannerService
 import PRRadarConfigService
 import RepositorySDK
 import SkillBrowserFeature
@@ -23,9 +21,7 @@ final class WorkspaceModel {
     var state: State = .idle
 
     private let dataPath: URL
-    private let evalSettingsStore: EvalRepoSettingsStore
-    private let planSettingsStore: MarkdownPlannerRepoSettingsStore
-    private let prradarSettingsStore: PRRadarRepoSettingsStore
+    private let repositoryStore: RepositoryStore
     private let loadRepositories: LoadRepositoriesUseCase
     private let loadSkills: LoadSkillsUseCase
     private let configureNewRepository: ConfigureNewRepositoryUseCase
@@ -34,9 +30,7 @@ final class WorkspaceModel {
 
     init(
         dataPath: URL,
-        evalSettingsStore: EvalRepoSettingsStore,
-        planSettingsStore: MarkdownPlannerRepoSettingsStore,
-        prradarSettingsStore: PRRadarRepoSettingsStore,
+        repositoryStore: RepositoryStore,
         loadRepositories: LoadRepositoriesUseCase,
         loadSkills: LoadSkillsUseCase,
         configureNewRepository: ConfigureNewRepositoryUseCase,
@@ -44,9 +38,7 @@ final class WorkspaceModel {
         updateRepository: UpdateRepositoryUseCase
     ) {
         self.dataPath = dataPath
-        self.evalSettingsStore = evalSettingsStore
-        self.planSettingsStore = planSettingsStore
-        self.prradarSettingsStore = prradarSettingsStore
+        self.repositoryStore = repositoryStore
         self.loadRepositories = loadRepositories
         self.loadSkills = loadSkills
         self.configureNewRepository = configureNewRepository
@@ -139,11 +131,13 @@ final class WorkspaceModel {
 
     func updateCasesDirectory(for repoID: UUID, casesDirectory: String?) {
         do {
+            guard var repo = try repositoryStore.find(byID: repoID) else { return }
             if let casesDirectory {
-                try evalSettingsStore.update(repoId: repoID, casesDirectory: casesDirectory)
+                repo.eval = EvalRepoSettings(casesDirectory: casesDirectory)
             } else {
-                try evalSettingsStore.remove(repoId: repoID)
+                repo.eval = nil
             }
+            try repositoryStore.update(repo)
             load()
         } catch {
             state = .error(error)
@@ -182,28 +176,45 @@ final class WorkspaceModel {
     }
 
     func updatePRRadarSettings(for repoID: UUID, rulePaths: [RulePath], diffSource: DiffSource, agentScriptPath: String) {
-        try? prradarSettingsStore.update(
-            repoId: repoID,
-            rulePaths: rulePaths,
-            diffSource: diffSource,
-            agentScriptPath: agentScriptPath
-        )
+        guard var repo = try? repositoryStore.find(byID: repoID) else { return }
+        repo.prradar = PRRadarRepoSettings(rulePaths: rulePaths, diffSource: diffSource, agentScriptPath: agentScriptPath)
+        try? repositoryStore.update(repo)
     }
 
     func updatePlanDirectories(for repoID: UUID, proposedDirectory: String?, completedDirectory: String?) {
         do {
+            guard var repo = try repositoryStore.find(byID: repoID) else { return }
             if proposedDirectory != nil || completedDirectory != nil {
-                try planSettingsStore.update(
-                    repoId: repoID,
+                guard proposedDirectory?.isEmpty != true else {
+                    state = .error(PlanDirectoryError.emptyDirectory("proposedDirectory"))
+                    return
+                }
+                guard completedDirectory?.isEmpty != true else {
+                    state = .error(PlanDirectoryError.emptyDirectory("completedDirectory"))
+                    return
+                }
+                repo.planner = MarkdownPlannerRepoSettings(
                     proposedDirectory: proposedDirectory,
                     completedDirectory: completedDirectory
                 )
             } else {
-                try planSettingsStore.remove(repoId: repoID)
+                repo.planner = nil
             }
+            try repositoryStore.update(repo)
             load()
         } catch {
             state = .error(error)
+        }
+    }
+}
+
+private enum PlanDirectoryError: Error, LocalizedError {
+    case emptyDirectory(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyDirectory(let field):
+            return "\(field) cannot be an empty string; pass nil to use the default"
         }
     }
 }
