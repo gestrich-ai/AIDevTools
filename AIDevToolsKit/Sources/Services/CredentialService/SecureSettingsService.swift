@@ -1,7 +1,7 @@
 import Foundation
 import KeychainSDK
 
-public final class CredentialSettingsService: Sendable {
+public final class SecureSettingsService: Sendable {
     public static let anthropicKeyType = "anthropic-api-key"
     public static let gitHubAppIdType = "github-app-id"
     public static let gitHubAppInstallationIdType = "github-app-installation-id"

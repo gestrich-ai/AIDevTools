@@ -29,7 +29,7 @@ private final class MockKeychainStore: KeychainStoring, @unchecked Sendable {
 @Suite("SaveCredentialsUseCase")
 struct SaveCredentialsUseCaseTests {
     @Test func savesGitHubTokenAndReturnsStatuses() throws {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let useCase = SaveCredentialsUseCase(settingsService: service)
 
         let statuses = try useCase.execute(
@@ -45,7 +45,7 @@ struct SaveCredentialsUseCaseTests {
     }
 
     @Test func savesAnthropicKeyAndReturnsStatuses() throws {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let useCase = SaveCredentialsUseCase(settingsService: service)
 
         let statuses = try useCase.execute(
@@ -60,7 +60,7 @@ struct SaveCredentialsUseCaseTests {
     }
 
     @Test func savesBothCredentials() throws {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let useCase = SaveCredentialsUseCase(settingsService: service)
 
         let statuses = try useCase.execute(
@@ -75,7 +75,7 @@ struct SaveCredentialsUseCaseTests {
     }
 
     @Test func emptyAnthropicKeyIsNotSaved() throws {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let useCase = SaveCredentialsUseCase(settingsService: service)
 
         let statuses = try useCase.execute(
@@ -91,7 +91,7 @@ struct SaveCredentialsUseCaseTests {
 @Suite("RemoveCredentialsUseCase")
 struct RemoveCredentialsUseCaseTests {
     @Test func removesAccountAndReturnsEmptyStatuses() throws {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let saveUseCase = SaveCredentialsUseCase(settingsService: service)
         let removeUseCase = RemoveCredentialsUseCase(settingsService: service)
 
@@ -102,7 +102,7 @@ struct RemoveCredentialsUseCaseTests {
     }
 
     @Test func removesOnlySpecifiedAccount() throws {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let saveUseCase = SaveCredentialsUseCase(settingsService: service)
         let removeUseCase = RemoveCredentialsUseCase(settingsService: service)
 
@@ -118,7 +118,7 @@ struct RemoveCredentialsUseCaseTests {
 @Suite("ListCredentialAccountsUseCase")
 struct ListCredentialAccountsUseCaseTests {
     @Test func listsAccountsAlphabetically() throws {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let saveUseCase = SaveCredentialsUseCase(settingsService: service)
         let listUseCase = ListCredentialAccountsUseCase(settingsService: service)
 
@@ -133,7 +133,7 @@ struct ListCredentialAccountsUseCaseTests {
 @Suite("LoadCredentialStatusUseCase")
 struct LoadCredentialStatusUseCaseTests {
     @Test func loadsStatusForAccount() throws {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let saveUseCase = SaveCredentialsUseCase(settingsService: service)
         let loadUseCase = LoadCredentialStatusUseCase(settingsService: service)
 
@@ -150,7 +150,7 @@ struct LoadCredentialStatusUseCaseTests {
     }
 
     @Test func returnsNoneForMissingAccount() {
-        let service = CredentialSettingsService(keychain: MockKeychainStore())
+        let service = SecureSettingsService(keychain: MockKeychainStore())
         let loadUseCase = LoadCredentialStatusUseCase(settingsService: service)
 
         let status = loadUseCase.execute(account: "nonexistent")

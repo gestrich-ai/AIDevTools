@@ -1,9 +1,9 @@
 import CredentialService
 
 struct CredentialStatusLoader {
-    private let settingsService: CredentialSettingsService
+    private let settingsService: SecureSettingsService
 
-    init(settingsService: CredentialSettingsService) {
+    init(settingsService: SecureSettingsService) {
         self.settingsService = settingsService
     }
 

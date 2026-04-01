@@ -29,7 +29,7 @@ final class CredentialModel {
     }
 
     convenience init() {
-        let service = CredentialSettingsService()
+        let service = SecureSettingsService()
         self.init(
             listCredentialAccountsUseCase: ListCredentialAccountsUseCase(settingsService: service),
             loadCredentialStatusUseCase: LoadCredentialStatusUseCase(settingsService: service),

@@ -7,7 +7,7 @@ import Testing
 struct CredentialResolverTests {
     @Test func envVarWinsOverKeychain() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
         try service.saveAnthropicKey("keychain-key", account: "testaccount")
 
         let resolver = CredentialResolver(
@@ -22,7 +22,7 @@ struct CredentialResolverTests {
 
     @Test func dotEnvWinsOverKeychain() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
         try service.saveAnthropicKey("keychain-key", account: "testaccount")
 
         let resolver = CredentialResolver(
@@ -37,7 +37,7 @@ struct CredentialResolverTests {
 
     @Test func keychainUsedWhenEnvMissing() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
         try service.saveAnthropicKey("keychain-key", account: "testaccount")
 
         let resolver = CredentialResolver(
@@ -52,7 +52,7 @@ struct CredentialResolverTests {
 
     @Test func returnsNilWhenNoSourceHasValue() {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
             settingsService: service,
@@ -67,7 +67,7 @@ struct CredentialResolverTests {
 
     @Test func gitHubTokenResolution() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
             settingsService: service,
@@ -86,7 +86,7 @@ struct CredentialResolverTests {
 
     @Test func gitHubAppAuthFromEnv() {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
             settingsService: service,
@@ -111,7 +111,7 @@ struct CredentialResolverTests {
 
     @Test func appAuthTakesPriorityOverToken() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
             settingsService: service,

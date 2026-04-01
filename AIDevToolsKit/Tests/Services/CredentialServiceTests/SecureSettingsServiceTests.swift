@@ -4,10 +4,10 @@ import Testing
 
 @testable import CredentialService
 
-struct CredentialSettingsServiceTests {
+struct SecureSettingsServiceTests {
     @Test func saveAndLoadGitHubToken() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         try service.saveGitHubAuth(.token("ghp_abc123"), account: "testaccount")
         let auth = service.loadGitHubAuth(account: "testaccount")
@@ -21,7 +21,7 @@ struct CredentialSettingsServiceTests {
 
     @Test func saveAndLoadGitHubApp() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         try service.saveGitHubAuth(
             .app(appId: "123", installationId: "456", privateKeyPEM: "PEM_DATA"),
@@ -40,7 +40,7 @@ struct CredentialSettingsServiceTests {
 
     @Test func saveTokenClearsAppCredentials() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         try service.saveGitHubAuth(
             .app(appId: "123", installationId: "456", privateKeyPEM: "PEM"),
@@ -58,7 +58,7 @@ struct CredentialSettingsServiceTests {
 
     @Test func saveAndLoadAnthropicKey() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         try service.saveAnthropicKey("sk-ant-abc", account: "testaccount")
         let key = try service.loadAnthropicKey(account: "testaccount")
@@ -67,7 +67,7 @@ struct CredentialSettingsServiceTests {
 
     @Test func removeCredentialsClearsAll() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         try service.saveGitHubAuth(.token("ghp_abc"), account: "testaccount")
         try service.saveAnthropicKey("sk-ant-abc", account: "testaccount")
@@ -81,7 +81,7 @@ struct CredentialSettingsServiceTests {
 
     @Test func listCredentialAccounts() throws {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
 
         try service.saveGitHubAuth(.token("t1"), account: "alice")
         try service.saveAnthropicKey("k1", account: "bob")
@@ -93,7 +93,7 @@ struct CredentialSettingsServiceTests {
 
     @Test func loadGitHubAuthReturnsNilWhenEmpty() {
         let keychain = MockKeychainStore()
-        let service = CredentialSettingsService(keychain: keychain)
+        let service = SecureSettingsService(keychain: keychain)
         #expect(service.loadGitHubAuth(account: "nonexistent") == nil)
     }
 }

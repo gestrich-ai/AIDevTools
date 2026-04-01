@@ -317,7 +317,7 @@ public struct ExecutePlanUseCase: UseCase {
         var environment: [String: String]?
         if let credentialAccount = repository?.credentialAccount {
             let resolver = CredentialResolver(
-                settingsService: CredentialSettingsService(),
+                settingsService: SecureSettingsService(),
                 githubAccount: credentialAccount
             )
             if case .token(let token) = resolver.getGitHubAuth() {

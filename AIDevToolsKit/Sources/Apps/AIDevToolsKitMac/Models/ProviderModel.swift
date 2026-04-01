@@ -16,7 +16,7 @@ final class ProviderModel {
     private let anthropicAPIKeySource: @Sendable () -> String?
 
     init(anthropicAPIKeySource: @escaping @Sendable () -> String? = {
-        let service = CredentialSettingsService()
+        let service = SecureSettingsService()
         let account = (try? service.listCredentialAccounts())?.first ?? "default"
         return CredentialResolver(settingsService: service, githubAccount: account).getAnthropicKey()
     }) {

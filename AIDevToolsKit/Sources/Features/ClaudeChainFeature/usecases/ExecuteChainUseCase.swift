@@ -59,7 +59,7 @@ public struct ExecuteChainUseCase: UseCase {
         // Resolve GH_TOKEN from credential system when a github account is configured
         if let githubAccount = options.githubAccount {
             let resolver = CredentialResolver(
-                settingsService: CredentialSettingsService(),
+                settingsService: SecureSettingsService(),
                 githubAccount: githubAccount
             )
             if case .token(let token) = resolver.getGitHubAuth() {

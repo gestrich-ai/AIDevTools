@@ -11,10 +11,10 @@ public struct CredentialResolver: Sendable {
     private let account: String
     private let dotEnv: [String: String]
     private let processEnvironment: [String: String]
-    private let settingsService: CredentialSettingsService
+    private let settingsService: SecureSettingsService
 
     public init(
-        settingsService: CredentialSettingsService,
+        settingsService: SecureSettingsService,
         githubAccount: String,
         processEnvironment: [String: String] = ProcessInfo.processInfo.environment,
         dotEnv: [String: String]? = nil
@@ -29,20 +29,20 @@ public struct CredentialResolver: Sendable {
         if let auth = resolveGitHubAppAuth() {
             return auth
         }
-        if let token = resolveValue(envKey: Self.githubTokenKey, keychainType: CredentialSettingsService.gitHubTokenType) {
+        if let token = resolveValue(envKey: Self.githubTokenKey, keychainType: SecureSettingsService.gitHubTokenType) {
             return .token(token)
         }
         return nil
     }
 
     public func getAnthropicKey() -> String? {
-        resolveValue(envKey: Self.anthropicAPIKeyKey, keychainType: CredentialSettingsService.anthropicKeyType)
+        resolveValue(envKey: Self.anthropicAPIKeyKey, keychainType: SecureSettingsService.anthropicKeyType)
     }
 
     private func resolveGitHubAppAuth() -> GitHubAuth? {
-        guard let appId = resolveValue(envKey: Self.gitHubAppIdKey, keychainType: CredentialSettingsService.gitHubAppIdType),
-              let installationId = resolveValue(envKey: Self.gitHubAppInstallationIdKey, keychainType: CredentialSettingsService.gitHubAppInstallationIdType),
-              let privateKey = resolveValue(envKey: Self.gitHubAppPrivateKeyKey, keychainType: CredentialSettingsService.gitHubAppPrivateKeyType) else {
+        guard let appId = resolveValue(envKey: Self.gitHubAppIdKey, keychainType: SecureSettingsService.gitHubAppIdType),
+              let installationId = resolveValue(envKey: Self.gitHubAppInstallationIdKey, keychainType: SecureSettingsService.gitHubAppInstallationIdType),
+              let privateKey = resolveValue(envKey: Self.gitHubAppPrivateKeyKey, keychainType: SecureSettingsService.gitHubAppPrivateKeyType) else {
             return nil
         }
         return .app(appId: appId, installationId: installationId, privateKeyPEM: privateKey)

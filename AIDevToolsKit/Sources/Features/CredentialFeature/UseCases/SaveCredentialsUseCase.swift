@@ -4,9 +4,9 @@ import UseCaseSDK
 
 public struct SaveCredentialsUseCase: UseCase {
 
-    private let settingsService: CredentialSettingsService
+    private let settingsService: SecureSettingsService
 
-    public init(settingsService: CredentialSettingsService) {
+    public init(settingsService: SecureSettingsService) {
         self.settingsService = settingsService
     }
 

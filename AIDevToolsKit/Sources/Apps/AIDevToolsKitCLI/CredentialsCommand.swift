@@ -47,7 +47,7 @@ struct CredentialsCommand: AsyncParsableCommand {
                 throw ValidationError("No credentials provided. Use --github-token or --app-id/--installation-id/--private-key-path, and optionally --anthropic-key.")
             }
 
-            let useCase = SaveCredentialsUseCase(settingsService: CredentialSettingsService())
+            let useCase = SaveCredentialsUseCase(settingsService: SecureSettingsService())
             try useCase.execute(account: account, gitHubAuth: gitHubAuth, anthropicKey: anthropicKey)
 
             var parts: [String] = []
@@ -98,7 +98,7 @@ struct CredentialsCommand: AsyncParsableCommand {
         )
 
         func run() async throws {
-            let useCase = ListCredentialAccountsUseCase(settingsService: CredentialSettingsService())
+            let useCase = ListCredentialAccountsUseCase(settingsService: SecureSettingsService())
             let accounts = try useCase.execute()
 
             if accounts.isEmpty {
@@ -124,7 +124,7 @@ struct CredentialsCommand: AsyncParsableCommand {
         var account: String
 
         func run() async throws {
-            let settingsService = CredentialSettingsService()
+            let settingsService = SecureSettingsService()
             let listUseCase = ListCredentialAccountsUseCase(settingsService: settingsService)
             let accounts = try listUseCase.execute()
 
@@ -148,7 +148,7 @@ struct CredentialsCommand: AsyncParsableCommand {
         var account: String
 
         func run() async throws {
-            let settingsService = CredentialSettingsService()
+            let settingsService = SecureSettingsService()
             let listUseCase = ListCredentialAccountsUseCase(settingsService: settingsService)
             let accounts = try listUseCase.execute()
 

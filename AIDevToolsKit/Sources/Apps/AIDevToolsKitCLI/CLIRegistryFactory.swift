@@ -25,7 +25,7 @@ func makeEvalRegistry(debug: Bool = false) -> EvalProviderRegistry {
 }
 
 func makeAnthropicClientIfAvailable() -> AnthropicProvider? {
-    let service = CredentialSettingsService()
+    let service = SecureSettingsService()
     let account = (try? service.listCredentialAccounts())?.first ?? "default"
     let resolver = CredentialResolver(settingsService: service, githubAccount: account)
     guard let key = resolver.getAnthropicKey(), !key.isEmpty else {

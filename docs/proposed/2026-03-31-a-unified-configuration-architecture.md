@@ -90,7 +90,10 @@ Introduce `SettingsService` as the single entry point for non-sensitive settings
 - Initialize `SettingsService` at the Apps layer (CompositionRoot and CLI entry points) alongside the other two services
 - Update `CompositionRoot` and CLI commands to use `SettingsService` rather than reaching into individual stores directly
 
-## - [ ] Phase 5: Rename `CredentialSettingsService` → `SecureSettingsService`
+## - [x] Phase 5: Rename `CredentialSettingsService` → `SecureSettingsService`
+
+**Skills used**: `configuration-architecture`
+**Principles applied**: Mechanical rename — `mv` for both the source file and test file, then `replace_all` across 18 Swift files. No behavior changes. The three-backend priority chain (env vars → `.env` → Keychain) is expressed in `CredentialResolver`, which is already the public interface surface.
 
 **Skills to read**: `configuration-architecture`
 

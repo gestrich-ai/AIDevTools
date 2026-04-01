@@ -38,7 +38,7 @@ struct RunTaskCommand: AsyncParsableCommand {
         }
 
         // Resolve GitHub auth
-        let service = CredentialSettingsService()
+        let service = SecureSettingsService()
         let account = githubAccount ?? (try? service.listCredentialAccounts())?.first ?? "default"
         let resolver = CredentialResolver(settingsService: service, githubAccount: account)
 

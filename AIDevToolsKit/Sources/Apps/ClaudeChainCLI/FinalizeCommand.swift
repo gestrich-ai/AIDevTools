@@ -55,7 +55,7 @@ public struct FinalizeCommand: AsyncParsableCommand {
             var ghToken = ""
             let credentialAccount = environment["GITHUB_CREDENTIAL_ACCOUNT"] ?? "default"
             let credentialResolver = CredentialResolver(
-                settingsService: CredentialSettingsService(),
+                settingsService: SecureSettingsService(),
                 githubAccount: credentialAccount
             )
             if case .token(let token) = credentialResolver.getGitHubAuth() {
