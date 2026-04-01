@@ -307,7 +307,7 @@ public struct ClaudeProvider: Sendable {
     }
 
     private static func structuredOutputFollowUpCommand(from original: Claude, sessionId: String) -> Claude {
-        var command = Claude(prompt: "Please provide your response in the requested JSON format.")
+        var command = Claude(prompt: "Did you successfully complete the task?")
         command.resume = sessionId
         command.dangerouslySkipPermissions = original.dangerouslySkipPermissions
         command.jsonSchema = original.jsonSchema
