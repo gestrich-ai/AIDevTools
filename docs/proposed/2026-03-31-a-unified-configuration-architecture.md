@@ -1,0 +1,127 @@
+## Relevant Skills
+
+| Skill | Description |
+|-------|-------------|
+| `configuration-architecture` | Full guide for the three-service config design, RepositoryConfiguration shape, runtime credential change pattern, and checklist |
+| `swift-app-architecture:swift-architecture` | 4-layer architecture rules — ensures changes land in the right layer |
+
+## Background
+
+The app currently has configuration scattered across five different storage backends (Keychain, environment variables, `.env` file, UserDefaults, and multiple JSON stores) with no unified model. Per-repo feature settings are split across three separate stores (`PRRadarRepoSettingsStore`, `EvalRepoSettingsStore`, `MarkdownPlannerRepoSettingsStore`) with cross-references by UUID, making them hard to manage together in a settings UI.
+
+The agreed-upon design introduces three clearly-bounded services:
+
+- **`SecureSettingsService`** — sensitive credentials via Keychain/env/dotenv chain
+- **`SettingsService`** — non-sensitive settings via JSON in the data directory
+- **`DataPathsService`** — file paths (already exists, no change needed)
+
+Per-repo feature settings are consolidated into a single **`RepositoryConfiguration`** type (renamed from `RepositoryInfo`) that nests each feature's settings as optional properties. A data migration folds the three separate settings JSON files into `repositories.json`.
+
+Runtime credential changes are handled without restart: `AppModel` holds optional child models (nil when credentials are absent), and an explicit `applyCredentialChange(_:)` method rebuilds only the affected model when the user updates a credential.
+
+## - [ ] Phase 1: Rename `RepositoryInfo` → `RepositoryConfiguration`
+
+**Skills to read**: `configuration-architecture`
+
+Rename the `RepositoryInfo` struct and all references throughout the codebase:
+
+- Rename `RepositoryInfo.swift` → `RepositoryConfiguration.swift`
+- Update the struct name to `RepositoryConfiguration`
+- Update all references: `RepositoryStore`, `RepositorySDK`, feature stores, CLI commands, Mac app models, views
+- Keep the JSON encoding key as `RepositoryInfo` initially (or update with migration — coordinate with Phase 3)
+- This is a mechanical rename; no behavior changes
+
+## - [ ] Phase 2: Add per-feature settings to `RepositoryConfiguration`
+
+**Skills to read**: `configuration-architecture`
+
+Nest each feature's settings directly inside `RepositoryConfiguration`:
+
+```swift
+public struct RepositoryConfiguration: Codable {
+    public let id: UUID
+    public let path: URL
+    public let name: String
+    public var credentialAccount: String?
+    // existing fields...
+
+    public var prradar: PRRadarRepoSettings?
+    public var eval: EvalRepoSettings?
+    public var planner: MarkdownPlannerRepoSettings?
+}
+```
+
+- Add the three optional properties
+- Remove the `repoId` field from `PRRadarRepoSettings`, `EvalRepoSettings`, `MarkdownPlannerRepoSettings` (identity is now provided by the parent `RepositoryConfiguration`)
+- Update any code that reads/writes these structs to go through `RepositoryConfiguration`
+
+## - [ ] Phase 3: Write data migration and delete separate settings stores
+
+**Skills to read**: `configuration-architecture`
+
+Migrate data from the three separate JSON files into `repositories.json`:
+
+- Add a migration step to `MigrateDataPathsUseCase`:
+  1. Read `prradar/settings/prradar-settings.json`, `eval/settings/eval-settings.json`, `plan/settings/plan-settings.json`
+  2. Load existing `repositories.json` as `[RepositoryConfiguration]`
+  3. For each settings entry, find the matching `RepositoryConfiguration` by `repoId` and populate the corresponding nested property
+  4. Write the merged `repositories.json`
+  5. Delete the three separate settings files
+- Delete `PRRadarRepoSettingsStore`, `EvalRepoSettingsStore`, `MarkdownPlannerRepoSettingsStore`
+- All settings reads/writes now go through `RepositoryStore` (which stores `[RepositoryConfiguration]`)
+- Remove the now-unused `ServicePath` cases for the separate settings directories (`.prradarSettings`, `.evalSettings`, `.planSettings`)
+
+## - [ ] Phase 4: Create `SettingsService`
+
+**Skills to read**: `configuration-architecture`, `swift-app-architecture:swift-architecture`
+
+Introduce `SettingsService` as the single entry point for non-sensitive settings:
+
+- Create `SettingsService` in the Services layer, wrapping `RepositoryStore` and any app-wide JSON settings
+- `SettingsService` receives `DataPathsService` in its initializer
+- Move the data path preference (currently raw `UserDefaults` key `"AIDevTools.dataPath"` in `ResolveDataPathUseCase`) into a typed wrapper — either a method on `SettingsService` or a dedicated `AppPreferences` struct within it
+- Initialize `SettingsService` at the Apps layer (CompositionRoot and CLI entry points) alongside the other two services
+- Update `CompositionRoot` and CLI commands to use `SettingsService` rather than reaching into individual stores directly
+
+## - [ ] Phase 5: Rename `CredentialSettingsService` → `SecureSettingsService`
+
+**Skills to read**: `configuration-architecture`
+
+Clarify the naming of the credential service:
+
+- Rename `CredentialSettingsService` to `SecureSettingsService`
+- Update all call sites
+- Verify the three-backend priority chain (env vars → `.env` → Keychain) is clearly expressed in the type's interface, not just its implementation
+- No behavior changes
+
+## - [ ] Phase 6: Runtime credential changes in `AppModel`
+
+**Skills to read**: `configuration-architecture`, `swift-app-architecture:swift-swiftui`
+
+Wire up no-restart credential updates:
+
+- Audit `AppModel` (and `CompositionRoot`) to identify which child models depend on each credential type
+- Make those child models optional on `AppModel` (nil when the credential is absent)
+- Add `applyCredentialChange(_ type: CredentialType)` to `AppModel` that rebuilds only the affected child model
+- Update `CredentialModel` (the credential-editing UI) to call `appModel.applyCredentialChange(_:)` after a successful save or delete
+- Update views that depend on credential-gated models to use optional binding — don't show those views when the model is nil
+
+## - [ ] Phase 7: Update documentation
+
+Update `docs/guides/configuration-architecture.md` to reflect the final design:
+
+- Document all three services with their backends and boundaries
+- Replace the anti-pattern example (passing a config service to a use case) with the correct resolved-values pattern
+- Document `RepositoryConfiguration` as the per-repo settings container
+- Describe the runtime credential change pattern
+- Add the checklist from the `configuration-architecture` skill
+
+## - [ ] Phase 8: Validation
+
+- Build succeeds with no warnings
+- Existing repositories.json data survives the migration (test with a real data directory)
+- PRRadar CLI commands correctly read and write `RepositoryConfiguration.prradar`
+- Eval and planner settings are preserved after migration
+- Changing a GitHub token in the credentials UI updates `AppModel.githubModel` without restarting the app
+- Changing an Anthropic API key updates `AppModel.aiModel` without restarting
+- Removing a credential causes the dependent views to hide (not crash)
