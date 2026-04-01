@@ -1,5 +1,5 @@
 {
-  "originHash" : "15816db8a3bf1ba8ce46d5135bd7abae8b5cf6fb6e9beaa85a4331b5d9513bda",
+  "originHash" : "2e0e9a32bdfd072ff143c66cdab2f2e42c7566344b3c9ea0876447e262cbe6c5",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -305,6 +305,15 @@
       "state" : {
         "branch" : "main",
         "revision" : "b376c7ab86e0d064ad288173c11aa66694502b8c"
+      }
+    },
+    {
+      "identity" : "xcode-sim-automation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gestrich/xcode-sim-automation",
+      "state" : {
+        "branch" : "main",
+        "revision" : "c313a99d7e71ea7f1151872c3479f1828fac3438"
       }
     },
     {
