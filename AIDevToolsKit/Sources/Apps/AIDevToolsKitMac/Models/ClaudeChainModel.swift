@@ -199,6 +199,14 @@ final class ClaudeChainModel {
         ))
     }
 
+    func createProject(name: String, baseBranch: String) throws {
+        guard let repoPath = currentRepoPath else { return }
+        try CreateChainProjectUseCase().run(
+            options: .init(name: name, repoPath: repoPath, baseBranch: baseBranch)
+        )
+        loadChains(for: repoPath, credentialAccount: currentCredentialAccount)
+    }
+
     func reset() {
         state = .idle
     }

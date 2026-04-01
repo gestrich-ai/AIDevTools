@@ -64,7 +64,7 @@ struct ClaudeChainView: View {
             storedChainProject = newValue?.name ?? ""
         }
         .sheet(isPresented: $showCreateSheet) {
-            CreateChainSheet()
+            CreateChainSheet(repository: repository)
         }
     }
 }
@@ -739,18 +739,43 @@ private struct ChainProjectDetailView: View {
 // MARK: - Create Chain Sheet
 
 private struct CreateChainSheet: View {
+    @Environment(ClaudeChainModel.self) var model
     @Environment(\.dismiss) var dismiss
 
+    let repository: RepositoryConfiguration
+
+    @State private var name = ""
+    @State private var baseBranch = "main"
+    @State private var creationError: Error?
+
     var body: some View {
-        VStack(spacing: 16) {
-            Text("New Chain").font(.headline)
-            Text("Chain creation is not yet implemented.\nAdd a claude-chain/<name>/spec.md to your repo.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button("OK") { dismiss() }
-                .keyboardShortcut(.defaultAction)
+        Form {
+            TextField("Project name", text: $name)
+            TextField("Base branch", text: $baseBranch)
+            if let creationError {
+                Text(creationError.localizedDescription)
+                    .foregroundStyle(.red)
+                    .font(.caption)
+            }
         }
-        .padding()
+        .formStyle(.grouped)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Create") {
+                    do {
+                        try model.createProject(name: name, baseBranch: baseBranch)
+                        dismiss()
+                    } catch {
+                        creationError = error
+                    }
+                }
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .navigationTitle("New Chain")
         .frame(minWidth: 300)
     }
 }
