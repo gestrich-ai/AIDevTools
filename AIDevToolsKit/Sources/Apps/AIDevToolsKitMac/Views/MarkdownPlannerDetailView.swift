@@ -25,7 +25,6 @@ struct MarkdownPlannerDetailView: View {
     @State private var isAddTaskPopoverPresented = false
     @State private var isAppendReviewPopoverPresented = false
     @State private var newTaskDescription = ""
-    @State private var pipelineModel = PipelineModel()
 
     private var chatModel: ChatModel {
         markdownPlannerModel.persistentChatModel(
@@ -321,9 +320,9 @@ struct MarkdownPlannerDetailView: View {
 
     @ViewBuilder
     private var phaseSection: some View {
-        if pipelineModel.isRunning {
+        if markdownPlannerModel.pipelineModel.isRunning {
             PipelineView()
-                .environment(pipelineModel)
+                .environment(markdownPlannerModel.pipelineModel)
         } else if !localPhases.isEmpty {
             localPhaseList
         }
@@ -420,29 +419,19 @@ struct MarkdownPlannerDetailView: View {
         executionChatModel = executionModel
         activePlanModel.stopWatching()
 
-        let accumulator = StreamAccumulator()
-        markdownPlannerModel.executionProgressObserver = { @MainActor [weak executionModel] progress in
+        markdownPlannerModel.pipelineModel.onEvent = { @MainActor [weak executionModel] event in
             guard let executionModel else { return }
-            switch progress {
-            case .startingPhase(let index, _, let desc):
+            switch event {
+            case .nodeStarted(_, let displayName):
                 executionModel.finalizeCurrentStreamingMessage()
-                executionModel.appendStatusMessage("Starting Phase \(index + 1): \(desc)")
+                executionModel.appendStatusMessage(displayName)
                 executionModel.beginStreamingMessage()
-                Task { await accumulator.reset() }
-            case .phaseStreamEvent(let event):
-                Task {
-                    let updatedBlocks = await accumulator.apply(event)
-                    await MainActor.run {
-                        executionModel.updateCurrentStreamingBlocks(updatedBlocks)
-                    }
+            case .nodeProgress(_, let progress):
+                if case .output(let text) = progress {
+                    executionModel.appendTextToCurrentStreamingMessage(text)
                 }
-            case .phaseOutput:
-                break
-            case .phaseCompleted:
+            case .nodeCompleted:
                 executionModel.finalizeCurrentStreamingMessage()
-            case .phaseFailed(_, let desc, let error):
-                executionModel.finalizeCurrentStreamingMessage()
-                executionModel.appendStatusMessage("Phase failed: \(desc)\n\(error)")
             default:
                 break
             }
@@ -464,7 +453,7 @@ struct MarkdownPlannerDetailView: View {
         await loadPlan()
         mergeExecutionPhaseStates()
         executionChatModel?.finalizeCurrentStreamingMessage()
-        markdownPlannerModel.executionProgressObserver = nil
+        markdownPlannerModel.pipelineModel.onEvent = nil
         executionChatModel = nil
         activePlanModel.startWatching(url: plan.planURL)
     }

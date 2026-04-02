@@ -42,8 +42,6 @@ final class MarkdownPlannerModel {
     private(set) var phaseCompleteCount: Int = 0
     private(set) var currentRepository: RepositoryConfiguration?
     private(set) var queuedTasks: [QueuedTask] = []
-    /// Bridge for views to relay execution progress to a ChatModel for streaming display.
-    var executionProgressObserver: (@MainActor (MarkdownPlannerService.ExecuteProgress) -> Void)?
 
     var selectedProviderName: String {
         didSet {

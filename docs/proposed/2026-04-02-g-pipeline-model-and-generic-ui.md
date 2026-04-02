@@ -154,7 +154,10 @@ Replace `ExecutionProgress` + `executionProgressObserver` with an owned `Pipelin
 - Remove `betweenPhases` closure from model
 - `MarkdownPlannerDetailView` wires `pipelineModel.onEvent` to feed `ChatMessagesView` (replaces `executionProgressObserver`)
 
-## - [ ] Phase 6: Update `MarkdownPlannerDetailView`
+## - [x] Phase 6: Update `MarkdownPlannerDetailView`
+
+**Skills used**: `swift-swiftui`
+**Principles applied**: Replaced local `@State pipelineModel` with `markdownPlannerModel.pipelineModel` so `PipelineView` binds to the model's owned instance. Replaced `executionProgressObserver` (old `ExecuteProgress` callback) with `pipelineModel.onEvent` mapping `PipelineEvent` cases: `.nodeStarted` → status message + begin streaming, `.nodeProgress(.output)` → `appendTextToCurrentStreamingMessage`, `.nodeCompleted` → finalize. Removed `executionProgressObserver` property from `MarkdownPlannerModel` entirely.
 
 **Skills to read**: `swift-swiftui`
 
