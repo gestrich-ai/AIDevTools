@@ -212,8 +212,7 @@ final class ClaudeChainModel {
                     self.handleExecutionProgress(.runningAI(taskDescription: task.description))
                 }
             case .nodeProgress(_, let progress):
-                if case .streamEvent(let streamEvent) = progress {
-                    self.handleExecutionProgress(.aiStreamEvent(streamEvent))
+                if case .contentBlocks(_) = progress {
                 }
             case .nodeCompleted(let id, _):
                 if id != "task-source" && id != "pr-step" {

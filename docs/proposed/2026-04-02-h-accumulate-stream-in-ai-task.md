@@ -30,7 +30,10 @@ Change `StreamAccumulator` in `Sources/SDKs/AIOutputSDK/StreamAccumulator.swift`
 - All existing logic inside each method stays identical — only the isolation mechanism changes
 - `public private(set) var blocks` becomes a regular stored property (lock-protected)
 
-## - [ ] Phase 2: Replace `.streamEvent` with `.contentBlocks` in `PipelineNodeProgress`
+## - [x] Phase 2: Replace `.streamEvent` with `.contentBlocks` in `PipelineNodeProgress`
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Changed `PipelineNodeProgress.streamEvent(AIStreamEvent)` to `.contentBlocks([AIContentBlock])` — `AIContentBlock` is already available via the existing `AIOutputSDK` import so no new dependency needed. Updated all three `PipelineNodeProgress` callers (`AITask.swift`, `MarkdownPlannerDetailView.swift`, `ClaudeChainModel.swift`) with placeholder `.contentBlocks` handling so the build succeeds; Phase 3 will add real accumulation in `AITask` and Phase 4 will wire the view.
 
 **Skills to read**: `swift-architecture`
 

@@ -14,5 +14,5 @@ public enum PipelineNodeProgress: Sendable {
     case output(String)
     case pausedForReview
     case custom(String)
-    case streamEvent(AIStreamEvent)
+    case contentBlocks([AIContentBlock])
 }

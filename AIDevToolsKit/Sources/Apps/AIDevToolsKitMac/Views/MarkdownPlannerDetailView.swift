@@ -439,8 +439,7 @@ struct MarkdownPlannerDetailView: View {
                 holder.continuation = continuation
                 Task { await executionModel.consumeStream(stream, messageId: messageId) }
             case .nodeProgress(_, let progress):
-                if case .streamEvent(let event) = progress {
-                    holder.continuation?.yield(event)
+                if case .contentBlocks(_) = progress {
                 }
             case .nodeCompleted:
                 holder.continuation?.finish()
