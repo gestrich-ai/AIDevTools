@@ -61,7 +61,10 @@ Audit `RunChainTaskUseCase` and `FinalizeStagedTaskUseCase` and document their p
 | `stagingOnly` — stop after commit, skip push/PR | `RunChainTaskUseCase.run()` lines 254–265 | Service omits `PRStep` from the assembled blueprint when `options.stagingOnly == true` | Not a `PipelineConfiguration.stagingOnly` flag; the service simply does not include `PRStep` (or summary/comment steps) in the blueprint. Cleaner than a runtime skip flag. |
 | `FinalizeStagedTaskUseCase` — push + PR for a previously staged commit | `FinalizeStagedTaskUseCase.run()` | Blueprint with a single `PRStep` node; service setup handles checkout + `markComplete` + commit before running the blueprint | No AI needed; the task is already committed. Service calls `MarkdownTaskSource.markComplete()` directly before building the finalize blueprint. Summary generation and PR comment remain post-pipeline service steps, same as normal run. |
 
-## - [ ] Phase 2: Implement ClaudeChainService with buildPipeline(for task:)
+## - [x] Phase 2: Implement ClaudeChainService with buildPipeline(for task:)
+
+**Skills used**: none
+**Principles applied**: Created `ClaudeChainService` struct in `ClaudeChainFeature` with `buildPipeline(for:options:)` and `buildFinalizePipeline(for:options:)`. Pre-pipeline project setup (fetch, checkout, branch creation) runs before returning the blueprint. `MarkdownTaskSource` receives `task.index - 1` (converting 1-based `ChainTask.index` to 0-based `CodeChangeStep.id`). `PRStep` (from `PipelineService`) is included only when `stagingOnly == false`. `buildFinalizePipeline` marks the spec.md checkbox complete and commits before returning a blueprint with only `PRStep`. Added `PipelineService` to `ClaudeChainFeature` dependencies. Fixed `TaskService.generateTaskHash` to use `generateTaskHash(_:)` syntax to disambiguate from the shadowed module name.
 
 Create `ClaudeChainService` in `ClaudeChainFeature`.
 

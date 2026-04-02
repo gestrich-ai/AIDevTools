@@ -195,7 +195,8 @@ public class TaskService {
          *     TaskService.generateTaskHash("")  // "e3b0c442" (hash of empty string)
          */
         // Delegate to domain model function
-        return ClaudeChainService.generateTaskHash(description)
+        let fn = generateTaskHash(_:)
+        return fn(description)
     }
     
     public static func generateTaskId(task: String, maxLength: Int = 30) -> String {
