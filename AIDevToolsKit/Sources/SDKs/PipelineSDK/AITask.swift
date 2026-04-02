@@ -41,6 +41,7 @@ public struct AITask<Output: Decodable & Sendable>: PipelineNode {
             environment: environment,
             workingDirectory: workingDirectory
         )
+        let accumulator = StreamAccumulator()
         let metricsBox = MetricsBox()
 
         if let schema = jsonSchema {
@@ -51,7 +52,8 @@ public struct AITask<Output: Decodable & Sendable>: PipelineNode {
                 options: options,
                 onOutput: nil,
                 onStreamEvent: { event in
-                    onProgress(.contentBlocks([]))
+                    let blocks = accumulator.apply(event)
+                    onProgress(.contentBlocks(blocks))
                     if case let .metrics(duration, cost, turns) = event {
                         metricsBox.set(AIMetrics(cost: cost, duration: duration, turns: turns))
                     }
@@ -67,7 +69,8 @@ public struct AITask<Output: Decodable & Sendable>: PipelineNode {
                     textBox.append(text)
                 },
                 onStreamEvent: { event in
-                    onProgress(.contentBlocks([]))
+                    let blocks = accumulator.apply(event)
+                    onProgress(.contentBlocks(blocks))
                     if case let .metrics(duration, cost, turns) = event {
                         metricsBox.set(AIMetrics(cost: cost, duration: duration, turns: turns))
                     }

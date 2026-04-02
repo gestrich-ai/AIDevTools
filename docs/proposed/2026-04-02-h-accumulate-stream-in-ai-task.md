@@ -48,7 +48,10 @@ case contentBlocks([AIContentBlock])
 
 `AIContentBlock` is in `AIOutputSDK` which `PipelineSDK` already imports — no new dependency.
 
-## - [ ] Phase 3: Accumulate in `AITask` and emit `.contentBlocks`
+## - [x] Phase 3: Accumulate in `AITask` and emit `.contentBlocks`
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Created `StreamAccumulator()` at the top of `run()` (one accumulator per task invocation). In both `onStreamEvent` closures (structured and unstructured branches), replaced `onProgress(.contentBlocks([]))` with `let blocks = accumulator.apply(event); onProgress(.contentBlocks(blocks))`. The `metricsBox` is retained for populating the return-value context. `textBox.append(text)` in `onOutput` is unchanged — it exists solely for accumulating the final `Output` return value, not for streaming UI.
 
 **Skills to read**: `swift-architecture`
 
