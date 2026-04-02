@@ -31,14 +31,15 @@ struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
         let registry = makeProviderRegistry()
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
 
-        let useCase = GeneratePlanUseCase(
+        let service = MarkdownPlannerService(
             client: client,
+            dataPath: ResolveDataPathUseCase().resolve(explicit: dataPath).path,
             resolveProposedDirectory: { repo in
                 (repo.planner ?? MarkdownPlannerRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
             }
         )
-        let result = try await useCase.run(
-            GeneratePlanUseCase.Options(
+        let result = try await service.generate(
+            options: MarkdownPlannerService.GenerateOptions(
                 prompt: text,
                 repositories: repos
             )
@@ -53,7 +54,7 @@ struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
         }
     }
 
-    private static func printProgress(_ progress: GeneratePlanUseCase.Progress) {
+    private static func printProgress(_ progress: MarkdownPlannerService.GenerateProgress) {
         switch progress {
         case .matchingRepo:
             printColored("Step 1/3: Matching repository...", color: .cyan)

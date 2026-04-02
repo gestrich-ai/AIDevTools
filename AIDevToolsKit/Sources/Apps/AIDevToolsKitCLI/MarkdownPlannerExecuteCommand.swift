@@ -64,14 +64,16 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
         let registry = makeProviderRegistry()
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
 
-        let resolvedDataPath = ResolveDataPathUseCase().resolve(explicit: dataPath).path
-        let useCase = ExecutePlanUseCase(
+        let service = MarkdownPlannerService(
             client: client,
             completedDirectory: completedDirectory,
-            dataPath: resolvedDataPath
+            dataPath: ResolveDataPathUseCase().resolve(explicit: dataPath).path,
+            resolveProposedDirectory: { repo in
+                (repo.planner ?? MarkdownPlannerRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
+            }
         )
-        let result = try await useCase.run(
-            ExecutePlanUseCase.Options(
+        let result = try await service.execute(
+            options: MarkdownPlannerService.ExecuteOptions(
                 executeMode: next ? .next : .all,
                 planPath: planURL,
                 repoPath: repoPath,
@@ -99,7 +101,7 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
         }
     }
 
-    private static func handleProgress(_ progress: ExecutePlanUseCase.Progress, timer: TimerDisplay) {
+    private static func handleProgress(_ progress: MarkdownPlannerService.ExecuteProgress, timer: TimerDisplay) {
         switch progress {
         case .fetchingStatus:
             printColored("Fetching phase information...", color: .cyan)

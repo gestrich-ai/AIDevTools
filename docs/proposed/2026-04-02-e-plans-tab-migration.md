@@ -90,7 +90,10 @@ Tasks:
 - The plan list / sidebar view is unchanged
 
 Verify: Plans tab renders correctly in `PipelineView`; all panels show the same data as before; architecture-diagram pause displays correctly.
-## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find new features architected as afterthoughts and refactor them to integrate cleanly with the existing system, and make the necessary code changes
+## - [x] Code Review: Review the code changes that have been made in these tasks for the following: Find new features architected as afterthoughts and refactor them to integrate cleanly with the existing system, and make the necessary code changes
+
+**Skills used**: `ai-dev-tools-review`, `swift-app-architecture:swift-architecture`
+**Principles applied**: The CLI commands (`MarkdownPlannerExecuteCommand`, `MarkdownPlannerPlanCommand`) were still using the deprecated `ExecutePlanUseCase` and `GeneratePlanUseCase` while the Mac app was updated to `MarkdownPlannerService` in Phase 3. This is the classic "afterthought" pattern — a new service was introduced and wired to one entry point but the other was left behind. Updated both CLI commands to use `MarkdownPlannerService` directly, giving both entry points a single execution path.
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Identify the architectural layer for every new or modified file; read the reference doc for that layer before reviewing anything else, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find code placed in the wrong layer entirely and move it to the correct one, and make the necessary code changes
 ## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find upward dependencies (lower layers importing higher layers) and remove them, and make the necessary code changes

@@ -122,7 +122,7 @@ public struct MarkdownPlannerService: Sendable {
 
     public enum ExecuteProgress: Sendable {
         case fetchingStatus
-        case phaseOverview(phases: [PhaseStatus])
+        case phaseOverview(phases: [PlanPhase])
         case startingPhase(index: Int, total: Int, description: String)
         case phaseOutput(text: String)
         case phaseStreamEvent(AIStreamEvent)
@@ -233,8 +233,8 @@ public struct MarkdownPlannerService: Sendable {
         // Load all phases for the initial overview
         onProgress?(.fetchingStatus)
         let initialPipeline = try await MarkdownPipelineSource(fileURL: options.planPath, format: .phase).load()
-        var phases = initialPipeline.steps.compactMap { $0 as? CodeChangeStep }.map {
-            PhaseStatus(description: $0.description, status: $0.isCompleted ? "completed" : "pending")
+        var phases = initialPipeline.steps.compactMap { $0 as? CodeChangeStep }.enumerated().map { idx, step in
+            PlanPhase(index: idx, description: step.description, isCompleted: step.isCompleted)
         }
         let totalPhases = phases.count
 
@@ -309,7 +309,7 @@ public struct MarkdownPlannerService: Sendable {
             try await taskSource.markComplete(task)
 
             if phaseIndex < phases.count {
-                phases[phaseIndex] = PhaseStatus(description: phases[phaseIndex].description, status: "completed")
+                phases[phaseIndex] = PlanPhase(index: phaseIndex, description: phases[phaseIndex].description, isCompleted: true)
             }
 
             writePhaseLog(output: await outputAccumulator.content, phaseIndex: phaseIndex, logDirectory: logDir)
