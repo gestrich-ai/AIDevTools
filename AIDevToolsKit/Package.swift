@@ -654,7 +654,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PipelineSDKTests",
-            dependencies: ["AIOutputSDK", "GitSDK", "PipelineSDK"],
+            dependencies: ["AIOutputSDK", "GitSDK", "PipelineSDK", "PipelineService"],
             path: "Tests/SDKs/PipelineSDKTests"
         ),
         .testTarget(

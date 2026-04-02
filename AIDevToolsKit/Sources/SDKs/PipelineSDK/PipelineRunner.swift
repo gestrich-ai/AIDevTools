@@ -1,38 +1,22 @@
 import Foundation
 
-public actor Pipeline {
-    private let nodes: [any PipelineNode]
-    private let configuration: PipelineConfiguration
-    private var context: PipelineContext
-    private var isStopped = false
-    private var reviewContinuation: CheckedContinuation<Void, any Error>?
+public struct PipelineRunner: Sendable {
 
-    public init(
+    public init() {}
+
+    public func run(
         nodes: [any PipelineNode],
         configuration: PipelineConfiguration,
-        initialContext: PipelineContext = PipelineContext()
-    ) {
-        self.context = initialContext
-        self.configuration = configuration
-        self.nodes = nodes
-    }
-
-    public func run(
+        startingAt startIndex: Int = 0,
+        initialContext: PipelineContext = PipelineContext(),
         onProgress: @escaping @Sendable (PipelineEvent) -> Void
     ) async throws -> PipelineContext {
-        return try await run(startingAt: 0, onProgress: onProgress)
-    }
-
-    public func run(
-        startingAt startIndex: Int,
-        onProgress: @escaping @Sendable (PipelineEvent) -> Void
-    ) async throws -> PipelineContext {
-        isStopped = false
+        var context = initialContext
         let startTime = Date()
 
         for (index, node) in nodes.enumerated() {
             guard index >= startIndex else { continue }
-            guard !isStopped else { break }
+            guard !Task.isCancelled else { break }
 
             if let maxMinutes = configuration.maxMinutes {
                 let elapsed = Date().timeIntervalSince(startTime) / 60
@@ -42,9 +26,8 @@ public actor Pipeline {
             onProgress(.nodeStarted(id: node.id, displayName: node.displayName))
 
             if node is ReviewStep {
-                onProgress(.pausedForReview)
                 try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-                    self.reviewContinuation = continuation
+                    onProgress(.pausedForReview(continuation: continuation))
                 }
             } else {
                 let nodeID = node.id
@@ -57,7 +40,7 @@ public actor Pipeline {
 
             if let injectedSource = context[PipelineContext.injectedTaskSourceKey] {
                 context[PipelineContext.injectedTaskSourceKey] = nil
-                try await drainTaskSource(injectedSource, onProgress: onProgress)
+                context = try await drainTaskSource(injectedSource, configuration: configuration, context: context, onProgress: onProgress)
             }
         }
 
@@ -65,28 +48,17 @@ public actor Pipeline {
         return context
     }
 
-    public func stop() {
-        isStopped = true
-    }
-
-    public func approve() {
-        reviewContinuation?.resume()
-        reviewContinuation = nil
-    }
-
-    public func cancel() {
-        reviewContinuation?.resume(throwing: PipelineError.cancelled)
-        reviewContinuation = nil
-    }
-
     // MARK: - Private
 
     private func drainTaskSource(
         _ source: any TaskSource,
+        configuration: PipelineConfiguration,
+        context: PipelineContext,
         onProgress: @escaping @Sendable (PipelineEvent) -> Void
-    ) async throws {
+    ) async throws -> PipelineContext {
+        var context = context
         while let task = try await source.nextTask() {
-            guard !isStopped else { break }
+            guard !Task.isCancelled else { break }
 
             let taskNode = AITask<String>(
                 id: task.id,
@@ -107,5 +79,6 @@ public actor Pipeline {
 
             if configuration.executionMode == .nextOnly { break }
         }
+        return context
     }
 }

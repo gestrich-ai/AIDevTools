@@ -1,5 +1,6 @@
 import AIOutputSDK
 import Foundation
+import PipelineService
 import Testing
 @testable import PipelineSDK
 
@@ -263,8 +264,8 @@ struct PipelineExecutionTests {
 
         let task = Task {
             try await pipeline.run { event in
-                if case .pausedForReview = event {
-                    Task { await pipeline.approve() }
+                if case .pausedForReview(let continuation) = event {
+                    continuation.resume()
                 }
             }
         }
@@ -281,8 +282,8 @@ struct PipelineExecutionTests {
 
         let task = Task<PipelineContext, any Error> {
             try await pipeline.run { event in
-                if case .pausedForReview = event {
-                    Task { await pipeline.cancel() }
+                if case .pausedForReview(let continuation) = event {
+                    continuation.resume(throwing: PipelineError.cancelled)
                 }
             }
         }

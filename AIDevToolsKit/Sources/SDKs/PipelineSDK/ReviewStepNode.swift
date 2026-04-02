@@ -7,9 +7,9 @@ public struct ReviewStep: PipelineNode {
         self.id = id
     }
 
-    // Pipeline handles this node type specially via type cast — it stores a
-    // CheckedContinuation and waits for approve() or cancel() to be called.
-    // This passthrough implementation exists only to satisfy the protocol.
+    // PipelineRunner handles this node type via type cast — it creates a
+    // CheckedContinuation and emits it via PipelineEvent.pausedForReview so
+    // the caller owns the resume decision. This passthrough satisfies the protocol.
     public func run(
         context: PipelineContext,
         onProgress: @escaping @Sendable (PipelineNodeProgress) -> Void
