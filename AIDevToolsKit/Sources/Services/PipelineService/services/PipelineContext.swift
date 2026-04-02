@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PipelineContext: Sendable {
+public struct StepExecutionContext: Sendable {
     public let repoPath: URL
     public let workingDirectory: String
     public var gitBranch: String?

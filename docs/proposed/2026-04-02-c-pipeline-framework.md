@@ -364,7 +364,10 @@ public struct MarkdownTaskSource: TaskSource {
 
 **Not a pipeline node.** Pre/post action scripts are ClaudeChain-specific. They stay in `ClaudeChainService` as service-level setup/teardown before and after the pipeline runs. Adding a `ScriptNode` to `PipelineSDK` for a single feature's use case is not warranted.
 
-## - [ ] Phase 3: Implement PipelineSDK
+## - [x] Phase 3: Implement PipelineSDK
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Renamed existing data model types (`Pipeline`→`PipelineState`, `CreatePRStep`→`PRStepData`, `ReviewStep`→`ReviewStepData`) to free up names for execution nodes; added `AIOutputSDK`, `GitSDK`, and `CLISDK` as dependencies; `Pipeline` actor handles `ReviewStep` via type cast (continuation held by actor, not by the node); renamed `PipelineService.PipelineContext` to `StepExecutionContext` to resolve ambiguity; `MarkdownTaskSource` wraps existing `MarkdownPipelineSource` for file I/O; `Pipeline.run()` uses `@escaping @Sendable` for all progress callbacks.
 
 **Skills to read:** `swift-architecture`
 

@@ -43,7 +43,7 @@ struct AppIPCClientTests {
 
     @Test("IPCUIState encodes optional fields correctly")
     func ipcUIStateRoundtrip() throws {
-        let state = IPCUIState(selectedPlanName: "TestPlan", currentTab: "evals")
+        let state = IPCUIState(currentTab: "evals", selectedChainName: nil, selectedPlanName: "TestPlan")
         let data = try JSONEncoder().encode(state)
         let decoded = try JSONDecoder().decode(IPCUIState.self, from: data)
         #expect(decoded.selectedPlanName == "TestPlan")

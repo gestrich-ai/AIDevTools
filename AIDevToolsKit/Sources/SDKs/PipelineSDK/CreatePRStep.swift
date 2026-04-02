@@ -1,4 +1,4 @@
-public struct CreatePRStep: PipelineStep {
+public struct PRStepData: PipelineStep {
     public let id: String
     public let description: String
     public let isCompleted: Bool

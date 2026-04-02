@@ -157,21 +157,21 @@ struct MarkdownPipelineSourceTests {
         #expect(steps[2].isCompleted == true)
     }
 
-    @Test("Task format: default appendCreatePRStep is true")
-    func taskFormatDefaultAppendCreatePRStep() async throws {
+    @Test("Task format: default appendPRStepData is true")
+    func taskFormatDefaultAppendPRStepData() async throws {
         let url = try makeTempFile(content: "- [ ] Task A\n")
         defer { cleanup(url) }
 
         let source = MarkdownPipelineSource(fileURL: url, format: .task)
         let pipeline = try await source.load()
 
-        // 1 CodeChangeStep + 1 CreatePRStep
+        // 1 CodeChangeStep + 1 PRStepData
         #expect(pipeline.steps.count == 2)
-        #expect(pipeline.steps.last is CreatePRStep)
+        #expect(pipeline.steps.last is PRStepData)
     }
 
-    @Test("Phase format: default appendCreatePRStep is false")
-    func phaseFormatDefaultNoCreatePRStep() async throws {
+    @Test("Phase format: default appendPRStepData is false")
+    func phaseFormatDefaultNoPRStepData() async throws {
         let url = try makeTempFile(content: "## - [ ] Phase 1\n")
         defer { cleanup(url) }
 
@@ -216,14 +216,14 @@ struct MarkdownPipelineSourceTests {
         #expect(!updatedContent.contains("- [ ] Build feature"))
     }
 
-    @Test("markStepCompleted: silently skips CreatePRStep")
-    func markStepCompletedSkipsCreatePRStep() async throws {
+    @Test("markStepCompleted: silently skips PRStepData")
+    func markStepCompletedSkipsPRStepData() async throws {
         let content = "- [ ] Task\n"
         let url = try makeTempFile(content: content)
         defer { cleanup(url) }
 
         let source = MarkdownPipelineSource(fileURL: url, format: .task, appendCreatePRStep: false)
-        let prStep = CreatePRStep(id: "pr", description: "Create PR", isCompleted: false, titleTemplate: "title", bodyTemplate: "body", label: nil)
+        let prStep = PRStepData(id: "pr", description: "Create PR", isCompleted: false, titleTemplate: "title", bodyTemplate: "body", label: nil)
 
         // Should not throw
         try await source.markStepCompleted(prStep)

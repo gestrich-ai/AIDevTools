@@ -1,4 +1,4 @@
-public struct ReviewStep: PipelineStep {
+public struct ReviewStepData: PipelineStep {
     public let id: String
     public let description: String
     public let isCompleted: Bool

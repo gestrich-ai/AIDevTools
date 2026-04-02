@@ -16,7 +16,7 @@ public struct ReviewStepHandler: StepHandler {
         self.cliClient = cliClient
     }
 
-    public func execute(_ step: ReviewStep, context: PipelineContext) async throws -> [any PipelineStep] {
+    public func execute(_ step: ReviewStepData, context: StepExecutionContext) async throws -> [any PipelineStep] {
         let diff = try await getGitDiff(scope: step.scope, workingDirectory: context.workingDirectory)
 
         let prompt = buildReviewPrompt(step: step, diff: diff)
@@ -45,7 +45,7 @@ public struct ReviewStepHandler: StepHandler {
         }
     }
 
-    private func buildReviewPrompt(step: ReviewStep, diff: String) -> String {
+    private func buildReviewPrompt(step: ReviewStepData, diff: String) -> String {
         """
         \(step.prompt)
 

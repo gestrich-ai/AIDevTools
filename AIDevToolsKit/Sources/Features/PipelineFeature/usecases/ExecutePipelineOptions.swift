@@ -4,12 +4,12 @@ import PipelineService
 
 public struct ExecutePipelineOptions: Sendable {
     public let source: any PipelineSource
-    public let context: PipelineContext
+    public let context: StepExecutionContext
     public let handlers: [AnyStepHandler]
 
     public init(
         source: any PipelineSource,
-        context: PipelineContext,
+        context: StepExecutionContext,
         handlers: [AnyStepHandler]
     ) {
         self.source = source

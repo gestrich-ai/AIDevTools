@@ -1,0 +1,52 @@
+import Foundation
+
+public struct MarkdownTaskSource: TaskSource {
+    public let fileURL: URL
+    public let format: MarkdownPipelineFormat
+    public let taskIndex: Int?
+
+    private let state: MarkdownTaskSourceState
+
+    public init(fileURL: URL, format: MarkdownPipelineFormat, taskIndex: Int? = nil) {
+        self.fileURL = fileURL
+        self.format = format
+        self.taskIndex = taskIndex
+        self.state = MarkdownTaskSourceState()
+    }
+
+    public func nextTask() async throws -> PendingTask? {
+        let source = MarkdownPipelineSource(fileURL: fileURL, format: format, appendCreatePRStep: false)
+        let pipeline = try await source.load()
+        let steps = pipeline.steps.compactMap { $0 as? CodeChangeStep }
+
+        if let index = taskIndex {
+            guard state.claimSingleTask() else { return nil }
+            guard let step = steps.first(where: { Int($0.id) == index }) else { return nil }
+            return PendingTask(id: step.id, instructions: step.description, skills: step.skills)
+        }
+
+        guard let step = steps.first(where: { !$0.isCompleted }) else { return nil }
+        return PendingTask(id: step.id, instructions: step.description, skills: step.skills)
+    }
+
+    public func markComplete(_ task: PendingTask) async throws {
+        let source = MarkdownPipelineSource(fileURL: fileURL, format: format, appendCreatePRStep: false)
+        let pipeline = try await source.load()
+        let steps = pipeline.steps.compactMap { $0 as? CodeChangeStep }
+        guard let step = steps.first(where: { $0.id == task.id }) else { return }
+        try await source.markStepCompleted(step)
+    }
+}
+
+private final class MarkdownTaskSourceState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var singleTaskReturned = false
+
+    func claimSingleTask() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !singleTaskReturned else { return false }
+        singleTaskReturned = true
+        return true
+    }
+}

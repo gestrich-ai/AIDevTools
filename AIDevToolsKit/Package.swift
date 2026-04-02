@@ -440,7 +440,11 @@ let package = Package(
         ),
         .target(
             name: "PipelineSDK",
-            dependencies: [],
+            dependencies: [
+                "AIOutputSDK",
+                "GitSDK",
+                .product(name: "CLISDK", package: "SwiftCLI"),
+            ],
             path: "Sources/SDKs/PipelineSDK"
         ),
         .target(
@@ -650,7 +654,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PipelineSDKTests",
-            dependencies: ["PipelineSDK"],
+            dependencies: ["AIOutputSDK", "GitSDK", "PipelineSDK"],
             path: "Tests/SDKs/PipelineSDKTests"
         ),
         .testTarget(

@@ -11,8 +11,8 @@ private struct MockPipelineSource: PipelineSource {
     var appendedSteps: [any PipelineStep] = []
     var completedStepIDs: [String] = []
 
-    func load() async throws -> Pipeline {
-        Pipeline(
+    func load() async throws -> PipelineState {
+        PipelineState(
             id: "mock-pipeline",
             steps: steps,
             metadata: PipelineMetadata(
@@ -42,8 +42,8 @@ private actor TrackingPipelineSource: PipelineSource {
         self.steps = steps
     }
 
-    func load() async throws -> Pipeline {
-        Pipeline(
+    func load() async throws -> PipelineState {
+        PipelineState(
             id: "tracking-pipeline",
             steps: steps,
             metadata: PipelineMetadata(
@@ -69,7 +69,7 @@ private struct RecordingStepHandler: StepHandler {
 
     let actor: RecordingActor
 
-    func execute(_ step: CodeChangeStep, context: PipelineContext) async throws -> [any PipelineStep] {
+    func execute(_ step: CodeChangeStep, context: StepExecutionContext) async throws -> [any PipelineStep] {
         await actor.record(step.id)
         return []
     }
@@ -89,7 +89,7 @@ private struct DynamicInsertionHandler: StepHandler {
 
     let dynamicStep: CodeChangeStep
 
-    func execute(_ step: CodeChangeStep, context: PipelineContext) async throws -> [any PipelineStep] {
+    func execute(_ step: CodeChangeStep, context: StepExecutionContext) async throws -> [any PipelineStep] {
         // Only inject the dynamic step when handling the first step (id == "0")
         guard step.id == "0" else { return [] }
         return [dynamicStep]
@@ -112,8 +112,8 @@ struct ExecutePipelineUseCaseTests {
         )
     }
 
-    private func makeTestContext() -> PipelineContext {
-        PipelineContext(
+    private func makeTestContext() -> StepExecutionContext {
+        StepExecutionContext(
             repoPath: URL(fileURLWithPath: "/tmp"),
             workingDirectory: "/tmp",
             gitBranch: nil,

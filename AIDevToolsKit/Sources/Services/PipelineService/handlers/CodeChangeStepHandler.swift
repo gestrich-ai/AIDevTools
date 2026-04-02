@@ -11,7 +11,7 @@ public struct CodeChangeStepHandler: StepHandler {
         self.onOutput = onOutput
     }
 
-    public func execute(_ step: CodeChangeStep, context: PipelineContext) async throws -> [any PipelineStep] {
+    public func execute(_ step: CodeChangeStep, context: StepExecutionContext) async throws -> [any PipelineStep] {
         let options = AIClientOptions(
             dangerouslySkipPermissions: true,
             workingDirectory: context.workingDirectory

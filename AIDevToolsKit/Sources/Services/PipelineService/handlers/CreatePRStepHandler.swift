@@ -25,7 +25,7 @@ public struct CreatePRStepHandler: StepHandler {
         self.git = git
     }
 
-    public func execute(_ step: CreatePRStep, context: PipelineContext) async throws -> [any PipelineStep] {
+    public func execute(_ step: PRStepData, context: StepExecutionContext) async throws -> [any PipelineStep] {
         let branch: String
         if let contextBranch = context.gitBranch {
             branch = contextBranch

@@ -10,7 +10,7 @@ public struct MarkdownPipelineSource: PipelineSource {
         self.format = format
         self.appendCreatePRStep = appendCreatePRStep
     }
-    
+
     /// Creates source with default CreatePR behavior for task format
     public init(fileURL: URL, format: MarkdownPipelineFormat) {
         self.fileURL = fileURL
@@ -18,7 +18,7 @@ public struct MarkdownPipelineSource: PipelineSource {
         self.appendCreatePRStep = (format == .task)
     }
 
-    public func load() async throws -> Pipeline {
+    public func load() async throws -> PipelineState {
         let content = try String(contentsOf: fileURL, encoding: .utf8)
         var steps: [any PipelineStep] = []
         var index = 0
@@ -31,7 +31,7 @@ public struct MarkdownPipelineSource: PipelineSource {
         }
 
         if appendCreatePRStep {
-            let prStep = CreatePRStep(
+            let prStep = PRStepData(
                 id: "create-pr",
                 description: "Create Pull Request",
                 isCompleted: false,
@@ -44,11 +44,11 @@ public struct MarkdownPipelineSource: PipelineSource {
 
         let name = fileURL.deletingPathExtension().lastPathComponent
         let metadata = PipelineMetadata(
-            name: name, 
-            sourceURL: fileURL, 
+            name: name,
+            sourceURL: fileURL,
             createdAt: Date()
         )
-        return Pipeline(id: fileURL.path, steps: steps, metadata: metadata)
+        return PipelineState(id: fileURL.path, steps: steps, metadata: metadata)
     }
 
     public func markStepCompleted(_ step: any PipelineStep) async throws {
@@ -76,9 +76,9 @@ public struct MarkdownPipelineSource: PipelineSource {
             if line.hasPrefix("## - [x] ") {
                 let desc = String(line.dropFirst("## - [x] ".count))
                 return CodeChangeStep(
-                    id: String(index), 
-                    description: desc, 
-                    isCompleted: true, 
+                    id: String(index),
+                    description: desc,
+                    isCompleted: true,
                     prompt: desc,
                     skills: [],
                     context: .empty
@@ -86,9 +86,9 @@ public struct MarkdownPipelineSource: PipelineSource {
             } else if line.hasPrefix("## - [ ] ") {
                 let desc = String(line.dropFirst("## - [ ] ".count))
                 return CodeChangeStep(
-                    id: String(index), 
-                    description: desc, 
-                    isCompleted: false, 
+                    id: String(index),
+                    description: desc,
+                    isCompleted: false,
                     prompt: desc,
                     skills: [],
                     context: .empty
@@ -106,9 +106,9 @@ public struct MarkdownPipelineSource: PipelineSource {
             let isCompleted = line[checkboxRange].lowercased() == "x"
             let desc = String(line[descRange]).trimmingCharacters(in: .whitespacesAndNewlines)
             return CodeChangeStep(
-                id: String(index), 
-                description: desc, 
-                isCompleted: isCompleted, 
+                id: String(index),
+                description: desc,
+                isCompleted: isCompleted,
                 prompt: desc,
                 skills: [],
                 context: .empty

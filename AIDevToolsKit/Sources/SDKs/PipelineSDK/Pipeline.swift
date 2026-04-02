@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Pipeline: Sendable {
+public struct PipelineState: Sendable {
     public let id: String
     public let steps: [any PipelineStep]
     public let metadata: PipelineMetadata
