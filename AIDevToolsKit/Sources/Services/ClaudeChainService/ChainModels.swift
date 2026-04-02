@@ -4,6 +4,7 @@ public struct ChainProject: Hashable, Sendable {
     public let baseBranch: String
     public let completedTasks: Int
     public let isGitHubOnly: Bool
+    public let maxOpenPRs: Int?
     public let name: String
     public let pendingTasks: Int
     public let specPath: String
@@ -18,11 +19,13 @@ public struct ChainProject: Hashable, Sendable {
         pendingTasks: Int,
         totalTasks: Int,
         baseBranch: String = "main",
-        isGitHubOnly: Bool = false
+        isGitHubOnly: Bool = false,
+        maxOpenPRs: Int? = nil
     ) {
         self.baseBranch = baseBranch
         self.completedTasks = completedTasks
         self.isGitHubOnly = isGitHubOnly
+        self.maxOpenPRs = maxOpenPRs
         self.name = name
         self.pendingTasks = pendingTasks
         self.specPath = specPath

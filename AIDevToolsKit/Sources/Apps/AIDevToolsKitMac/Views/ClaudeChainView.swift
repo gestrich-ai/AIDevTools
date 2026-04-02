@@ -22,7 +22,8 @@ struct ClaudeChainView: View {
                 List(model.lastLoadedProjects, id: \.name, selection: $selectedProject) { project in
                     ChainProjectRow(
                         project: project,
-                        actionItemCount: model.chainDetails[project.name]?.actionItems.count ?? 0,
+                        actionItemCount: model.chainDetails[project.name]?.actionPRCount ?? 0,
+                        openPRCount: model.chainDetails[project.name]?.openPRCount,
                         isLoading: model.chainDetailLoading.contains(project.name)
                     )
                     .tag(project)
@@ -74,6 +75,7 @@ struct ClaudeChainView: View {
 private struct ChainProjectRow: View {
     let project: ChainProject
     let actionItemCount: Int
+    let openPRCount: Int?
     let isLoading: Bool
 
     var body: some View {
@@ -85,14 +87,41 @@ private struct ChainProjectRow: View {
                 if isLoading {
                     ProgressView()
                         .controlSize(.mini)
-                } else if actionItemCount > 0 {
-                    Text("\(actionItemCount)")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(.orange)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    // Two fixed-width slots keep badges in consistent columns.
+                    // ZStack+Color.clear guarantees the slot width even when empty,
+                    // unlike Group{}.frame() which collapses when its content is nil.
+                    HStack(spacing: 4) {
+                        // Slot 1: open/max PR count (50pt)
+                        ZStack(alignment: .trailing) {
+                            Color.clear
+                            if let openPRCount, project.completedTasks < project.totalTasks {
+                                Text("\(openPRCount)/\(project.maxOpenPRs ?? 1)")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(.secondary.opacity(0.15))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            }
+                        }
+                        .frame(width: 50)
+
+                        // Slot 2: action item count (28pt)
+                        ZStack(alignment: .trailing) {
+                            Color.clear
+                            if actionItemCount > 0 {
+                                Text("\(actionItemCount)")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(.red)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            }
+                        }
+                        .frame(width: 28)
+                    }
                 }
             }
             ProgressView(value: Double(project.completedTasks), total: max(Double(project.totalTasks), 1))
@@ -119,6 +148,7 @@ private struct ChainProjectDetailView: View {
     let repository: RepositoryConfiguration
 
     @AppStorage("chainCreatePR") private var createPR: Bool = true
+    @AppStorage("chatPanelExpanded") private var chatPanelExpanded = false
     @State private var executionChatModel: ChatModel?
 
     private var isExecuting: Bool {
@@ -165,11 +195,20 @@ private struct ChainProjectDetailView: View {
         VStack(spacing: 0) {
             headerBar
 
-            VSplitView {
+            if chatPanelExpanded {
+                VSplitView {
+                    projectContentView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    ChatPanelView()
+                        .environment(chatModel)
+                        .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
+                }
+            } else {
                 projectContentView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                chatBottomPanel
-                    .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
+                Divider()
+                ChatPanelView()
+                    .environment(chatModel)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -248,37 +287,41 @@ private struct ChainProjectDetailView: View {
     // MARK: - Content
 
     private var projectContentView: some View {
-        ScrollView {
+        VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 16) {
                 projectInfoSection
-
-                if let detail = chainDetail, !detail.actionItems.isEmpty {
-                    actionItemsBanner(detail.actionItems)
-                }
 
                 if let error = chainDetailError {
                     enrichmentErrorBanner(error)
                 }
-
-                taskListSection
-
-                if let progress = executionProgress {
-                    phaseProgressSection(progress)
-                }
-
                 if let result = completedResult {
                     completionBanner(result)
                 }
-
                 if let error = errorState {
                     errorBanner(error)
                 }
-
-                Spacer()
             }
             .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
+
+            taskListSection
+
+            if isExecuting || executionProgress != nil {
+                Divider()
+                VStack(alignment: .leading, spacing: 12) {
+                    if let progress = executionProgress {
+                        phaseProgressSection(progress)
+                    }
+                    if let execModel = executionChatModel {
+                        ChatMessagesView()
+                            .environment(execModel)
+                            .frame(maxHeight: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+                .padding()
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     // MARK: - Project Info
@@ -295,32 +338,6 @@ private struct ChainProjectDetailView: View {
         }
     }
 
-    // MARK: - Action Items Banner
-
-    private func actionItemsBanner(_ items: [ChainActionItem]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text("\(items.count) action\(items.count == 1 ? "" : "s") needed")
-                    .font(.subheadline.bold())
-            }
-            ForEach(items) { item in
-                HStack(spacing: 6) {
-                    Image(systemName: actionItemIcon(item.kind))
-                        .foregroundStyle(actionItemColor(item.kind))
-                        .frame(width: 16)
-                    Text(item.message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(10)
-        .background(.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
     private func enrichmentErrorBanner(_ error: Error) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -334,107 +351,63 @@ private struct ChainProjectDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    private func actionItemIcon(_ kind: ChainActionKind) -> String {
-        switch kind {
-        case .ciFailure: return "xmark.circle.fill"
-        case .draftNeedsReview: return "pencil.circle"
-        case .mergeConflict: return "arrow.triangle.merge"
-        case .needsReviewers: return "person.badge.plus"
-        case .stalePR: return "clock.fill"
-        }
-    }
-
-    private func actionItemColor(_ kind: ChainActionKind) -> Color {
-        switch kind {
-        case .ciFailure: return .red
-        case .draftNeedsReview: return .blue
-        case .mergeConflict: return .red
-        case .needsReviewers: return .orange
-        case .stalePR: return .orange
-        }
-    }
-
     // MARK: - Task List
-
-    private static let statusColumnWidth: CGFloat = 24
-    private static let prColumnWidth: CGFloat = 90
-    private static let indicatorColumnWidth: CGFloat = 24
-    private static let badgeColumnWidth: CGFloat = 58
 
     private var taskListSection: some View {
         let enrichedTasks = chainDetail?.enrichedTasks
-        return VStack(alignment: .leading, spacing: 0) {
-            Text("Tasks")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 6)
+        let pr: (ChainTask) -> EnrichedPR? = { task in
+            enrichedTasks?.first(where: { $0.task.description == task.description })?.enrichedPR
+        }
 
-            taskListHeader
-            Divider()
+        let openTasks = project.tasks.filter { pr($0) != nil && !pr($0)!.isDraft && !pr($0)!.isMerged }
+        let draftTasks = project.tasks.filter { pr($0)?.isDraft == true }
+        let notStartedTasks = project.tasks.filter { pr($0) == nil && !$0.isCompleted }
+        let mergedTasks = project.tasks.filter { pr($0)?.isMerged == true || (pr($0) == nil && $0.isCompleted) }
 
-            ForEach(project.tasks) { task in
-                let enrichedPR = enrichedTasks?.first(where: { $0.task.id == task.id })?.enrichedPR
-                taskRow(task: task, enrichedPR: enrichedPR)
-                Divider()
+        return Table(of: ChainTask.self) {
+            TableColumn("") { task in
+                taskStatusIcon(task: task)
+            }
+            .width(24)
+
+            TableColumn("Task") { task in
+                Text(task.description)
+                    .font(.callout)
+                    .strikethrough(task.isCompleted, color: .secondary)
+                    .foregroundStyle(task.isCompleted ? .secondary : .primary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(task.description)
+            }
+
+            TableColumn("PR") { task in
+                if let enrichedPR = pr(task) {
+                    prStatusCell(enrichedPR)
+                }
+            }
+            .width(min: 150, ideal: 180, max: 200)
+        } rows: {
+            if !openTasks.isEmpty {
+                Section("Open") {
+                    ForEach(openTasks) { TableRow($0) }
+                }
+            }
+            if !draftTasks.isEmpty {
+                Section("Draft") {
+                    ForEach(draftTasks) { TableRow($0) }
+                }
+            }
+            if !notStartedTasks.isEmpty {
+                Section("Not Started") {
+                    ForEach(notStartedTasks) { TableRow($0) }
+                }
+            }
+            if !mergedTasks.isEmpty {
+                Section("Merged") {
+                    ForEach(mergedTasks) { TableRow($0) }
+                }
             }
         }
-    }
-
-    private var taskListHeader: some View {
-        HStack(spacing: 8) {
-            Color.clear.frame(width: Self.statusColumnWidth)
-            Text("Task")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("PR")
-                .frame(width: Self.prColumnWidth, alignment: .trailing)
-            Text("Rev")
-                .frame(width: Self.indicatorColumnWidth, alignment: .center)
-            Text("CI")
-                .frame(width: Self.indicatorColumnWidth, alignment: .center)
-            Color.clear.frame(width: Self.badgeColumnWidth)
-        }
-        .font(.caption2)
-        .foregroundStyle(.tertiary)
-        .padding(.horizontal, 4)
-        .padding(.vertical, 5)
-    }
-
-    @ViewBuilder
-    private func taskRow(task: ChainTask, enrichedPR: EnrichedPR?) -> some View {
-        HStack(spacing: 8) {
-            taskStatusIcon(task: task)
-                .frame(width: Self.statusColumnWidth, alignment: .center)
-
-            Text(task.description)
-                .font(.callout)
-                .strikethrough(task.isCompleted, color: .secondary)
-                .foregroundStyle(task.isCompleted ? .secondary : .primary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .help(task.description)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if let pr = enrichedPR {
-                prNumberLink(pr, ageLabel: pr.isMerged ? "\(pr.ageDays)d ago" : "\(pr.ageDays)d")
-                    .frame(width: Self.prColumnWidth, alignment: .trailing)
-
-                reviewIndicator(pr.reviewStatus)
-                    .frame(width: Self.indicatorColumnWidth, alignment: .center)
-                    .opacity(pr.isMerged ? 0 : 1)
-
-                buildIndicator(pr.buildStatus)
-                    .frame(width: Self.indicatorColumnWidth, alignment: .center)
-                    .opacity(pr.isMerged ? 0 : 1)
-
-                prStateBadge(pr)
-                    .frame(width: Self.badgeColumnWidth, alignment: .trailing)
-            } else {
-                Color.clear
-                    .frame(width: Self.prColumnWidth + Self.indicatorColumnWidth * 2 + Self.badgeColumnWidth + 24)
-            }
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 8)
     }
 
     @ViewBuilder
@@ -461,85 +434,71 @@ private struct ChainProjectDetailView: View {
         }
     }
 
-    private func stateBadge(_ label: String, color: Color) -> some View {
-        Text(label)
-            .font(.caption2.bold())
-            .foregroundStyle(.white)
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(color)
-            .clipShape(RoundedRectangle(cornerRadius: 3))
-    }
-
-    @ViewBuilder
-    private func prStateBadge(_ pr: EnrichedPR) -> some View {
-        if pr.isMerged {
-            stateBadge("MERGED", color: .purple)
-        } else if pr.isDraft {
-            stateBadge("DRAFT", color: .gray)
-        } else {
-            Color.clear
-        }
-    }
-
-    private func prNumberLink(_ pr: EnrichedPR, ageLabel: String) -> some View {
-        Button {
-            if let urlString = pr.pr.url, let url = URL(string: urlString) {
-                NSWorkspace.shared.open(url)
+    private func prStatusCell(_ enrichedPR: EnrichedPR) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                if let urlString = enrichedPR.pr.url, let url = URL(string: urlString) {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text("#\(String(enrichedPR.pr.number))")
+                        .font(.caption.monospacedDigit())
+                    Text(enrichedPR.isMerged ? "\(enrichedPR.ageDays)d ago" : "\(enrichedPR.ageDays)d")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
-        } label: {
-            HStack(spacing: 3) {
-                Text("PR #\(pr.pr.number)")
-                    .font(.caption)
-                Text(ageLabel)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+            .foregroundStyle(.blue)
+
+            Spacer()
+
+            if !enrichedPR.isMerged {
+                let prActionItems = chainDetail?.actionItems.filter { $0.prNumber == enrichedPR.pr.number } ?? []
+                reviewIndicator(enrichedPR.reviewStatus)
+                buildIndicator(enrichedPR.buildStatus, actionItems: prActionItems)
             }
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(.blue)
     }
 
     @ViewBuilder
     private func reviewIndicator(_ status: PRReviewStatus) -> some View {
-        if !status.approvedBy.isEmpty {
-            Image(systemName: "checkmark.seal.fill")
-                .foregroundStyle(.green)
-                .help("Approved by: \(status.approvedBy.joined(separator: ", "))")
-        } else if !status.pendingReviewers.isEmpty {
-            Image(systemName: "clock.fill")
-                .foregroundStyle(.yellow)
-                .help("Pending review: \(status.pendingReviewers.joined(separator: ", "))")
-        } else {
-            Image(systemName: "person.fill.questionmark")
-                .foregroundStyle(.secondary)
-                .help("No reviewers assigned")
-        }
+        let count = status.approvedBy.count
+        let color: Color = count > 1 ? .green : .gray
+        Text("\(count)")
+            .font(.caption2.monospacedDigit().bold())
+            .foregroundStyle(.white)
+            .frame(width: 18, height: 18)
+            .background(color)
+            .clipShape(Circle())
+            .help(count > 0 ? "Approved by: \(status.approvedBy.joined(separator: ", "))" : "No approvals")
     }
 
     @ViewBuilder
-    private func buildIndicator(_ status: PRBuildStatus) -> some View {
+    private func buildIndicator(_ status: PRBuildStatus, actionItems: [ChainActionItem]) -> some View {
         switch status {
         case .passing:
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-                .help("CI passing")
-        case .failing(let checks):
-            Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(.red)
-                .help("CI failing: \(checks.joined(separator: ", "))")
-        case .pending(let checks):
-            Image(systemName: "clock.circle.fill")
-                .foregroundStyle(.yellow)
-                .help("CI pending: \(checks.joined(separator: ", "))")
+        case .failing:
+            HoverPopover(title: "Issues", items: actionItems.map { $0.message }) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+            }
+        case .pending:
+            HoverPopover(title: "Issues", items: actionItems.map { $0.message }) {
+                Image(systemName: "clock.circle.fill")
+                    .foregroundStyle(.yellow)
+            }
         case .conflicting:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-                .help("Merge conflict")
+            HoverPopover(title: "Issues", items: actionItems.map { $0.message }) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+            }
         case .unknown:
             Image(systemName: "circle.dashed")
                 .foregroundStyle(.secondary)
-                .help("CI status unknown")
         }
     }
 
@@ -648,25 +607,6 @@ private struct ChainProjectDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    // MARK: - Chat Panel
-
-    @ViewBuilder
-    private var chatBottomPanel: some View {
-        if let executionModel = executionChatModel, !executionModel.messages.isEmpty {
-            VSplitView {
-                ChatMessagesView()
-                    .environment(executionModel)
-                    .frame(minHeight: 80, maxHeight: .infinity)
-                ChatPanelView()
-                    .environment(chatModel)
-                    .frame(minHeight: 80, maxHeight: .infinity)
-            }
-        } else {
-            ChatPanelView()
-                .environment(chatModel)
-        }
-    }
-
     // MARK: - Execution
 
     private func startExecution(taskIndex: Int? = nil) {
@@ -754,6 +694,46 @@ private struct ChainProjectDetailView: View {
 
         You have access to MCP tools: use get_ui_state to check which chain is open and get_chain_status(name:) to see task completion status. Use these tools when the user asks about chain status or progress.
         """
+    }
+}
+
+// MARK: - Hover Popover
+
+private struct HoverPopover<Label: View>: View {
+    let title: String
+    let items: [String]
+    @ViewBuilder let label: () -> Label
+
+    @State private var isHovered = false
+    @State private var showPopover = false
+
+    var body: some View {
+        label()
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                isHovered = hovering
+                if hovering {
+                    showPopover = true
+                } else {
+                    Task {
+                        try? await Task.sleep(nanoseconds: 150_000_000)
+                        if !isHovered { showPopover = false }
+                    }
+                }
+            }
+            .popover(isPresented: $showPopover, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.caption.bold())
+                    ForEach(items, id: \.self) { item in
+                        Text(item)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: 300)
+            }
     }
 }
 

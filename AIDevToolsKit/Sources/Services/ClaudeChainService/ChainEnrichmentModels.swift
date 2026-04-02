@@ -36,6 +36,17 @@ public struct ChainProjectDetail: Sendable {
     public let enrichedTasks: [EnrichedChainTask]
     public let project: ChainProject
 
+    public var actionPRCount: Int {
+        Set(actionItems.map { $0.prNumber }).count
+    }
+
+    public var openPRCount: Int {
+        enrichedTasks.filter { task in
+            guard let pr = task.enrichedPR else { return false }
+            return !pr.isMerged
+        }.count
+    }
+
     public init(project: ChainProject, enrichedTasks: [EnrichedChainTask], actionItems: [ChainActionItem]) {
         self.actionItems = actionItems
         self.enrichedTasks = enrichedTasks

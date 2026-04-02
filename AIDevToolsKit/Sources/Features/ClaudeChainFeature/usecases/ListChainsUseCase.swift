@@ -46,7 +46,8 @@ public struct ListChainsUseCase: UseCase {
                 completedTasks: spec.completedTasks,
                 pendingTasks: spec.pendingTasks,
                 totalTasks: spec.totalTasks,
-                baseBranch: baseBranch
+                baseBranch: baseBranch,
+                maxOpenPRs: config.maxOpenPRs
             )
         }
     }

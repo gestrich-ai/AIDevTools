@@ -77,9 +77,18 @@ public struct ListChainsFromGitHubUseCase {
     }
 
     private func fetchChainProject(name: String, baseRef: String) async throws -> ChainProject {
-        let specPath = "claude-chain/\(name)/spec.md"
-        guard let content = try? await gitHubPRService.fileContent(path: specPath, ref: baseRef),
-              !content.isEmpty else {
+        let project = Project(name: name)
+        let specPath = project.specPath
+        let configPath = project.configPath
+
+        async let specContent = gitHubPRService.fileContent(path: specPath, ref: baseRef)
+        async let configContent = gitHubPRService.fileContent(path: configPath, ref: baseRef)
+
+        let maxOpenPRs = (try? await configContent).flatMap { content in
+            try? ProjectConfiguration.fromYAMLString(project: project, yamlContent: content).maxOpenPRs
+        }
+
+        guard let content = try? await specContent, !content.isEmpty else {
             return ChainProject(
                 name: name,
                 specPath: specPath,
@@ -88,10 +97,11 @@ public struct ListChainsFromGitHubUseCase {
                 pendingTasks: 0,
                 totalTasks: 0,
                 baseBranch: baseRef,
-                isGitHubOnly: true
+                isGitHubOnly: true,
+                maxOpenPRs: maxOpenPRs
             )
         }
-        let spec = SpecContent(project: Project(name: name), content: content)
+        let spec = SpecContent(project: project, content: content)
         let tasks = spec.tasks.map { ChainTask(index: $0.index, description: $0.description, isCompleted: $0.isCompleted) }
         return ChainProject(
             name: name,
@@ -100,7 +110,8 @@ public struct ListChainsFromGitHubUseCase {
             completedTasks: spec.completedTasks,
             pendingTasks: spec.pendingTasks,
             totalTasks: spec.totalTasks,
-            baseBranch: baseRef
+            baseBranch: baseRef,
+            maxOpenPRs: maxOpenPRs
         )
     }
 }

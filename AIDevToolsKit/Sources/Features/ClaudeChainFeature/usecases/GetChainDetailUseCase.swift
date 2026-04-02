@@ -184,12 +184,16 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
     }
 
     private func buildReviewStatus(reviews: [GitHubReview]) -> PRReviewStatus {
-        let approvedBy = reviews
-            .filter { $0.state == .approved }
-            .compactMap { $0.author?.login }
-        let pendingReviewers = reviews
-            .filter { $0.state == .pending }
-            .compactMap { $0.author?.login }
+        let approvedBy = Array(Set(
+            reviews
+                .filter { $0.state == .approved }
+                .compactMap { $0.author?.login }
+        ))
+        let pendingReviewers = Array(Set(
+            reviews
+                .filter { $0.state == .pending }
+                .compactMap { $0.author?.login }
+        ))
         return PRReviewStatus(approvedBy: approvedBy, pendingReviewers: pendingReviewers)
     }
 

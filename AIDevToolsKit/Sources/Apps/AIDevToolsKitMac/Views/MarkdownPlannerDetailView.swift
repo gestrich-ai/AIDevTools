@@ -19,6 +19,7 @@ struct MarkdownPlannerDetailView: View {
     @State private var executeNextOnly = false
     @AppStorage("planStopAfterArchitectureDiagram") private var stopAfterArchitectureDiagram = false
 
+    @AppStorage("chatPanelExpanded") private var chatPanelExpanded = false
     @State private var executionChatModel: ChatModel?
     @State private var activePlanModel = ActivePlanModel()
     @State private var isAddTaskPopoverPresented = false
@@ -41,11 +42,20 @@ struct MarkdownPlannerDetailView: View {
                 errorBanner(error)
             }
 
-            VSplitView {
+            let hasExecutionOutput = executionChatModel.map { !$0.messages.isEmpty } ?? false
+            if chatPanelExpanded || hasExecutionOutput {
+                VSplitView {
+                    planContentView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    chatBottomPanel
+                        .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
+                }
+            } else {
                 planContentView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                chatBottomPanel
-                    .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
+                Divider()
+                ChatPanelView()
+                    .environment(chatModel)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

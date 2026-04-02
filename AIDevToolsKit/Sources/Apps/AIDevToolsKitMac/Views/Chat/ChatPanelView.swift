@@ -5,21 +5,68 @@ import SwiftUI
 
 struct ChatPanelView: View {
     @Environment(ChatModel.self) private var chatModel: ChatModel
+    @AppStorage("chatPanelExpanded") private var isExpanded = false
     @State private var messageText: String = ""
     @State private var pastedImages: [ImageAttachment] = []
     @State private var showingQueueViewer: Bool = false
+    @State private var showingSessionPicker: Bool = false
+    @State private var showingSettings: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
-            ChatMessagesView()
+            chatToolbar
 
-            Divider()
+            if isExpanded {
+                Divider()
 
-            messageInputView
+                ChatMessagesView()
+
+                Divider()
+
+                messageInputView
+            }
         }
         .sheet(isPresented: $showingQueueViewer) {
             ChatQueueViewerSheet()
         }
+        .sheet(isPresented: $showingSettings) {
+            ChatSettingsView()
+                .environment(chatModel)
+        }
+    }
+
+    // MARK: - Chat Toolbar
+
+    private var chatToolbar: some View {
+        HStack(spacing: 8) {
+            Spacer()
+
+            Button(action: { showingSessionPicker = true }) {
+                Image(systemName: "clock.arrow.circlepath")
+            }
+            .buttonStyle(.plain)
+            .help("Session history")
+            .popover(isPresented: $showingSessionPicker) {
+                ChatSessionPickerView()
+                    .environment(chatModel)
+            }
+
+            Button(action: { showingSettings = true }) {
+                Image(systemName: "gear")
+            }
+            .buttonStyle(.plain)
+            .help("Chat settings")
+
+            Button(action: { isExpanded.toggle() }) {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
+            }
+            .buttonStyle(.plain)
+            .help(isExpanded ? "Collapse chat" : "Expand chat")
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 16)
+        .padding(.vertical, 4)
+        .background(.bar)
     }
 
     // MARK: - Message Input
