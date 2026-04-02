@@ -48,7 +48,7 @@ Audit both execution use cases and document their pipeline equivalents. Delivera
 ## - [x] Phase 2: Implement MarkdownPlannerService
 
 **Skills used**: none
-**Principles applied**: Service defined in `MarkdownPlannerFeature` (all required dependencies already available there). Generate and execute methods replicate use case logic directly rather than routing through `PipelineRunner` — `AnalyzerNode`/`AITask` hardcode `AIClientOptions` without working directory or environment, so the service builds options itself. Progress/result/error types defined on the service for clean deletion of use cases in Phase 3. `ExecutePlanUseCase.parseSkillsToRead` reused rather than duplicated.
+**Principles applied**: Created `PlanGenerationNode` as a custom `PipelineNode` that wraps repo-matching and plan-generation; progress is delivered via a `generateProgressHandler` closure rather than string-encoded `PipelineNodeProgress.custom` to keep the API typed. `generate()` now runs `PlanGenerationNode` via `PipelineRunner.run()`. `execute()` replaces the manual `MarkdownPipelineSource` phase loop with `MarkdownTaskSource.nextTask()`/`markComplete()`, deriving the phase index from `Int(task.id)`. Generate private helpers moved entirely into `PlanGenerationNode`; `parseSkillsToRead` moved to `MarkdownPlannerService` to eliminate the remaining dependency on the deprecated `ExecutePlanUseCase`. Both `GeneratePlanUseCase` and `ExecutePlanUseCase` deprecated with `renamed: "MarkdownPlannerService"`.
 
 Create `MarkdownPlannerService` in `MarkdownPlannerFeature`.
 

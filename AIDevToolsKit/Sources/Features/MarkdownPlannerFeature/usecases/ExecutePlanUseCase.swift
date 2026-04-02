@@ -8,6 +8,7 @@ import PipelineSDK
 import RepositorySDK
 import UseCaseSDK
 
+@available(*, deprecated, renamed: "MarkdownPlannerService")
 public struct ExecutePlanUseCase: UseCase {
 
     public enum ExecuteMode: Sendable {

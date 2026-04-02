@@ -1,122 +1,82 @@
 import AIOutputSDK
 import Foundation
+import PipelineSDK
 import RepositorySDK
-import UseCaseSDK
 
-@available(*, deprecated, renamed: "MarkdownPlannerService")
-public struct GeneratePlanUseCase: UseCase {
+struct PlanGenerationNode: PipelineNode {
+    static let inputKey = PipelineContextKey<MarkdownPlannerService.GenerateOptions>("PlanGenerationNode.input")
+    static let outputKey = PipelineContextKey<MarkdownPlannerService.GenerateResult>("PlanGenerationNode.output")
 
-    public struct Options: Sendable {
-        public let prompt: String
-        public let repositories: [RepositoryConfiguration]
-        public let selectedRepository: RepositoryConfiguration?
-
-        public init(
-            prompt: String,
-            repositories: [RepositoryConfiguration],
-            selectedRepository: RepositoryConfiguration? = nil
-        ) {
-            self.prompt = prompt
-            self.repositories = repositories
-            self.selectedRepository = selectedRepository
-        }
-    }
-
-    public struct Result: Sendable {
-        public let planURL: URL
-        public let repository: RepositoryConfiguration
-        public let repoMatch: RepoMatch
-        public let plan: GeneratedPlan
-
-        public init(planURL: URL, repository: RepositoryConfiguration, repoMatch: RepoMatch, plan: GeneratedPlan) {
-            self.planURL = planURL
-            self.repository = repository
-            self.repoMatch = repoMatch
-            self.plan = plan
-        }
-    }
-
-    public enum Progress: Sendable {
-        case matchingRepo
-        case matchedRepo(repoId: String, interpretedRequest: String)
-        case generatingPlan
-        case generatedPlan(filename: String)
-        case writingPlan
-        case completed(planURL: URL, repository: RepositoryConfiguration)
-    }
-
-    public enum GenerateError: Error, LocalizedError {
-        case repoNotFound(String)
-        case writeError(String)
-
-        public var errorDescription: String? {
-            switch self {
-            case .repoNotFound(let id):
-                return "Repository '\(id)' not found in configured repositories"
-            case .writeError(let detail):
-                return "Failed to write plan: \(detail)"
-            }
-        }
-    }
+    let id: String
+    let displayName: String
 
     private let client: any AIClient
+    private let generateProgressHandler: @Sendable (MarkdownPlannerService.GenerateProgress) -> Void
     private let resolveProposedDirectory: @Sendable (RepositoryConfiguration) throws -> URL
 
-    public init(
+    init(
+        id: String = "planGeneration",
+        displayName: String = "Generate Plan",
         client: any AIClient,
+        generateProgressHandler: @escaping @Sendable (MarkdownPlannerService.GenerateProgress) -> Void = { _ in },
         resolveProposedDirectory: @escaping @Sendable (RepositoryConfiguration) throws -> URL
     ) {
+        self.id = id
+        self.displayName = displayName
         self.client = client
+        self.generateProgressHandler = generateProgressHandler
         self.resolveProposedDirectory = resolveProposedDirectory
     }
 
-    public func run(
-        _ options: Options,
-        onProgress: (@Sendable (Progress) -> Void)? = nil
-    ) async throws -> Result {
+    func run(
+        context: PipelineContext,
+        onProgress: @escaping @Sendable (PipelineNodeProgress) -> Void
+    ) async throws -> PipelineContext {
+        guard let options = context[Self.inputKey] else {
+            throw PipelineError.missingContextValue(key: Self.inputKey.name)
+        }
+
         let repo: RepositoryConfiguration
         let repoMatch: RepoMatch
 
         if let selected = options.selectedRepository {
             repo = selected
             repoMatch = RepoMatch(repoId: selected.id.uuidString, interpretedRequest: options.prompt)
-            onProgress?(.matchedRepo(repoId: repoMatch.repoId, interpretedRequest: repoMatch.interpretedRequest))
+            generateProgressHandler(.matchedRepo(repoId: repoMatch.repoId, interpretedRequest: repoMatch.interpretedRequest))
         } else {
-            onProgress?(.matchingRepo)
-            repoMatch = try await matchRepo(
-                prompt: options.prompt,
-                repositories: options.repositories
-            )
-            onProgress?(.matchedRepo(repoId: repoMatch.repoId, interpretedRequest: repoMatch.interpretedRequest))
+            generateProgressHandler(.matchingRepo)
+            repoMatch = try await matchRepo(prompt: options.prompt, repositories: options.repositories)
+            generateProgressHandler(.matchedRepo(repoId: repoMatch.repoId, interpretedRequest: repoMatch.interpretedRequest))
 
             guard let repoUUID = UUID(uuidString: repoMatch.repoId),
                   let matched = options.repositories.first(where: { $0.id == repoUUID }) else {
-                throw GenerateError.repoNotFound(repoMatch.repoId)
+                throw MarkdownPlannerService.GenerateError.repoNotFound(repoMatch.repoId)
             }
             repo = matched
         }
 
-        onProgress?(.generatingPlan)
-        let plan: GeneratedPlan = try await generatePlan(
-            interpretedRequest: repoMatch.interpretedRequest,
-            repo: repo
-        )
-        onProgress?(.generatedPlan(filename: plan.filename))
+        generateProgressHandler(.generatingPlan)
+        let plan = try await generatePlan(interpretedRequest: repoMatch.interpretedRequest, repo: repo)
+        generateProgressHandler(.generatedPlan(filename: plan.filename))
 
-        onProgress?(.writingPlan)
+        generateProgressHandler(.writingPlan)
         let proposedDir = try resolveProposedDirectory(repo)
         let planURL = try writePlan(plan, to: proposedDir)
-        onProgress?(.completed(planURL: planURL, repository: repo))
+        generateProgressHandler(.completed(planURL: planURL, repository: repo))
 
-        return Result(
+        let result = MarkdownPlannerService.GenerateResult(
             planURL: planURL,
             repository: repo,
             repoMatch: repoMatch,
             plan: plan
         )
+
+        var updated = context
+        updated[Self.outputKey] = result
+        return updated
     }
 
-    // MARK: - Private
+    // MARK: - Private: repo matching
 
     private func matchRepo(prompt: String, repositories: [RepositoryConfiguration]) async throws -> RepoMatch {
         let repoList = repositories.map { repo in
@@ -155,6 +115,8 @@ public struct GeneratePlanUseCase: UseCase {
         )
         return output.value
     }
+
+    // MARK: - Private: plan generation
 
     private func generatePlan(interpretedRequest: String, repo: RepositoryConfiguration) async throws -> GeneratedPlan {
         let skills = repo.skills ?? []
@@ -259,7 +221,7 @@ public struct GeneratePlanUseCase: UseCase {
                 try fm.createDirectory(at: proposedDirectory, withIntermediateDirectories: true)
             }
         } catch {
-            throw GenerateError.writeError("Could not create directory: \(error.localizedDescription)")
+            throw MarkdownPlannerService.GenerateError.writeError("Could not create directory: \(error.localizedDescription)")
         }
 
         let filename = buildFilename(description: plan.filename, in: proposedDirectory)
@@ -267,7 +229,7 @@ public struct GeneratePlanUseCase: UseCase {
         do {
             try plan.planContent.write(to: planURL, atomically: true, encoding: .utf8)
         } catch {
-            throw GenerateError.writeError("Could not write plan file: \(error.localizedDescription)")
+            throw MarkdownPlannerService.GenerateError.writeError("Could not write plan file: \(error.localizedDescription)")
         }
 
         return planURL

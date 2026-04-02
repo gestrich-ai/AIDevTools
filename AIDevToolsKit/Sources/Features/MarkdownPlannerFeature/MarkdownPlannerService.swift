@@ -178,35 +178,28 @@ public struct MarkdownPlannerService: Sendable {
         options: GenerateOptions,
         onProgress: (@Sendable (GenerateProgress) -> Void)? = nil
     ) async throws -> GenerateResult {
-        let repo: RepositoryConfiguration
-        let repoMatch: RepoMatch
+        var context = PipelineContext()
+        context[PlanGenerationNode.inputKey] = options
 
-        if let selected = options.selectedRepository {
-            repo = selected
-            repoMatch = RepoMatch(repoId: selected.id.uuidString, interpretedRequest: options.prompt)
-            onProgress?(.matchedRepo(repoId: repoMatch.repoId, interpretedRequest: repoMatch.interpretedRequest))
-        } else {
-            onProgress?(.matchingRepo)
-            repoMatch = try await matchRepo(prompt: options.prompt, repositories: options.repositories)
-            onProgress?(.matchedRepo(repoId: repoMatch.repoId, interpretedRequest: repoMatch.interpretedRequest))
+        let node = PlanGenerationNode(
+            client: client,
+            generateProgressHandler: { progress in onProgress?(progress) },
+            resolveProposedDirectory: resolveProposedDirectory
+        )
 
-            guard let repoUUID = UUID(uuidString: repoMatch.repoId),
-                  let matched = options.repositories.first(where: { $0.id == repoUUID }) else {
-                throw GenerateError.repoNotFound(repoMatch.repoId)
-            }
-            repo = matched
+        let configuration = PipelineConfiguration(provider: client)
+        let runner = PipelineRunner()
+        let finalContext = try await runner.run(
+            nodes: [node],
+            configuration: configuration,
+            initialContext: context,
+            onProgress: { _ in }
+        )
+
+        guard let result = finalContext[PlanGenerationNode.outputKey] else {
+            throw GenerateError.writeError("Plan generation did not produce a result")
         }
-
-        onProgress?(.generatingPlan)
-        let plan = try await generatePlan(interpretedRequest: repoMatch.interpretedRequest, repo: repo)
-        onProgress?(.generatedPlan(filename: plan.filename))
-
-        onProgress?(.writingPlan)
-        let proposedDir = try resolveProposedDirectory(repo)
-        let planURL = try writePlan(plan, to: proposedDir)
-        onProgress?(.completed(planURL: planURL, repository: repo))
-
-        return GenerateResult(planURL: planURL, repository: repo, repoMatch: repoMatch, plan: plan)
+        return result
     }
 
     // MARK: - Execute
@@ -237,33 +230,36 @@ public struct MarkdownPlannerService: Sendable {
         let maxRuntimeSeconds = options.maxMinutes * 60
         let scriptStart = Date()
 
-        let pipelineSource = MarkdownPipelineSource(fileURL: options.planPath, format: .phase)
+        // Load all phases for the initial overview
         onProgress?(.fetchingStatus)
-        var statusResponse = try await loadPhaseStatus(from: pipelineSource)
-        var phases = statusResponse.phases
-        var nextIndex = statusResponse.nextPhaseIndex
+        let initialPipeline = try await MarkdownPipelineSource(fileURL: options.planPath, format: .phase).load()
+        var phases = initialPipeline.steps.compactMap { $0 as? CodeChangeStep }.map {
+            PhaseStatus(description: $0.description, status: $0.isCompleted ? "completed" : "pending")
+        }
+        let totalPhases = phases.count
 
         onProgress?(.phaseOverview(phases: phases))
 
-        if nextIndex == -1 {
+        guard phases.contains(where: { !$0.isCompleted }) else {
             let totalSeconds = Int(Date().timeIntervalSince(scriptStart))
             onProgress?(.allCompleted(phasesExecuted: 0, totalSeconds: totalSeconds))
-            return ExecuteResult(phasesExecuted: 0, totalPhases: phases.count, allCompleted: true, totalSeconds: totalSeconds)
+            return ExecuteResult(phasesExecuted: 0, totalPhases: totalPhases, allCompleted: true, totalSeconds: totalSeconds)
         }
 
+        let taskSource = MarkdownTaskSource(fileURL: options.planPath, format: .phase)
         var phasesExecuted = 0
 
-        while nextIndex != -1 {
+        while let task = try await taskSource.nextTask() {
             let elapsed = Date().timeIntervalSince(scriptStart)
             if Int(elapsed) >= maxRuntimeSeconds {
-                throw ExecuteError.timeLimitReached(phasesExecuted: phasesExecuted, totalPhases: phases.count, maxMinutes: options.maxMinutes)
+                throw ExecuteError.timeLimitReached(phasesExecuted: phasesExecuted, totalPhases: totalPhases, maxMinutes: options.maxMinutes)
             }
 
-            let phase = phases[nextIndex]
-            logger.info("Phase \(nextIndex + 1)/\(phases.count) started: \(phase.description)", metadata: [
+            let phaseIndex = Int(task.id) ?? 0
+            logger.info("Phase \(phaseIndex + 1)/\(totalPhases) started: \(task.instructions)", metadata: [
                 "plan": "\(options.planPath.lastPathComponent)"
             ])
-            onProgress?(.startingPhase(index: nextIndex, total: phases.count, description: phase.description))
+            onProgress?(.startingPhase(index: phaseIndex, total: totalPhases, description: task.instructions))
 
             let phaseStart = Date()
             let outputAccumulator = OutputAccumulator()
@@ -272,8 +268,8 @@ public struct MarkdownPlannerService: Sendable {
             do {
                 phaseResult = try await executePhase(
                     planPath: options.planPath,
-                    phaseIndex: nextIndex,
-                    description: phase.description,
+                    phaseIndex: phaseIndex,
+                    description: task.instructions,
                     repoPath: options.repoPath,
                     repository: repository,
                     onOutput: { text in
@@ -287,49 +283,45 @@ public struct MarkdownPlannerService: Sendable {
             } catch {
                 let phaseElapsed = Int(Date().timeIntervalSince(phaseStart))
                 let totalElapsed = Int(Date().timeIntervalSince(scriptStart))
-                writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
-                logger.error("Phase \(nextIndex + 1) failed: \(error.localizedDescription)", metadata: [
+                writePhaseLog(output: await outputAccumulator.content, phaseIndex: phaseIndex, logDirectory: logDir)
+                logger.error("Phase \(phaseIndex + 1) failed: \(error.localizedDescription)", metadata: [
                     "plan": "\(options.planPath.lastPathComponent)"
                 ])
-                onProgress?(.phaseFailed(index: nextIndex, description: phase.description, error: error.localizedDescription))
-                onProgress?(.phaseCompleted(index: nextIndex, elapsedSeconds: phaseElapsed, totalElapsedSeconds: totalElapsed))
-                throw ExecuteError.phaseFailed(index: nextIndex, description: phase.description, underlyingError: error.localizedDescription)
+                onProgress?(.phaseFailed(index: phaseIndex, description: task.instructions, error: error.localizedDescription))
+                onProgress?(.phaseCompleted(index: phaseIndex, elapsedSeconds: phaseElapsed, totalElapsedSeconds: totalElapsed))
+                throw ExecuteError.phaseFailed(index: phaseIndex, description: task.instructions, underlyingError: error.localizedDescription)
             }
 
             let phaseElapsed = Int(Date().timeIntervalSince(phaseStart))
             let totalElapsed = Int(Date().timeIntervalSince(scriptStart))
 
             if !phaseResult.success {
-                writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
+                writePhaseLog(output: await outputAccumulator.content, phaseIndex: phaseIndex, logDirectory: logDir)
                 let reason = "Phase reported failure"
-                logger.error("Phase \(nextIndex + 1) failed: \(reason)", metadata: [
+                logger.error("Phase \(phaseIndex + 1) failed: \(reason)", metadata: [
                     "plan": "\(options.planPath.lastPathComponent)"
                 ])
-                onProgress?(.phaseFailed(index: nextIndex, description: phase.description, error: reason))
-                onProgress?(.phaseCompleted(index: nextIndex, elapsedSeconds: phaseElapsed, totalElapsedSeconds: totalElapsed))
-                throw ExecuteError.phaseFailed(index: nextIndex, description: phase.description, underlyingError: reason)
+                onProgress?(.phaseFailed(index: phaseIndex, description: task.instructions, error: reason))
+                onProgress?(.phaseCompleted(index: phaseIndex, elapsedSeconds: phaseElapsed, totalElapsedSeconds: totalElapsed))
+                throw ExecuteError.phaseFailed(index: phaseIndex, description: task.instructions, underlyingError: reason)
             }
 
-            let completedStep = CodeChangeStep(
-                id: String(nextIndex),
-                description: phase.description,
-                isCompleted: false,
-                prompt: phase.description,
-                skills: [],
-                context: .empty
-            )
-            try await pipelineSource.markStepCompleted(completedStep)
+            try await taskSource.markComplete(task)
 
-            writePhaseLog(output: await outputAccumulator.content, phaseIndex: nextIndex, logDirectory: logDir)
-            logger.info("Phase \(nextIndex + 1) completed in \(phaseElapsed)s", metadata: [
+            if phaseIndex < phases.count {
+                phases[phaseIndex] = PhaseStatus(description: phases[phaseIndex].description, status: "completed")
+            }
+
+            writePhaseLog(output: await outputAccumulator.content, phaseIndex: phaseIndex, logDirectory: logDir)
+            logger.info("Phase \(phaseIndex + 1) completed in \(phaseElapsed)s", metadata: [
                 "plan": "\(options.planPath.lastPathComponent)"
             ])
-            onProgress?(.phaseCompleted(index: nextIndex, elapsedSeconds: phaseElapsed, totalElapsedSeconds: totalElapsed))
+            onProgress?(.phaseCompleted(index: phaseIndex, elapsedSeconds: phaseElapsed, totalElapsedSeconds: totalElapsed))
             phasesExecuted += 1
 
             if options.executeMode == .next {
                 let totalSeconds = Int(Date().timeIntervalSince(scriptStart))
-                return ExecuteResult(phasesExecuted: 1, totalPhases: phases.count, allCompleted: false, totalSeconds: totalSeconds)
+                return ExecuteResult(phasesExecuted: 1, totalPhases: totalPhases, allCompleted: false, totalSeconds: totalSeconds)
             }
 
             if options.stopAfterArchitectureDiagram && architectureDiagramExists(planPath: options.planPath) {
@@ -339,7 +331,7 @@ public struct MarkdownPlannerService: Sendable {
                 ])
                 return ExecuteResult(
                     phasesExecuted: phasesExecuted,
-                    totalPhases: phases.count,
+                    totalPhases: totalPhases,
                     allCompleted: false,
                     stoppedForArchitectureReview: true,
                     totalSeconds: totalSeconds
@@ -348,28 +340,20 @@ public struct MarkdownPlannerService: Sendable {
 
             try await betweenPhases?()
 
-            onProgress?(.fetchingStatus)
-            statusResponse = try await loadPhaseStatus(from: pipelineSource)
-            phases = statusResponse.phases
-            nextIndex = statusResponse.nextPhaseIndex
-
-            if nextIndex != -1 {
+            let hasMoreTasks = phases.indices.suffix(from: min(phaseIndex + 1, phases.count)).contains { !phases[$0].isCompleted }
+            if hasMoreTasks {
                 try await Task.sleep(nanoseconds: 2_000_000_000)
             }
         }
 
         let totalSeconds = Int(Date().timeIntervalSince(scriptStart))
-        let allDone = nextIndex == -1
-
-        if allDone {
-            onProgress?(.allCompleted(phasesExecuted: phasesExecuted, totalSeconds: totalSeconds))
-            moveToCompleted(planPath: options.planPath, completedDirectory: completedDirectory)
-        }
+        onProgress?(.allCompleted(phasesExecuted: phasesExecuted, totalSeconds: totalSeconds))
+        moveToCompleted(planPath: options.planPath, completedDirectory: completedDirectory)
 
         return ExecuteResult(
             phasesExecuted: phasesExecuted,
-            totalPhases: phases.count,
-            allCompleted: allDone,
+            totalPhases: totalPhases,
+            allCompleted: true,
             totalSeconds: totalSeconds
         )
     }
@@ -382,197 +366,6 @@ public struct MarkdownPlannerService: Sendable {
             .appendingPathComponent(repoName)
             .appendingPathComponent("plan-logs")
             .appendingPathComponent(planName)
-    }
-
-    // MARK: - Private: repo matching
-
-    private func matchRepo(prompt: String, repositories: [RepositoryConfiguration]) async throws -> RepoMatch {
-        let repoList = repositories.map { repo in
-            var entry = "- id: \(repo.id.uuidString) | description: \(repo.description ?? repo.name)"
-            if let focus = repo.recentFocus {
-                entry += " | recent focus: \(focus)"
-            }
-            return entry
-        }.joined(separator: "\n")
-
-        let matchPrompt = """
-        You are helping match a development request to the correct repository.
-
-        Use the repository descriptions and recent focus areas to infer the best match.
-
-        Request: "\(prompt)"
-
-        Available repositories:
-        \(repoList)
-
-        You MUST select one of the listed repositories. Do not reference or suggest any repository not in this list.
-
-        Return the best matching repository ID and your interpretation of what the request is asking for.
-        """
-
-        let schema = """
-        {"type":"object","properties":{"repoId":{"type":"string","description":"The id of the matched repository"},"interpretedRequest":{"type":"string","description":"The interpreted version of the request"}},"required":["repoId","interpretedRequest"]}
-        """
-
-        let output = try await client.runStructured(
-            RepoMatch.self,
-            prompt: matchPrompt,
-            jsonSchema: schema,
-            options: AIClientOptions(),
-            onOutput: nil
-        )
-        return output.value
-    }
-
-    // MARK: - Private: plan generation
-
-    private func generatePlan(interpretedRequest: String, repo: RepositoryConfiguration) async throws -> GeneratedPlan {
-        let skills = repo.skills ?? []
-        let verificationCommands = repo.verification?.commands ?? []
-
-        var repoContextLines = [
-            "Repository: \(repo.id.uuidString)",
-            "Path: \(repo.path.path())",
-            "Description: \(repo.description ?? repo.name)",
-            "Skills: \(skills.joined(separator: ", "))",
-            "Verification commands: \(verificationCommands.joined(separator: ", "))",
-        ]
-        if let pr = repo.pullRequest {
-            repoContextLines.append("PR base branch: \(pr.baseBranch)")
-            repoContextLines.append("Branch naming: \(pr.branchNamingConvention)")
-        }
-        if let credentialAccount = repo.credentialAccount {
-            repoContextLines.append("Credential account: \(credentialAccount) (GH_TOKEN injected automatically)")
-        }
-        let repoContext = repoContextLines.joined(separator: "\n")
-
-        let projectInstructions = readProjectInstructions(at: repo.path)
-
-        let prompt = """
-        You are generating a complete, detailed phased implementation plan. You are ONLY generating the plan — do NOT execute, explore, or implement anything.
-
-        Request: "\(interpretedRequest)"
-
-        Repository context:
-        \(repoContext)
-        \(projectInstructions.map { "\nCLAUDE.md contents:\n\($0)" } ?? "")
-
-        Generate a markdown plan document with this structure:
-
-        1. **Relevant Skills** table at the top — only skills relevant to the task, discovered from the CLAUDE.md content above. Format:
-           ```
-           ## Relevant Skills
-
-           | Skill | Description |
-           |-------|-------------|
-           | `skill-name` | Brief description of why it's relevant |
-           ```
-
-        2. **Background** section — why we're making changes, user requirements, context
-
-        3. **All implementation phases** (Phase 1 through N, ≤10 total), each as:
-           ```
-           ## - [ ] Phase N: Short Description
-
-           **Skills to read**: `skill-a`, `skill-b`
-
-           Detailed description of what to implement. Include:
-           - Specific tasks and files to modify
-           - Technical considerations
-           - Expected outcome
-           ```
-           The "Skills to read" line tells the executor which skills to read before implementing that phase. Only include skills genuinely relevant to that phase. Omit the line if no skills apply.
-
-        4. **Final phase is always Validation** — prefer automated testing (running test suites, build verification) over manual verification. Include specific commands to run.
-
-        CRITICAL scope and sizing rules:
-        - Stay focused on exactly what was requested. Do not expand scope, refactor surrounding code, or make unrelated improvements.
-        - Follow a "do no harm" principle: do not restructure or rewrite existing code that already works.
-        - Scale the number of phases to match the size of the request. A small change may need only 1-2 phases. A large feature may need up to 10. Never exceed 10 phases total.
-        - Every phase must be actionable and concrete — no "explore" or "gather context" phases.
-
-        All phases must be unchecked (## - [ ]). None are completed at this stage.
-
-        Also generate a short kebab-case description for the filename (e.g., "add-voice-commands", "fix-auth-timeout"). Do not include dates or extensions.
-
-        Return the full markdown content as planContent and the description as filename.
-        """
-
-        let schema = """
-        {"type":"object","properties":{"planContent":{"type":"string","description":"The full markdown plan document content"},"filename":{"type":"string","description":"Short kebab-case description without date prefix or extension"}},"required":["planContent","filename"]}
-        """
-
-        let options = AIClientOptions(
-            dangerouslySkipPermissions: true,
-            workingDirectory: repo.path.path()
-        )
-
-        let output = try await client.runStructured(
-            GeneratedPlan.self,
-            prompt: prompt,
-            jsonSchema: schema,
-            options: options,
-            onOutput: nil
-        )
-        return output.value
-    }
-
-    private func readProjectInstructions(at repoPath: URL) -> String? {
-        let instructionsURL = repoPath.appendingPathComponent("CLAUDE.md")
-        return try? String(contentsOf: instructionsURL, encoding: .utf8)
-    }
-
-    private func writePlan(_ plan: GeneratedPlan, to proposedDirectory: URL) throws -> URL {
-        let fm = FileManager.default
-        do {
-            if !fm.fileExists(atPath: proposedDirectory.path) {
-                try fm.createDirectory(at: proposedDirectory, withIntermediateDirectories: true)
-            }
-        } catch {
-            throw GenerateError.writeError("Could not create directory: \(error.localizedDescription)")
-        }
-
-        let filename = buildFilename(description: plan.filename, in: proposedDirectory)
-        let planURL = proposedDirectory.appendingPathComponent(filename)
-        do {
-            try plan.planContent.write(to: planURL, atomically: true, encoding: .utf8)
-        } catch {
-            throw GenerateError.writeError("Could not write plan file: \(error.localizedDescription)")
-        }
-
-        return planURL
-    }
-
-    private func buildFilename(description: String, in directory: URL) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let datePrefix = formatter.string(from: Date())
-
-        let cleanDescription = description
-            .replacingOccurrences(of: ".md", with: "")
-            .trimmingCharacters(in: .whitespaces)
-
-        let existingFiles = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
-        let todayFiles = existingFiles.filter { $0.hasPrefix(datePrefix) }
-
-        let alphaIndex: String
-        if todayFiles.isEmpty {
-            alphaIndex = "a"
-        } else {
-            let usedLetters = todayFiles.compactMap { filename -> Character? in
-                let afterDate = filename.dropFirst(datePrefix.count)
-                guard afterDate.hasPrefix("-"), afterDate.count > 1 else { return nil }
-                let letter = afterDate[afterDate.index(after: afterDate.startIndex)]
-                guard letter.isLetter, afterDate.count > 2,
-                      afterDate[afterDate.index(afterDate.startIndex, offsetBy: 2)] == "-" else { return nil }
-                return letter
-            }
-            let maxLetter = usedLetters.max() ?? Character("a")
-            let nextScalar = Unicode.Scalar(maxLetter.asciiValue! + 1)
-            alphaIndex = String(nextScalar)
-        }
-
-        return "\(datePrefix)-\(alphaIndex)-\(cleanDescription).md"
     }
 
     // MARK: - Private: phase execution
@@ -605,7 +398,7 @@ public struct MarkdownPlannerService: Sendable {
             }
         }
 
-        let skillsToRead = ExecutePlanUseCase.parseSkillsToRead(planPath: planPath, phaseIndex: phaseIndex)
+        let skillsToRead = Self.parseSkillsToRead(planPath: planPath, phaseIndex: phaseIndex)
         let skillsInstruction = skillsToRead.isEmpty ? "" : """
 
         Before implementing, read these skills for relevant conventions: \(skillsToRead.joined(separator: ", "))
@@ -648,6 +441,27 @@ public struct MarkdownPlannerService: Sendable {
         return output.value
     }
 
+    static func parseSkillsToRead(planPath: URL, phaseIndex: Int) -> [String] {
+        guard let content = try? String(contentsOf: planPath, encoding: .utf8) else { return [] }
+
+        let lines = content.components(separatedBy: "\n")
+        var currentPhase = -1
+        for line in lines {
+            if line.hasPrefix("## - [") {
+                currentPhase += 1
+            }
+            if currentPhase == phaseIndex,
+               let range = line.range(of: "**Skills to read**:", options: .caseInsensitive) {
+                let after = line[range.upperBound...]
+                return after
+                    .components(separatedBy: ",")
+                    .map { $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "`", with: "") }
+                    .filter { !$0.isEmpty }
+            }
+        }
+        return []
+    }
+
     // MARK: - Private: architecture diagram detection
 
     private func architectureDiagramExists(planPath: URL) -> Bool {
@@ -656,21 +470,6 @@ public struct MarkdownPlannerService: Sendable {
             .deletingLastPathComponent()
             .appendingPathComponent("\(planName)-architecture.json")
         return FileManager.default.fileExists(atPath: architectureURL.path)
-    }
-
-    // MARK: - Private: phase status
-
-    private func loadPhaseStatus(from source: MarkdownPipelineSource) async throws -> PhaseStatusResponse {
-        let pipeline = try await source.load()
-        let phases = pipeline.steps.compactMap { step -> PhaseStatus? in
-            guard let codeStep = step as? CodeChangeStep else { return nil }
-            return PhaseStatus(
-                description: codeStep.description,
-                status: codeStep.isCompleted ? "completed" : "pending"
-            )
-        }
-        let nextPhaseIndex = phases.firstIndex(where: { !$0.isCompleted }) ?? -1
-        return PhaseStatusResponse(phases: phases, nextPhaseIndex: nextPhaseIndex)
     }
 
     // MARK: - Private: logging
