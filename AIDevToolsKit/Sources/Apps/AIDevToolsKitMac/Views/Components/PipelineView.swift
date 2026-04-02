@@ -1,13 +1,8 @@
+import MarkdownPlannerFeature
 import SwiftUI
 
 struct PipelineView: View {
-    struct Phase: Identifiable {
-        let id: Int
-        let description: String
-        let isCompleted: Bool
-    }
-
-    let phases: [Phase]
+    let phases: [PlanPhase]
     let currentPhaseIndex: Int?
 
     var body: some View {
@@ -22,7 +17,7 @@ struct PipelineView: View {
 
             ForEach(phases) { phase in
                 HStack(spacing: 8) {
-                    if phase.id == currentPhaseIndex {
+                    if phase.index == currentPhaseIndex {
                         ProgressView()
                             .controlSize(.small)
                             .frame(width: 16, height: 16)
@@ -32,7 +27,7 @@ struct PipelineView: View {
                     }
                     Text(phase.description)
                         .font(.body)
-                        .foregroundStyle(phase.id == currentPhaseIndex ? .primary : (phase.isCompleted ? .secondary : .primary))
+                        .foregroundStyle(phase.index == currentPhaseIndex ? .primary : (phase.isCompleted ? .secondary : .primary))
                 }
             }
         }

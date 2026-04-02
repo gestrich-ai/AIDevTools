@@ -322,9 +322,7 @@ struct MarkdownPlannerDetailView: View {
     private var phaseSection: some View {
         if case .executing(let progress) = markdownPlannerModel.state, !progress.phases.isEmpty {
             PipelineView(
-                phases: progress.phases.enumerated().map { idx, phase in
-                    PipelineView.Phase(id: idx, description: phase.description, isCompleted: phase.isCompleted)
-                },
+                phases: progress.phases,
                 currentPhaseIndex: progress.currentPhaseIndex
             )
         } else if !localPhases.isEmpty {

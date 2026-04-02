@@ -23,10 +23,10 @@ final class MarkdownPlannerModel {
         case idle
         case executing(progress: ExecutionProgress)
         case generating(step: String)
-        case completed(MarkdownPlannerService.ExecuteResult, phases: [PhaseStatus])
+        case completed(MarkdownPlannerService.ExecuteResult, phases: [PlanPhase])
         case error(Error)
 
-        var lastExecutionPhases: [PhaseStatus] {
+        var lastExecutionPhases: [PlanPhase] {
             switch self {
             case .completed(_, let phases): return phases
             case .executing(let progress): return progress.phases
@@ -36,7 +36,7 @@ final class MarkdownPlannerModel {
     }
 
     struct ExecutionProgress {
-        var phases: [PhaseStatus] = []
+        var phases: [PlanPhase] = []
         var currentPhaseIndex: Int?
         var currentPhaseDescription: String = ""
         var currentOutput: String = ""
@@ -192,7 +192,7 @@ final class MarkdownPlannerModel {
                 )
                 _ = try await integrateUseCase.run(integrateOptions)
             })
-            let phases: [PhaseStatus]
+            let phases: [PlanPhase]
             if case .executing(let progress) = state {
                 phases = progress.phases
             } else {
@@ -332,9 +332,10 @@ final class MarkdownPlannerModel {
             current.phasesCompleted = index + 1
             current.currentOutput = ""
             if index < current.phases.count {
-                current.phases[index] = PhaseStatus(
+                current.phases[index] = PlanPhase(
+                    index: index,
                     description: current.phases[index].description,
-                    status: "completed"
+                    isCompleted: true
                 )
             }
             phaseCompleteCount += 1
