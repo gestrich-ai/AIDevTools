@@ -177,7 +177,7 @@ public final class ChatModel {
     ) async {
         let accumulator = StreamAccumulator()
         for await event in stream {
-            let updatedBlocks = await accumulator.apply(event)
+            let updatedBlocks = accumulator.apply(event)
             await MainActor.run { [updatedBlocks] in
                 guard let index = self.messages.firstIndex(where: { $0.id == messageId }) else { return }
                 self.messages[index] = ChatMessage(

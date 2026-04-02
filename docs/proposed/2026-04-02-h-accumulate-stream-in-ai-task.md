@@ -87,7 +87,10 @@ case .nodeProgress(_, let progress):
 
 `.nodeStarted` and `.nodeCompleted` keep their `finalizeCurrentStreamingMessage` / `beginStreamingMessage` calls unchanged.
 
-## - [ ] Phase 5: Fix remaining `StreamAccumulator` callers
+## - [x] Phase 5: Fix remaining `StreamAccumulator` callers
+
+**Skills used**: none
+**Principles applied**: Removed `await` and wrapping `Task {}` from all `StreamAccumulator` call sites in `ChatModel.swift` and `ClaudeChainView.swift`. Since `apply` and `reset` are now synchronous, the calls inline directly — no async dispatch needed.
 
 Remove `await` from all `StreamAccumulator` call sites now that `apply` and `reset` are synchronous:
 

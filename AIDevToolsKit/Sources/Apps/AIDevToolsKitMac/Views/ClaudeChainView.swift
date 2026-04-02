@@ -655,14 +655,10 @@ private struct ChainProjectDetailView: View {
                 chatModel.finalizeCurrentStreamingMessage()
                 chatModel.appendStatusMessage("Starting AI execution...")
                 chatModel.beginStreamingMessage()
-                Task { await accumulator.reset() }
+                accumulator.reset()
             case .aiStreamEvent(let event):
-                Task {
-                    let updatedBlocks = await accumulator.apply(event)
-                    await MainActor.run {
-                        chatModel.updateCurrentStreamingBlocks(updatedBlocks)
-                    }
-                }
+                let updatedBlocks = accumulator.apply(event)
+                chatModel.updateCurrentStreamingBlocks(updatedBlocks)
             case .aiOutput:
                 break
             case .aiCompleted:
@@ -679,14 +675,10 @@ private struct ChainProjectDetailView: View {
                 chatModel.finalizeCurrentStreamingMessage()
                 chatModel.appendStatusMessage("Generating PR summary...")
                 chatModel.beginStreamingMessage()
-                Task { await accumulator.reset() }
+                accumulator.reset()
             case .summaryStreamEvent(let event):
-                Task {
-                    let updatedBlocks = await accumulator.apply(event)
-                    await MainActor.run {
-                        chatModel.updateCurrentStreamingBlocks(updatedBlocks)
-                    }
-                }
+                let updatedBlocks = accumulator.apply(event)
+                chatModel.updateCurrentStreamingBlocks(updatedBlocks)
             case .summaryCompleted:
                 chatModel.finalizeCurrentStreamingMessage()
             case .postingPRComment:
