@@ -101,7 +101,7 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
         }
     }
 
-    private static func handleProgress(_ progress: MarkdownPlannerService.ExecuteProgress, timer: TimerDisplay) {
+    static func handleProgress(_ progress: MarkdownPlannerService.ExecuteProgress, timer: TimerDisplay) {
         switch progress {
         case .fetchingStatus:
             printColored("Fetching phase information...", color: .cyan)

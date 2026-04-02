@@ -49,8 +49,34 @@ struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
 
         if execute {
             printColored("\nStarting execution...", color: .cyan)
-            let executeCmd = try MarkdownPlannerExecuteCommand.parse(["--plan", result.planURL.path])
-            try await executeCmd.run()
+            let planPath = result.planURL.path(percentEncoded: false)
+            let executeRepository = repos.first { planPath.hasPrefix($0.path.path(percentEncoded: false)) }
+            let completedDirectory = executeRepository.map {
+                ($0.planner ?? MarkdownPlannerRepoSettings()).resolvedCompletedDirectory(repoPath: $0.path)
+            }
+            let executeService = MarkdownPlannerService(
+                client: client,
+                completedDirectory: completedDirectory,
+                dataPath: ResolveDataPathUseCase().resolve(explicit: dataPath).path,
+                resolveProposedDirectory: { repo in
+                    (repo.planner ?? MarkdownPlannerRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
+                }
+            )
+            let timer = TimerDisplay(maxRuntimeSeconds: 90 * 60, scriptStartTime: Date())
+            let executeResult = try await executeService.execute(
+                options: MarkdownPlannerService.ExecuteOptions(
+                    executeMode: .all,
+                    planPath: result.planURL,
+                    repoPath: URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
+                    repository: executeRepository
+                )
+            ) { progress in
+                MarkdownPlannerExecuteCommand.handleProgress(progress, timer: timer)
+            }
+            timer.stop()
+            if executeResult.allCompleted {
+                printColored("\u{2713} All steps completed!", color: .green)
+            }
         }
     }
 
