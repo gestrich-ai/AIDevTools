@@ -378,7 +378,7 @@ struct MarkdownPlannerDetailView: View {
 
     // MARK: - Completion / Error
 
-    private func completionBanner(_ result: ExecutePlanUseCase.Result) -> some View {
+    private func completionBanner(_ result: MarkdownPlannerService.ExecuteResult) -> some View {
         let bannerIcon: String
         let bannerColor: Color
         let bannerTitle: String
@@ -471,7 +471,7 @@ struct MarkdownPlannerDetailView: View {
         }
 
         let stopForDiagram = stopAfterArchitectureDiagram
-        let mode: ExecutePlanUseCase.ExecuteMode = executeNextOnly ? .next : .all
+        let mode: MarkdownPlannerService.ExecuteMode = executeNextOnly ? .next : .all
         Task {
             await markdownPlannerModel.execute(
                 plan: plan,

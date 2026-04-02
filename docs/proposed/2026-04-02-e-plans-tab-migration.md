@@ -61,7 +61,10 @@ Tasks:
   - `stopAfterArchitectureDiagram`: implement via `ReviewStep` or pipeline flag (per Phase 1 decision)
 - The existing `GeneratePlanUseCase` and `ExecutePlanUseCase` are deleted or deprecated once the service is verified
 
-## - [ ] Phase 3: Wire MarkdownPlannerModel to Service
+## - [x] Phase 3: Wire MarkdownPlannerModel to Service
+
+**Skills used**: none
+**Principles applied**: Replaced `GeneratePlanUseCase` and `ExecutePlanUseCase` usages in `MarkdownPlannerModel` with `MarkdownPlannerService`. Updated `State.completed`, `executionProgressObserver`, and `execute` parameter to use `MarkdownPlannerService` types; updated `MarkdownPlannerDetailView` to match. The service progress/result types are structurally identical to the deprecated use-case types, so no state-machine logic changed.
 
 Replace the existing use-case calls in `MarkdownPlannerModel` with `MarkdownPlannerService`.
 

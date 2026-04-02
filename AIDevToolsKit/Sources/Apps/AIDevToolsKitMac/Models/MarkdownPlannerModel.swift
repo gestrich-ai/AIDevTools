@@ -23,7 +23,7 @@ final class MarkdownPlannerModel {
         case idle
         case executing(progress: ExecutionProgress)
         case generating(step: String)
-        case completed(ExecutePlanUseCase.Result, phases: [PhaseStatus])
+        case completed(MarkdownPlannerService.ExecuteResult, phases: [PhaseStatus])
         case error(Error)
 
         var lastExecutionPhases: [PhaseStatus] {
@@ -52,7 +52,7 @@ final class MarkdownPlannerModel {
     private(set) var currentRepository: RepositoryConfiguration?
     private(set) var queuedTasks: [QueuedTask] = []
     /// Bridge for views to relay execution progress to a ChatModel for streaming display.
-    var executionProgressObserver: (@MainActor (ExecutePlanUseCase.Progress) -> Void)?
+    var executionProgressObserver: (@MainActor (MarkdownPlannerService.ExecuteProgress) -> Void)?
 
     var selectedProviderName: String {
         didSet {
@@ -151,7 +151,7 @@ final class MarkdownPlannerModel {
     func execute(
         plan: MarkdownPlanEntry,
         repository: RepositoryConfiguration,
-        executeMode: ExecutePlanUseCase.ExecuteMode = .all,
+        executeMode: MarkdownPlannerService.ExecuteMode = .all,
         stopAfterArchitectureDiagram: Bool = false
     ) async {
         state = .executing(progress: ExecutionProgress())
@@ -159,12 +159,16 @@ final class MarkdownPlannerModel {
 
         do {
             let settings = repository.planner ?? MarkdownPlannerRepoSettings()
-            let useCase = ExecutePlanUseCase(
+            let service = MarkdownPlannerService(
                 client: activeClient,
                 completedDirectory: settings.resolvedCompletedDirectory(repoPath: repository.path),
-                dataPath: dataPath
+                dataPath: dataPath,
+                resolveProposedDirectory: { repo in
+                    let s = repo.planner ?? MarkdownPlannerRepoSettings()
+                    return s.resolvedProposedDirectory(repoPath: repo.path)
+                }
             )
-            let options = ExecutePlanUseCase.Options(
+            let options = MarkdownPlannerService.ExecuteOptions(
                 executeMode: executeMode,
                 planPath: plan.planURL,
                 repoPath: repository.path,
@@ -172,7 +176,7 @@ final class MarkdownPlannerModel {
                 stopAfterArchitectureDiagram: stopAfterArchitectureDiagram
             )
             let integrateUseCase = IntegrateTaskIntoPlanUseCase(client: activeClient)
-            let result = try await useCase.run(options, onProgress: { [weak self] progress in
+            let result = try await service.execute(options: options, onProgress: { [weak self] progress in
                 guard let self else { return }
                 Task { @MainActor in
                     self.handleExecutionProgress(progress)
@@ -207,21 +211,22 @@ final class MarkdownPlannerModel {
     func generate(prompt: String, repositories: [RepositoryConfiguration], selectedRepository: RepositoryConfiguration? = nil) async -> String? {
         state = .generating(step: selectedRepository != nil ? "Generating plan..." : "Matching repository...")
 
-        let useCase = GeneratePlanUseCase(
+        let service = MarkdownPlannerService(
             client: activeClient,
+            dataPath: dataPath,
             resolveProposedDirectory: { repo in
                 let settings = repo.planner ?? MarkdownPlannerRepoSettings()
                 return settings.resolvedProposedDirectory(repoPath: repo.path)
             }
         )
-        let options = GeneratePlanUseCase.Options(
+        let options = MarkdownPlannerService.GenerateOptions(
             prompt: prompt,
             repositories: repositories,
             selectedRepository: selectedRepository
         )
 
         do {
-            let result = try await useCase.run(options) { [weak self] progress in
+            let result = try await service.generate(options: options) { [weak self] progress in
                 guard let self else { return }
                 Task { @MainActor in
                     switch progress {
@@ -305,7 +310,7 @@ final class MarkdownPlannerModel {
 
     // MARK: - Private
 
-    private func handleExecutionProgress(_ progress: ExecutePlanUseCase.Progress) {
+    private func handleExecutionProgress(_ progress: MarkdownPlannerService.ExecuteProgress) {
         guard case .executing(var current) = state else { return }
 
         switch progress {
