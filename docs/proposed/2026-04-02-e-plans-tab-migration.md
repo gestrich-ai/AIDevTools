@@ -23,19 +23,27 @@
 
 ---
 
-## - [ ] Phase 1: Map Use Cases to PipelineSDK Types
+## - [x] Phase 1: Map Use Cases to PipelineSDK Types
+
+**Skills used**: none
+**Principles applied**: Audited source files for both execution use cases and mapped every behavior to its PipelineSDK equivalent. Decisions favour the existing SDK primitives over new configuration flags where a clear match exists.
 
 Audit both execution use cases and document their pipeline equivalents. Deliverable: a table with columns: **Use case / behavior**, **Pipeline type**, **Input**, **Output**, **Notes**.
 
-Items to determine:
-- `GeneratePlanUseCase` — repo matching + plan generation is two AI calls in sequence. Does this become one `AnalyzerNode<GenerateRequest, MarkdownPlan>` or two chained nodes? The plan file URL and `RepositoryConfiguration` are the outputs consumed by the execution pipeline.
-- `ExecutePlanUseCase`'s execution loop is already backed by `MarkdownPipelineSource` — how does this map to `Pipeline` + `MarkdownTaskSource` (`.phase` format)? What replaces the `betweenPhases` callback?
-- `stopAfterArchitectureDiagram` — does this become a `ReviewStep` (pause for user inspection) or a `Pipeline` configuration flag?
-- Time limit (`maxMinutes`) — is this a `Pipeline` configuration field or enforced in the service?
-- Log writing (`writePhaseLog`) — service-layer concern or part of the node?
-- `moveToCompleted` (file move on all-done) — service-layer post-pipeline step
-- `uncommittedChanges` progress event — pre-pipeline guard in the service
-- Use cases that are NOT execution (`LoadPlansUseCase`, `WatchPlanUseCase`, `DeletePlanUseCase`, etc.) — these are not migrated; they remain as-is or become thin service helpers
+| Use case / behavior | Pipeline type | Input | Output | Notes |
+|---|---|---|---|---|
+| `GeneratePlanUseCase` — repo matching (AI call 1) | `AnalyzerNode<GenerateRequest, RepoMatch>` | `GenerateRequest` (prompt + repo list) | `RepoMatch` stored in `PipelineContext` | Separate node so the match result is available independently |
+| `GeneratePlanUseCase` — plan generation (AI call 2) | `AnalyzerNode<RepoMatchContext, GeneratedPlan>` | `RepoMatch` + `RepositoryConfiguration` from context | `GeneratedPlan` (content + filename) stored in context | Reads `RepoMatch` output of previous node from context |
+| `GeneratePlanUseCase` — write plan file to `docs/proposed/` | Service post-node step in `MarkdownPlannerService.generate` | `GeneratedPlan` + resolved `proposedDir` | `planURL: URL` | File I/O is not an AI concern; runs after the two `AnalyzerNode`s complete |
+| `ExecutePlanUseCase` — execution loop over `## - [ ]` phases | `PipelineRunner` draining a `MarkdownTaskSource(format: .phase)` | `MarkdownTaskSource` injected into `PipelineContext` via `PipelineContext.injectedTaskSourceKey` | Updated markdown file (checkboxes ticked) | `MarkdownTaskSource` already exists in PipelineSDK; `PipelineRunner.drainTaskSource` is the loop |
+| `ExecutePlanUseCase` — `.all` vs `.next` execute mode | `PipelineConfiguration.executionMode` (`.all` / `.nextOnly`) | `ExecuteMode` option | — | Direct 1-to-1 mapping; `PipelineRunner.drainTaskSource` breaks after one task when `nextOnly` |
+| `ExecutePlanUseCase` — `betweenPhases` callback | Not needed | — | — | `PipelineRunner` emits `.nodeCompleted` after each task; service subscribes to that event and can run arbitrary work between tasks |
+| `stopAfterArchitectureDiagram` | `ReviewStep` (pause) inserted after architecture-diagram phase completes | Architecture JSON presence detected post-phase | `pausedForReview` `PipelineEvent` | `PipelineRunner` already handles `ReviewStep` by emitting `.pausedForReview` and suspending via `CheckedContinuation`; service checks for the architecture JSON after each `.nodeCompleted` event and injects a `ReviewStep` when found |
+| `maxMinutes` time limit | `PipelineConfiguration.maxMinutes` | `Int?` minutes | `PipelineRunner` breaks the loop when elapsed ≥ limit | Direct 1-to-1 mapping; already in `PipelineConfiguration` |
+| `writePhaseLog` — per-phase stdout log | Service-layer concern in `MarkdownPlannerService.execute` | `.nodeProgress(.output)` events accumulated per task | Log file at `plan-logs/<planName>/phase-N.stdout` | `PipelineRunner` emits `.nodeProgress(id:progress:)` with `.output(text)` events; service accumulates and flushes after `.nodeCompleted` |
+| `moveToCompleted` — move plan file when all phases done | Service post-pipeline step in `MarkdownPlannerService.execute` | `planURL` | Moved file in `completed/` | Runs after `PipelineRunner` emits `.completed`; non-fatal if it fails |
+| `uncommittedChanges` pre-flight guard | Service-layer pre-pipeline guard in `MarkdownPlannerService.execute` | `repoPath` + `GitClient.status` | `.uncommittedChanges` progress event | Runs before `PipelineRunner.run`; no PipelineSDK equivalent needed |
+| `LoadPlansUseCase`, `WatchPlanUseCase`, `DeletePlanUseCase`, `CompletePlanUseCase`, `GetPlanDetailsUseCase`, `TogglePhaseUseCase`, `IntegrateTaskIntoPlanUseCase` | Not migrated | — | — | No AI execution; remain as-is or become thin helpers on `MarkdownPlannerService` |
 
 ## - [ ] Phase 2: Implement MarkdownPlannerService
 
@@ -73,3 +81,17 @@ Tasks:
 - The plan list / sidebar view is unchanged
 
 Verify: Plans tab renders correctly in `PipelineView`; all panels show the same data as before; architecture-diagram pause displays correctly.
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find new features architected as afterthoughts and refactor them to integrate cleanly with the existing system, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Identify the architectural layer for every new or modified file; read the reference doc for that layer before reviewing anything else, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find code placed in the wrong layer entirely and move it to the correct one, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find upward dependencies (lower layers importing higher layers) and remove them, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find `@Observable` or `@MainActor` outside the Apps layer and move it up, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find multi-step orchestration that belongs in a use case and extract it, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find feature-to-feature imports and replace with a shared Service or SDK abstraction, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find SDK methods that accept or return app-specific or feature-specific types and replace them with generic parameters, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find SDK methods that orchestrate multiple operations and split them into single-operation methods, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find SDK types that hold mutable state and refactor to stateless structs, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Find error swallowing across all layers and replace with proper propagation, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify use case types are structs conforming to `UseCase` or `StreamingUseCase`, not classes or actors, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify type names follow the `<Name><Layer>` convention and rename any that don't, and make the necessary code changes
+## - [ ] Code Review: Review the code changes that have been made in these tasks for the following: Verify both a Mac app model and a CLI command consume each new use case, and make the necessary code changes
