@@ -1,15 +1,20 @@
 import Foundation
 
-public actor StreamAccumulator {
+public final class StreamAccumulator: @unchecked Sendable {
+    private let lock = NSLock()
     public private(set) var blocks: [AIContentBlock] = []
 
     public init() {}
 
     public func reset() {
+        lock.lock()
+        defer { lock.unlock() }
         blocks = []
     }
 
     public func apply(_ event: AIStreamEvent) -> [AIContentBlock] {
+        lock.lock()
+        defer { lock.unlock() }
         switch event {
         case .textDelta(let chunk):
             if case .text(let existing) = blocks.last {
