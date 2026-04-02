@@ -55,6 +55,21 @@ public struct GitClient: Sendable {
         return try await execute(command, workingDirectory: workingDirectory)
     }
 
+    public func listRemoteBranches(matching pattern: String, remote: String = "origin", workingDirectory: String) async throws -> [String] {
+        let command = GitCLI.LsRemote(heads: true, remote: remote, pattern: "refs/heads/\(pattern)")
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return result.stdout
+            .components(separatedBy: .newlines)
+            .filter { !$0.isEmpty }
+            .compactMap { line in
+                let parts = line.components(separatedBy: "\t")
+                guard parts.count == 2 else { return nil }
+                let ref = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                guard ref.hasPrefix("refs/heads/") else { return nil }
+                return String(ref.dropFirst("refs/heads/".count))
+            }
+    }
+
     @discardableResult
     public func pruneWorktrees(workingDirectory: String) async throws -> ExecutionResult {
         let command = GitCLI.Worktree.Prune()

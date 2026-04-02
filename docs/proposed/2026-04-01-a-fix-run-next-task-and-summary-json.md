@@ -114,9 +114,10 @@ starting with `{"type":`.
 - The actual markdown summary is embedded inside the `result` JSON object's `"result"` field but never extracted; the entire multi-KB JSON blob is posted verbatim.
 - Root cause confirmed: `RunChainTaskUseCase.swift:369` assigns `summaryResult.stdout` (the raw JSON stream) directly to `summaryContent` instead of collecting plain text via the `onOutput` callback.
 
-## - [ ] Phase 3: Fix Bug 1 — Skip tasks with existing remote branches
+## - [x] Phase 3: Fix Bug 1 — Skip tasks with existing remote branches
 
-**Skills to read**: `logging`
+**Skills used**: `logging`
+**Principles applied**: Added `LsRemote` to `GitCLI.swift` (alphabetical position before `MergeBase`), `listRemoteBranches` to `GitClient.swift`, and replaced the single-predicate `first(where:)` in `RunChainTaskUseCase` with a two-step check: skip if completed OR if a remote branch already exists for that task hash. Used `logger.debug` to record the branch count, which tasks are skipped and why, and the final selected task — following the project's debug-level convention for diagnostic info that's useful but not noisy in production.
 
 Modify the auto next-task selection in `RunChainTaskUseCase.run()` to exclude tasks that
 already have a remote branch.

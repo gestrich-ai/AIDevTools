@@ -124,6 +124,13 @@ public struct GitCLI {
         @Flag("-d") public var directories: Bool = false
     }
 
+    @CLICommand("ls-remote")
+    public struct LsRemote {
+        @Flag("--heads") public var heads: Bool = false
+        @Positional public var remote: String
+        @Positional public var pattern: String?
+    }
+
     @CLICommand("merge-base")
     public struct MergeBase {
         @Positional public var ref1: String

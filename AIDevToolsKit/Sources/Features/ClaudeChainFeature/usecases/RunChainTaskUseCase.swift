@@ -148,7 +148,22 @@ public struct RunChainTaskUseCase: UseCase {
         if let taskIndex = options.taskIndex {
             nextStep = codeSteps.first(where: { Int($0.id) == taskIndex - 1 })
         } else {
-            nextStep = codeSteps.first(where: { !$0.isCompleted })
+            let projectPattern = "claude-chain-\(options.projectName)-*"
+            let existingBranches = Set(
+                (try? await git.listRemoteBranches(matching: projectPattern, workingDirectory: repoDir)) ?? []
+            )
+            logger.debug("prepare: found \(existingBranches.count) existing remote branch(es) for pattern '\(projectPattern)'")
+            nextStep = codeSteps.first(where: { step in
+                guard !step.isCompleted else { return false }
+                let hash = TaskService.generateTaskHash(description: step.description)
+                let branch = PRService.formatBranchName(projectName: options.projectName, taskHash: hash)
+                let hasExistingBranch = existingBranches.contains(branch)
+                if hasExistingBranch {
+                    logger.debug("prepare: skipping task '\(step.description)' — branch '\(branch)' already exists on remote")
+                }
+                return !hasExistingBranch
+            })
+            logger.debug("prepare: selected task=\(nextStep.map { "'\($0.description)'" } ?? "nil (none available)")")
         }
 
         guard let nextStep else {
