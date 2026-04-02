@@ -76,7 +76,10 @@ Tasks:
 
 Verify end-to-end: generate a plan from the Mac app, execute it (`.next` mode and `.all` mode), confirm all phases complete with correct output and logs.
 
-## - [ ] Phase 4: Update Plans Tab UI to PipelineView
+## - [x] Phase 4: Update Plans Tab UI to PipelineView
+
+**Skills used**: none
+**Principles applied**: Created `PipelineView` as a generic phase-list + output component in `Views/Pipeline/`. Updated `MarkdownPlannerDetailView` to use it for the execution phase display, replacing the direct `executionPhaseList` and the `ChatMessagesView`-based execution output. Removed the `executionChatModel` machinery entirely — current phase output now flows through `PipelineView`'s `OutputPanel` via the model's `progress.currentOutput`. Plans-specific panels (local phase list with toggles, architecture diagram, completion banner, markdown content viewer) remain in `MarkdownPlannerDetailView`.
 
 Replace the execution detail view in the Plans tab with `PipelineView` configured for a phase pipeline.
 
