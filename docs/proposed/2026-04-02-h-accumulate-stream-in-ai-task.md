@@ -64,7 +64,10 @@ In `Sources/SDKs/PipelineSDK/AITask.swift`:
 
 Result: every `AIStreamEvent` (including `.thinking`) becomes a `.contentBlocks` progress update carrying the full accumulated block state.
 
-## - [ ] Phase 4: Simplify `MarkdownPlannerDetailView`
+## - [x] Phase 4: Simplify `MarkdownPlannerDetailView`
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Removed `StreamContinuationHolder`, `continuationHolder` state, and the `AsyncStream`/`consumeStream` bridge from `startExecution()`. Replaced the no-op `.nodeProgress` handler with a direct call to `executionModel.updateCurrentStreamingBlocks(blocks)`. Removed continuation cleanup from `handleExecutionComplete()`. The view now receives pre-accumulated `[AIContentBlock]` directly from `AITask` via `.contentBlocks`.
 
 **Skills to read**: `swift-architecture`
 

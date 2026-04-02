@@ -5,10 +5,6 @@ import MarkdownPlannerService
 import RepositorySDK
 import SwiftUI
 
-private final class StreamContinuationHolder: @unchecked Sendable {
-    var continuation: AsyncStream<AIStreamEvent>.Continuation?
-}
-
 struct MarkdownPlannerDetailView: View {
     @Environment(MarkdownPlannerModel.self) var markdownPlannerModel
     let plan: MarkdownPlanEntry
@@ -25,7 +21,6 @@ struct MarkdownPlannerDetailView: View {
 
     @AppStorage("chatPanelExpanded") private var chatPanelExpanded = false
     @State private var executionChatModel: ChatModel?
-    @State private var continuationHolder = StreamContinuationHolder()
     @State private var activePlanModel = ActivePlanModel()
     @State private var isAddTaskPopoverPresented = false
     @State private var isAppendReviewPopoverPresented = false
@@ -424,26 +419,18 @@ struct MarkdownPlannerDetailView: View {
         executionChatModel = executionModel
         activePlanModel.stopWatching()
 
-        let holder = continuationHolder
-        markdownPlannerModel.pipelineModel.onEvent = { @MainActor [weak executionModel, holder] event in
+        markdownPlannerModel.pipelineModel.onEvent = { @MainActor [weak executionModel] event in
             guard let executionModel else { return }
             switch event {
             case .nodeStarted(_, let displayName):
-                holder.continuation?.finish()
-                holder.continuation = nil
                 executionModel.finalizeCurrentStreamingMessage()
                 executionModel.appendStatusMessage(displayName)
                 executionModel.beginStreamingMessage()
-                guard let messageId = executionModel.currentStreamingMessageId else { break }
-                let (stream, continuation) = AsyncStream<AIStreamEvent>.makeStream()
-                holder.continuation = continuation
-                Task { await executionModel.consumeStream(stream, messageId: messageId) }
             case .nodeProgress(_, let progress):
-                if case .contentBlocks(_) = progress {
+                if case .contentBlocks(let blocks) = progress {
+                    executionModel.updateCurrentStreamingBlocks(blocks)
                 }
             case .nodeCompleted:
-                holder.continuation?.finish()
-                holder.continuation = nil
                 executionModel.finalizeCurrentStreamingMessage()
             default:
                 break
@@ -465,8 +452,6 @@ struct MarkdownPlannerDetailView: View {
     private func handleExecutionComplete() async {
         await loadPlan()
         mergeExecutionPhaseStates()
-        continuationHolder.continuation?.finish()
-        continuationHolder.continuation = nil
         executionChatModel?.finalizeCurrentStreamingMessage()
         markdownPlannerModel.pipelineModel.onEvent = nil
         executionChatModel = nil
