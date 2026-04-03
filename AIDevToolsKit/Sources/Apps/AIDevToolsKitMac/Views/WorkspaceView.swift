@@ -9,7 +9,7 @@ struct WorkspaceView: View {
 
     let evalProviderRegistry: EvalProviderRegistry
 
-    @AppStorage("chatSidePanelVisible") private var chatSidePanelVisible = false
+    @State private var chatSidePanelVisible = false
     @AppStorage("selectedRepositoryID") private var storedRepoID: String = ""
     @AppStorage("selectedWorkspaceTab") private var selectedTab: String = "claudeChain"
     @State private var deepLinkWatcher = DeepLinkWatcher()
