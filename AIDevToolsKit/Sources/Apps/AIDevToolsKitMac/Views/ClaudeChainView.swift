@@ -1,4 +1,3 @@
-import AIOutputSDK
 import ClaudeChainFeature
 import ClaudeChainService
 import RepositorySDK
@@ -639,7 +638,10 @@ private struct ChainProjectDetailView: View {
         let execModel = model.makeChatModel(workingDirectory: repository.path.path())
         executionChatModel = execModel
 
-        let accumulator = StreamAccumulator()
+        model.executionContentBlocksObserver = { @MainActor [weak execModel] blocks in
+            execModel?.updateCurrentStreamingBlocks(blocks)
+        }
+
         model.executionProgressObserver = { @MainActor [weak execModel] progress in
             guard let chatModel = execModel else { return }
             switch progress {
@@ -655,11 +657,7 @@ private struct ChainProjectDetailView: View {
                 chatModel.finalizeCurrentStreamingMessage()
                 chatModel.appendStatusMessage("Starting AI execution...")
                 chatModel.beginStreamingMessage()
-                accumulator.reset()
-            case .aiStreamEvent(let event):
-                let updatedBlocks = accumulator.apply(event)
-                chatModel.updateCurrentStreamingBlocks(updatedBlocks)
-            case .aiOutput:
+            case .aiStreamEvent, .aiOutput:
                 break
             case .aiCompleted:
                 chatModel.finalizeCurrentStreamingMessage()
@@ -675,10 +673,8 @@ private struct ChainProjectDetailView: View {
                 chatModel.finalizeCurrentStreamingMessage()
                 chatModel.appendStatusMessage("Generating PR summary...")
                 chatModel.beginStreamingMessage()
-                accumulator.reset()
-            case .summaryStreamEvent(let event):
-                let updatedBlocks = accumulator.apply(event)
-                chatModel.updateCurrentStreamingBlocks(updatedBlocks)
+            case .summaryStreamEvent:
+                break
             case .summaryCompleted:
                 chatModel.finalizeCurrentStreamingMessage()
             case .postingPRComment:

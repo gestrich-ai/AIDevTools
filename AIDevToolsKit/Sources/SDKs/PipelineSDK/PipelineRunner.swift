@@ -12,6 +12,9 @@ public struct PipelineRunner: Sendable {
         onProgress: @escaping @Sendable (PipelineEvent) -> Void
     ) async throws -> PipelineContext {
         var context = initialContext
+        if let workingDirectory = configuration.workingDirectory {
+            context[PipelineContext.workingDirectoryKey] = workingDirectory
+        }
         let startTime = Date()
 
         for (index, node) in nodes.enumerated() {

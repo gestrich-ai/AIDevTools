@@ -10,6 +10,7 @@ import PipelineService
 public struct ChainRunOptions: Sendable {
     public let baseBranch: String
     public let branchName: String?
+    public let dryRun: Bool
     public let githubAccount: String?
     public let projectName: String
     public let repoPath: URL
@@ -18,6 +19,7 @@ public struct ChainRunOptions: Sendable {
     public init(
         baseBranch: String,
         branchName: String? = nil,
+        dryRun: Bool = false,
         githubAccount: String? = nil,
         projectName: String,
         repoPath: URL,
@@ -25,6 +27,7 @@ public struct ChainRunOptions: Sendable {
     ) {
         self.baseBranch = baseBranch
         self.branchName = branchName
+        self.dryRun = dryRun
         self.githubAccount = githubAccount
         self.projectName = projectName
         self.repoPath = repoPath
@@ -129,10 +132,24 @@ public struct ClaudeChainService {
                 displayName: "Create PR",
                 baseBranch: options.baseBranch,
                 configuration: prConfiguration,
-                gitClient: git
+                gitClient: git,
+                projectName: options.projectName,
+                taskDescription: task.description
+            )
+            let commentStep = ChainPRCommentStep(
+                id: "pr-comment-step",
+                displayName: "Post PR Comment",
+                baseBranch: options.baseBranch,
+                client: client,
+                gitClient: git,
+                projectName: options.projectName,
+                taskDescription: task.description,
+                dryRun: options.dryRun
             )
             nodes.append(prStep)
+            nodes.append(commentStep)
             manifests.append(NodeManifest(id: "pr-step", displayName: "Create PR"))
+            manifests.append(NodeManifest(id: "pr-comment-step", displayName: "Post PR Comment"))
         }
 
         let configuration = PipelineConfiguration(
@@ -209,7 +226,19 @@ public struct ClaudeChainService {
             displayName: "Create PR",
             baseBranch: options.baseBranch,
             configuration: prConfiguration,
-            gitClient: git
+            gitClient: git,
+            projectName: options.projectName,
+            taskDescription: task.description
+        )
+        let commentStep = ChainPRCommentStep(
+            id: "pr-comment-step",
+            displayName: "Post PR Comment",
+            baseBranch: options.baseBranch,
+            client: client,
+            gitClient: git,
+            projectName: options.projectName,
+            taskDescription: task.description,
+            dryRun: options.dryRun
         )
 
         let configuration = PipelineConfiguration(
@@ -220,9 +249,12 @@ public struct ClaudeChainService {
         )
 
         return PipelineBlueprint(
-            nodes: [prStep],
+            nodes: [prStep, commentStep],
             configuration: configuration,
-            initialNodeManifest: [NodeManifest(id: "pr-step", displayName: "Create PR")]
+            initialNodeManifest: [
+                NodeManifest(id: "pr-step", displayName: "Create PR"),
+                NodeManifest(id: "pr-comment-step", displayName: "Post PR Comment"),
+            ]
         )
     }
 }

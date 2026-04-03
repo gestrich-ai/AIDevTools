@@ -13,9 +13,6 @@ struct ReviewOutput: Decodable, Sendable {
     let summary: String
 }
 
-private final class TextAccumulator: @unchecked Sendable {
-    var text = ""
-}
 
 public struct RunChainTaskUseCase: UseCase {
 
@@ -26,8 +23,11 @@ public struct RunChainTaskUseCase: UseCase {
         public let stagingOnly: Bool
         public let taskIndex: Int?
 
-        public init(repoPath: URL, projectName: String, baseBranch: String, taskIndex: Int? = nil, stagingOnly: Bool = false) {
+        public let dryRun: Bool
+
+        public init(repoPath: URL, projectName: String, baseBranch: String, taskIndex: Int? = nil, stagingOnly: Bool = false, dryRun: Bool = false) {
             self.baseBranch = baseBranch
+            self.dryRun = dryRun
             self.projectName = projectName
             self.repoPath = repoPath
             self.stagingOnly = stagingOnly
@@ -214,6 +214,7 @@ public struct RunChainTaskUseCase: UseCase {
             workingDirectory: options.repoPath.path
         )
 
+        let mainAccumulator = StreamAccumulator()
         let aiResult = try await client.run(
             prompt: claudePrompt,
             options: aiOptions,
@@ -221,14 +222,16 @@ public struct RunChainTaskUseCase: UseCase {
                 onProgress?(.aiOutput(text))
             },
             onStreamEvent: { event in
+                _ = mainAccumulator.apply(event)
                 onProgress?(.aiStreamEvent(event))
             }
         )
         onProgress?(.aiCompleted)
         phasesCompleted += 1
 
-        // Extract cost from AI stream metrics (captured from the last metrics event)
-        let mainCost = ChainPRHelpers.extractCost()
+        let mainCost = mainAccumulator.blocks.compactMap {
+            if case .metrics(_, let cost, _) = $0 { return cost } else { return nil }
+        }.last ?? 0.0
 
         // Phase 4: Post-action script
         onProgress?(.runningPostScript)
@@ -404,22 +407,24 @@ public struct RunChainTaskUseCase: UseCase {
                 workingDirectory: options.repoPath.path
             )
 
-            let summaryText = TextAccumulator()
+            let summaryAccumulator = StreamAccumulator()
             _ = try await client.run(
                 prompt: summaryPrompt,
                 options: summaryOptions,
                 onOutput: nil,
                 onStreamEvent: { event in
-                    if case .textDelta(let text) = event {
-                        summaryText.text += text
-                    }
+                    _ = summaryAccumulator.apply(event)
                     onProgress?(.summaryStreamEvent(event))
                 }
             )
-            summaryContent = summaryText.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if summaryContent?.isEmpty == true { summaryContent = nil }
-            logger.debug("summary: collected \(summaryText.text.count) chars of text")
-            summaryCost = ChainPRHelpers.extractCost()
+            let summaryText = summaryAccumulator.blocks.compactMap {
+                if case .text(let t) = $0 { return t } else { return nil }
+            }.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+            summaryContent = summaryText.isEmpty ? nil : summaryText
+            logger.debug("summary: collected \(summaryText.count) chars of text")
+            summaryCost = summaryAccumulator.blocks.compactMap {
+                if case .metrics(_, let cost, _) = $0 { return cost } else { return nil }
+            }.last ?? 0.0
             if let summary = summaryContent, !summary.isEmpty {
                 onProgress?(.summaryCompleted(summary: summary))
             }
@@ -455,20 +460,26 @@ public struct RunChainTaskUseCase: UseCase {
                 let formatter = MarkdownReportFormatter()
                 let comment = formatter.format(report.buildCommentElements())
 
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("pr_comment_\(UUID().uuidString).md")
-                try comment.write(to: tempURL, atomically: true, encoding: .utf8)
-                defer { try? FileManager.default.removeItem(at: tempURL) }
+                if options.dryRun {
+                    print("\n=== PR Comment Preview ===")
+                    print(comment)
+                    print("=== End PR Comment Preview ===\n")
+                } else {
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("pr_comment_\(UUID().uuidString).md")
+                    try comment.write(to: tempURL, atomically: true, encoding: .utf8)
+                    defer { try? FileManager.default.removeItem(at: tempURL) }
 
-                var commentArgs = [
-                    "pr", "comment", prNumber,
-                    "--body-file", tempURL.path,
-                ]
-                if !repoSlug.isEmpty {
-                    commentArgs += ["--repo", repoSlug]
+                    var commentArgs = [
+                        "pr", "comment", prNumber,
+                        "--body-file", tempURL.path,
+                    ]
+                    if !repoSlug.isEmpty {
+                        commentArgs += ["--repo", repoSlug]
+                    }
+                    _ = try GitHubOperations.runGhCommand(args: commentArgs)
+                    onProgress?(.prCommentPosted)
                 }
-                _ = try GitHubOperations.runGhCommand(args: commentArgs)
-                onProgress?(.prCommentPosted)
             } catch {
                 // Comment posting is non-fatal
             }

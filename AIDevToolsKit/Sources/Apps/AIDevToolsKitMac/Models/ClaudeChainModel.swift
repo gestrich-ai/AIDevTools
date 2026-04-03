@@ -52,6 +52,7 @@ final class ClaudeChainModel {
     private(set) var state: State = .idle
     private(set) var taskPipelines: [Int: PipelineModel] = [:]
     var selectedTaskIndex: Int?
+    var executionContentBlocksObserver: (@MainActor ([AIContentBlock]) -> Void)?
     var executionProgressObserver: (@MainActor (RunChainTaskUseCase.Progress) -> Void)?
 
     var selectedPipelineModel: PipelineModel? {
@@ -212,7 +213,8 @@ final class ClaudeChainModel {
                     self.handleExecutionProgress(.runningAI(taskDescription: task.description))
                 }
             case .nodeProgress(_, let progress):
-                if case .contentBlocks(_) = progress {
+                if case .contentBlocks(let blocks) = progress {
+                    executionContentBlocksObserver?(blocks)
                 }
             case .nodeCompleted(let id, _):
                 if id != "task-source" && id != "pr-step" {

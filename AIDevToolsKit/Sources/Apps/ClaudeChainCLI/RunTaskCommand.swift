@@ -38,6 +38,9 @@ struct RunTaskCommand: AsyncParsableCommand {
     @Flag(help: "Stage work locally without pushing branch or creating a PR")
     var stagingOnly: Bool = false
 
+    @Flag(help: "Generate and print the PR comment to console without posting it")
+    var dryRun: Bool = false
+
     public init() {}
 
     func run() async throws {
@@ -96,7 +99,8 @@ struct RunTaskCommand: AsyncParsableCommand {
             projectName: project,
             baseBranch: resolvedBaseBranch,
             taskIndex: taskIndex,
-            stagingOnly: stagingOnly
+            stagingOnly: stagingOnly,
+            dryRun: dryRun
         )
 
         let result = try await useCase.run(options: options) { progress in
