@@ -83,7 +83,10 @@ Files to create/modify:
 - `Views/Chat/GlobalChatSidePanelView.swift` (new)
 - `GlobalChatContext` as a private struct inside this file
 
-## - [ ] Phase 2: Add inspector panel and toolbar button to `WorkspaceView`
+## - [x] Phase 2: Add inspector panel and toolbar button to `WorkspaceView`
+
+**Skills used**: none (skill not found in this project)
+**Principles applied**: Added `@AppStorage("chatSidePanelVisible")` for persistence, applied `.inspector(isPresented:)` to the `NavigationSplitView` with `GlobalChatSidePanelView` as content (inheriting `ProviderModel` from environment), and added a `sidebar.trailing` toolbar button to toggle the panel. Working directory uses the selected repository's path, matching the pattern established in `PlansChatContext`.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
