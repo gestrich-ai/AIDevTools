@@ -1,3 +1,5 @@
+import Foundation
+
 public enum PipelineError: Error, LocalizedError, Sendable {
     case cancelled
     case capacityExceeded(openCount: Int, maxOpen: Int)
