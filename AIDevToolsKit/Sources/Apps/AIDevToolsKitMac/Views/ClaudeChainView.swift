@@ -31,6 +31,23 @@ struct ClaudeChainView: View {
                 .overlay {
                     if case .loadingChains = model.state, model.lastLoadedProjects.isEmpty {
                         ProgressView("Loading chains...")
+                    } else if case .error(let error) = model.state, model.lastLoadedProjects.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.title2)
+                                .foregroundStyle(.red)
+                            Text("Failed to load chains")
+                                .font(.headline)
+                            Text(error.localizedDescription)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 8)
+                            Button("Retry") {
+                                model.loadChains(for: repository.path, credentialAccount: repository.credentialAccount)
+                            }
+                        }
+                        .padding()
                     }
                 }
             }

@@ -117,6 +117,7 @@ final class ClaudeChainModel {
                     loadChainDetail(project: project)
                 }
             } catch {
+                logger.error("loadChains failed: \(error)")
                 state = .error(error)
             }
         }
