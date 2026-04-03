@@ -30,7 +30,10 @@ These are merged into one global prompt in Phase 1.
 
 ## Phases
 
-## - [ ] Phase 1: Create `GlobalChatSidePanelView`
+## - [x] Phase 1: Create `GlobalChatSidePanelView`
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: `GlobalChatContext` is a private `final class` that holds the working directory as a `let` constant (passed in from the caller). `GlobalChatSidePanelView` takes `workingDirectory: String` and uses `State(initialValue:)` to create the context once, then delegates all chat UI to `ContextualChatPanel`.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
