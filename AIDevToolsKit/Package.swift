@@ -269,6 +269,7 @@ let package = Package(
         .target(
             name: "GitHubService",
             dependencies: [
+                "OctokitSDK",
                 "PRRadarModelsService",
             ],
             path: "Sources/Services/GitHubService"

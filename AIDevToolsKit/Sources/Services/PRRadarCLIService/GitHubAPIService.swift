@@ -250,6 +250,18 @@ public struct GitHubAPIService: Sendable {
         try await octokitClient.getFileContent(owner: owner, repository: repo, path: path, ref: ref)
     }
 
+    public func getBranchHead(branch: String) async throws -> BranchHead {
+        try await octokitClient.getBranchHead(owner: owner, repository: repo, branch: branch)
+    }
+
+    public func getFileContentWithSHA(path: String, ref: String) async throws -> (sha: String, content: String) {
+        try await octokitClient.getFileContentWithSHA(owner: owner, repository: repo, path: path, ref: ref)
+    }
+
+    public func getGitTree(treeSHA: String) async throws -> [GitTreeEntry] {
+        try await octokitClient.getGitTree(owner: owner, repository: repo, treeSHA: treeSHA)
+    }
+
     public func listDirectoryNames(path: String, ref: String) async throws -> [String] {
         try await octokitClient.listDirectoryNames(owner: owner, repository: repo, path: path, ref: ref)
     }

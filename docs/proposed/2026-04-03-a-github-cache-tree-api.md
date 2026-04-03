@@ -18,7 +18,10 @@ Key existing structure:
 - `GitHubPRCacheService` — disk-based JSON cache, **no TTL**, **no tree/blob/directory caching**
 - `GitHubPRServiceProtocol` — consumed by use cases; `fileContent` and `listDirectoryNames` are on the protocol but currently bypass caching entirely
 
-## - [ ] Phase 1: Add `getBranchHead` and `getGitTree` to OctokitClient and GitHubAPIService
+## - [x] Phase 1: Add `getBranchHead` and `getGitTree` to OctokitClient and GitHubAPIService
+
+**Skills used**: none
+**Principles applied**: Defined `BranchHead` and `GitTreeEntry` as public types in `OctokitSDK` (alongside `OctokitClient`) and added `OctokitSDK` as a dependency of `GitHubService` so the protocol could reference these types without circular imports. Also extended `ContentsMetadata` with optional `content`/`encoding` fields for `getFileContentWithSHA`. New `GitHubPath` cases added alphabetically (`branch`, `gitTree`).
 
 **Skills to read**: none
 

@@ -120,6 +120,40 @@ private struct CompareResponse: Codable {
 
 private struct ContentsMetadata: Codable {
     let sha: String
+    let content: String?
+    let encoding: String?
+}
+
+public struct BranchHead: Codable, Sendable {
+    public let commitSHA: String
+    public let treeSHA: String
+}
+
+public struct GitTreeEntry: Codable, Sendable {
+    public let path: String
+    public let sha: String
+    public let type: String
+}
+
+private struct BranchResponse: Codable {
+    let commit: CommitData
+
+    struct CommitData: Codable {
+        let sha: String
+        let commit: CommitDetail
+
+        struct CommitDetail: Codable {
+            let tree: TreeRef
+
+            struct TreeRef: Codable {
+                let sha: String
+            }
+        }
+    }
+}
+
+private struct GitTreeResponse: Codable {
+    let tree: [GitTreeEntry]
 }
 
 public struct ReviewCommentData: Sendable {
@@ -182,8 +216,17 @@ private enum GitHubPath {
         return "\(self.repository(owner, repository))/contents/\(encodedPath)"
     }
 
+    static func branch(_ owner: String, _ repository: String, branch: String) -> String {
+        let encoded = branch.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? branch
+        return "\(self.repository(owner, repository))/branches/\(encoded)"
+    }
+
     static func compare(_ owner: String, _ repository: String, base: String, head: String) -> String {
         "\(self.repository(owner, repository))/compare/\(base)...\(head)"
+    }
+
+    static func gitTree(_ owner: String, _ repository: String, treeSHA: String) -> String {
+        "\(self.repository(owner, repository))/git/trees/\(treeSHA)"
     }
 
     static func commitCheckRuns(_ owner: String, _ repository: String, commitSHA: String) -> String {
@@ -508,6 +551,69 @@ public struct OctokitClient: Sendable {
         }
     }
 
+    public func getBranchHead(owner: String, repository: String, branch: String) async throws -> BranchHead {
+        let request = makeRequest(path: GitHubPath.branch(owner, repository, branch: branch))
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+        switch httpResponse.statusCode {
+        case 200:
+            let branchResponse = try JSONDecoder().decode(BranchResponse.self, from: data)
+            return BranchHead(
+                commitSHA: branchResponse.commit.sha,
+                treeSHA: branchResponse.commit.commit.tree.sha
+            )
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound("Branch \(branch) not found")
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
+    public func getFileContentWithSHA(
+        owner: String,
+        repository: String,
+        path: String,
+        ref: String
+    ) async throws -> (sha: String, content: String) {
+        let request = makeRequest(
+            path: GitHubPath.contents(owner, repository, path: path),
+            accept: "application/vnd.github.v3+json",
+            queryItems: [URLQueryItem(name: "ref", value: ref)]
+        )
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+        switch httpResponse.statusCode {
+        case 200:
+            let metadata = try JSONDecoder().decode(ContentsMetadata.self, from: data)
+            guard let encodedContent = metadata.content,
+                  metadata.encoding == "base64" else {
+                throw OctokitClientError.invalidResponse
+            }
+            let cleaned = encodedContent.components(separatedBy: .whitespacesAndNewlines).joined()
+            guard let contentData = Data(base64Encoded: cleaned),
+                  let content = String(data: contentData, encoding: .utf8) else {
+                throw OctokitClientError.invalidResponse
+            }
+            return (sha: metadata.sha, content: content)
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound("File \(path) at ref \(ref) not found")
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
     public func getFileSHA(
         owner: String,
         repository: String,
@@ -534,6 +640,30 @@ public struct OctokitClient: Sendable {
             throw OctokitClientError.authenticationFailed
         case 404:
             throw OctokitClientError.notFound("File \(path) at ref \(ref) not found")
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
+    public func getGitTree(owner: String, repository: String, treeSHA: String) async throws -> [GitTreeEntry] {
+        let request = makeRequest(
+            path: GitHubPath.gitTree(owner, repository, treeSHA: treeSHA),
+            queryItems: [URLQueryItem(name: "recursive", value: "1")]
+        )
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+        switch httpResponse.statusCode {
+        case 200:
+            let treeResponse = try JSONDecoder().decode(GitTreeResponse.self, from: data)
+            return treeResponse.tree
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound("Git tree \(treeSHA) not found")
         case 403:
             throw OctokitClientError.rateLimitExceeded
         default:
