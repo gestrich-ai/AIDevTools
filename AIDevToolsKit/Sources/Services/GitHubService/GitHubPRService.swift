@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 import OctokitSDK
 import PRRadarModelsService
 
@@ -6,6 +7,7 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
     private let cache: GitHubPRCacheService
     private let apiClient: any GitHubAPIServiceProtocol
     private let changeStream: AsyncStream<Int>
+    private let logger = Logger(label: "GitHubPRService")
 
     public init(rootURL: URL, apiClient: any GitHubAPIServiceProtocol) {
         let prCache = GitHubPRCacheService(rootURL: rootURL)
@@ -117,8 +119,10 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
 
     public func branchHead(branch: String, ttl: TimeInterval) async throws -> BranchHead {
         if let cached = try await cache.readBranchHead(branch: branch, ttl: ttl) {
+            logger.debug("branchHead cache hit", metadata: ["branch": .string(branch)])
             return cached
         }
+        logger.debug("branchHead cache miss, fetching from API", metadata: ["branch": .string(branch)])
         let head = try await apiClient.getBranchHead(branch: branch)
         try await cache.writeBranchHead(head, branch: branch)
         return head
@@ -126,8 +130,10 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
 
     public func fileBlob(blobSHA: String, path: String, ref: String) async throws -> String {
         if let cached = try await cache.readBlob(blobSHA: blobSHA) {
+            logger.debug("fileBlob cache hit", metadata: ["sha": .string(blobSHA), "path": .string(path)])
             return cached
         }
+        logger.debug("fileBlob cache miss, fetching from API", metadata: ["sha": .string(blobSHA), "path": .string(path)])
         let (_, content) = try await apiClient.getFileContentWithSHA(path: path, ref: ref)
         try await cache.writeBlob(content, blobSHA: blobSHA)
         return content
@@ -139,8 +145,10 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
 
     public func gitTree(treeSHA: String) async throws -> [GitTreeEntry] {
         if let cached = try await cache.readGitTree(treeSHA: treeSHA) {
+            logger.debug("gitTree cache hit", metadata: ["treeSHA": .string(treeSHA)])
             return cached
         }
+        logger.debug("gitTree cache miss, fetching from API", metadata: ["treeSHA": .string(treeSHA)])
         let entries = try await apiClient.getGitTree(treeSHA: treeSHA)
         try await cache.writeGitTree(entries, treeSHA: treeSHA)
         return entries

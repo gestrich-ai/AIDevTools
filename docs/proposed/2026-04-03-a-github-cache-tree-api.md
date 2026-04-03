@@ -151,7 +151,10 @@ Update `ListChainsFromGitHubUseCase` to:
 Files:
 - `ClaudeChainFeature/usecases/ListChainsFromGitHubUseCase.swift`
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
+
+**Skills used**: `logging`
+**Principles applied**: Added `logger.debug` for cache hit/miss in `branchHead`, `gitTree`, and `fileBlob` in `GitHubPRService`. Added `Logging` as a `GitHubService` target dependency. Ran CLI smoke test confirming 21 projects load. Verified `branches/`, `trees/`, and `blobs/` cache directories are populated. Second run consumed 0 REST quota (5000 → 5000). Logs confirm 100% cache hits for all blob fetches and tree/branch lookups after first run.
 
 **Skills to read**: `logging`
 

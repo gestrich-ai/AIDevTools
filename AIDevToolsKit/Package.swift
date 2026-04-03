@@ -269,6 +269,7 @@ let package = Package(
         .target(
             name: "GitHubService",
             dependencies: [
+                .product(name: "Logging", package: "swift-log"),
                 "OctokitSDK",
                 "PRRadarModelsService",
             ],
