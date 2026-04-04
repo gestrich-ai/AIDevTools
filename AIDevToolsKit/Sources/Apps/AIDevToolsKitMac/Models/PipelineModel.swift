@@ -72,7 +72,7 @@ final class PipelineModel {
                 nodes[index].isCompleted = true
                 nodes[index].isCurrent = false
             }
-        case .completed, .nodeProgress, .pausedForReview:
+        case .completed, .nodeProgress, .pausedForReview, .taskDiscovered:
             break
         }
     }

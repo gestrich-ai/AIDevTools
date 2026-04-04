@@ -141,7 +141,7 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
             printColored(String(repeating: "-", count: 50), color: .blue)
             print()
 
-        case .completed, .pausedForReview:
+        case .completed, .pausedForReview, .taskDiscovered:
             break
         }
     }

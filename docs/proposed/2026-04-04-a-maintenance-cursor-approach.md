@@ -257,36 +257,6 @@ commit state.json with cursor = processedPaths.last, lastRunDate = now(), and pr
 
 ## Implementation Phases
 
-## - [ ] Phase 0: PipelineRunner — Fresh Context Between Tasks
-
-**Skills to read**: `swift-app-architecture:swift-architecture`
-
-**Prerequisite for all other phases.** Must leave existing ClaudeChain behavior unchanged.
-
-The existing `drainTaskSource` loop (`PipelineRunner.swift` lines 56–93) supports dynamic task discovery — after each task completes it calls `source.nextTask()` and loops if a task is returned. However it reuses the same `PipelineContext` across iterations, bleeding AI conversation history between tasks.
-
-**1. Add `resetContextBetweenTasks` to `PipelineConfiguration`:**
-```swift
-public let resetContextBetweenTasks: Bool   // default: false
-```
-Default `false` preserves all existing ClaudeChain behavior unchanged.
-
-**2. In `drainTaskSource`, reset context between iterations when flag is true:**
-After each task completes and before calling `nextTask()`, if `resetContextBetweenTasks == true`, reset AI-specific context keys while preserving infrastructure keys (working directory, environment, PR data needed for the final PR step).
-
-**3. Add `taskDiscovered` pipeline event:**
-```swift
-case taskDiscovered(id: String, displayName: String)
-```
-Emitted by `drainTaskSource` when a new task is returned by `nextTask()`, so the pipeline UI can add it to the task list dynamically without knowing the full task list upfront.
-
-Files:
-- `Sources/SDKs/PipelineSDK/PipelineConfiguration.swift`
-- `Sources/SDKs/PipelineSDK/PipelineRunner.swift`
-- `Sources/SDKs/PipelineSDK/PipelineEvent.swift`
-
----
-
 ## - [ ] Phase 1: Unified `ClaudeChainSource` Protocol + ClaudeChain Refactor
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
@@ -325,7 +295,7 @@ public protocol ChainDiscoveryService: Sendable {
 - `LocalChainDiscoveryService`: scans `claude-chain/` (regular) and `claude-chain-maintenance/` (maintenance); instantiates `MarkdownClaudeChainSource` or `MaintenanceClaudeChainSource` per entry
 - `GitHubChainDiscoveryService`: extends `ListChainsFromGitHubUseCase` filter to include `"claude-chain-maintenance/"` paths
 
-**`MarkdownClaudeChainSource`** — rename/replace `MarkdownChainTaskSource`; implements `ClaudeChainSource` for regular ClaudeChain. `nextTask()` returns one task then nil (existing single-task behavior). `resetContextBetweenTasks: false`.
+**`MarkdownClaudeChainSource`** — rename/replace `MarkdownChainTaskSource`; implements `ClaudeChainSource` for regular ClaudeChain. `nextTask()` returns one task then nil (existing single-task behavior).
 
 **`ListChainsUseCase`** — accepts injected `ChainDiscoveryService`; calls `loadProject()` on each source. Removes hardcoded `"claude-chain"` directory.
 
@@ -411,7 +381,7 @@ Single class implementing `ClaudeChainSource` — covers both display and execut
 - On each call: advance cursor position
 - When `nextTask()` returns nil (batch done): write cursor commit to `state.json`
 
-Pipeline uses `resetContextBetweenTasks: true` — each file gets a fresh AI context via `drainTaskSource`. `PRStep` runs after all AITasks complete, opening one PR for all commits in the batch.
+`PRStep` runs after all AITasks complete, opening one PR for all commits in the batch.
 
 **How UI sections map:**
 
@@ -431,7 +401,7 @@ Files:
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
 **`RunMaintenanceBatchUseCase`:**
-- Reads `config.yaml`; builds `MaintenanceClaudeChainSource` with `resetContextBetweenTasks: true`
+- Reads `config.yaml`; builds `MaintenanceClaudeChainSource`
 - Passes it to `TaskSourceNode`; runs `PipelineRunner` with `[TaskSourceNode, PRStep, ChainPRCommentStep]`
 - `drainTaskSource` handles per-file AITask execution; `PRStep` opens one PR for all batch commits
 

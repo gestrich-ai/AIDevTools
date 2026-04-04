@@ -61,6 +61,9 @@ public struct PipelineRunner: Sendable {
     ) async throws -> PipelineContext {
         var context = context
         var nextTask = try await source.nextTask()
+        if let task = nextTask {
+            onProgress(.taskDiscovered(id: task.id, displayName: task.id))
+        }
         while let task = nextTask {
             guard !Task.isCancelled else { break }
 
@@ -85,7 +88,8 @@ public struct PipelineRunner: Sendable {
             if configuration.executionMode == .nextOnly { break }
 
             nextTask = try await source.nextTask()
-            if nextTask != nil {
+            if let next = nextTask {
+                onProgress(.taskDiscovered(id: next.id, displayName: next.id))
                 try await configuration.betweenTasks?()
             }
         }
