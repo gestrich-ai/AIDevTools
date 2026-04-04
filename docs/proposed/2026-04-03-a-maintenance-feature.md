@@ -1,3 +1,13 @@
+## Open Questions (resolve before implementation)
+
+1. **How deeply does ClaudeChain get refactored?** Option A is chosen (refactor ClaudeChain to use the new abstractions so Maintenance and ClaudeChain share the same pipeline infrastructure). The question is the refactoring depth: does `RunChainTaskUseCase` get rewritten to use `TaskSource`/`InstructionSource` protocols, or do we just add protocol conformances alongside the existing code with minimal disruption?
+
+2. **Where do the new abstractions live?** `TaskSource` already partially exists in `PipelineSDK`. Should `InstructionSource` also live in `PipelineSDK`? Or does the refactored `TaskSource` (extended to include instruction building) belong in a new shared layer? Consider that `InstructionSource` for Maintenance needs to combine `spec.md` content with a file path — it may need the current task as input.
+
+3. **`InstructionSource` protocol shape**: Does it look like `func instructions(for task: MaintenanceTask) async throws -> String`? Or is it task-agnostic: `func instructions() async throws -> String` with the file path injected at construction time (a new instance per task)?
+
+---
+
 ## Relevant Skills
 
 | Skill | Description |
@@ -10,46 +20,54 @@
 
 The Maintenance Feature is a new AI-driven system for continuously maintaining a codebase. Unlike Claude Chain (which has a finite, user-authored list of tasks that are marked done), maintenance tasks are **ongoing**: a task runs against a file or directory path, records the git hash when it last ran, and is re-run only when that path changes.
 
-Key design principles:
+### Core Architectural Insight
 
-- **Reuse ClaudeChain's spec.md model**: spec.md has AI instructions at the top and a checklist of paths below. Execution reads it identically to ClaudeChain — first `[ ]` entry wins. Discovery manages the checkbox state.
-- **Skip if unchanged**: Discovery checks `[x]` when the path's current git hash matches `lastRunHash`. It unchecks to `[ ]` when stale. Execution marks `[x]` on success (same as ClaudeChain).
-- **Discovery is separate from execution**: A discovery job expands a glob, diffs against the current path list, updates spec.md checkboxes and state.json. It never runs tasks.
-- **Single path per task**: Each checklist entry is one file or directory path. No multi-file groups — simplicity over flexibility for V1.
+ClaudeChain's execution pipeline has two concerns that should be abstracted:
+
+1. **Task source** — "what runs next, and how to mark it done"
+2. **Instruction source** — "what to tell the AI"
+
+Currently both are tightly coupled to `spec.md` in ClaudeChain. Abstracting them allows Maintenance to plug in its own implementations while sharing the same pipeline infrastructure.
+
+| Abstraction | ClaudeChain impl | Maintenance impl |
+|---|---|---|
+| `TaskSource` | Markdown checklist in `spec.md` — finds first `[ ]`, marks `[x]` on complete | `state.json` entry — finds first stale path (null or mismatched hash), marks complete by updating hash + date |
+| `InstructionSource` | Top of `spec.md` (existing behavior, extracted as protocol) | `spec.md` (instructions only, no checklist) combined with the current task's file path |
+
+**Option A is chosen**: ClaudeChain will be refactored to use these abstractions. Maintenance then implements the same protocols. This is a prerequisite before Maintenance is built. See Open Questions above for the refactoring depth decisions.
+
+### Key Design Principles
+
+- **`lastRunHash` recorded post-commit**: After the AI edits the path and commits to the feature branch, record the git hash of the path *from that branch commit*. When the PR merges cleanly, the base branch ends up with the same hash — discovery will not mark the task stale again.
+- **Discovery is separate from execution**: A discovery job expands a glob, diffs against state.json, and adds/removes/updates entries. It never runs tasks.
+- **Single path per task**: Each state.json entry is one file or directory path. No multi-file groups in V1.
+- **Top-to-bottom execution (V1)**: Execution picks the first stale task from state.json in key-sorted order. Lexicographic starvation is acceptable for V1.
 - **PR output**: Each task execution results in a GitHub PR with the AI's changes.
 - **Branch naming**: `maintenance-<task-name>-<hash>` where `<hash>` is an 8-char SHA-256 of the path string. Mirrors ClaudeChain's `claude-chain-<project>-<hash>` pattern.
-- **Reuse PipelineService**: Task execution pipelines are built using the existing `PipelineService` and `PipelineSDK`.
-- **`lastRunHash` recorded post-commit**: After the AI edits the path and commits to the feature branch, record the git hash of the path *from that branch commit*. When the PR merges cleanly, the base branch ends up with identical content and the same hash — discovery will not mark the task stale again.
+- **Reuse PipelineService**: Task execution pipelines use the existing `PipelineService` and `PipelineSDK`.
 
 ### File Layout Per Maintenance Task
 
-Modeled after ClaudeChain's layout. Each maintenance task lives in a directory with three files:
-
 ```
 maintenance/<task-name>/
-  config.yaml    # Execution settings + discovery glob pattern
-  spec.md        # AI instructions at top + checklist of file/directory paths
-  state.json     # Machine-managed: path → {lastRunHash, lastRunAt}
+  config.yaml    # maxOpenPRs, discovery glob pattern
+  spec.md        # AI instructions ONLY — no checklist, no file paths
+  state.json     # task source: path → {lastRunHash, lastRunAt}
 ```
 
 ### `spec.md` Format
 
-Identical to ClaudeChain's spec.md. Free-form AI instructions at the top, followed by a markdown checklist where each item is a file or directory path. Discovery re-sorts entries lexicographically on every run.
+Free-form AI instructions only. No checklist. This is the `InstructionSource`. The file path from the current task is appended at execution time before being sent to the AI.
 
 ```markdown
-Review each file for service layer convention compliance. Remove dead code,
-fix naming, and ensure protocol conformance is correct.
-
-- [x] Sources/Services/BarService.swift
-- [ ] Sources/Services/FooService.swift
+Review this file for service layer convention compliance. Remove dead code,
+fix naming, and ensure protocol conformance is correct. If the file already
+conforms well, make no changes and explain why in the PR description.
 ```
-
-- `[x]` — up to date (current hash matches `lastRunHash`)
-- `[ ]` — needs to run (hash differs, or never run)
 
 ### `state.json` Schema
 
-Machine-managed. Keys are path strings sorted alphabetically.
+Machine-managed. Keys are path strings sorted alphabetically. Written by discovery and updated by the executor.
 
 ```json
 {
@@ -64,9 +82,10 @@ Machine-managed. Keys are path strings sorted alphabetically.
 }
 ```
 
-- `lastRunHash` — git blob SHA (file) or git tree SHA (directory) of the path as it existed on the feature branch after the AI's commits, not the pre-run base branch hash. `null` = never run.
-- `lastRunAt` — ISO-8601 timestamp of last successful execution. `null` = never run. Informational only; ordering is positional in spec.md.
+- `lastRunHash` — git blob SHA (file) or git tree SHA (directory) of the path as it existed on the feature branch **after the AI's commits**, not the pre-run base branch hash. `null` = never run.
+- `lastRunAt` — ISO-8601 timestamp of last successful execution. `null` = never run. Informational; ordering is by sorted key in V1.
 - The current hash is **not stored** — computed at runtime via `git rev-parse HEAD:<path>`.
+- A task is stale when `lastRunHash == null` OR current hash ≠ `lastRunHash`.
 
 ### `config.yaml` Schema
 
@@ -83,13 +102,47 @@ discovery:
 
 ---
 
-## - [ ] Phase 1: Define SDK models
+## - [ ] Phase 0: Refactor ClaudeChain to use TaskSource/InstructionSource abstractions
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
-Create a new `MaintenanceSDK` target in `Package.swift` (alphabetically placed). Define the core value types:
+**Prerequisite for all other phases.** Extract `TaskSource` and `InstructionSource` as protocols in `PipelineSDK` (location TBD — see Open Questions). Refactor `RunChainTaskUseCase` and related ClaudeChain pipeline code to use them. ClaudeChain behavior must be unchanged after this refactor.
 
-**`MaintenanceStateEntry`** — state for one path:
+**`TaskSource` protocol** (extends/replaces existing partial protocol):
+```swift
+public protocol TaskSource: Sendable {
+    func nextTask() async throws -> (any PipelineTask)?
+    func markComplete(_ task: any PipelineTask) async throws
+}
+```
+
+**`InstructionSource` protocol** (new):
+```swift
+public protocol InstructionSource: Sendable {
+    func instructions(for task: any PipelineTask) async throws -> String
+}
+```
+
+ClaudeChain implementations:
+- `MarkdownTaskSource` — reads `spec.md` checklist, finds first `[ ]`, marks `[x]`
+- `MarkdownInstructionSource` — reads top of `spec.md` (above the checklist) as the prompt
+
+This phase should be validated with ClaudeChain's existing tests before Maintenance is built.
+
+Files to modify:
+- `Sources/SDKs/PipelineSDK/TaskSource.swift` (extend/replace existing)
+- `Sources/SDKs/PipelineSDK/InstructionSource.swift` (new)
+- `Sources/Features/ClaudeChainFeature/...` (refactor to use protocols)
+
+---
+
+## - [ ] Phase 1: Define Maintenance SDK models
+
+**Skills to read**: `swift-app-architecture:swift-architecture`
+
+Create a new `MaintenanceSDK` target in `Package.swift` (alphabetically placed).
+
+**`MaintenanceStateEntry`**:
 ```swift
 public struct MaintenanceStateEntry: Codable, Sendable {
     public var lastRunAt: Date?
@@ -97,29 +150,35 @@ public struct MaintenanceStateEntry: Codable, Sendable {
 }
 ```
 
-**`MaintenanceState`** — top-level `state.json` wrapper:
+**`MaintenanceState`** — `state.json` wrapper:
 ```swift
 public struct MaintenanceState: Codable, Sendable {
-    public var entries: [String: MaintenanceStateEntry]   // key = path
+    public var entries: [String: MaintenanceStateEntry]   // key = file/dir path
 }
 ```
-Includes `load(from: URL)` and `save(to: URL)` helpers using `.atomic` write and ISO-8601 date encoding.
+Includes `load(from: URL)` and `save(to: URL)` with atomic write and ISO-8601 date encoding. Keys always sorted alphabetically on save.
 
-**`MaintenanceConfig`** — parsed from `config.yaml`:
+**`MaintenanceConfig`** — parsed from `config.yaml` via `Yams`:
 ```swift
 public struct MaintenanceConfig: Sendable {
-    public let maxOpenPRs: Int     // default: 1
+    public let maxOpenPRs: Int        // default: 1
     public let discoveryGlob: String
 }
 ```
-Parsed via `Yams` (already a dependency).
 
-All types: `Codable`, `Sendable`, `public`.
+**`MaintenanceTaskSource`** — implements `TaskSource` using `state.json`:
+- `nextTask()`: load state, sort keys, return first entry where `lastRunHash == nil` OR current hash ≠ `lastRunHash`
+- `markComplete(_ task:)`: fetch git hash from feature branch post-commit; update `lastRunHash` and `lastRunAt`; save state
+
+**`MaintenanceInstructionSource`** — implements `InstructionSource`:
+- `instructions(for task:)`: read `spec.md` (instructions only); append the task's file path; return combined string
 
 Files:
 - `Sources/SDKs/MaintenanceSDK/MaintenanceConfig.swift`
+- `Sources/SDKs/MaintenanceSDK/MaintenanceInstructionSource.swift`
 - `Sources/SDKs/MaintenanceSDK/MaintenanceState.swift`
 - `Sources/SDKs/MaintenanceSDK/MaintenanceStateEntry.swift`
+- `Sources/SDKs/MaintenanceSDK/MaintenanceTaskSource.swift`
 
 ---
 
@@ -127,28 +186,26 @@ Files:
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `logging`
 
-Create a `MaintenanceService` target. The discovery service expands the glob, diffs against the current spec.md, and updates both spec.md and state.json. It does **not** execute tasks.
+Create a `MaintenanceService` target. Discovery expands the glob, diffs against state.json, and updates it. Does **not** execute tasks and does **not** touch spec.md (spec.md is human-authored instructions only).
 
 ```swift
 func discover(config: MaintenanceConfig, repoPath: String, taskDirectoryURL: URL) async throws -> DiscoverySummary
 ```
 
 Steps:
-1. Load existing spec.md (parse checklist entries) and state.json from `taskDirectoryURL`.
+1. Load existing `MaintenanceState` from `taskDirectoryURL/state.json` (or start empty).
 2. Expand `config.discoveryGlob` against the repo using `FileManager`.
-3. For each discovered path, compute current git hash (`git rev-parse HEAD:<path>`).
-4. Diff against existing spec.md entries:
-   - **New path**: add `- [ ]` entry to spec.md; add entry to state.json with null hash/date.
-   - **Obsolete path** (no longer matched by glob): remove from spec.md and state.json.
-   - **Existing path**: compare current hash to `lastRunHash` in state.json.
-     - Different or `lastRunHash == nil` → uncheck: `[x]` → `[ ]`
-     - Same → check: `[ ]` → `[x]`
-5. Re-sort all spec.md checklist entries lexicographically.
-6. Write spec.md and state.json atomically.
+3. Diff against existing entries:
+   - **New path**: add entry with `lastRunHash: nil`, `lastRunAt: nil`.
+   - **Obsolete path** (no longer matched by glob): remove entry.
+   - **Existing path**: no change to stored fields — staleness is evaluated at execution time.
+4. Save updated state.json (keys sorted alphabetically).
+5. Return `DiscoverySummary(added:, removed:, total:, pendingCount:)` where `pendingCount` is entries with null or stale hashes.
 
 Add `Logger(label: "MaintenanceDiscoveryService")` at each step.
 
 Files:
+- `Sources/Services/MaintenanceService/DiscoverySummary.swift`
 - `Sources/Services/MaintenanceService/MaintenanceDiscoveryService.swift`
 - `Sources/Services/MaintenanceService/MaintenanceDiscoveryServiceProtocol.swift`
 
@@ -158,27 +215,23 @@ Files:
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `logging`
 
-`MaintenanceExecutionService` reads spec.md identically to ClaudeChain — finds the first `[ ]` entry — and runs it via `PipelineService`.
+`MaintenanceExecutionService` uses `MaintenanceTaskSource` and `MaintenanceInstructionSource` to build and run a pipeline.
 
 ```swift
 func executeNext(config: MaintenanceConfig, repoPath: String, taskDirectoryURL: URL) async throws -> MaintenanceExecutionResult
 ```
 
 Steps:
-1. Parse spec.md. Find first `[ ]` entry (top-to-bottom). If none, return `.noWork`.
-2. Check open PR count vs `config.maxOpenPRs`. If at or above limit, return `.atCapacity`. Also check if this path's branch already has an open PR — if so, skip it and try the next `[ ]` entry.
-3. Verify the path still exists on disk (may have been deleted since discovery ran). If missing, skip and log a warning.
-4. Build pipeline:
-   - AI step: instructions from top of spec.md + the target path
-   - `PRStep` with `maxOpenPRs` from config
-5. Execute via `PipelineRunner`.
-6. On success:
-   - Fetch git hash for the path **from the feature branch after AI commits** (not base branch).
-   - Update state.json: set `lastRunHash` and `lastRunAt` for this path.
-   - Mark `[ ]` → `[x]` in spec.md (same as ClaudeChain).
-7. On failure: leave state unchanged. Log error.
+1. Instantiate `MaintenanceTaskSource` and `MaintenanceInstructionSource` from task directory.
+2. Call `taskSource.nextTask()`. If nil, return `.noWork`.
+3. Check open PR count vs `config.maxOpenPRs`. If at or above limit, return `.atCapacity`. Check if this path's branch already has an open PR — if so, skip and try next task.
+4. Verify the path still exists on disk (may have been deleted since discovery ran). If missing, skip and log warning.
+5. Build pipeline using `MaintenanceTaskSource` + `MaintenanceInstructionSource`.
+6. Execute via `PipelineRunner`.
+7. On success: call `taskSource.markComplete(task)` — fetches post-commit hash from feature branch, updates state.json.
+8. On failure: leave state unchanged. Log error.
 
-Branch name: `maintenance-<task-name>-<hash>` where `<hash>` is 8-char SHA-256 of the path string.
+Branch name: `maintenance-<task-name>-<8-char-sha256-of-path>`.
 
 ```swift
 enum MaintenanceExecutionResult: Sendable {
@@ -203,13 +256,11 @@ Files:
 Create a `MaintenanceFeature` target with two use cases. Each takes a task directory URL and resolves `config.yaml`, `spec.md`, and `state.json` from it.
 
 **`RunMaintenanceDiscoveryUseCase`**
-- Reads `config.yaml` from task directory
-- Calls `MaintenanceDiscoveryService.discover(...)`
-- Returns `DiscoverySummary` (counts of added, removed, updated, pending)
+- Reads `config.yaml`; calls `MaintenanceDiscoveryService.discover(...)`
+- Returns `DiscoverySummary`
 
 **`RunMaintenanceTaskUseCase`**
-- Reads `config.yaml` from task directory
-- Calls `MaintenanceExecutionService.executeNext(...)`
+- Reads `config.yaml`; calls `MaintenanceExecutionService.executeNext(...)`
 - Returns `MaintenanceExecutionResult`
 
 Files:
@@ -228,7 +279,7 @@ Add a `maintenance` subcommand to `ai-dev-tools-kit` (alphabetically in the subc
 ```
 swift run ai-dev-tools-kit maintenance discover --task <path-to-task-dir> --repo <repo-path>
 ```
-Prints: N added, N removed, N updated, N pending.
+Prints: N added, N removed, N total, N pending.
 
 **`maintenance run`**
 ```
@@ -246,35 +297,32 @@ Files:
 **Skills to read**: `logging`
 
 **Unit tests** — `MaintenanceSDKTests`:
-- `MaintenanceStateTests`: round-trip `Codable` encoding; verify atomic save/load.
+- `MaintenanceStateTests`: round-trip `Codable` encoding; atomic save/load; keys sorted on save.
+- `MaintenanceTaskSourceTests`: `nextTask()` returns nil when all hashes current; returns stale entry when hash differs.
 
 **CLI smoke test**:
 ```bash
 mkdir -p /tmp/test-maintenance
-cat > /tmp/test-maintenance/config.yaml <<EOF
-maxOpenPRs: 1
-discovery:
-  glob: "Sources/Services/**/*.swift"
-EOF
-cat > /tmp/test-maintenance/spec.md <<EOF
-Review each file for service layer convention compliance.
-EOF
+echo "maxOpenPRs: 1\ndiscovery:\n  glob: Sources/Services/**/*.swift" > /tmp/test-maintenance/config.yaml
+echo "Review this file for service layer compliance." > /tmp/test-maintenance/spec.md
 
-swift run ai-dev-tools-kit maintenance discover --task /tmp/test-maintenance --repo <some-test-repo>
-# Verify spec.md has [ ] entries for all matched files
-# Verify state.json has null hashes for all paths
+swift run ai-dev-tools-kit maintenance discover --task /tmp/test-maintenance --repo <repo>
+# Verify state.json created with null hashes for all matched paths
 
-swift run ai-dev-tools-kit maintenance run --task /tmp/test-maintenance --repo <some-test-repo>
-# Verify PR created; spec.md has [x] for first entry; state.json updated with hash + date
+swift run ai-dev-tools-kit maintenance run --task /tmp/test-maintenance --repo <repo>
+# Verify PR created; state.json updated with hash + date for first path
 
-swift run ai-dev-tools-kit maintenance discover --task /tmp/test-maintenance --repo <some-test-repo>
-# Verify [x] entries remain [x] (hashes match)
+swift run ai-dev-tools-kit maintenance discover --task /tmp/test-maintenance --repo <repo>
+# Verify that completed path still shows as up-to-date (hash matches)
 
-swift run ai-dev-tools-kit maintenance run --task /tmp/test-maintenance --repo <some-test-repo>
-# Verify second task runs (next [ ] entry)
+swift run ai-dev-tools-kit maintenance run --task /tmp/test-maintenance --repo <repo>
+# Verify second stale path runs next
 ```
 
 **Log verification**:
 ```bash
 cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.label | startswith("Maintenance"))'
 ```
+
+**ClaudeChain regression** (after Phase 0):
+- Run existing ClaudeChain tests to confirm behavior is unchanged after the TaskSource/InstructionSource refactor.
