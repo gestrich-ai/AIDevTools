@@ -1,13 +1,3 @@
-## Open Questions (resolve before implementation)
-
-1. **How deeply does ClaudeChain get refactored?** Option A is chosen (refactor ClaudeChain to use the new abstractions so Maintenance and ClaudeChain share the same pipeline infrastructure). The question is the refactoring depth: does `RunChainTaskUseCase` get rewritten to use `TaskSource`/`InstructionSource` protocols, or do we just add protocol conformances alongside the existing code with minimal disruption?
-
-2. **Where do the new abstractions live?** `TaskSource` already partially exists in `PipelineSDK`. Should `InstructionSource` also live in `PipelineSDK`? Or does the refactored `TaskSource` (extended to include instruction building) belong in a new shared layer? Consider that `InstructionSource` for Maintenance needs to combine `spec.md` content with a file path — it may need the current task as input.
-
-3. **`InstructionSource` protocol shape**: Does it look like `func instructions(for task: MaintenanceTask) async throws -> String`? Or is it task-agnostic: `func instructions() async throws -> String` with the file path injected at construction time (a new instance per task)?
-
----
-
 ## Relevant Skills
 
 | Skill | Description |
@@ -16,25 +6,110 @@
 | `logging` | Add logging to new discovery and execution paths |
 | `swift-app-architecture:swift-architecture` | 4-layer architecture — new feature spans SDK, Service, Feature, and Apps layers |
 
+## Architecture Diagrams
+
+### Before: RunChainTaskUseCase bypasses TaskSource
+
+`RunChainTaskUseCase` duplicates inline what `MarkdownTaskSource` already does — it uses `MarkdownPipelineSource` and `CodeChangeStep` directly rather than calling `MarkdownTaskSource`. `TaskSource` and `PendingTask` go unused.
+
+```mermaid
+graph TD
+    CLI([CLI]) --> RCT["RunChainTaskUseCase"]
+
+    subgraph PipelineSDK
+        MPS["MarkdownPipelineSource"]
+        CS["CodeChangeStep"]
+        TS["TaskSource protocol"]
+        MKTS["MarkdownTaskSource\n(wraps MarkdownPipelineSource)"]
+        PT["PendingTask(instructions:)"]
+    end
+
+    RCT -->|"1. load()"| MPS
+    MPS -->|reads| SM[("spec.md")]
+    MPS -->|"CodeChangeStep[ ]"| RCT
+    RCT -->|"2. buildTaskPrompt(step.description, spec.content)"| AI["AIClient"]
+    RCT -->|"3. markStepCompleted(step)"| MPS
+
+    RCT -. duplicates logic of .-> MKTS
+    MKTS -. unused .-> TS
+    MKTS -. unused .-> PT
+```
+
+### After: Two protocols, one shared downstream
+
+Two new protocols cover the two concerns. Everything downstream of extraction — enrichment, display models, action items — is shared unchanged.
+
+**Execution path** — `TaskSource` (existing, in `PipelineSDK`): returns one `PendingTask` with instructions built in. Used by `RunChainTaskUseCase`.
+
+**Display path** — `ClaudeChainTaskSource` (new, in `ClaudeChainService`): returns a full `ChainProject` with all tasks. Used by `ListChainsUseCase` and `GetChainDetailUseCase`.
+
+```mermaid
+graph TD
+    subgraph exec ["Execution path"]
+        CLI1([CLI run]) --> RCT["RunChainTaskUseCase"]
+        RCT -->|"nextTask()"| TS[/"TaskSource"/]
+        TS --> MKTS["MarkdownTaskSource\n(spec.md checklist)"]
+        TS --> MNTS["MaintenanceTaskSource\n(state.json)"]
+        RCT -->|"client.run(task.instructions)"| AI["AIClient"]
+        RCT -->|"markComplete(task)"| TS
+    end
+
+    subgraph display ["Display path"]
+        CLI2([CLI list / Mac app]) --> LCU["ListChainsUseCase"]
+        LCU -->|"loadProject()"| CCTS[/"ClaudeChainTaskSource"/]
+        CCTS --> MCTS["MarkdownChainTaskSource\n(spec.md checklist)"]
+        CCTS --> MNCTS["MaintenanceChainTaskSource\n(state.json)"]
+        LCU -->|"ChainProject"| GCD["GetChainDetailUseCase"]
+        GCD -->|"ChainProjectDetail\n(EnrichedChainTask, ChainActionItem)"| UI["UI / CLI output"]
+    end
+```
+
+`ChainProject` gains a `branchPrefix` field (`"claude-chain-<name>-"`) so `GetChainDetailUseCase` can match PRs to tasks without hardcoding the ClaudeChain prefix.
+
+---
+
 ## Background
 
-The Maintenance Feature is a new AI-driven system for continuously maintaining a codebase. Unlike Claude Chain (which has a finite, user-authored list of tasks that are marked done), maintenance tasks are **ongoing**: a task runs against a file or directory path, records the git hash when it last ran, and is re-run only when that path changes.
+Maintenance is **ClaudeChain operating in a different configuration**, not a standalone feature. ClaudeChain's pipeline is made configurable via the `TaskSource` protocol; Maintenance plugs in its own implementation. Unlike the default ClaudeChain mode (finite user-authored checklist in `spec.md`), maintenance tasks are **ongoing**: each task runs against a file or directory path, records the git hash when it last ran, and re-runs only when that path changes.
 
 ### Core Architectural Insight
 
-ClaudeChain's execution pipeline has two concerns that should be abstracted:
+`TaskSource` and `PendingTask` already exist in `PipelineSDK`:
 
-1. **Task source** — "what runs next, and how to mark it done"
-2. **Instruction source** — "what to tell the AI"
+```swift
+public protocol TaskSource: Sendable {
+    func nextTask() async throws -> PendingTask?
+    func markComplete(_ task: PendingTask) async throws
+}
 
-Currently both are tightly coupled to `spec.md` in ClaudeChain. Abstracting them allows Maintenance to plug in its own implementations while sharing the same pipeline infrastructure.
+public struct PendingTask: Sendable, Identifiable {
+    public let id: String
+    public let instructions: String   // full AI prompt — built by the task source
+    public let skills: [String]
+}
+```
 
-| Abstraction | ClaudeChain impl | Maintenance impl |
-|---|---|---|
-| `TaskSource` | Markdown checklist in `spec.md` — finds first `[ ]`, marks `[x]` on complete | `state.json` entry — finds first stale path (null or mismatched hash), marks complete by updating hash + date |
-| `InstructionSource` | Top of `spec.md` (existing behavior, extracted as protocol) | `spec.md` (instructions only, no checklist) combined with the current task's file path |
+`MarkdownTaskSource` already implements `TaskSource` for ClaudeChain (reads spec.md checklist, has an `instructionBuilder` closure). `RunChainTaskUseCase` imports `PipelineSDK` and uses `MarkdownPipelineSource`/`CodeChangeStep` directly, duplicating inline what `MarkdownTaskSource` already does. `TaskSource` and `PendingTask` go unused. That is the Phase 0 refactor.
 
-**Option A is chosen**: ClaudeChain will be refactored to use these abstractions. Maintenance then implements the same protocols. This is a prerequisite before Maintenance is built. See Open Questions above for the refactoring depth decisions.
+A second protocol handles the display side. `ClaudeChainTaskSource` lives in `ClaudeChainService` and returns a `ChainProject` — the same model already used by `ListChainsUseCase`, `GetChainDetailUseCase`, and the Mac app:
+
+```swift
+public protocol ClaudeChainTaskSource: Sendable {
+    func loadProject() async throws -> ChainProject
+}
+```
+
+Once either implementation produces a `ChainProject`, the entire downstream pipeline — GitHub PR enrichment, `EnrichedChainTask`, `ChainActionItem`, `ChainProjectDetail`, display views — is shared with no duplication.
+
+`ChainProject` gains one new field: `branchPrefix: String`. `GetChainDetailUseCase` currently hardcodes `"claude-chain-"` when matching PRs to tasks; this field replaces that. Both ClaudeChain and Maintenance set it to `"claude-chain-<name>-"`.
+
+For Maintenance, `ChainTask` maps naturally from state.json: `description` = file path, `isCompleted` = hash is current (not stale), `index` = sorted position.
+
+| Abstraction | Purpose | ClaudeChain impl | Maintenance impl |
+|---|---|---|---|
+| `TaskSource` | Execution — next task to run, mark done | `MarkdownTaskSource` — spec.md checklist, marks `[x]` | `MaintenanceTaskSource` — state.json stale paths, updates hash |
+| `ClaudeChainTaskSource` | Display — all tasks with status | `MarkdownChainTaskSource` — spec.md → `ChainProject` | `MaintenanceChainTaskSource` — state.json → `ChainProject` |
+| `ChainProject.branchPrefix` | PR matching in enrichment | `"claude-chain-<name>-"` | `"claude-chain-<name>-"` |
 
 ### Key Design Principles
 
@@ -43,13 +118,13 @@ Currently both are tightly coupled to `spec.md` in ClaudeChain. Abstracting them
 - **Single path per task**: Each state.json entry is one file or directory path. No multi-file groups in V1.
 - **Top-to-bottom execution (V1)**: Execution picks the first stale task from state.json in key-sorted order. Lexicographic starvation is acceptable for V1.
 - **PR output**: Each task execution results in a GitHub PR with the AI's changes.
-- **Branch naming**: `maintenance-<task-name>-<hash>` where `<hash>` is an 8-char SHA-256 of the path string. Mirrors ClaudeChain's `claude-chain-<project>-<hash>` pattern.
+- **Branch naming**: `claude-chain-<task-name>-<hash>` where `<hash>` is an 8-char SHA-256 of the path string. Same prefix convention as ClaudeChain.
 - **Reuse PipelineService**: Task execution pipelines use the existing `PipelineService` and `PipelineSDK`.
 
 ### File Layout Per Maintenance Task
 
 ```
-maintenance/<task-name>/
+claude-chain-maintenance/<task-name>/
   config.yaml    # maxOpenPRs, discovery glob pattern
   spec.md        # AI instructions ONLY — no checklist, no file paths
   state.json     # task source: path → {lastRunHash, lastRunAt}
@@ -57,7 +132,7 @@ maintenance/<task-name>/
 
 ### `spec.md` Format
 
-Free-form AI instructions only. No checklist. This is the `InstructionSource`. The file path from the current task is appended at execution time before being sent to the AI.
+Free-form AI instructions only. No checklist. `MaintenanceTaskSource` appends the file path at execution time before returning the `PendingTask`.
 
 ```markdown
 Review this file for service layer convention compliance. Remove dead code,
@@ -102,37 +177,27 @@ discovery:
 
 ---
 
-## - [ ] Phase 0: Refactor ClaudeChain to use TaskSource/InstructionSource abstractions
+## - [ ] Phase 0: Refactor RunChainTaskUseCase to use MarkdownTaskSource
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
-**Prerequisite for all other phases.** Extract `TaskSource` and `InstructionSource` as protocols in `PipelineSDK` (location TBD — see Open Questions). Refactor `RunChainTaskUseCase` and related ClaudeChain pipeline code to use them. ClaudeChain behavior must be unchanged after this refactor.
+**Prerequisite for all other phases.** Two changes, both must leave ClaudeChain behavior unchanged:
 
-**`TaskSource` protocol** (extends/replaces existing partial protocol):
-```swift
-public protocol TaskSource: Sendable {
-    func nextTask() async throws -> (any PipelineTask)?
-    func markComplete(_ task: any PipelineTask) async throws
-}
-```
+**1. Execution — wire `RunChainTaskUseCase` to `MarkdownTaskSource`.**
+`TaskSource`, `PendingTask`, and `MarkdownTaskSource` already exist in `PipelineSDK`. `RunChainTaskUseCase` manually duplicates their logic. Rewrite it to delegate task selection, prompt construction, and mark-complete to `MarkdownTaskSource`. The `instructionBuilder` closure replaces `buildTaskPrompt()`.
 
-**`InstructionSource` protocol** (new):
-```swift
-public protocol InstructionSource: Sendable {
-    func instructions(for task: any PipelineTask) async throws -> String
-}
-```
+**2. Display — introduce `ClaudeChainTaskSource` and `MarkdownChainTaskSource`.**
+Define the `ClaudeChainTaskSource` protocol in `ClaudeChainService`. Implement `MarkdownChainTaskSource` (extracts the existing spec.md → `ChainProject` logic out of `ListChainsUseCase`). Refactor `ListChainsUseCase` to use it.
 
-ClaudeChain implementations:
-- `MarkdownTaskSource` — reads `spec.md` checklist, finds first `[ ]`, marks `[x]`
-- `MarkdownInstructionSource` — reads top of `spec.md` (above the checklist) as the prompt
-
-This phase should be validated with ClaudeChain's existing tests before Maintenance is built.
+Add `branchPrefix: String` to `ChainProject`. Refactor `GetChainDetailUseCase` to use `project.branchPrefix` instead of the hardcoded `"claude-chain-"` string.
 
 Files to modify:
-- `Sources/SDKs/PipelineSDK/TaskSource.swift` (extend/replace existing)
-- `Sources/SDKs/PipelineSDK/InstructionSource.swift` (new)
-- `Sources/Features/ClaudeChainFeature/...` (refactor to use protocols)
+- `Sources/Features/ClaudeChainFeature/usecases/RunChainTaskUseCase.swift`
+- `Sources/Services/ClaudeChainService/ChainModels.swift` (add `branchPrefix`)
+- `Sources/Services/ClaudeChainService/ClaudeChainTaskSource.swift` (new protocol)
+- `Sources/Services/ClaudeChainService/MarkdownChainTaskSource.swift` (new)
+- `Sources/Features/ClaudeChainFeature/usecases/ListChainsUseCase.swift` (use `MarkdownChainTaskSource`)
+- `Sources/Features/ClaudeChainFeature/usecases/GetChainDetailUseCase.swift` (use `project.branchPrefix`)
 
 ---
 
@@ -167,18 +232,19 @@ public struct MaintenanceConfig: Sendable {
 ```
 
 **`MaintenanceTaskSource`** — implements `TaskSource` using `state.json`:
-- `nextTask()`: load state, sort keys, return first entry where `lastRunHash == nil` OR current hash ≠ `lastRunHash`
-- `markComplete(_ task:)`: fetch git hash from feature branch post-commit; update `lastRunHash` and `lastRunAt`; save state
+- `nextTask()`: load state, sort keys, find first entry where `lastRunHash == nil` OR current hash ≠ `lastRunHash`; read `spec.md`; return `PendingTask(id: path, instructions: specContent + "\n\nFile: \(path)", skills: [])`
+- `markComplete(_ task:)`: fetch git blob/tree SHA for `task.id` from current branch; update `lastRunHash` and `lastRunAt`; save state
 
-**`MaintenanceInstructionSource`** — implements `InstructionSource`:
-- `instructions(for task:)`: read `spec.md` (instructions only); append the task's file path; return combined string
+**`MaintenanceChainTaskSource`** — implements `ClaudeChainTaskSource` for display:
+- `loadProject()`: load state.json; map each entry to `ChainTask(index: sortedPosition, description: path, isCompleted: hashIsCurrent)`; return `ChainProject(name: taskName, tasks:..., branchPrefix: "claude-chain-<taskName>-", ...)`
+- Once this returns a `ChainProject`, `GetChainDetailUseCase` and all enrichment/display logic runs unchanged.
 
 Files:
 - `Sources/SDKs/MaintenanceSDK/MaintenanceConfig.swift`
-- `Sources/SDKs/MaintenanceSDK/MaintenanceInstructionSource.swift`
 - `Sources/SDKs/MaintenanceSDK/MaintenanceState.swift`
 - `Sources/SDKs/MaintenanceSDK/MaintenanceStateEntry.swift`
 - `Sources/SDKs/MaintenanceSDK/MaintenanceTaskSource.swift`
+- `Sources/Services/ClaudeChainService/MaintenanceChainTaskSource.swift` (new — implements `ClaudeChainTaskSource`)
 
 ---
 
@@ -215,23 +281,22 @@ Files:
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `logging`
 
-`MaintenanceExecutionService` uses `MaintenanceTaskSource` and `MaintenanceInstructionSource` to build and run a pipeline.
+`MaintenanceExecutionService` uses `MaintenanceTaskSource` to build and run a pipeline.
 
 ```swift
 func executeNext(config: MaintenanceConfig, repoPath: String, taskDirectoryURL: URL) async throws -> MaintenanceExecutionResult
 ```
 
 Steps:
-1. Instantiate `MaintenanceTaskSource` and `MaintenanceInstructionSource` from task directory.
+1. Instantiate `MaintenanceTaskSource` from task directory.
 2. Call `taskSource.nextTask()`. If nil, return `.noWork`.
 3. Check open PR count vs `config.maxOpenPRs`. If at or above limit, return `.atCapacity`. Check if this path's branch already has an open PR — if so, skip and try next task.
 4. Verify the path still exists on disk (may have been deleted since discovery ran). If missing, skip and log warning.
-5. Build pipeline using `MaintenanceTaskSource` + `MaintenanceInstructionSource`.
-6. Execute via `PipelineRunner`.
-7. On success: call `taskSource.markComplete(task)` — fetches post-commit hash from feature branch, updates state.json.
-8. On failure: leave state unchanged. Log error.
+5. Execute via `PipelineRunner` using the `PendingTask` from `nextTask()`.
+6. On success: call `taskSource.markComplete(task)` — fetches post-commit hash from feature branch, updates state.json.
+7. On failure: leave state unchanged. Log error.
 
-Branch name: `maintenance-<task-name>-<8-char-sha256-of-path>`.
+Branch name: `claude-chain-<task-name>-<8-char-sha256-of-path>`.
 
 ```swift
 enum MaintenanceExecutionResult: Sendable {
@@ -298,13 +363,13 @@ Files:
 
 **Unit tests** — `MaintenanceSDKTests`:
 - `MaintenanceStateTests`: round-trip `Codable` encoding; atomic save/load; keys sorted on save.
-- `MaintenanceTaskSourceTests`: `nextTask()` returns nil when all hashes current; returns stale entry when hash differs.
+- `MaintenanceTaskSourceTests`: `nextTask()` returns nil when all hashes current; returns stale entry when hash differs; `PendingTask.instructions` contains spec.md content and file path.
 
 **CLI smoke test**:
 ```bash
 mkdir -p /tmp/test-maintenance
-echo "maxOpenPRs: 1\ndiscovery:\n  glob: Sources/Services/**/*.swift" > /tmp/test-maintenance/config.yaml
-echo "Review this file for service layer compliance." > /tmp/test-maintenance/spec.md
+echo "maxOpenPRs: 1\ndiscovery:\n  glob: Sources/Services/**/*.swift" > /tmp/test-claude-chain-maintenance/config.yaml
+echo "Review this file for service layer compliance." > /tmp/test-claude-chain-maintenance/spec.md
 
 swift run ai-dev-tools-kit maintenance discover --task /tmp/test-maintenance --repo <repo>
 # Verify state.json created with null hashes for all matched paths
@@ -325,4 +390,4 @@ cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.label | startswith("M
 ```
 
 **ClaudeChain regression** (after Phase 0):
-- Run existing ClaudeChain tests to confirm behavior is unchanged after the TaskSource/InstructionSource refactor.
+- Run existing ClaudeChain tests to confirm behavior is unchanged after the `RunChainTaskUseCase` refactor.
