@@ -1,35 +1,115 @@
-## Open Questions
-
-1. **Range definition**: Is the range (`A/xyz -> A/zzz`) a lexicographic path range, or does it use a glob pattern? For example, does `Sources/Services/A -> Sources/Services/Z` mean all paths that sort lexicographically between those two strings?
-
-2. **Wrap-around behavior**: When the cursor reaches the end of the range, does it wrap back to the beginning? This would mean maintenance is a continuous cycle rather than a one-time pass.
-
-3. **"Refactored" definition**: A file counts as refactored when the AI produces at least one change (diff is non-empty). Confirmed? Or is there a more specific definition — e.g., only when a PR is opened?
-
-4. **Skipping missing files**: If a file in the range no longer exists on disk (deleted or renamed), do we skip it and advance the cursor, or halt with an error?
-
-5. **Cursor granularity**: The cursor stores the *last processed* path. On the next run, we start at the path *after* the cursor in sorted order. Is "after" strictly lexicographic, or do we re-expand the file list from disk each run (which handles adds/deletes naturally)?
-
-6. **One job at a time — enforcement**: Is this a soft convention (documented) or hard-enforced via a lock file or state check?
-
-7. **PR-per-file vs. PR-per-run**: With the hash approach, each file gets its own PR. With the cursor approach and `maxRefactoredFiles > 1`, do we open one PR with all changed files, or one PR per changed file?
-
-8. **Range ends inclusive?**: Is the range `A/xyz -> A/zzz` inclusive on both ends?
-
----
-
 ## Relevant Skills
 
 | Skill | Description |
 |-------|-------------|
-| `swift-app-architecture:swift-architecture` | 4-layer architecture — relevant for placing new models and services |
+| `configuration-architecture` | Guide for wiring new config through the app layers |
 | `logging` | Add logging to execution paths |
+| `swift-app-architecture:swift-architecture` | 4-layer architecture — new feature spans SDK, Service, Feature, and Apps layers |
 
 ---
 
 ## Background
 
-This document compares two architectural approaches for the Maintenance feature. The existing plan ([2026-04-03-a-maintenance-feature.md](2026-04-03-a-maintenance-feature.md)) uses **per-file hash tracking with discovery**. This document proposes an alternative: **cursor-based range scanning with no discovery**.
+Maintenance is **ClaudeChain operating in a different configuration**, not a standalone feature. ClaudeChain's pipeline is made configurable via the `TaskSource` protocol; Maintenance plugs in its own implementation. Unlike the default ClaudeChain mode (finite user-authored checklist in `spec.md`), maintenance tasks are **ongoing**: the system sweeps through files in a codebase on a rolling schedule, running the AI on each one in turn.
+
+---
+
+## Architecture Diagrams
+
+### Before: RunChainTaskUseCase bypasses TaskSource
+
+`RunChainTaskUseCase` duplicates inline what `MarkdownTaskSource` already does — it uses `MarkdownPipelineSource` and `CodeChangeStep` directly rather than calling `MarkdownTaskSource`. `TaskSource` and `PendingTask` go unused.
+
+```mermaid
+graph TD
+    CLI([CLI]) --> RCT["RunChainTaskUseCase"]
+
+    subgraph PipelineSDK
+        MPS["MarkdownPipelineSource"]
+        CS["CodeChangeStep"]
+        TS["TaskSource protocol"]
+        MKTS["MarkdownTaskSource\n(wraps MarkdownPipelineSource)"]
+        PT["PendingTask(instructions:)"]
+    end
+
+    RCT -->|"1. load()"| MPS
+    MPS -->|reads| SM[("spec.md")]
+    MPS -->|"CodeChangeStep[ ]"| RCT
+    RCT -->|"2. buildTaskPrompt(step.description, spec.content)"| AI["AIClient"]
+    RCT -->|"3. markStepCompleted(step)"| MPS
+
+    RCT -. duplicates logic of .-> MKTS
+    MKTS -. unused .-> TS
+    MKTS -. unused .-> PT
+```
+
+### After: Two protocols, one shared downstream
+
+Two protocols cover the two concerns. Everything downstream of extraction — enrichment, display models, action items — is shared unchanged.
+
+**Execution path** — `TaskSource` (existing, in `PipelineSDK`): returns one `PendingTask` with instructions built in. Used by `RunChainTaskUseCase`.
+
+**Display path** — `ClaudeChainTaskSource` (new, in `ClaudeChainService`): returns a full `ChainProject` with all tasks. Used by `ListChainsUseCase` and `GetChainDetailUseCase`.
+
+```mermaid
+graph TD
+    subgraph exec ["Execution path"]
+        CLI1([CLI run]) --> RCT["RunChainTaskUseCase"]
+        RCT -->|"nextTask()"| TS[/"TaskSource"/]
+        TS --> MKTS["MarkdownTaskSource\n(spec.md checklist)"]
+        TS --> MNTS["MaintenanceTaskSource\n(state.json cursor)"]
+        RCT -->|"client.run(task.instructions)"| AI["AIClient"]
+        RCT -->|"markComplete(task)"| TS
+    end
+
+    subgraph display ["Display path"]
+        CLI2([CLI list / Mac app]) --> LCU["ListChainsUseCase"]
+        LCU -->|"loadProject()"| CCTS[/"ClaudeChainTaskSource"/]
+        CCTS --> MCTS["MarkdownChainTaskSource\n(spec.md checklist)"]
+        CCTS --> MNCTS["MaintenanceChainTaskSource\n(state.json cursor)"]
+        LCU -->|"ChainProject"| GCD["GetChainDetailUseCase"]
+        GCD -->|"ChainProjectDetail\n(EnrichedChainTask, ChainActionItem)"| UI["UI / CLI output"]
+    end
+```
+
+`ChainProject` gains a `branchPrefix` field (`"claude-chain-<name>-"`) so `GetChainDetailUseCase` can match PRs to tasks without hardcoding the ClaudeChain prefix.
+
+---
+
+## Core Architectural Insight
+
+`TaskSource` and `PendingTask` already exist in `PipelineSDK`:
+
+```swift
+public protocol TaskSource: Sendable {
+    func nextTask() async throws -> PendingTask?
+    func markComplete(_ task: PendingTask) async throws
+}
+
+public struct PendingTask: Sendable, Identifiable {
+    public let id: String
+    public let instructions: String   // full AI prompt — built by the task source
+    public let skills: [String]
+}
+```
+
+`MarkdownTaskSource` already implements `TaskSource` for ClaudeChain. `RunChainTaskUseCase` currently duplicates its logic inline, leaving `TaskSource` and `PendingTask` unused. Phase 0 fixes that.
+
+A second protocol handles the display side. `ClaudeChainTaskSource` lives in `ClaudeChainService` and returns a `ChainProject` — the model already used by `ListChainsUseCase`, `GetChainDetailUseCase`, and the Mac app:
+
+```swift
+public protocol ClaudeChainTaskSource: Sendable {
+    func loadProject() async throws -> ChainProject
+}
+```
+
+Once either implementation produces a `ChainProject`, the entire downstream pipeline — GitHub PR enrichment, `EnrichedChainTask`, `ChainActionItem`, `ChainProjectDetail`, display views — is shared with no duplication.
+
+| Abstraction | Purpose | ClaudeChain impl | Maintenance impl |
+|---|---|---|---|
+| `TaskSource` | Execution — next task to run, mark done | `MarkdownTaskSource` — spec.md checklist | `MaintenanceTaskSource` — cursor in state.json |
+| `ClaudeChainTaskSource` | Display — all tasks with status | `MarkdownChainTaskSource` — spec.md → `ChainProject` | `MaintenanceChainTaskSource` — state.json → `ChainProject` |
+| `ChainProject.branchPrefix` | PR matching in enrichment | `"claude-chain-<name>-"` | `"claude-chain-<name>-"` |
 
 ---
 
@@ -37,209 +117,380 @@ This document compares two architectural approaches for the Maintenance feature.
 
 ### Core Concept
 
-Instead of maintaining a per-file hash map and a discovery phase, the system maintains a single **cursor**: the path of the last file processed. A **range** in `config.yaml` defines the set of paths subject to maintenance (`startPath -> endPath`, lexicographic). On each run:
+The system maintains a single **cursor**: the path of the last file processed. A **filePattern** in `config.yaml` defines the set of paths subject to maintenance. On each **batch**:
 
-1. Load cursor from `state.json`
-2. Expand the sorted file list from disk for the range
-3. Find the file after the cursor in that list (or start from the beginning if cursor is unset or past the end)
-4. Process files forward from that position, subject to `maxAnalysisFiles` and `maxRefactoredFiles`
-5. Store the last-analyzed path as the new cursor
+1. Check for open maintenance PRs — if any exist, throw an error (always one batch at a time)
+2. Load cursor from `state.json`
+3. Expand `filePattern` from disk and sort results alphabetically; cursor wraps to beginning when it reaches the end
+4. Find the file after the cursor in that list (or start from the beginning if cursor is unset)
+5. Run tasks forward from that position, subject to `scanLimit` and `changeLimit`
+6. Open one PR containing all changed files from the batch
+7. Write the cursor commit
+
+### Terminology
+
+- **Batch**: One invocation of `maintenance run`. Processes up to `scanLimit` tasks serially.
+- **Task**: One AI invocation on one file, in its own fresh context. Counts toward `scanLimit` regardless of outcome.
+- **Modifying task**: A task that produced any diff — in any file across the repo, not necessarily the target file. One changing task = one increment toward `changeLimit`, regardless of how many files were touched.
+
+A task can complete without producing changes (AI determined no action needed). The cursor still advances.
+
+### AI Context Per Task
+
+Each task uses a **fresh AI context** (`AITask`), run serially within the batch. If `scanLimit` is 10, a batch may create up to 10 separate AI contexts. A fresh context per task ensures prior work — diffs, discussion, unrelated changes — does not bleed into subsequent tasks and degrade AI performance. This matches how ClaudeChain processes tasks: one isolated context per task.
 
 ### `config.yaml` Schema
 
 ```yaml
-maxOpenPRs: 1
-maxAnalysisFiles: 10      # max files to look at in one run (default: 1)
-maxRefactoredFiles: 3     # max files to actually change (default: 1, never > maxAnalysisFiles)
-range:
-  start: "Sources/Services/Auth"
-  end: "Sources/Services/Zzz"
+scanLimit: 10      # max tasks to run in one batch (default: 1)
+changeLimit: 3     # max tasks per batch that produce any diff (default: 1, never > scanLimit)
+filePattern: "Sources/**/*.swift"
+scope:
+  from: "Sources/Features/ExerciseFeature/"   # required: files whose path >= this prefix
+  to: "Sources/Features/FixtureFeature/"      # optional: files whose path < this prefix
 ```
 
-- `maxAnalysisFiles`: how many files the AI will be invoked on in one run
-- `maxRefactoredFiles`: how many of those may produce a non-empty diff; once this limit is hit, the run stops even if `maxAnalysisFiles` is not exhausted
-- `maxRefactoredFiles` defaults to 1; `maxAnalysisFiles` defaults to 1; `maxRefactoredFiles` must always be ≤ `maxAnalysisFiles`
+- `scanLimit`: how many tasks the AI will run in one batch
+- `changeLimit`: how many tasks per batch may produce any diff (across all files) before the batch stops; a single task on one file may change that file plus supporting files elsewhere — this counts as one toward `changeLimit`
+- `changeLimit` defaults to 1; `scanLimit` defaults to 1; `changeLimit` must always be ≤ `scanLimit`
+- `filePattern`: glob pattern; results sorted alphabetically to form the full candidate list
+- `scope`: optional; restricts the cursor to a sub-range of the sorted `filePattern` results
+  - `from` only: files whose path has this prefix (single directory/area)
+  - `from` + `to`: files where `path >= from && path < to` (lexicographic range)
+- Open PR limit is always 1 — if any maintenance PR is open, the batch throws an error
 
 ### `state.json` Schema
 
 ```json
 {
-  "cursor": "Sources/Services/FooService.swift"
+  "cursor": "Sources/Services/FooService.swift",
+  "lastRunDate": "2026-04-04T12:00:00Z"
 }
 ```
 
-Single field. Written atomically after each run.
+Written atomically once at the end of each batch — not after each individual task. `lastRunDate` is informational; ordering and skip detection are driven by the cursor and cursor commit respectively.
+
+### `spec.md` Format
+
+Free-form AI instructions only. No checklist. `MaintenanceTaskSource` appends the file path at execution time before returning the `PendingTask`.
+
+```markdown
+Review this file for service layer convention compliance. Remove dead code,
+fix naming, and ensure protocol conformance is correct. If the file already
+conforms well, make no changes and explain why in the PR description.
+```
 
 ### File Layout
 
 ```
 claude-chain-maintenance/<task-name>/
-  config.yaml    # maxOpenPRs, maxAnalysisFiles, maxRefactoredFiles, range
+  config.yaml    # scanLimit, changeLimit, filePattern, scope (optional)
   spec.md        # AI instructions only
   state.json     # cursor only
 ```
 
+### Branch Naming
+
+`claude-chain-<task-name>-<8-char-sha256-of-path>` — same prefix convention as ClaudeChain. `GetChainDetailUseCase` uses `ChainProject.branchPrefix` to match PRs to tasks.
+
+### Cursor Commit
+
+At the end of each batch, the cursor update to `state.json` is committed to the branch with a structured message that records every file visited in the batch — including files the AI ran on but did not change:
+
+```
+[claude-maintenance] task=service-compliance cursor=Sources/Services/FooService.swift
+processed: Sources/Services/BarService.swift Sources/Services/BazService.swift Sources/Services/FooService.swift
+```
+
+This commit becomes the reference point for skip detection on future batches. The `processed:` list of paths is all that needs to be stored — no file hashes. Git computes the hash of any file at any commit on demand via `git rev-parse <commit>:<path>`, so storing hashes explicitly would just duplicate what git already knows.
+
+### Skip Detection
+
+Before running a task on a file, check if it can be skipped:
+
+1. Search `git log --grep="claude-maintenance.*task=<name>"` for the last cursor commit
+2. If the file appears in the `processed:` list of that commit:
+   - Compute `git rev-parse <cursor-commit>:<path>` — the file's hash at time of last processing
+   - Compare to `git rev-parse HEAD:<path>` — the file's current hash
+   - Match → skip; cursor still advances past the file without consuming a task slot
+   - Mismatch → run task
+3. If not found in any cursor commit → run task
+
+Skipped files do not count toward `scanLimit` or `changeLimit`.
+
 ### Execution Algorithm
 
 ```
-sortedPaths = expandRangeFromDisk(config.range)
-startIndex  = indexAfterCursor(sortedPaths, state.cursor) or 0
+if openMaintenancePRCount > 0: throw error
 
-analyzed = 0
-refactored = 0
+allPaths    = expandGlobFromDisk(config.filePattern).sorted()
+scopedPaths = applyScopeFilter(allPaths, config.scope)   # no-op if scope is nil
+startIndex  = indexAfterCursor(scopedPaths, state.cursor) or 0  # wraps to 0 at end
 
-for path in sortedPaths[startIndex...]:
-    if analyzed >= maxAnalysisFiles: break
-    if refactored >= maxRefactoredFiles: break
-    if !exists(path): skip, advance cursor, continue
+tasks = 0
+modifyingTasks = 0
+processedPaths = []   # all paths visited this batch (for cursor commit)
 
-    run AI on path
-    analyzed += 1
+for path in scopedPaths[startIndex...]:
+    if tasks >= scanLimit: break
+    if modifyingTasks >= changeLimit: break
 
-    if diff is non-empty:
-        refactored += 1
+    if canSkip(path, taskName):   # git log check; see Skip Detection
+        processedPaths.append(path)
+        continue
 
-    cursor = path   # always advance, even if no change
+    PipelineRunner.run(nodes: [AITask])   # fresh AI context per file
+    tasks += 1
+    processedPaths.append(path)
 
-save cursor to state.json
+    if any diff resulted (in any file):
+        commit changes to branch
+        modifyingTasks += 1
+
+if modifyingTasks > 0:
+    PipelineRunner.run(nodes: [PRStep, ChainPRCommentStep])   # one PR for all batch commits
+
+commit state.json with cursor = processedPaths.last, lastRunDate = now(), and processed list   # cursor commit
 ```
 
 ---
 
-## Comparison: Hash Tracking vs. Cursor
+## Implementation Phases
 
-| Dimension | Hash Tracking (existing plan) | Cursor (this plan) |
-|---|---|---|
-| **State per file** | `lastRunHash`, `lastRunAt` per path | Single cursor path |
-| **Discovery phase** | Required — expands glob, diffs state.json | None — range expanded from disk at runtime |
-| **Re-run trigger** | File changes (hash mismatch) | Cursor reaches file again (wrap-around) |
-| **Parallelism** | Multiple jobs possible (different files) | One job at a time (shared cursor) |
-| **Handles file adds** | Discovery adds new entries with null hash | File appears in sorted list; cursor passes it naturally |
-| **Handles file deletes** | Discovery removes obsolete entries | Skip missing files at runtime |
-| **State file size** | Grows with number of files | Fixed size (one path) |
-| **"What changed since last run?"** | Precise — hash diff tells you exactly | Unknown — cursor just tracks position, not history |
-| **Starvation risk** | No — any changed file is eligible | Yes — files near the cursor start get processed more frequently if runs are frequent |
-| **Ordering guarantee** | None — picks first stale entry | Strong — alphabetical sweep |
-| **Config complexity** | `maxOpenPRs`, `discoveryGlob` | `maxOpenPRs`, `maxAnalysisFiles`, `maxRefactoredFiles`, `range.start/end` |
-| **Multi-file per run** | One file per run (by design) | Up to `maxAnalysisFiles` per run |
-| **PR strategy** | One PR per file | TBD — one PR for all changes in run, or one per changed file |
-| **Implementation complexity** | Higher (discovery service, hash computation, state migration) | Lower (cursor read/write, range expansion) |
-
-### When hash tracking wins
-
-- You care about **re-running only when a file actually changed** — hash tracking is precise; cursor will re-run files that haven't changed when it wraps around.
-- You want **parallel jobs** across different files — cursor requires serialization.
-- You need **audit history** (`lastRunAt` per file) for reporting or debugging.
-
-### When cursor wins
-
-- You want **simplicity** — no discovery, no hash computation, minimal state.
-- You want a **continuous sweep** — maintenance is a rolling process over the whole codebase, not reactive to changes.
-- Your codebase grows/shrinks frequently — range expansion from disk handles this without a separate discovery step.
-- You want **batch processing** — `maxAnalysisFiles` and `maxRefactoredFiles` together let you tune throughput per run.
-
-### Key tension
-
-Hash tracking answers: *"which files need attention right now?"*  
-Cursor answers: *"which file is next in the rotation?"*
-
-These are meaningfully different maintenance philosophies. Hash tracking is **reactive** (re-run when content changes). Cursor is **iterative** (sweep through everything on a schedule, changes or not).
-
----
-
-## Implementation Phases (if cursor approach is chosen)
-
-### - [ ] Phase 0: Refactor RunChainTaskUseCase (same as existing plan)
-
-No change from the existing plan's Phase 0. This is a prerequisite regardless of approach.
-
----
-
-### - [ ] Phase 1: CursorMaintenanceSDK models
+### - [ ] Phase 0: PipelineRunner — Fresh Context Between Tasks
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
-Create `MaintenanceSDK` target with cursor-based models.
+**Prerequisite for all other phases.** Must leave existing ClaudeChain behavior unchanged.
 
-**`MaintenanceCursorState`**:
+The existing `drainTaskSource` loop (`PipelineRunner.swift` lines 56–93) supports dynamic task discovery — after each task completes it calls `source.nextTask()` and loops if a task is returned. However it reuses the same `PipelineContext` across iterations, bleeding AI conversation history between tasks.
+
+**1. Add `resetContextBetweenTasks` to `PipelineConfiguration`:**
+```swift
+public let resetContextBetweenTasks: Bool   // default: false
+```
+Default `false` preserves all existing ClaudeChain behavior unchanged.
+
+**2. In `drainTaskSource`, reset context between iterations when flag is true:**
+After each task completes and before calling `nextTask()`, if `resetContextBetweenTasks == true`, reset AI-specific context keys while preserving infrastructure keys (working directory, environment, PR data needed for the final PR step).
+
+**3. Add `taskDiscovered` pipeline event:**
+```swift
+case taskDiscovered(id: String, displayName: String)
+```
+Emitted by `drainTaskSource` when a new task is returned by `nextTask()`, so the pipeline UI can add it to the task list dynamically without knowing the full task list upfront.
+
+Files:
+- `Sources/SDKs/PipelineSDK/PipelineConfiguration.swift`
+- `Sources/SDKs/PipelineSDK/PipelineRunner.swift`
+- `Sources/SDKs/PipelineSDK/PipelineEvent.swift`
+
+---
+
+### - [ ] Phase 1: Unified `ClaudeChainSource` Protocol + ClaudeChain Refactor
+
+**Skills to read**: `swift-app-architecture:swift-architecture`
+
+Replace the two-protocol split (`ClaudeChainTaskSource` for display, `TaskSource` for execution) with a single unified protocol. Must leave existing ClaudeChain behavior unchanged.
+
+**`ClaudeChainSource`** — extends `TaskSource` so any implementation is also usable by `PipelineRunner`'s `drainTaskSource` loop:
+```swift
+public protocol ClaudeChainSource: TaskSource {
+    func loadProject() async throws -> ChainProject
+    func loadDetail() async throws -> ChainProjectDetail
+    // nextTask() and markComplete() inherited from TaskSource
+}
+```
+GitHub service injected at construction time — used by `loadDetail()`, ignored by `nextTask()`/`markComplete()`.
+
+**`ChainProject` changes:**
+```swift
+public enum ChainKind: String, Codable, Sendable {
+    case regular
+    case maintenance
+}
+public struct ChainProject {
+    public let kind: ChainKind
+    public let branchPrefix: String   // replaces hardcoded "claude-chain-" string
+    // ... existing fields unchanged
+}
+```
+
+**`ChainDiscoveryService`** — new protocol so `ListChainsUseCase` doesn't hardcode directory paths:
+```swift
+public protocol ChainDiscoveryService: Sendable {
+    func discoverSources(repoPath: URL) async throws -> [any ClaudeChainSource]
+}
+```
+- `LocalChainDiscoveryService`: scans `claude-chain/` (regular) and `claude-chain-maintenance/` (maintenance); instantiates `MarkdownClaudeChainSource` or `MaintenanceClaudeChainSource` per entry
+- `GitHubChainDiscoveryService`: extends `ListChainsFromGitHubUseCase` filter to include `"claude-chain-maintenance/"` paths
+
+**`MarkdownClaudeChainSource`** — rename/replace `MarkdownChainTaskSource`; implements `ClaudeChainSource` for regular ClaudeChain. `nextTask()` returns one task then nil (existing single-task behavior). `resetContextBetweenTasks: false`.
+
+**`ListChainsUseCase`** — accepts injected `ChainDiscoveryService`; calls `loadProject()` on each source. Removes hardcoded `"claude-chain"` directory.
+
+**`GetChainDetailUseCase`** — uses `project.branchPrefix` instead of hardcoded `"claude-chain-"`. Adds generic rule: suppress pending tasks when `openPRs.count > 0`.
+
+**`RunChainTaskUseCase`** — wire to accept `any ClaudeChainSource`; pass to `TaskSourceNode` which feeds `drainTaskSource`.
+
+**`Project.parseSpecPathToProject()`** — add parsing for `claude-chain-maintenance/{name}/spec.md` paths.
+
+**`Constants.swift`** — add `maintenanceChainDirectory = "claude-chain-maintenance"`.
+
+Files:
+- `Sources/Services/ClaudeChainService/ClaudeChainSource.swift` (new — replaces `ClaudeChainTaskSource.swift`)
+- `Sources/Services/ClaudeChainService/MarkdownClaudeChainSource.swift` (new — replaces `MarkdownChainTaskSource.swift`)
+- `Sources/Services/ClaudeChainService/ChainDiscoveryService.swift` (new)
+- `Sources/Services/ClaudeChainService/ChainModels.swift` (add `branchPrefix`, `kind`, `ChainKind`)
+- `Sources/Services/ClaudeChainService/Constants.swift`
+- `Sources/Services/ClaudeChainService/Project.swift`
+- `Sources/Features/ClaudeChainFeature/usecases/RunChainTaskUseCase.swift`
+- `Sources/Features/ClaudeChainFeature/usecases/ListChainsUseCase.swift`
+- `Sources/Features/ClaudeChainFeature/usecases/ListChainsFromGitHubUseCase.swift`
+- `Sources/Features/ClaudeChainFeature/usecases/GetChainDetailUseCase.swift`
+
+---
+
+### - [ ] Phase 2: MaintenanceSDK Models
+
+**Skills to read**: `swift-app-architecture:swift-architecture`
+
+Create a new `MaintenanceSDK` target in `Package.swift` (alphabetically placed).
+
 ```swift
 public struct MaintenanceCursorState: Codable, Sendable {
-    public var cursor: String?   // last-processed path; nil = start from beginning
+    public var cursor: String?       // last-processed path; nil = start from beginning
+    public var lastRunDate: Date?    // timestamp of last completed batch; nil = never run
 }
-```
 
-**`MaintenanceCursorConfig`**:
-```swift
+public struct MaintenanceCursorScope: Codable, Sendable {
+    public let from: String    // path prefix lower bound (inclusive)
+    public let to: String?     // path prefix upper bound (exclusive); nil = prefix match only
+}
+
 public struct MaintenanceCursorConfig: Sendable {
-    public let maxOpenPRs: Int           // default: 1
-    public let maxAnalysisFiles: Int     // default: 1
-    public let maxRefactoredFiles: Int   // default: 1, never > maxAnalysisFiles
-    public let rangeStart: String
-    public let rangeEnd: String
+    public let scanLimit: Int      // default: 1
+    public let changeLimit: Int    // default: 1, never > scanLimit
+    public let filePattern: String
+    public let scope: MaintenanceCursorScope?
 }
 ```
 
-**`MaintenanceCursorTaskSource`** — implements `TaskSource`:
-- `nextTask()`: expand sorted file list from `rangeStart...rangeEnd`; find index after cursor; return `PendingTask` for next path; read spec.md; return `PendingTask(id: path, instructions: specContent + "\n\nFile: \(path)", skills: [])`
-- `markComplete(_ task:)`: write cursor = `task.id` to state.json
+`MaintenanceCursorState` includes `load(from: URL)` and `save(to: URL)` with atomic write.
 
 Files:
 - `Sources/SDKs/MaintenanceSDK/MaintenanceCursorConfig.swift`
+- `Sources/SDKs/MaintenanceSDK/MaintenanceCursorScope.swift`
 - `Sources/SDKs/MaintenanceSDK/MaintenanceCursorState.swift`
-- `Sources/SDKs/MaintenanceSDK/MaintenanceCursorTaskSource.swift`
-- `Sources/Services/ClaudeChainService/MaintenanceChainTaskSource.swift` (same display-side protocol as hash approach)
 
 ---
 
-### - [ ] Phase 2: Cursor Execution Service
+### - [ ] Phase 3: `MaintenanceClaudeChainSource`
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `logging`
 
-`MaintenanceCursorExecutionService`:
+Single class implementing `ClaudeChainSource` — covers both display and execution. GitHub service injected at init.
+
+**`loadProject()`:**
+1. Read `state.json` and `config.yaml` from task directory (local filesystem)
+2. Expand `filePattern`, apply scope, sort alphabetically
+3. Build `ChainTask` list: `description` = file path, `index` = sorted position, `isCompleted` = false
+4. Return candidate pending task (file after cursor) — suppressed by `GetChainDetailUseCase` if open PRs exist
+5. Return `ChainProject(kind: .maintenance, branchPrefix: "claude-chain-<name>-", maxOpenPRs: 1, ...)`
+
+**`loadDetail()`:** GitHub API for PR enrichment — same path as regular chains.
+
+**`nextTask()`:**
+- Expand filePattern, apply scope, sort; find file after cursor
+- Check skip detection (git log cursor commit lookup — see Skip Detection section above)
+- If `scanLimit` or `changeLimit` reached: return `nil` (pipeline stops)
+- Return `PendingTask(id: path, instructions: specContent + "\n\nFile: \(path)")`
+
+**`markComplete(_ task:)`:**
+- Track `processedPaths` and `modifyingTaskCount` in memory
+- On each call: advance cursor position
+- When `nextTask()` returns nil (batch done): write cursor commit to `state.json`
+
+Pipeline uses `resetContextBetweenTasks: true` — each file gets a fresh AI context via `drainTaskSource`. `PRStep` runs after all AITasks complete, opening one PR for all commits in the batch.
+
+**How UI sections map:**
+
+| UI Section | Source |
+|---|---|
+| **Open** | Files with open PR — matched via `branchPrefix` (GitHub API) |
+| **Merged/Completed** | Files with merged PR — matched via `branchPrefix` (GitHub API) |
+| **Pending** | Candidate task from `loadProject()` — suppressed when open PRs exist |
+
+Files:
+- `Sources/Services/ClaudeChainService/MaintenanceClaudeChainSource.swift`
+
+---
+
+### - [ ] Phase 4: `MaintenanceFeature` Use Case + CLI
+
+**Skills to read**: `swift-app-architecture:swift-architecture`
+
+**`RunMaintenanceBatchUseCase`:**
+- Reads `config.yaml`; builds `MaintenanceClaudeChainSource` with `resetContextBetweenTasks: true`
+- Passes it to `TaskSourceNode`; runs `PipelineRunner` with `[TaskSourceNode, PRStep, ChainPRCommentStep]`
+- `drainTaskSource` handles per-file AITask execution; `PRStep` opens one PR for all batch commits
 
 ```swift
-func executeRun(config: MaintenanceCursorConfig, repoPath: String, taskDirectoryURL: URL) async throws -> MaintenanceCursorRunResult
-```
-
-Implements the loop: advance cursor, invoke AI, track `analyzed` and `refactored`, write cursor after each file, stop when either limit is reached.
-
-```swift
-struct MaintenanceCursorRunResult: Sendable {
-    let analyzed: Int
-    let refactored: Int
+struct MaintenanceCursorBatchResult: Sendable {
+    let tasks: Int
+    let modifyingTasks: Int
+    let skipped: Int
     let finalCursor: String?
-    let skipped: [String]    // paths that no longer exist on disk
 }
 ```
 
+**CLI command** — `maintenance run` (alphabetically in subcommand list):
+```
+swift run ai-dev-tools-kit maintenance run --task <path> --repo <path>
+```
+Prints: N tasks run, N modifying, N skipped, cursor advanced to `<path>`.
+
 Files:
-- `Sources/Services/MaintenanceService/MaintenanceCursorExecutionService.swift`
-- `Sources/Services/MaintenanceService/MaintenanceCursorRunResult.swift`
+- `Sources/Features/MaintenanceFeature/RunMaintenanceBatchUseCase.swift`
+- `Sources/Features/MaintenanceFeature/MaintenanceCursorBatchResult.swift`
+- `Sources/Apps/AIDevToolsKitCLI/MaintenanceCommand.swift`
 
 ---
 
-### - [ ] Phase 3: CLI command
+### - [ ] Phase 5: Validation
 
-Same shape as existing plan's Phase 5. `maintenance run` with `--task` and `--repo` flags. Prints: N analyzed, N refactored, cursor advanced to `<path>`.
+**Skills to read**: `logging`
 
----
+**Unit tests:**
+- `PipelineRunnerTests`: `resetContextBetweenTasks: true` clears AI keys; infrastructure keys persist; `taskDiscovered` event fires
+- `MaintenanceCursorStateTests`: round-trip Codable; nil cursor starts from beginning; wraps at end
+- `MaintenanceCursorScopeTests`: from-only = prefix filter; from+to = lexicographic range; nil = no restriction
+- `MaintenanceClaudeChainSourceTests`: `nextTask()` respects `scanLimit`/`changeLimit`; skip detection works; returns nil when done; `loadProject()` maps cursor to pending task correctly
 
-### - [ ] Phase 4: Validation
-
-**Unit tests**:
-- `MaintenanceCursorStateTests`: round-trip Codable; nil cursor starts from beginning; cursor past end wraps.
-- `MaintenanceCursorTaskSourceTests`: `maxAnalysisFiles` limit respected; `maxRefactoredFiles` limit stops run early; missing files skipped.
-
-**CLI smoke test**:
+**CLI smoke test:**
 ```bash
 mkdir -p /tmp/test-claude-chain-maintenance
-echo "maxOpenPRs: 1\nmaxAnalysisFiles: 3\nmaxRefactoredFiles: 1\nrange:\n  start: Sources/Services/A\n  end: Sources/Services/Z" > /tmp/test-claude-chain-maintenance/config.yaml
+echo "scanLimit: 3\nchangeLimit: 1\nfilePattern: Sources/Services/**/*.swift" > /tmp/test-claude-chain-maintenance/config.yaml
 echo "Review this file for service layer compliance." > /tmp/test-claude-chain-maintenance/spec.md
 
 swift run ai-dev-tools-kit maintenance run --task /tmp/test-claude-chain-maintenance --repo <repo>
-# Verify state.json cursor set to first processed path
-# Verify up to 1 PR opened (maxRefactoredFiles=1)
+# Verify: state.json cursor written; cursor commit in git log; 1 PR opened
 
 swift run ai-dev-tools-kit maintenance run --task /tmp/test-claude-chain-maintenance --repo <repo>
-# Verify cursor advanced past previous position
+# Verify: cursor advanced; unchanged files appear as skipped
 ```
+
+**Log verification:**
+```bash
+cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.label | startswith("Maintenance"))'
+```
+
+**ClaudeChain regression** (after Phase 0 and Phase 1):
+- Run existing ClaudeChain tests to confirm behavior unchanged after refactors.
+
+**Mac app UI verification:**
+1. Place `claude-chain-maintenance/test-task/` in local repo
+2. Sidebar shows maintenance chain with `kind: .maintenance` badge
+3. No open PRs → one pending task shown (next file after cursor)
+4. Open PR → pending task suppressed; file in Open section
+5. Merged PR → file in Merged/Completed section
