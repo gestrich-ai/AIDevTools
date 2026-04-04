@@ -2,78 +2,79 @@
 
 | Skill | Description |
 |-------|-------------|
-| `configuration-architecture` | Guide for wiring new config (task specs, tracking JSON) through the app layers |
+| `configuration-architecture` | Guide for wiring new config through the app layers |
 | `logging` | Add logging to new discovery and execution paths |
 | `swift-app-architecture:swift-architecture` | 4-layer architecture — new feature spans SDK, Service, Feature, and Apps layers |
 
 ## Background
 
-The Maintenance Feature is a new AI-driven system for continuously maintaining a codebase. Unlike Claude Chain (which has a finite, user-authored list of tasks that are marked done), maintenance tasks are **ongoing**: a task runs against one or more target files, records the file state (git commit hash) when it last ran, and is re-run only when those files change or the task definition itself is versioned up.
+The Maintenance Feature is a new AI-driven system for continuously maintaining a codebase. Unlike Claude Chain (which has a finite, user-authored list of tasks that are marked done), maintenance tasks are **ongoing**: a task runs against one or more target files, records the file hashes when it last ran, and is re-run only when those files change.
 
-Key design principles Bill specified:
+Key design principles:
 
-- **Skip if unchanged**: A task is considered complete (skippable) when the recorded commit hash for each of its target files matches the current HEAD hash for those files, AND the task definition version hasn't changed.
-- **Discovery is separate from execution**: A daily discovery job scans the repo for new/changed/removed target files and updates the tracking state. It never runs tasks — it only updates what needs running. Execution jobs read that state and run tasks.
-- **Async-safe tracking**: Tracking state is stored in a JSON file (not markdown — relational model fits better). Double blank lines between entries are not needed for JSON; instead, atomic writes per entry key prevent conflicts.
-- **Multi-file task groups**: A task's unique key is derived from its sorted set of target file paths. If any file in the group changes, the whole task is marked stale and must re-run.
-- **PR output**: Each task execution results in a GitHub PR containing the AI's changes and an evaluation report (what it found, what it did, why).
-- **Reuse PipelineService**: Task execution pipelines are built using the existing `PipelineService` and `PipelineSDK`. No new pipeline primitives needed.
+- **Skip if unchanged**: A task is skippable when every file's `latestHash == lastRunHash`. If `lastRunHash` is absent, the task has never run and must execute.
+- **Discovery is separate from execution**: A daily discovery job scans the repo and updates `execution.json`. It never runs tasks — it only updates which files exist and their current hashes.
+- **Async-safe tracking**: `execution.json` is written atomically. Async executors read it independently — they do not also run discovery.
+- **Multi-file task groups**: A task can target one or more files. If any file in the group has changed, the whole task re-runs.
+- **PR output**: Each task execution results in a GitHub PR with the AI's changes.
+- **Branch naming**: `maintenance-<task-name>-<hash>` where `<hash>` is an 8-char SHA-256 of the sorted file paths joined by `|`. Mirrors the ClaudeChain pattern (`claude-chain-<project>-<hash>`).
+- **`lastRunHash` recorded post-commit**: After the AI edits the target file(s) and commits them to the feature branch, record the blob SHA of each file *from that branch commit* — not the pre-run base branch SHA. When the PR merges cleanly, the base branch ends up with identical content and therefore the same blob SHA, so discovery will not mark the task stale again.
+- **Reuse PipelineService**: Task execution pipelines are built using the existing `PipelineService` and `PipelineSDK`.
 
-### Tracking JSON Schema
+### File Layout Per Maintenance Task
+
+Modeled after ClaudeChain's layout (`spec.md` + `config.yaml`). Each maintenance task lives in a directory with four files:
+
+```
+maintenance/<task-name>/
+  config.yaml       # Execution settings (maxOpenPRs, etc.) — mirrors ClaudeChain's config.yaml
+  discovery.md      # Free-form AI prompt describing how to find target files
+  execution.json    # Tracked state: all file paths + their hashes (written by discovery, read by executor)
+  spec.md           # Free-form AI prompt describing what maintenance to perform on each file
+```
+
+### `execution.json` Schema
 
 ```json
 {
   "tasks": [
     {
-      "key": "Sources/Foo.swift",
-      "filePaths": ["Sources/Foo.swift"],
-      "taskVersion": "1.0",
-      "fileHashes": {
-        "Sources/Foo.swift": "<git-commit-sha>"
-      },
-      "lastRunAt": "2026-04-03T12:00:00Z",
-      "status": "complete"
+      "files": [
+        {
+          "lastRunHash": "<git-blob-sha-at-last-run>",
+          "path": "Sources/Foo.swift"
+        }
+      ],
+      "lastRunAt": "2026-04-03T12:00:00Z"
     },
     {
-      "key": "Sources/Bar.swift|Sources/Baz.swift",
-      "filePaths": ["Sources/Bar.swift", "Sources/Baz.swift"],
-      "taskVersion": "1.0",
-      "fileHashes": {
-        "Sources/Bar.swift": "<git-commit-sha>",
-        "Sources/Baz.swift": "<git-commit-sha>"
-      },
-      "lastRunAt": null,
-      "status": "pending"
+      "files": [
+        {
+          "lastRunHash": null,
+          "path": "Sources/Bar.swift"
+        },
+        {
+          "lastRunHash": null,
+          "path": "Sources/Baz.swift"
+        }
+      ],
+      "lastRunAt": null
     }
   ]
 }
 ```
 
-`status` is one of: `pending`, `complete`. Discovery sets `pending` when a hash or task version changes; execution sets `complete` after a successful PR.
+- `lastRunHash` (per file) — the **git blob SHA of that specific file** recorded from the feature branch after the AI's commits (not the pre-run base branch SHA). `null` if never run. This is the per-file content hash (`git rev-parse HEAD:<path>`), not the repo's commit SHA.
+- `lastRunAt` (per task) — ISO-8601 timestamp of when the task last executed successfully. `null` if never run. Used to determine round-robin position: the executor picks the next task after the most recently run one in the sorted list.
+- The current blob SHA is **not stored** — computed at runtime via `git rev-parse HEAD:<path>` only when the executor is about to run a task
+- A task needs to run when `lastRunHash == null` OR any file's current blob SHA differs from `lastRunHash`
+- No `status`, `key`, or `taskVersion` fields
 
-### Maintenance Spec File
-
-Each maintenance task is defined by a spec file (checked into the repo, alongside the tracking JSON or in a known directory):
+### `config.yaml` Schema
 
 ```yaml
-name: "Clean up service layer"
-version: "1.0"
-description: |
-  Review each file for adherence to the service layer conventions. Remove dead code,
-  fix naming, and ensure protocol conformance is correct.
-discovery:
-  mode: glob           # or: script, ai
-  pattern: "Sources/Services/**/*.swift"
-execution:
-  maxOpenPRs: 1
-  runTests: true
-  prReport: true
+maxOpenPRs: 1
 ```
-
-`discovery.mode`:
-- `glob` — standard file glob
-- `script` — shell script that prints file paths
-- `ai` — AI context scan to identify relevant files (free-form)
 
 ---
 
@@ -83,20 +84,57 @@ execution:
 
 Create a new `MaintenanceSDK` target in `Package.swift` (alphabetically placed). Define the core value types:
 
-- `MaintenanceSpec` — parsed from YAML spec file. Fields: `name`, `version`, `description`, `discovery` (mode + pattern/script), `execution` (maxOpenPRs, runTests, prReport).
-- `MaintenanceTaskEntry` — one entry in the tracking JSON. Fields: `key: String`, `filePaths: [String]`, `taskVersion: String`, `fileHashes: [String: String]`, `lastRunAt: Date?`, `status: MaintenanceTaskStatus`.
-- `MaintenanceTaskStatus: String, Codable` — `pending`, `complete`.
-- `MaintenanceTrackingState` — top-level tracking JSON wrapper. Field: `tasks: [MaintenanceTaskEntry]`.
-- `MaintenanceTaskKey` — static helper that derives the canonical key from a sorted array of file paths (`paths.sorted().joined(separator: "|")`).
+**`MaintenanceFileEntry`** — one file within a task group:
+```swift
+public struct MaintenanceFileEntry: Codable, Sendable {
+    public let path: String
+    public var lastRunHash: String?   // git blob SHA of this file when last run (git rev-parse HEAD:<path>), not the repo commit SHA. nil = never run.
+}
+```
+
+**`MaintenanceTaskEntry`** — one task (group of files):
+```swift
+public struct MaintenanceTaskEntry: Codable, Sendable {
+    public var files: [MaintenanceFileEntry]
+    public var lastRunAt: Date?   // nil = never run; used for round-robin selection
+
+    // currentHashes: computed at runtime by fetching git blob SHAs for each path
+    public func needsRun(currentHashes: [String: String]) -> Bool {
+        files.contains { file in
+            file.lastRunHash == nil || file.lastRunHash != currentHashes[file.path]
+        }
+    }
+
+    // Sort key: sort file paths within the task, join with "|"
+    public var sortKey: String {
+        files.map(\.path).sorted().joined(separator: "|")
+    }
+}
+```
+
+**`MaintenanceExecutionState`** — top-level `execution.json` wrapper:
+```swift
+public struct MaintenanceExecutionState: Codable, Sendable {
+    public var tasks: [MaintenanceTaskEntry]
+}
+```
+Includes `load(from: URL)` and `save(to: URL)` helpers using `.atomic` write and ISO-8601 date encoding.
+
+**`MaintenanceConfig`** — parsed from `config.yaml`:
+```swift
+public struct MaintenanceConfig: Sendable {
+    public let maxOpenPRs: Int     // default: 1
+}
+```
+Parsed via `Yams` (already a dependency).
 
 All types: `Codable`, `Sendable`, `public`.
 
 Files:
-- `Sources/SDKs/MaintenanceSDK/MaintenanceSpec.swift`
+- `Sources/SDKs/MaintenanceSDK/MaintenanceConfig.swift`
+- `Sources/SDKs/MaintenanceSDK/MaintenanceExecutionState.swift`
+- `Sources/SDKs/MaintenanceSDK/MaintenanceFileEntry.swift`
 - `Sources/SDKs/MaintenanceSDK/MaintenanceTaskEntry.swift`
-- `Sources/SDKs/MaintenanceSDK/MaintenanceTaskStatus.swift`
-- `Sources/SDKs/MaintenanceSDK/MaintenanceTrackingState.swift`
-- `Sources/SDKs/MaintenanceSDK/MaintenanceTaskKey.swift`
 
 ---
 
@@ -104,30 +142,22 @@ Files:
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `logging`
 
-Create a `MaintenanceService` target. The discovery service scans a repo for target files, diffs them against the current tracking state, and writes an updated tracking JSON. It does **not** execute tasks.
-
-`MaintenanceDiscoveryService` (protocol + implementation):
+Create a `MaintenanceService` target. The discovery service reads `discovery.md`, invokes Claude CLI to identify target file groups, diffs them against the current `execution.json`, and writes the updated state. It does **not** execute tasks.
 
 ```swift
-func discover(spec: MaintenanceSpec, repoPath: String, trackingURL: URL) async throws -> MaintenanceTrackingState
+func discover(discoveryMD: String, config: MaintenanceConfig, repoPath: String, executionStateURL: URL) async throws -> MaintenanceExecutionState
 ```
 
 Steps:
-1. Load existing `MaintenanceTrackingState` from `trackingURL` (or start empty).
-2. Resolve target file paths using the spec's discovery mode:
-   - `glob`: use `FileManager` glob expansion
-   - `script`: run shell script, collect stdout lines as paths
-   - `ai`: invoke Claude CLI with a prompt asking it to list relevant files
-3. Group paths into task groups (for `glob`/`script`, each file is its own group; for `ai`, the AI returns groups).
-4. For each group, compute the canonical `key`.
-5. For each key:
-   - **New**: add entry with `status: .pending`, `fileHashes: [:]`, `lastRunAt: nil`.
-   - **Obsolete** (key no longer in discovered set): remove entry.
-   - **Changed**: fetch current git commit SHA for each file path. If any SHA differs from stored hash, OR `taskVersion` differs from spec version → set `status: .pending`.
-   - **Unchanged**: leave as-is.
-6. Write updated state back to `trackingURL` atomically.
+1. Load existing `MaintenanceExecutionState` from `executionStateURL` (or start empty).
+2. Invoke Claude CLI with `discovery.md` as the prompt, asking it to return a JSON array of file groups (each group is an array of relative file paths).
+3. For each discovered group:
+   - **New**: add a `MaintenanceTaskEntry` with `lastRunHash: nil` and `latestHash` fetched from git.
+   - **Obsolete** (no longer returned by discovery): remove entry.
+   - **Existing**: update `latestHash` for each file from git (do not touch `lastRunHash`).
+4. Write updated state atomically to `executionStateURL`.
 
-Add `Logger(label: "MaintenanceDiscoveryService")` with debug/info logging at each step.
+Add `Logger(label: "MaintenanceDiscoveryService")` at each step.
 
 Files:
 - `Sources/Services/MaintenanceService/MaintenanceDiscoveryService.swift`
@@ -139,35 +169,38 @@ Files:
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `logging`
 
-Create `MaintenanceExecutionService` that picks the next `pending` task from the tracking state, runs it via `PipelineService`, and updates the tracking state on completion.
+`MaintenanceExecutionService` picks the first task where `needsRun == true`, runs it via `PipelineService`, and updates `execution.json` on completion.
 
 ```swift
-func executeNext(spec: MaintenanceSpec, repoPath: String, trackingURL: URL) async throws -> MaintenanceExecutionResult
+func executeNext(specMD: String, config: MaintenanceConfig, repoPath: String, executionStateURL: URL) async throws -> MaintenanceExecutionResult
 ```
 
 Steps:
-1. Load tracking state. Find the first entry with `status: .pending`. If none, return `.noWork`.
-2. Build a `PipelineService` pipeline:
-   - AI step: run Claude CLI with the spec's `description` prompt, targeting the task's `filePaths`.
-   - If `execution.runTests`: add a test-run step after the AI step.
-   - `PRStep` with `maxOpenPRs` from spec and a PR body that includes the AI's evaluation report.
-3. Execute the pipeline.
-4. On success: update entry — set `status: .complete`, `fileHashes` to current SHAs, `lastRunAt` to now, `taskVersion` to spec version. Write state.
-5. On failure: leave `status: .pending` (will retry next run). Log error.
+1. Load `MaintenanceExecutionState`. Sort tasks lexicographically by `sortKey`. Find the task with the most recent `lastRunAt` — that is the last executed position. Starting from the task immediately after it in sorted order (wrapping around), find the first task where `needsRun == true` by fetching current blob SHAs. Tasks with `lastRunAt == nil` are treated as oldest (run first). If no task needs to run, return `.noWork`.
+2. Verify all files in the selected task still exist on disk. If any are missing (deleted since discovery ran), skip the task and log a warning — do not error.
+3. Check open PR count against `config.maxOpenPRs` (same pattern as ClaudeChain's `AssigneeService.checkCapacity`). Count open PRs with the maintenance label. If at or above the limit, return `.atCapacity`. Also check if this specific task's branch already has an open PR — if so, skip it and advance to the next eligible task.
+4. Build pipeline:
+   - AI step: `spec.md` prompt with the task's file paths appended
+   - `PRStep` with `maxOpenPRs` from config
+4. Execute via `PipelineRunner`.
+5. On success: fetch the git blob SHA for each file **from the feature branch after the AI's commits** (not the base branch). Set `lastRunHash` to those SHAs, set `lastRunAt` to now, and write state atomically. This ensures the stored hash matches what lands on the base branch after the PR merges cleanly.
+6. On failure: leave state unchanged (will retry next run). Log error.
 
-`MaintenanceExecutionResult`:
 ```swift
-enum MaintenanceExecutionResult {
+enum MaintenanceExecutionResult: Sendable {
+    case atCapacity(openCount: Int, maxOpen: Int)
+    case completed(prURL: String)
+    case failed(error: any Error & Sendable)
     case noWork
-    case completed(key: String, prURL: String)
-    case failed(key: String, error: Error)
 }
 ```
 
+If a task's branch already has an open PR, the executor skips it and tries the next candidate. If *all* pending tasks have open PRs, returns `.atCapacity`. If the base branch changes while a PR is open, no action is needed — the next discovery run will update `lastRunHash` values and re-queue the task naturally.
+
 Files:
+- `Sources/Services/MaintenanceService/MaintenanceExecutionResult.swift`
 - `Sources/Services/MaintenanceService/MaintenanceExecutionService.swift`
 - `Sources/Services/MaintenanceService/MaintenanceExecutionServiceProtocol.swift`
-- `Sources/Services/MaintenanceService/MaintenanceExecutionResult.swift`
 
 ---
 
@@ -175,19 +208,19 @@ Files:
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
-Create a `MaintenanceFeature` target with two use cases (matching the two jobs that run on separate schedules):
+Create a `MaintenanceFeature` target with two use cases. Each resolves its inputs from the task directory path (e.g. `maintenance/clean-service-layer/`):
 
 **`RunMaintenanceDiscoveryUseCase`**
-- Loads spec from a given spec file URL
+- Reads `discovery.md` and `config.yaml` from the task directory
+- Derives `execution.json` URL from the same directory
 - Calls `MaintenanceDiscoveryService.discover(...)`
-- Returns updated `MaintenanceTrackingState`
+- Returns updated `MaintenanceExecutionState`
 
 **`RunMaintenanceTaskUseCase`**
-- Loads spec from spec file URL
+- Reads `spec.md` and `config.yaml` from the task directory
+- Derives `execution.json` URL from the same directory
 - Calls `MaintenanceExecutionService.executeNext(...)`
 - Returns `MaintenanceExecutionResult`
-
-Both use cases are injected with their respective services. No business logic beyond orchestration.
 
 Files:
 - `Sources/Features/MaintenanceFeature/RunMaintenanceDiscoveryUseCase.swift`
@@ -199,21 +232,19 @@ Files:
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
-Add two subcommands to the `ai-dev-tools-kit` CLI (alphabetically in the command list):
+Add a `maintenance` subcommand to `ai-dev-tools-kit` (alphabetically in the subcommand list):
 
 **`maintenance discover`**
 ```
-swift run ai-dev-tools-kit maintenance discover --spec <path-to-spec.yaml> --repo <repo-path>
+swift run ai-dev-tools-kit maintenance discover --task <path-to-task-dir> --repo <repo-path>
 ```
-Runs `RunMaintenanceDiscoveryUseCase`. Prints a summary: N added, N removed, N marked stale.
+Runs discovery. Prints: N added, N removed, N updated, N pending.
 
 **`maintenance run`**
 ```
-swift run ai-dev-tools-kit maintenance run --spec <path-to-spec.yaml> --repo <repo-path>
+swift run ai-dev-tools-kit maintenance run --task <path-to-task-dir> --repo <repo-path>
 ```
-Runs `RunMaintenanceTaskUseCase` once (next pending task). Prints result: task key, PR URL, or "no work".
-
-The tracking JSON path is derived from the spec file path (same directory, `<spec-name>.tracking.json`).
+Executes next pending task. Prints PR URL or "no work".
 
 Files:
 - `Sources/Apps/AIDevToolsKitCLI/MaintenanceCommand.swift`
@@ -224,39 +255,29 @@ Files:
 
 **Skills to read**: `logging`
 
-**Unit tests** — add `MaintenanceSDKTests` and `MaintenanceServiceTests` targets:
-- `MaintenanceTaskKeyTests`: verify key derivation sorts paths and joins with `|`.
-- `MaintenanceDiscoveryServiceTests`: mock git SHA lookup; verify add/remove/stale/skip logic.
-- `MaintenanceTrackingStateTests`: round-trip `Codable` encoding.
+**Unit tests** — `MaintenanceSDKTests`:
+- `MaintenanceTaskEntryTests`: verify `needsRun` is true when any `lastRunHash` is nil or differs from `latestHash`, false when all match.
+- `MaintenanceExecutionStateTests`: round-trip `Codable` encoding, verify atomic save/load.
 
-**CLI smoke test** — use a local test repo:
+**CLI smoke test**:
 ```bash
-# Create a minimal spec
-cat > /tmp/test-maintenance.yaml <<EOF
-name: "Test"
-version: "1.0"
-description: "Review this file."
-discovery:
-  mode: glob
-  pattern: "Sources/**/*.swift"
-execution:
-  maxOpenPRs: 1
-  runTests: false
-  prReport: true
-EOF
+# Create a task directory
+mkdir -p /tmp/test-maintenance
+echo "Find all Swift files in Sources/Services/ and return them as single-file groups." > /tmp/test-maintenance/discovery.md
+echo "Review this file for service layer convention compliance." > /tmp/test-maintenance/spec.md
+echo "maxOpenPRs: 1" > /tmp/test-maintenance/config.yaml
 
-swift run ai-dev-tools-kit maintenance discover --spec /tmp/test-maintenance.yaml --repo <some-test-repo>
-# Verify tracking JSON created with pending entries
+swift run ai-dev-tools-kit maintenance discover --task /tmp/test-maintenance --repo <some-test-repo>
+# Verify execution.json created with lastRunHash: null entries
 
-swift run ai-dev-tools-kit maintenance run --spec /tmp/test-maintenance.yaml --repo <some-test-repo>
-# Verify PR created, tracking JSON updated to complete
+swift run ai-dev-tools-kit maintenance run --task /tmp/test-maintenance --repo <some-test-repo>
+# Verify PR created, lastRunHash updated to match latestHash
 
-swift run ai-dev-tools-kit maintenance run --spec /tmp/test-maintenance.yaml --repo <some-test-repo>
-# Verify "no work" (already complete, files unchanged)
+swift run ai-dev-tools-kit maintenance run --task /tmp/test-maintenance --repo <some-test-repo>
+# Verify "no work" (all hashes match)
 ```
 
 **Log verification**:
 ```bash
 cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.label | startswith("Maintenance"))'
 ```
-Confirm discovery and execution steps are logged at appropriate levels.
