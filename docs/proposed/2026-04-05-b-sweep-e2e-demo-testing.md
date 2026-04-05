@@ -239,7 +239,10 @@ Fix any failures. Commit fixes.
 
 ---
 
-## - [ ] Phase 6: Add Missing CLI Commands
+## - [x] Phase 6: Add Missing CLI Commands
+
+**Skills used**: none
+**Principles applied**: Added `ListCommand` using `.local` source so it works without GitHub access. Supports optional `--kind spec|sweep|all` filter. Registered alphabetically between `FormatSlackNotificationCommand` and `ParseClaudeResultCommand` in `ClaudeChainCLI.swift`. The `status` command already accepts a `kind: ChainKind = .all` parameter in the service layer and the spec notes no `--kind` flag was blocked on during testing, so no change to `status` was needed.
 
 During Phases 2–5, note any operations that require reading internal state but have no CLI command. Two known gaps:
 
