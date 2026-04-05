@@ -322,7 +322,10 @@ Fix any failures (e.g., if capacity check isn't wired up properly for spec chain
 
 ---
 
-## - [ ] Phase 9: PR Content + Summary Comment Verification
+## - [x] Phase 9: PR Content + Summary Comment Verification
+
+**Skills used**: none
+**Principles applied**: Verified spec PR #6 and sweep PR #7. Spec chain title/body/comment all pass — body includes the `Task N/M:` prefix by design (documented in Phase 3). Sweep chain title/body/comment pass — fixed the redundant `[add-header]` that appeared twice in the sweep PR title (once from `PRStep`'s `projectName` prefix, once inside `batchDescription`). Fixed by removing the task name from `batchDescription` in `RunSweepBatchUseCase`, so the title is now `ClaudeChain: [add-header] Sweep: N file(s) updated, cursor at ...` instead of repeating `[add-header]`. Both PRs have AI-generated summary comments posted by `ChainPRCommentStep`.
 
 After each chain type creates a PR, inspect the PR title, body, and summary comment to confirm they match the intended format.
 
