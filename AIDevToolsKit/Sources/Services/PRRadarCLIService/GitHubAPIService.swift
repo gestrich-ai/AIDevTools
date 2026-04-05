@@ -177,8 +177,13 @@ public struct GitHubAPIService: Sendable {
     }
 
     public func getRepository() async throws -> GitHubRepository {
-        let repo = try await octokitClient.repository(owner: owner, name: self.repo)
-        return repo.toGitHubRepository()
+        let info = try await octokitClient.repositoryInfo(owner: owner, name: self.repo)
+        return GitHubRepository(
+            name: info.name,
+            url: info.htmlURL,
+            owner: GitHubOwner(login: info.ownerLogin, id: info.ownerId),
+            defaultBranchRef: info.defaultBranch.isEmpty ? nil : GitHubDefaultBranchRef(name: info.defaultBranch)
+        )
     }
 
     // MARK: - GraphQL Operations

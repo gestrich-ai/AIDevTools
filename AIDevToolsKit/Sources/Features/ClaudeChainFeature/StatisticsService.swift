@@ -371,7 +371,7 @@ public struct StatisticsService {
             let title = "Task \(String(taskHash.prefix(8))): \(pr.taskDescription)"
 
             // Determine timestamp based on state
-            let timestamp = pr.state == "merged" && pr.mergedAt != nil ? pr.mergedAt! : pr.createdAt
+            let timestamp = pr.state == "merged" ? (pr.mergedAt ?? pr.createdAt) : pr.createdAt
 
             let prRef = PRReference(
                 prNumber: pr.number,

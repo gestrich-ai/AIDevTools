@@ -701,8 +701,41 @@ public struct OctokitClient: Sendable {
 
     // MARK: - Repository Operations
 
-    public func repository(owner: String, name: String) async throws -> OctoKit.Repository {
-        try await getJSON(path: GitHubPath.repository(owner, name))
+    public struct RepositoryInfo: Sendable {
+        public let name: String
+        public let htmlURL: String?
+        public let defaultBranch: String
+        public let ownerLogin: String
+        public let ownerId: String
+    }
+
+    public func repositoryInfo(owner: String, name: String) async throws -> RepositoryInfo {
+        struct Payload: Decodable {
+            let name: String?
+            let htmlURL: String?
+            let defaultBranch: String?
+            let owner: OwnerPayload
+
+            struct OwnerPayload: Decodable {
+                let login: String?
+                let id: Int
+            }
+
+            enum CodingKeys: String, CodingKey {
+                case name
+                case htmlURL = "html_url"
+                case defaultBranch = "default_branch"
+                case owner
+            }
+        }
+        let payload: Payload = try await getJSON(path: GitHubPath.repository(owner, name))
+        return RepositoryInfo(
+            name: payload.name ?? "",
+            htmlURL: payload.htmlURL,
+            defaultBranch: payload.defaultBranch ?? "",
+            ownerLogin: payload.owner.login ?? "",
+            ownerId: String(payload.owner.id)
+        )
     }
 
     // MARK: - Comment Operations

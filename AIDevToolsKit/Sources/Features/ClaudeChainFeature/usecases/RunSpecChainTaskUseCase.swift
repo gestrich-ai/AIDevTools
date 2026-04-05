@@ -512,6 +512,8 @@ public struct RunSpecChainTaskUseCase: UseCase {
         let insertionIndex = content.index(after: content[range.upperBound...].firstIndex(of: "\n") ?? content.endIndex)
         let note = "  <!-- review: \(summary) -->\n"
         content.insert(contentsOf: note, at: insertionIndex)
+        // Swallowing intentionally: inserting the review note is a best-effort annotation;
+        // a write failure here does not affect the correctness of the task result.
         try? content.write(toFile: specPath, atomically: true, encoding: .utf8)
     }
 
