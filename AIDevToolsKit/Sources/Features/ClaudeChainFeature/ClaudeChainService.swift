@@ -63,6 +63,17 @@ public struct ClaudeChainService {
     public init(
         client: any AIClient,
         git: GitClient = GitClient(),
+        localSource: any ChainProjectSource
+    ) {
+        self.client = client
+        self.git = git
+        self.localSource = localSource
+        self.remoteSource = nil
+    }
+
+    public init(
+        client: any AIClient,
+        git: GitClient = GitClient(),
         localSource: any ChainProjectSource,
         remoteSource: any ChainProjectSource
     ) {

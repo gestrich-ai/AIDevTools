@@ -1,6 +1,7 @@
 import AppIPCSDK
 import ArgumentParser
 import ClaudeChainFeature
+import ClaudeCLISDK
 import DataPathsService
 import Foundation
 import MCP
@@ -159,7 +160,8 @@ struct MCPCommand: AsyncParsableCommand {
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         do {
             let prService = try await GitHubServiceFactory.createPRService(repoPath: cwd)
-            let result = try await ListChainsUseCase(source: GitHubChainProjectSource(gitHubPRService: prService)).run()
+            let chainService = ClaudeChainService(client: ClaudeProvider(), repoPath: cwd, prService: prService)
+            let result = try await chainService.listChains(source: .remote)
             guard let chain = result.projects.first(where: { $0.name == name }) else {
                 return .init(content: [.text(text: "Chain '\(name)' not found", annotations: nil, _meta: nil)], isError: false)
             }

@@ -1,6 +1,7 @@
 import ArgumentParser
 import ClaudeChainFeature
 import ClaudeChainService
+import ClaudeCLISDK
 import Foundation
 import PRRadarCLIService
 
@@ -30,7 +31,8 @@ public struct StatusCommand: AsyncParsableCommand {
 
         let repoURL = URL(fileURLWithPath: path)
         let prService = try await GitHubServiceFactory.createPRService(repoPath: repoURL)
-        let result = try await ListChainsUseCase(source: GitHubChainProjectSource(gitHubPRService: prService)).run()
+        let chainService = ClaudeChainService(client: ClaudeProvider(), repoPath: repoURL, prService: prService)
+        let result = try await chainService.listChains(source: .remote)
 
         for failure in result.failures {
             fputs("Warning: \(failure.localizedDescription)\n", stderr)

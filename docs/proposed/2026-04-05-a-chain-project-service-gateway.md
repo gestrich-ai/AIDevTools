@@ -93,9 +93,10 @@ public struct ClaudeChainService {
 
 Note: `detectLocalProjects(fromChangedPaths:)` uses the local source since changed-file detection happens during a GitHub Actions run with the repo checked out.
 
-## - [ ] Phase 2: Migrate call sites
+## - [x] Phase 2: Migrate call sites
 
-**Skills to read**: (none additional)
+**Skills used**: none
+**Principles applied**: Added a `localSource`-only convenience init to `ClaudeChainService` so local-only callers (`PrepareCommand`, `RunTaskCommand`) don't need a `prService`. Remote callers (`StatusCommand`, `MCPCommand`) use the existing `init(client:git:repoPath:prService:)`. `ClaudeChainModel` uses `activeClient` already in scope. Added `import ClaudeCLISDK` where `ClaudeProvider()` is used as a minimal AIClient placeholder for commands that only need listing.
 
 Update each caller to construct a `ClaudeChainService` and call the appropriate method:
 

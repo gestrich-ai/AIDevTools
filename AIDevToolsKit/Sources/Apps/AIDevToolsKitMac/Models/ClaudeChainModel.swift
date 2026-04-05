@@ -111,8 +111,9 @@ final class ClaudeChainModel {
         state = .loadingChains
         Task {
             do {
-                let service = try await makeOrGetGitHubPRService(repoPath: repoPath)
-                let result = try await ListChainsUseCase(source: GitHubChainProjectSource(gitHubPRService: service)).run()
+                let prService = try await makeOrGetGitHubPRService(repoPath: repoPath)
+                let chainService = ClaudeChainService(client: activeClient, repoPath: repoPath, prService: prService)
+                let result = try await chainService.listChains(source: .remote)
                 lastLoadedProjects = result.projects
                 fetchWarnings = result.failures
                 state = .loaded(result.projects)
