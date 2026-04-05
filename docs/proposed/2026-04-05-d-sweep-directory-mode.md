@@ -33,7 +33,10 @@ The deferred "multi-folder group" case (disparate folders from different parts o
 
 ## Phases
 
-## - [ ] Phase 1: Mode Detection in `SweepConfig`
+## - [x] Phase 1: Mode Detection in `SweepConfig`
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Added `isDirectoryMode` as a computed property (not stored) to keep `SweepConfig` a simple value type with no new init parameters or config fields. The property is `public` to match the rest of the struct's API surface.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

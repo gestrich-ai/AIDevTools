@@ -11,6 +11,9 @@ public struct SweepConfig: Sendable {
     /// Optional path range restricting which files are considered.
     public let scope: SweepScope?
 
+    /// `true` when `filePattern` ends with `/`, indicating directory-based iteration.
+    public var isDirectoryMode: Bool { filePattern.hasSuffix("/") }
+
     public init(scanLimit: Int = 1, changeLimit: Int = 1, filePattern: String, scope: SweepScope? = nil) {
         self.scanLimit = scanLimit
         self.changeLimit = changeLimit
