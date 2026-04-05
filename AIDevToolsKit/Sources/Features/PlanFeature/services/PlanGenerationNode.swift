@@ -4,21 +4,21 @@ import PipelineSDK
 import RepositorySDK
 
 struct PlanGenerationNode: PipelineNode {
-    static let inputKey = PipelineContextKey<MarkdownPlannerService.GenerateOptions>("PlanGenerationNode.input")
-    static let outputKey = PipelineContextKey<MarkdownPlannerService.GenerateResult>("PlanGenerationNode.output")
+    static let inputKey = PipelineContextKey<PlanService.GenerateOptions>("PlanGenerationNode.input")
+    static let outputKey = PipelineContextKey<PlanService.GenerateResult>("PlanGenerationNode.output")
 
     let id: String
     let displayName: String
 
     private let client: any AIClient
-    private let generateProgressHandler: @Sendable (MarkdownPlannerService.GenerateProgress) -> Void
+    private let generateProgressHandler: @Sendable (PlanService.GenerateProgress) -> Void
     private let resolveProposedDirectory: @Sendable (RepositoryConfiguration) throws -> URL
 
     init(
         id: String = "planGeneration",
         displayName: String = "Generate Plan",
         client: any AIClient,
-        generateProgressHandler: @escaping @Sendable (MarkdownPlannerService.GenerateProgress) -> Void = { _ in },
+        generateProgressHandler: @escaping @Sendable (PlanService.GenerateProgress) -> Void = { _ in },
         resolveProposedDirectory: @escaping @Sendable (RepositoryConfiguration) throws -> URL
     ) {
         self.id = id
@@ -50,7 +50,7 @@ struct PlanGenerationNode: PipelineNode {
 
             guard let repoUUID = UUID(uuidString: repoMatch.repoId),
                   let matched = options.repositories.first(where: { $0.id == repoUUID }) else {
-                throw MarkdownPlannerService.GenerateError.repoNotFound(repoMatch.repoId)
+                throw PlanService.GenerateError.repoNotFound(repoMatch.repoId)
             }
             repo = matched
         }
@@ -64,7 +64,7 @@ struct PlanGenerationNode: PipelineNode {
         let planURL = try writePlan(plan, to: proposedDir)
         generateProgressHandler(.completed(planURL: planURL, repository: repo))
 
-        let result = MarkdownPlannerService.GenerateResult(
+        let result = PlanService.GenerateResult(
             planURL: planURL,
             repository: repo,
             repoMatch: repoMatch,
@@ -221,7 +221,7 @@ struct PlanGenerationNode: PipelineNode {
                 try fm.createDirectory(at: proposedDirectory, withIntermediateDirectories: true)
             }
         } catch {
-            throw MarkdownPlannerService.GenerateError.writeError("Could not create directory: \(error.localizedDescription)")
+            throw PlanService.GenerateError.writeError("Could not create directory: \(error.localizedDescription)")
         }
 
         let filename = buildFilename(description: plan.filename, in: proposedDirectory)
@@ -229,7 +229,7 @@ struct PlanGenerationNode: PipelineNode {
         do {
             try plan.planContent.write(to: planURL, atomically: true, encoding: .utf8)
         } catch {
-            throw MarkdownPlannerService.GenerateError.writeError("Could not write plan file: \(error.localizedDescription)")
+            throw PlanService.GenerateError.writeError("Could not write plan file: \(error.localizedDescription)")
         }
 
         return planURL

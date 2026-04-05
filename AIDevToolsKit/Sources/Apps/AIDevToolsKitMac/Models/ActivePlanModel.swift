@@ -1,6 +1,6 @@
 import Foundation
-import MarkdownPlannerFeature
-import MarkdownPlannerService
+import PlanFeature
+import PlanService
 import Observation
 
 @Observable

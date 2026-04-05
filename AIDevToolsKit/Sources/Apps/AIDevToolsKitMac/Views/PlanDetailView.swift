@@ -1,12 +1,12 @@
 import AIOutputSDK
 import MarkdownUI
-import MarkdownPlannerFeature
-import MarkdownPlannerService
+import PlanFeature
+import PlanService
 import RepositorySDK
 import SwiftUI
 
-struct MarkdownPlannerDetailView: View {
-    @Environment(MarkdownPlannerModel.self) var markdownPlannerModel
+struct PlanDetailView: View {
+    @Environment(PlanModel.self) var planModel
     let plan: MarkdownPlanEntry
     let repository: RepositoryConfiguration
 
@@ -29,7 +29,7 @@ struct MarkdownPlannerDetailView: View {
         VStack(spacing: 0) {
             headerBar
 
-            if case .error(let error) = markdownPlannerModel.state {
+            if case .error(let error) = planModel.state {
                 errorBanner(error)
             }
 
@@ -54,10 +54,10 @@ struct MarkdownPlannerDetailView: View {
             activePlanModel.stopWatching()
             await loadPlan()
         }
-        .onChange(of: markdownPlannerModel.phaseCompleteCount) {
+        .onChange(of: planModel.phaseCompleteCount) {
             loadArchitectureDiagram()
         }
-        .onChange(of: markdownPlannerModel.executionCompleteCount) {
+        .onChange(of: planModel.executionCompleteCount) {
             Task { await handleExecutionComplete() }
         }
         .onChange(of: activePlanModel.content) { _, newContent in
@@ -84,7 +84,7 @@ struct MarkdownPlannerDetailView: View {
                     }
                 }
 
-                if case .completed(let result, _) = markdownPlannerModel.state {
+                if case .completed(let result, _) = planModel.state {
                     completionBanner(result)
                 }
 
@@ -140,7 +140,7 @@ struct MarkdownPlannerDetailView: View {
 
     @ViewBuilder
     private var queuedTasksSection: some View {
-        let tasks = markdownPlannerModel.queuedTasks
+        let tasks = planModel.queuedTasks
         if !tasks.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Queued Tasks")
@@ -155,7 +155,7 @@ struct MarkdownPlannerDetailView: View {
                             .font(.body)
                         Spacer()
                         Button {
-                            markdownPlannerModel.removeQueuedTask(task.id)
+                            planModel.removeQueuedTask(task.id)
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.secondary)
@@ -170,7 +170,7 @@ struct MarkdownPlannerDetailView: View {
     private func submitNewTask() {
         let trimmed = newTaskDescription.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        markdownPlannerModel.queueTask(trimmed)
+        planModel.queueTask(trimmed)
         newTaskDescription = ""
         isAddTaskPopoverPresented = false
     }
@@ -178,12 +178,12 @@ struct MarkdownPlannerDetailView: View {
     // MARK: - Header
 
     private var isExecuting: Bool {
-        if case .executing = markdownPlannerModel.state { return true }
+        if case .executing = planModel.state { return true }
         return false
     }
 
     private var isGenerating: Bool {
-        if case .generating = markdownPlannerModel.state { return true }
+        if case .generating = planModel.state { return true }
         return false
     }
 
@@ -205,15 +205,15 @@ struct MarkdownPlannerDetailView: View {
 
             Spacer()
 
-            let pipelineNodes = markdownPlannerModel.pipelineModel.nodes
+            let pipelineNodes = planModel.pipelineModel.nodes
             if isExecuting && !pipelineNodes.isEmpty {
                 Text("\(pipelineNodes.filter(\.isCompleted).count)/\(pipelineNodes.count) phases")
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
             }
 
-            Picker("Provider", selection: Bindable(markdownPlannerModel).selectedProviderName) {
-                ForEach(markdownPlannerModel.availableProviders, id: \.name) { provider in
+            Picker("Provider", selection: Bindable(planModel).selectedProviderName) {
+                ForEach(planModel.availableProviders, id: \.name) { provider in
                     Text(provider.displayName).tag(provider.name)
                 }
             }
@@ -275,7 +275,7 @@ struct MarkdownPlannerDetailView: View {
 
     @ViewBuilder
     private var executionStatusText: some View {
-        let currentNode = markdownPlannerModel.pipelineModel.nodes.first(where: \.isCurrent)
+        let currentNode = planModel.pipelineModel.nodes.first(where: \.isCurrent)
         if let node = currentNode {
             Text(node.displayName)
                 .font(.subheadline)
@@ -292,9 +292,9 @@ struct MarkdownPlannerDetailView: View {
 
     @ViewBuilder
     private var phaseSection: some View {
-        if markdownPlannerModel.pipelineModel.isRunning {
+        if planModel.pipelineModel.isRunning {
             PipelineView()
-                .environment(markdownPlannerModel.pipelineModel)
+                .environment(planModel.pipelineModel)
         } else if !localPhases.isEmpty {
             localPhaseList
         }
@@ -327,7 +327,7 @@ struct MarkdownPlannerDetailView: View {
 
     // MARK: - Completion / Error
 
-    private func completionBanner(_ result: MarkdownPlannerService.ExecuteResult) -> some View {
+    private func completionBanner(_ result: PlanService.ExecuteResult) -> some View {
         let bannerIcon: String
         let bannerColor: Color
         let bannerTitle: String
@@ -357,7 +357,7 @@ struct MarkdownPlannerDetailView: View {
             }
             Spacer()
             Button("Dismiss") {
-                markdownPlannerModel.reset()
+                planModel.reset()
             }
             .buttonStyle(.borderless)
         }
@@ -374,7 +374,7 @@ struct MarkdownPlannerDetailView: View {
                 .font(.callout)
             Spacer()
             Button("Dismiss") {
-                markdownPlannerModel.reset()
+                planModel.reset()
             }
             .buttonStyle(.borderless)
         }
@@ -385,13 +385,13 @@ struct MarkdownPlannerDetailView: View {
     // MARK: - Actions
 
     private func startExecution() {
-        let executionModel = markdownPlannerModel.makeChatModel(
+        let executionModel = planModel.makeChatModel(
             workingDirectory: repository.path.path()
         )
         executionChatModel = executionModel
         activePlanModel.stopWatching()
 
-        markdownPlannerModel.pipelineModel.onEvent = { @MainActor [weak executionModel] event in
+        planModel.pipelineModel.onEvent = { @MainActor [weak executionModel] event in
             guard let executionModel else { return }
             switch event {
             case .nodeStarted(_, let displayName):
@@ -410,9 +410,9 @@ struct MarkdownPlannerDetailView: View {
         }
 
         let stopForDiagram = stopAfterArchitectureDiagram
-        let mode: MarkdownPlannerService.ExecuteMode = executeNextOnly ? .next : .all
+        let mode: PlanService.ExecuteMode = executeNextOnly ? .next : .all
         Task {
-            await markdownPlannerModel.execute(
+            await planModel.execute(
                 plan: plan,
                 repository: repository,
                 executeMode: mode,
@@ -425,13 +425,13 @@ struct MarkdownPlannerDetailView: View {
         await loadPlan()
         mergeExecutionPhaseStates()
         executionChatModel?.finalizeCurrentStreamingMessage()
-        markdownPlannerModel.pipelineModel.onEvent = nil
+        planModel.pipelineModel.onEvent = nil
         executionChatModel = nil
         activePlanModel.startWatching(url: plan.planURL)
     }
 
     private func mergeExecutionPhaseStates() {
-        let executionPhases = markdownPlannerModel.state.lastExecutionPhases
+        let executionPhases = planModel.state.lastExecutionPhases
         guard !executionPhases.isEmpty else { return }
         localPhases = localPhases.enumerated().map { index, phase in
             if index < executionPhases.count, executionPhases[index].isCompleted {
@@ -443,19 +443,19 @@ struct MarkdownPlannerDetailView: View {
 
     private func togglePhase(at index: Int) {
         do {
-            let updatedContent = try markdownPlannerModel.togglePhase(plan: plan, phaseIndex: index)
+            let updatedContent = try planModel.togglePhase(plan: plan, phaseIndex: index)
             planContent = updatedContent
             localPhases = PlanPhase.parsePhases(from: updatedContent)
         } catch {
-            markdownPlannerModel.state = .error(error)
+            planModel.state = .error(error)
         }
     }
 
     private func completePlan() {
         do {
-            try markdownPlannerModel.completePlan(plan, repository: repository)
+            try planModel.completePlan(plan, repository: repository)
         } catch {
-            markdownPlannerModel.state = .error(error)
+            planModel.state = .error(error)
         }
     }
 
@@ -463,7 +463,7 @@ struct MarkdownPlannerDetailView: View {
 
     private func loadPlan() async {
         do {
-            let content = try await markdownPlannerModel.getPlanDetails(planName: plan.name, repository: repository)
+            let content = try await planModel.getPlanDetails(planName: plan.name, repository: repository)
             planContent = content
             localPhases = PlanPhase.parsePhases(from: content)
             loadError = nil
@@ -505,7 +505,7 @@ private struct AppendReviewPopover: View {
     let plan: MarkdownPlanEntry
     let reviewsDirectory: URL
     let onAppended: () -> Void
-    @Environment(MarkdownPlannerModel.self) var markdownPlannerModel
+    @Environment(PlanModel.self) var planModel
     @Environment(\.dismiss) var dismiss
 
     @State private var templates: [ReviewTemplate] = []
@@ -534,7 +534,7 @@ private struct AppendReviewPopover: View {
                     Button {
                         Task {
                             do {
-                                try await markdownPlannerModel.appendReviewTemplate(template, to: plan.planURL)
+                                try await planModel.appendReviewTemplate(template, to: plan.planURL)
                                 appendedName = template.name
                                 onAppended()
                                 try? await Task.sleep(for: .seconds(1))

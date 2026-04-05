@@ -3,12 +3,12 @@ import CredentialService
 import Foundation
 import GitSDK
 import Logging
-import MarkdownPlannerService
+import PlanService
 import PipelineSDK
 import RepositorySDK
 import UseCaseSDK
 
-@available(*, deprecated, renamed: "MarkdownPlannerService")
+@available(*, deprecated, renamed: "PlanService")
 public struct ExecutePlanUseCase: UseCase {
 
     public enum ExecuteMode: Sendable {

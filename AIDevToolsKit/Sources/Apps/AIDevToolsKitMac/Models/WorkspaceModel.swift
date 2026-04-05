@@ -144,7 +144,7 @@ final class WorkspaceModel {
         }
     }
 
-    func planSettings(for repo: RepositoryConfiguration) -> MarkdownPlannerRepoSettings? {
+    func planSettings(for repo: RepositoryConfiguration) -> PlanRepoSettings? {
         repo.planner
     }
 
@@ -193,7 +193,7 @@ final class WorkspaceModel {
                     state = .error(PlanDirectoryError.emptyDirectory("completedDirectory"))
                     return
                 }
-                repo.planner = MarkdownPlannerRepoSettings(
+                repo.planner = PlanRepoSettings(
                     proposedDirectory: proposedDirectory,
                     completedDirectory: completedDirectory
                 )

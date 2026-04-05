@@ -1,13 +1,13 @@
 import ArgumentParser
 import DataPathsService
 import Foundation
-import MarkdownPlannerFeature
+import PlanFeature
 import PipelineSDK
 import ProviderRegistryService
 import RepositorySDK
 import SettingsService
 
-struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
+struct PlanPlanCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "plan",
         abstract: "Generate an implementation plan from a prompt"
@@ -32,14 +32,14 @@ struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
         let registry = makeProviderRegistry()
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
 
-        let service = MarkdownPlannerService(
+        let service = PlanService(
             client: client,
             resolveProposedDirectory: { repo in
-                (repo.planner ?? MarkdownPlannerRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
+                (repo.planner ?? PlanRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
             }
         )
         let result = try await service.generate(
-            options: MarkdownPlannerService.GenerateOptions(
+            options: PlanService.GenerateOptions(
                 prompt: text,
                 repositories: repos
             )
@@ -51,15 +51,15 @@ struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
             printColored("\nStarting execution...", color: .cyan)
             let planPath = result.planURL.path(percentEncoded: false)
             let executeRepository = repos.first { planPath.hasPrefix($0.path.path(percentEncoded: false)) }
-            let executeService = MarkdownPlannerService(
+            let executeService = PlanService(
                 client: client,
                 resolveProposedDirectory: { repo in
-                    (repo.planner ?? MarkdownPlannerRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
+                    (repo.planner ?? PlanRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
                 }
             )
             let timer = TimerDisplay(maxRuntimeSeconds: 90 * 60, scriptStartTime: Date())
             let blueprint = try await executeService.buildExecutePipeline(
-                options: MarkdownPlannerService.ExecuteOptions(
+                options: PlanService.ExecuteOptions(
                     executeMode: .all,
                     planPath: result.planURL,
                     repoPath: URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
@@ -71,7 +71,7 @@ struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
                 nodes: blueprint.nodes,
                 configuration: blueprint.configuration,
                 onProgress: { [timer, state] event in
-                    MarkdownPlannerExecuteCommand.handlePipelineEvent(event, timer: timer, state: state)
+                    PlanExecuteCommand.handlePipelineEvent(event, timer: timer, state: state)
                 }
             )
             timer.stop()
@@ -81,7 +81,7 @@ struct MarkdownPlannerPlanCommand: AsyncParsableCommand {
         }
     }
 
-    private static func printProgress(_ progress: MarkdownPlannerService.GenerateProgress) {
+    private static func printProgress(_ progress: PlanService.GenerateProgress) {
         switch progress {
         case .matchingRepo:
             printColored("Step 1/3: Matching repository...", color: .cyan)

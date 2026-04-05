@@ -3,7 +3,7 @@ import Foundation
 import RepositorySDK
 import UseCaseSDK
 
-@available(*, deprecated, renamed: "MarkdownPlannerService")
+@available(*, deprecated, renamed: "PlanService")
 public struct GeneratePlanUseCase: UseCase {
 
     public struct Options: Sendable {

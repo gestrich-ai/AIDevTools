@@ -2,12 +2,12 @@ import AIOutputSDK
 import CredentialService
 import Foundation
 import Logging
-import MarkdownPlannerService
+import PlanService
 import PipelineSDK
 import RepositorySDK
 import UseCaseSDK
 
-public struct MarkdownPlannerService: UseCase {
+public struct PlanService: UseCase {
 
     // MARK: - Generate types
 
@@ -153,7 +153,7 @@ public struct MarkdownPlannerService: UseCase {
     // MARK: - Dependencies
 
     private let client: any AIClient
-    private let logger = Logger(label: "MarkdownPlannerService")
+    private let logger = Logger(label: "PlanService")
     private let resolveProposedDirectory: @Sendable (RepositoryConfiguration) throws -> URL
 
     public init(
@@ -227,7 +227,7 @@ public struct MarkdownPlannerService: UseCase {
         let instructionBuilder: @Sendable (PendingTask) -> String = { task in
             let phaseIndex = Int(task.id) ?? 0
             let ghInstructions = "\nWhen creating pull requests, ALWAYS use `gh pr create --draft`."
-            let skillsToRead = MarkdownPlannerService.parseSkillsToRead(planPath: planPath, phaseIndex: phaseIndex)
+            let skillsToRead = PlanService.parseSkillsToRead(planPath: planPath, phaseIndex: phaseIndex)
             let skillsInstruction = skillsToRead.isEmpty ? "" : """
 
             Before implementing, read these skills for relevant conventions: \(skillsToRead.joined(separator: ", "))

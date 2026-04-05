@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import MarkdownPlannerService
+@testable import PlanService
 
 struct ReviewTemplateServiceTests {
     private func makeTempDirectory() throws -> URL {

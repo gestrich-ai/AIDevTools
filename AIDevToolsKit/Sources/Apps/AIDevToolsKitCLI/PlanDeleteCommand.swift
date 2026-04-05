@@ -1,11 +1,11 @@
 import ArgumentParser
 import DataPathsService
 import Foundation
-import MarkdownPlannerFeature
+import PlanFeature
 import RepositorySDK
 import SettingsService
 
-struct MarkdownPlannerDeleteCommand: ParsableCommand {
+struct PlanDeleteCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete",
         abstract: "Delete a plan file"
@@ -40,7 +40,7 @@ struct MarkdownPlannerDeleteCommand: ParsableCommand {
 
         var allPlans: [(url: URL, repoName: String)] = []
         for repo in repos {
-            let proposedDir = (repo.planner ?? MarkdownPlannerRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
+            let proposedDir = (repo.planner ?? PlanRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
             guard let files = try? FileManager.default.contentsOfDirectory(
                 at: proposedDir,
                 includingPropertiesForKeys: nil,

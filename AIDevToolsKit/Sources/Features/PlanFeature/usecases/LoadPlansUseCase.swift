@@ -1,5 +1,5 @@
 import Foundation
-import MarkdownPlannerService
+import PlanService
 import UseCaseSDK
 
 public struct LoadPlansUseCase: UseCase {

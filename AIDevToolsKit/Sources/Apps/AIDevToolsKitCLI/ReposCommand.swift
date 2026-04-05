@@ -232,7 +232,7 @@ struct UpdateRepo: ParsableCommand {
             guard completedDir?.isEmpty != true else {
                 throw ValidationError("completedDirectory cannot be an empty string; pass nil to use the default")
             }
-            repo.planner = MarkdownPlannerRepoSettings(
+            repo.planner = PlanRepoSettings(
                 proposedDirectory: proposedDir,
                 completedDirectory: completedDir
             )

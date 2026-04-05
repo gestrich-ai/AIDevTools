@@ -1,13 +1,13 @@
 import AIOutputSDK
 import Foundation
-import MarkdownPlannerFeature
-import MarkdownPlannerService
+import PlanFeature
+import PlanService
 import PipelineSDK
 import ProviderRegistryService
 import RepositorySDK
 
 @MainActor @Observable
-final class MarkdownPlannerModel {
+final class PlanModel {
 
     struct QueuedTask: Identifiable {
         let id: UUID
@@ -23,7 +23,7 @@ final class MarkdownPlannerModel {
         case idle
         case executing
         case generating(step: String)
-        case completed(MarkdownPlannerService.ExecuteResult, phases: [PlanPhase])
+        case completed(PlanService.ExecuteResult, phases: [PlanPhase])
         case error(Error)
 
         var lastExecutionPhases: [PlanPhase] {
@@ -76,7 +76,7 @@ final class MarkdownPlannerModel {
 
         guard let client = selectedProviderName.flatMap({ providerRegistry.client(named: $0) })
             ?? providerRegistry.defaultClient else {
-            preconditionFailure("MarkdownPlannerModel requires at least one configured provider")
+            preconditionFailure("PlanModel requires at least one configured provider")
         }
         self.selectedProviderName = client.name
         self.activeClient = client
@@ -128,7 +128,7 @@ final class MarkdownPlannerModel {
     }
 
     func completePlan(_ plan: MarkdownPlanEntry, repository: RepositoryConfiguration) throws {
-        let settings = repository.planner ?? MarkdownPlannerRepoSettings()
+        let settings = repository.planner ?? PlanRepoSettings()
         let completedDir = settings.resolvedCompletedDirectory(repoPath: repository.path)
         try CompletePlanUseCase(completedDirectory: completedDir).run(planURL: plan.planURL)
         Task { await reloadPlans() }
@@ -137,21 +137,21 @@ final class MarkdownPlannerModel {
     func execute(
         plan: MarkdownPlanEntry,
         repository: RepositoryConfiguration,
-        executeMode: MarkdownPlannerService.ExecuteMode = .all,
+        executeMode: PlanService.ExecuteMode = .all,
         stopAfterArchitectureDiagram: Bool = false
     ) async {
         state = .executing
         phaseCompleteCount = 0
 
         do {
-            let service = MarkdownPlannerService(
+            let service = PlanService(
                 client: activeClient,
                 resolveProposedDirectory: { repo in
-                    let s = repo.planner ?? MarkdownPlannerRepoSettings()
+                    let s = repo.planner ?? PlanRepoSettings()
                     return s.resolvedProposedDirectory(repoPath: repo.path)
                 }
             )
-            let options = MarkdownPlannerService.ExecuteOptions(
+            let options = PlanService.ExecuteOptions(
                 executeMode: executeMode,
                 planPath: plan.planURL,
                 repoPath: repository.path,
@@ -168,7 +168,7 @@ final class MarkdownPlannerModel {
             try await pipelineModel.run(blueprint: blueprint)
             let completedCount = pipelineModel.nodes.filter(\.isCompleted).count
             let totalCount = pipelineModel.nodes.count
-            let result = MarkdownPlannerService.ExecuteResult(
+            let result = PlanService.ExecuteResult(
                 phasesExecuted: completedCount,
                 totalPhases: totalCount,
                 allCompleted: totalCount > 0 && completedCount == totalCount,
@@ -187,14 +187,14 @@ final class MarkdownPlannerModel {
     func generate(prompt: String, repositories: [RepositoryConfiguration], selectedRepository: RepositoryConfiguration? = nil) async -> String? {
         state = .generating(step: selectedRepository != nil ? "Generating plan..." : "Matching repository...")
 
-        let service = MarkdownPlannerService(
+        let service = PlanService(
             client: activeClient,
             resolveProposedDirectory: { repo in
-                let settings = repo.planner ?? MarkdownPlannerRepoSettings()
+                let settings = repo.planner ?? PlanRepoSettings()
                 return settings.resolvedProposedDirectory(repoPath: repo.path)
             }
         )
-        let options = MarkdownPlannerService.GenerateOptions(
+        let options = PlanService.GenerateOptions(
             prompt: prompt,
             repositories: repositories,
             selectedRepository: selectedRepository
@@ -274,7 +274,7 @@ final class MarkdownPlannerModel {
     // MARK: - Private
 
     private func resolvedProposedDirectory(for repo: RepositoryConfiguration) -> URL {
-        let settings = repo.planner ?? MarkdownPlannerRepoSettings()
+        let settings = repo.planner ?? PlanRepoSettings()
         return settings.resolvedProposedDirectory(repoPath: repo.path)
     }
 }

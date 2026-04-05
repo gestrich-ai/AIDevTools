@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import MarkdownPlannerService
+@testable import PlanService
 
 struct ArchitectureDiagramTests {
 
@@ -33,10 +33,10 @@ struct ArchitectureDiagramTests {
           "dependsOn": ["Services", "SDKs"],
           "modules": [
             {
-              "name": "MarkdownPlannerFeature",
+              "name": "PlanFeature",
               "changes": [
                 {
-                  "file": "Sources/Features/MarkdownPlannerFeature/usecases/GeneratePlanUseCase.swift",
+                  "file": "Sources/Features/PlanFeature/usecases/GeneratePlanUseCase.swift",
                   "action": "modify",
                   "summary": "Add architecture JSON generation to Phase 3 prompt",
                   "phase": 4

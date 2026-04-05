@@ -33,9 +33,9 @@ let package = Package(
         .library(name: "GitSDK", targets: ["GitSDK"]),
         .library(name: "KeychainSDK", targets: ["KeychainSDK"]),
         .library(name: "LoggingSDK", targets: ["LoggingSDK"]),
-        .library(name: "MaintenanceSDK", targets: ["MaintenanceSDK"]),
-        .library(name: "MarkdownPlannerFeature", targets: ["MarkdownPlannerFeature"]),
-        .library(name: "MarkdownPlannerService", targets: ["MarkdownPlannerService"]),
+        .library(name: "SweepService", targets: ["SweepService"]),
+        .library(name: "PlanFeature", targets: ["PlanFeature"]),
+        .library(name: "PlanService", targets: ["PlanService"]),
         .library(name: "OctokitSDK", targets: ["OctokitSDK"]),
         .library(name: "PipelineFeature", targets: ["PipelineFeature"]),
         .library(name: "PipelineSDK", targets: ["PipelineSDK"]),
@@ -88,8 +88,8 @@ let package = Package(
                 "EvalSDK",
                 "EvalService",
                 "LoggingSDK",
-                "MarkdownPlannerFeature",
-                "MarkdownPlannerService",
+                "PlanFeature",
+                "PlanService",
                 .product(name: "MCP", package: "swift-sdk"),
                 "PRRadarCLIService",
                 "PRRadarConfigService",
@@ -125,8 +125,8 @@ let package = Package(
                 "EvalService",
                 "GitHubService",
                 "LoggingSDK",
-                "MarkdownPlannerFeature",
-                "MarkdownPlannerService",
+                "PlanFeature",
+                "PlanService",
                 "OctokitSDK",
                 "PipelineSDK",
                 "PipelineService",
@@ -186,18 +186,18 @@ let package = Package(
             path: "Sources/Features/EvalFeature"
         ),
         .target(
-            name: "MarkdownPlannerFeature",
+            name: "PlanFeature",
             dependencies: [
                 "AIOutputSDK",
                 "CredentialService",
                 "GitSDK",
                 "LoggingSDK",
-                "MarkdownPlannerService",
+                "PlanService",
                 "PipelineSDK",
                 "RepositorySDK",
                 "UseCaseSDK",
             ],
-            path: "Sources/Features/MarkdownPlannerFeature"
+            path: "Sources/Features/PlanFeature"
         ),
         .target(
             name: "PipelineFeature",
@@ -277,9 +277,14 @@ let package = Package(
             path: "Sources/Services/GitHubService"
         ),
         .target(
-            name: "MarkdownPlannerService",
+            name: "SweepService",
+            dependencies: [],
+            path: "Sources/Services/SweepService"
+        ),
+        .target(
+            name: "PlanService",
             dependencies: ["RepositorySDK"],
-            path: "Sources/Services/MarkdownPlannerService"
+            path: "Sources/Services/PlanService"
         ),
         .target(
             name: "PipelineService",
@@ -436,11 +441,6 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
             ],
             path: "Sources/SDKs/LoggingSDK"
-        ),
-        .target(
-            name: "MaintenanceSDK",
-            dependencies: [],
-            path: "Sources/SDKs/MaintenanceSDK"
         ),
         .target(
             name: "OctokitSDK",
@@ -650,14 +650,14 @@ let package = Package(
             path: "Tests/SDKs/LoggingSDKTests"
         ),
         .testTarget(
-            name: "MarkdownPlannerFeatureTests",
-            dependencies: ["GitSDK", "MarkdownPlannerFeature", "MarkdownPlannerService", "RepositorySDK"],
-            path: "Tests/Features/MarkdownPlannerFeatureTests"
+            name: "PlanFeatureTests",
+            dependencies: ["GitSDK", "PlanFeature", "PlanService", "RepositorySDK"],
+            path: "Tests/Features/PlanFeatureTests"
         ),
         .testTarget(
-            name: "MarkdownPlannerServiceTests",
-            dependencies: ["MarkdownPlannerService", "RepositorySDK"],
-            path: "Tests/Services/MarkdownPlannerServiceTests"
+            name: "PlanServiceTests",
+            dependencies: ["PlanService", "RepositorySDK"],
+            path: "Tests/Services/PlanServiceTests"
         ),
         .testTarget(
             name: "PipelineFeatureTests",

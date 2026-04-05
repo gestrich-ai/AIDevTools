@@ -4,8 +4,8 @@ import ClaudeChainFeature
 import DataPathsService
 import Foundation
 import MCP
-import MarkdownPlannerFeature
-import MarkdownPlannerService
+import PlanFeature
+import PlanService
 import RepositorySDK
 
 struct MCPCommand: AsyncParsableCommand {
@@ -137,7 +137,7 @@ struct MCPCommand: AsyncParsableCommand {
 
     private static func handleListPlans() async throws -> CallTool.Result {
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        let proposedDir = cwd.appendingPathComponent(MarkdownPlannerRepoSettings.defaultProposedDirectory)
+        let proposedDir = cwd.appendingPathComponent(PlanRepoSettings.defaultProposedDirectory)
         let plans = await LoadPlansUseCase(proposedDirectory: proposedDir).run()
 
         if plans.isEmpty {
@@ -183,7 +183,7 @@ struct MCPCommand: AsyncParsableCommand {
         }
 
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        let proposedDir = cwd.appendingPathComponent(MarkdownPlannerRepoSettings.defaultProposedDirectory)
+        let proposedDir = cwd.appendingPathComponent(PlanRepoSettings.defaultProposedDirectory)
         do {
             let content = try await GetPlanDetailsUseCase(proposedDirectory: proposedDir).run(planName: name)
             return .init(content: [.text(text: content, annotations: nil, _meta: nil)], isError: false)

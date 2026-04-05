@@ -1,6 +1,6 @@
 import AIOutputSDK
 import Foundation
-import MarkdownPlannerService
+import PlanService
 import UseCaseSDK
 
 public struct WatchPlanUseCase: StreamingUseCase {

@@ -7,7 +7,7 @@ public struct RepositoryConfiguration: Codable, Identifiable, Sendable {
     public var credentialAccount: String?
     public var description: String?
     public var eval: EvalRepoSettings?
-    public var planner: MarkdownPlannerRepoSettings?
+    public var planner: PlanRepoSettings?
     public var prradar: PRRadarRepoSettings?
     public var recentFocus: String?
     public var skills: [String]?
@@ -22,7 +22,7 @@ public struct RepositoryConfiguration: Codable, Identifiable, Sendable {
         credentialAccount: String? = nil,
         description: String? = nil,
         eval: EvalRepoSettings? = nil,
-        planner: MarkdownPlannerRepoSettings? = nil,
+        planner: PlanRepoSettings? = nil,
         prradar: PRRadarRepoSettings? = nil,
         recentFocus: String? = nil,
         skills: [String]? = nil,

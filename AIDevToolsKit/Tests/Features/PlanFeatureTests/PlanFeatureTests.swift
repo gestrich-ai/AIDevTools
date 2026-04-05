@@ -1,11 +1,11 @@
 import Testing
 import Foundation
-@testable import MarkdownPlannerFeature
-import MarkdownPlannerService
+@testable import PlanFeature
+import PlanService
 import RepositorySDK
 
-@Suite("MarkdownPlannerFeature Models")
-struct MarkdownPlannerFeatureModelTests {
+@Suite("PlanFeature Models")
+struct PlanFeatureModelTests {
 
     // MARK: - PhaseStatus
 

@@ -1,7 +1,10 @@
 import Foundation
 
-public struct MaintenanceCursorState: Codable, Sendable {
+/// Persisted progress for a sweep.
+public struct SweepState: Codable, Sendable {
+    /// The last file path processed, used to resume on the next run.
     public var cursor: String?
+    /// When the sweep last ran successfully.
     public var lastRunDate: Date?
 
     public init(cursor: String? = nil, lastRunDate: Date? = nil) {
@@ -9,16 +12,18 @@ public struct MaintenanceCursorState: Codable, Sendable {
         self.lastRunDate = lastRunDate
     }
 
-    public static func load(from url: URL) throws -> MaintenanceCursorState {
+    /// Loads state from `url`, returning an empty state if the file does not exist.
+    public static func load(from url: URL) throws -> SweepState {
         guard FileManager.default.fileExists(atPath: url.path()) else {
-            return MaintenanceCursorState()
+            return SweepState()
         }
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(MaintenanceCursorState.self, from: data)
+        return try decoder.decode(SweepState.self, from: data)
     }
 
+    /// Persists the state to `url`, creating intermediate directories as needed.
     public func save(to url: URL) throws {
         let directory = url.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

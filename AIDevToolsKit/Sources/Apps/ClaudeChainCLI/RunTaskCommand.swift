@@ -93,8 +93,8 @@ struct RunTaskCommand: AsyncParsableCommand {
             resolvedBaseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)
         }
 
-        let useCase = RunMarkdownChainTaskUseCase(client: client, git: git)
-        let options = RunMarkdownChainTaskUseCase.Options(
+        let useCase = RunSpecChainTaskUseCase(client: client, git: git)
+        let options = RunSpecChainTaskUseCase.Options(
             repoPath: repoURL,
             projectName: project,
             baseBranch: resolvedBaseBranch,
@@ -122,7 +122,7 @@ struct RunTaskCommand: AsyncParsableCommand {
         }
     }
 
-    private static func handleProgress(_ progress: RunMarkdownChainTaskUseCase.Progress) {
+    private static func handleProgress(_ progress: RunSpecChainTaskUseCase.Progress) {
         switch progress {
         case .preparingProject:
             print("=== Phase: Preparing ===")

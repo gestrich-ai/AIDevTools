@@ -56,7 +56,7 @@ public struct FinalizeStagedTaskUseCase: UseCase {
         }
     }
 
-    public typealias Progress = RunMarkdownChainTaskUseCase.Progress
+    public typealias Progress = RunSpecChainTaskUseCase.Progress
 
     private let client: any AIClient
     private let git: GitClient

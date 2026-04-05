@@ -1,14 +1,14 @@
 import ArgumentParser
 import DataPathsService
 import Foundation
-import MarkdownPlannerFeature
-import MarkdownPlannerService
+import PlanFeature
+import PlanService
 import PipelineSDK
 import ProviderRegistryService
 import RepositorySDK
 import SettingsService
 
-struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
+struct PlanExecuteCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "execute",
         abstract: "Execute phases from a planning document"
@@ -60,16 +60,16 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
         let registry = makeProviderRegistry()
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
 
-        let service = MarkdownPlannerService(
+        let service = PlanService(
             client: client,
             resolveProposedDirectory: { repo in
-                (repo.planner ?? MarkdownPlannerRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
+                (repo.planner ?? PlanRepoSettings()).resolvedProposedDirectory(repoPath: repo.path)
             }
         )
 
         printColored("Fetching phase information...", color: .cyan)
         let blueprint = try await service.buildExecutePipeline(
-            options: MarkdownPlannerService.ExecuteOptions(
+            options: PlanService.ExecuteOptions(
                 executeMode: next ? .next : .all,
                 planPath: planURL,
                 repoPath: repoPath,
@@ -146,7 +146,7 @@ struct MarkdownPlannerExecuteCommand: AsyncParsableCommand {
         }
     }
 
-    private func selectPlanningDoc(proposedDir: String = MarkdownPlannerRepoSettings.defaultProposedDirectory) -> URL? {
+    private func selectPlanningDoc(proposedDir: String = PlanRepoSettings.defaultProposedDirectory) -> URL? {
         let fm = FileManager.default
         let dir = URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent(proposedDir)
 

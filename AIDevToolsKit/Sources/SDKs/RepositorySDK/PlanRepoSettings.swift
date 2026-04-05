@@ -1,6 +1,6 @@
 import Foundation
 
-public struct MarkdownPlannerRepoSettings: Codable, Sendable {
+public struct PlanRepoSettings: Codable, Sendable {
     public static let defaultProposedDirectory = "docs/proposed"
     public static let defaultCompletedDirectory = "docs/completed"
 

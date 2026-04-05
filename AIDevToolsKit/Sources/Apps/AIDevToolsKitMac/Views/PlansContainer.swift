@@ -1,9 +1,9 @@
-import MarkdownPlannerService
+import PlanService
 import RepositorySDK
 import SwiftUI
 
 struct PlansContainer: View {
-    @Environment(MarkdownPlannerModel.self) var markdownPlannerModel
+    @Environment(PlanModel.self) var planModel
     @Environment(WorkspaceModel.self) var model
 
     let repository: RepositoryConfiguration
@@ -14,7 +14,7 @@ struct PlansContainer: View {
 
     private var selectedPlan: MarkdownPlanEntry? {
         guard let name = selectedPlanName else { return nil }
-        return markdownPlannerModel.plans.first(where: { $0.name == name })
+        return planModel.plans.first(where: { $0.name == name })
     }
 
     var body: some View {
@@ -24,7 +24,7 @@ struct PlansContainer: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: repository.id) {
-            await markdownPlannerModel.loadPlans(for: repository)
+            await planModel.loadPlans(for: repository)
             if selectedPlanName == nil, !storedPlanName.isEmpty {
                 selectedPlanName = storedPlanName
             }
@@ -42,28 +42,28 @@ struct PlansContainer: View {
             showGenerateSheet = true
         } content: {
             List(selection: $selectedPlanName) {
-                if markdownPlannerModel.isLoadingPlans {
+                if planModel.isLoadingPlans {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
                         Text("Loading plans...").font(.caption).foregroundStyle(.secondary)
                     }
                 }
 
-                if case .generating(let step) = markdownPlannerModel.state {
+                if case .generating(let step) = planModel.state {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
                         Text(step).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
 
-                if case .error(let error) = markdownPlannerModel.state {
+                if case .error(let error) = planModel.state {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.red).font(.caption)
                             Text("Generation Failed").font(.caption.bold()).foregroundStyle(.red)
                             Spacer()
-                            Button("Dismiss") { markdownPlannerModel.reset() }
+                            Button("Dismiss") { planModel.reset() }
                                 .font(.caption).buttonStyle(.borderless)
                         }
                         Text(error.localizedDescription)
@@ -74,7 +74,7 @@ struct PlansContainer: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
-                ForEach(markdownPlannerModel.plans) { plan in
+                ForEach(planModel.plans) { plan in
                     PlanListRow(plan: plan)
                         .tag(plan.name)
                         .contextMenu {
@@ -83,7 +83,7 @@ struct PlansContainer: View {
                             }
                             Button(role: .destructive) {
                                 if selectedPlanName == plan.name { selectedPlanName = nil }
-                                try? markdownPlannerModel.deletePlan(plan)
+                                try? planModel.deletePlan(plan)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -102,7 +102,7 @@ struct PlansContainer: View {
     @ViewBuilder
     private var detail: some View {
         if let plan = selectedPlan {
-            MarkdownPlannerDetailView(plan: plan, repository: repository)
+            PlanDetailView(plan: plan, repository: repository)
         } else {
             ContentUnavailableView("Select a Plan", systemImage: "doc.text", description: Text("Choose a plan to view details."))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -140,7 +140,7 @@ private struct PlanListRow: View {
 
 private struct GeneratePlanSheet: View {
     @Environment(WorkspaceModel.self) var model
-    @Environment(MarkdownPlannerModel.self) var markdownPlannerModel
+    @Environment(PlanModel.self) var planModel
     @Environment(\.dismiss) var dismiss
 
     @Binding var selectedPlanName: String?
@@ -175,7 +175,7 @@ private struct GeneratePlanSheet: View {
                     let selected = matchRepo ? nil : model.selectedRepository
                     dismiss()
                     Task {
-                        if let planName = await markdownPlannerModel.generate(prompt: text, repositories: repos, selectedRepository: selected) {
+                        if let planName = await planModel.generate(prompt: text, repositories: repos, selectedRepository: selected) {
                             selectedPlanName = planName
                         }
                     }

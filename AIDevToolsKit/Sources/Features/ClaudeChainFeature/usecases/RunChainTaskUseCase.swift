@@ -14,7 +14,7 @@ struct ReviewOutput: Decodable, Sendable {
 }
 
 
-public struct RunMarkdownChainTaskUseCase: UseCase {
+public struct RunSpecChainTaskUseCase: UseCase {
 
     public struct Options: Sendable {
         public let baseBranch: String
@@ -98,7 +98,7 @@ public struct RunMarkdownChainTaskUseCase: UseCase {
 
     private let client: any AIClient
     private let git: GitClient
-    private let logger = Logger(label: "RunMarkdownChainTaskUseCase")
+    private let logger = Logger(label: "RunSpecChainTaskUseCase")
 
     public init(client: any AIClient, git: GitClient = GitClient()) {
         self.client = client
@@ -308,7 +308,7 @@ public struct RunMarkdownChainTaskUseCase: UseCase {
                 project: options.projectName
             )
             guard capacityResult.hasCapacity else {
-                throw RunMarkdownChainTaskError.capacityExceeded(
+                throw RunSpecChainTaskError.capacityExceeded(
                     project: options.projectName,
                     openCount: capacityResult.openPRs.count,
                     maxOpen: capacityResult.maxOpenPRs
@@ -523,7 +523,7 @@ public struct RunMarkdownChainTaskUseCase: UseCase {
 
 }
 
-public enum RunMarkdownChainTaskError: LocalizedError {
+public enum RunSpecChainTaskError: LocalizedError {
     case capacityExceeded(project: String, openCount: Int, maxOpen: Int)
 
     public var errorDescription: String? {

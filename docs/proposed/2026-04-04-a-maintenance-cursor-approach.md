@@ -10,7 +10,7 @@
 
 ## Background
 
-Maintenance is **ClaudeChain operating in a different configuration**, not a standalone feature. ClaudeChain's pipeline is made configurable via the `TaskSource` protocol; Maintenance plugs in its own implementation. Unlike the default ClaudeChain mode (finite user-authored checklist in `spec.md`), maintenance tasks are **ongoing**: the system sweeps through files in a codebase on a rolling schedule, running the AI on each one in turn.
+Sweep is **ClaudeChain operating in a different configuration**, not a standalone feature. ClaudeChain's pipeline is made configurable via the `TaskSource` protocol; Sweep plugs in its own implementation. Unlike the default ClaudeChain mode (finite user-authored checklist in `spec.md`), sweep tasks are **ongoing**: the system sweeps through files in a codebase on a rolling schedule, running the AI on each one in turn.
 
 ---
 
@@ -57,7 +57,7 @@ graph TD
         CLI1([CLI run]) --> RCT["RunChainTaskUseCase"]
         RCT -->|"nextTask()"| TS[/"TaskSource"/]
         TS --> MKTS["MarkdownTaskSource\n(spec.md checklist)"]
-        TS --> MNTS["MaintenanceTaskSource\n(state.json cursor)"]
+        TS --> MNTS["SweepTaskSource\n(state.json cursor)"]
         RCT -->|"client.run(task.instructions)"| AI["AIClient"]
         RCT -->|"markComplete(task)"| TS
     end
@@ -66,7 +66,7 @@ graph TD
         CLI2([CLI list / Mac app]) --> LCU["ListChainsUseCase"]
         LCU -->|"loadProject()"| CCTS[/"ClaudeChainTaskSource"/]
         CCTS --> MCTS["MarkdownChainTaskSource\n(spec.md checklist)"]
-        CCTS --> MNCTS["MaintenanceChainTaskSource\n(state.json cursor)"]
+        CCTS --> MNCTS["SweepChainTaskSource\n(state.json cursor)"]
         LCU -->|"ChainProject"| GCD["GetChainDetailUseCase"]
         GCD -->|"ChainProjectDetail\n(EnrichedChainTask, ChainActionItem)"| UI["UI / CLI output"]
     end
@@ -105,10 +105,10 @@ public protocol ClaudeChainTaskSource: Sendable {
 
 Once either implementation produces a `ChainProject`, the entire downstream pipeline — GitHub PR enrichment, `EnrichedChainTask`, `ChainActionItem`, `ChainProjectDetail`, display views — is shared with no duplication.
 
-| Abstraction | Purpose | ClaudeChain impl | Maintenance impl |
+| Abstraction | Purpose | ClaudeChain impl | Sweep impl |
 |---|---|---|---|
-| `TaskSource` | Execution — next task to run, mark done | `MarkdownTaskSource` — spec.md checklist | `MaintenanceTaskSource` — cursor in state.json |
-| `ClaudeChainTaskSource` | Display — all tasks with status | `MarkdownChainTaskSource` — spec.md → `ChainProject` | `MaintenanceChainTaskSource` — state.json → `ChainProject` |
+| `TaskSource` | Execution — next task to run, mark done | `MarkdownTaskSource` — spec.md checklist | `SweepTaskSource` — cursor in state.json |
+| `ClaudeChainTaskSource` | Display — all tasks with status | `MarkdownChainTaskSource` — spec.md → `ChainProject` | `SweepChainTaskSource` — state.json → `ChainProject` |
 | `ChainProject.branchPrefix` | PR matching in enrichment | `"claude-chain-<name>-"` | `"claude-chain-<name>-"` |
 
 ---
@@ -117,9 +117,9 @@ Once either implementation produces a `ChainProject`, the entire downstream pipe
 
 ### Core Concept
 
-The system maintains a single **cursor**: the path of the last file processed. A **filePattern** in `config.yaml` defines the set of paths subject to maintenance. On each **batch**:
+The system maintains a single **cursor**: the path of the last file processed. A **filePattern** in `config.yaml` defines the set of paths subject to sweeping. On each **batch**:
 
-1. Check for open maintenance PRs — if any exist, throw an error (always one batch at a time)
+1. Check for open sweep PRs — if any exist, throw an error (always one batch at a time)
 2. Load cursor from `state.json`
 3. Expand `filePattern` from disk and sort results alphabetically; cursor wraps to beginning when it reaches the end
 4. Find the file after the cursor in that list (or start from the beginning if cursor is unset)
@@ -129,7 +129,7 @@ The system maintains a single **cursor**: the path of the last file processed. A
 
 ### Terminology
 
-- **Batch**: One invocation of `maintenance run`. Processes up to `scanLimit` tasks serially.
+- **Batch**: One invocation of `sweep run`. Processes up to `scanLimit` tasks serially.
 - **Task**: One AI invocation on one file, in its own fresh context. Counts toward `scanLimit` regardless of outcome.
 - **Modifying task**: A task that produced any diff — in any file across the repo, not necessarily the target file. One changing task = one increment toward `changeLimit`, regardless of how many files were touched.
 
@@ -157,7 +157,7 @@ scope:
 - `scope`: optional; restricts the cursor to a sub-range of the sorted `filePattern` results
   - `from` only: files whose path has this prefix (single directory/area)
   - `from` + `to`: files where `path >= from && path < to` (lexicographic range)
-- Open PR limit is always 1 — if any maintenance PR is open, the batch throws an error
+- Open PR limit is always 1 — if any sweep PR is open, the batch throws an error
 
 ### `state.json` Schema
 
@@ -172,7 +172,7 @@ Written atomically once at the end of each batch — not after each individual t
 
 ### `spec.md` Format
 
-Free-form AI instructions only. No checklist. `MaintenanceTaskSource` appends the file path at execution time before returning the `PendingTask`.
+Free-form AI instructions only. No checklist. `SweepTaskSource` appends the file path at execution time before returning the `PendingTask`.
 
 ```markdown
 Review this file for service layer convention compliance. Remove dead code,
@@ -183,7 +183,7 @@ conforms well, make no changes and explain why in the PR description.
 ### File Layout
 
 ```
-claude-chain-maintenance/<task-name>/
+claude-chain-sweep/<task-name>/
   config.yaml    # scanLimit, changeLimit, filePattern, scope (optional)
   spec.md        # AI instructions only
   state.json     # cursor only
@@ -198,7 +198,7 @@ claude-chain-maintenance/<task-name>/
 At the end of each batch, the cursor update to `state.json` is committed to the branch with a structured message that records every file visited in the batch — including files the AI ran on but did not change:
 
 ```
-[claude-maintenance] task=service-compliance cursor=Sources/Services/FooService.swift
+[claude-sweep] task=service-compliance cursor=Sources/Services/FooService.swift
 processed: Sources/Services/BarService.swift Sources/Services/BazService.swift Sources/Services/FooService.swift
 ```
 
@@ -208,7 +208,7 @@ This commit becomes the reference point for skip detection on future batches. Th
 
 Before running a task on a file, check if it can be skipped:
 
-1. Search `git log --grep="claude-maintenance.*task=<name>"` for the last cursor commit
+1. Search `git log --grep="claude-sweep.*task=<name>"` for the last cursor commit
 2. If the file appears in the `processed:` list of that commit:
    - Compute `git rev-parse <cursor-commit>:<path>` — the file's hash at time of last processing
    - Compare to `git rev-parse HEAD:<path>` — the file's current hash
@@ -221,7 +221,7 @@ Skipped files do not count toward `scanLimit` or `changeLimit`.
 ### Execution Algorithm
 
 ```
-if openMaintenancePRCount > 0: throw error
+if openSweepPRCount > 0: throw error
 
 allPaths    = expandGlobFromDisk(config.filePattern).sorted()
 scopedPaths = applyScopeFilter(allPaths, config.scope)   # no-op if scope is nil
@@ -278,7 +278,7 @@ GitHub service injected at construction time — used by `loadDetail()`, ignored
 **`ChainProject` changes:**
 ```swift
 public struct ChainProject {
-    public let kindBadge: String?      // display label from source, e.g. "maintenance"; nil for standard chains
+    public let kindBadge: String?      // display label from source, e.g. "sweep"; nil for standard chains
     public let branchPrefix: String    // replaces hardcoded "claude-chain-" string
     // ... existing fields unchanged
 }
@@ -291,8 +291,8 @@ public protocol ChainDiscoveryService: Sendable {
     func discoverSources(repoPath: URL) async throws -> [any ClaudeChainSource]
 }
 ```
-- `LocalChainDiscoveryService`: scans `claude-chain/` (regular) and `claude-chain-maintenance/` (maintenance); instantiates `MarkdownClaudeChainSource` or `MaintenanceClaudeChainSource` per entry
-- `GitHubChainDiscoveryService`: extends `ListChainsFromGitHubUseCase` filter to include `"claude-chain-maintenance/"` paths
+- `LocalChainDiscoveryService`: scans `claude-chain/` (regular) and `claude-chain-sweep/` (sweep); instantiates `MarkdownClaudeChainSource` or `SweepClaudeChainSource` per entry
+- `GitHubChainDiscoveryService`: extends `ListChainsFromGitHubUseCase` filter to include `"claude-chain-sweep/"` paths
 
 **`MarkdownClaudeChainSource`** — rename/replace `MarkdownChainTaskSource`; implements `ClaudeChainSource` for markdown chains. `nextTask()` returns one task then nil (existing single-task behavior).
 
@@ -300,13 +300,13 @@ public protocol ChainDiscoveryService: Sendable {
 
 **`GetChainDetailUseCase`** — uses `project.branchPrefix` instead of hardcoded `"claude-chain-"`. Adds generic rule: suppress pending tasks when `openPRs.count > 0`.
 
-**`RunMarkdownChainTaskUseCase`** (renamed from `RunChainTaskUseCase`) — constructs `MarkdownClaudeChainSource` internally; commands pass only plain data (`taskIndex`, `projectName`, `repoPath`). No `source` parameter exposed. Each chain type has its own use case so the source abstraction stays out of the command layer.
+**`RunSpecChainTaskUseCase`** (renamed from `RunChainTaskUseCase`) — constructs `MarkdownClaudeChainSource` internally; commands pass only plain data (`taskIndex`, `projectName`, `repoPath`). No `source` parameter exposed. Each chain type has its own use case so the source abstraction stays out of the command layer.
 
-**`ExecuteMarkdownChainUseCase`** (renamed from `ExecuteChainUseCase`) — looping wrapper for `RunMarkdownChainTaskUseCase`; delegates to `RunMarkdownChainTaskUseCase` without constructing a source itself.
+**`ExecuteSpecChainUseCase`** (renamed from `ExecuteChainUseCase`) — looping wrapper for `RunSpecChainTaskUseCase`; delegates to `RunSpecChainTaskUseCase` without constructing a source itself.
 
-**`Project.parseSpecPathToProject()`** — add parsing for `claude-chain-maintenance/{name}/spec.md` paths.
+**`Project.parseSpecPathToProject()`** — add parsing for `claude-chain-sweep/{name}/spec.md` paths.
 
-**`Constants.swift`** — add `maintenanceChainDirectory = "claude-chain-maintenance"`.
+**`Constants.swift`** — add `sweepChainDirectory = "claude-chain-sweep"`.
 
 Files:
 - `Sources/Services/ClaudeChainService/ClaudeChainSource.swift` (new — replaces `ClaudeChainTaskSource.swift`)
@@ -315,50 +315,50 @@ Files:
 - `Sources/Services/ClaudeChainService/ChainModels.swift` (add `branchPrefix`, `kindBadge`)
 - `Sources/Services/ClaudeChainService/Constants.swift`
 - `Sources/Services/ClaudeChainService/Project.swift`
-- `Sources/Features/ClaudeChainFeature/usecases/RunChainTaskUseCase.swift` (renamed struct to `RunMarkdownChainTaskUseCase`)
-- `Sources/Features/ClaudeChainFeature/usecases/ExecuteChainUseCase.swift` (renamed struct to `ExecuteMarkdownChainUseCase`)
+- `Sources/Features/ClaudeChainFeature/usecases/RunChainTaskUseCase.swift` (renamed struct to `RunSpecChainTaskUseCase`)
+- `Sources/Features/ClaudeChainFeature/usecases/ExecuteChainUseCase.swift` (renamed struct to `ExecuteSpecChainUseCase`)
 - `Sources/Features/ClaudeChainFeature/usecases/ListChainsUseCase.swift`
 - `Sources/Features/ClaudeChainFeature/usecases/ListChainsFromGitHubUseCase.swift`
 - `Sources/Features/ClaudeChainFeature/usecases/GetChainDetailUseCase.swift`
 
 ---
 
-## - [x] Phase 2: MaintenanceSDK Models
+## - [x] Phase 2: SweepService Models
 
 **Skills used**: `swift-app-architecture:swift-architecture`
-**Principles applied**: Created `MaintenanceSDK` as a stateless SDK target (no dependencies) per the SDKs layer rules. `MaintenanceCursorConfig` is non-`Codable` since it is not persisted (config comes from `config.yaml` via Yams in a higher layer). `MaintenanceCursorState.load/save` use `.atomic` write and ISO 8601 dates matching the `state.json` schema. Target added to products and targets in `Package.swift` alphabetically.
+**Principles applied**: Created `SweepService` as a stateless SDK target (no dependencies) per the SDKs layer rules. `SweepConfig` is non-`Codable` since it is not persisted (config comes from `config.yaml` via Yams in a higher layer). `SweepState.load/save` use `.atomic` write and ISO 8601 dates matching the `state.json` schema. Target added to products and targets in `Package.swift` alphabetically.
 
-Create a new `MaintenanceSDK` target in `Package.swift` (alphabetically placed).
+Create a new `SweepService` target in `Package.swift` (alphabetically placed).
 
 ```swift
-public struct MaintenanceCursorState: Codable, Sendable {
+public struct SweepState: Codable, Sendable {
     public var cursor: String?       // last-processed path; nil = start from beginning
     public var lastRunDate: Date?    // timestamp of last completed batch; nil = never run
 }
 
-public struct MaintenanceCursorScope: Codable, Sendable {
+public struct SweepScope: Codable, Sendable {
     public let from: String    // path prefix lower bound (inclusive)
     public let to: String?     // path prefix upper bound (exclusive); nil = prefix match only
 }
 
-public struct MaintenanceCursorConfig: Sendable {
+public struct SweepConfig: Sendable {
     public let scanLimit: Int      // default: 1
     public let changeLimit: Int    // default: 1, never > scanLimit
     public let filePattern: String
-    public let scope: MaintenanceCursorScope?
+    public let scope: SweepScope?
 }
 ```
 
-`MaintenanceCursorState` includes `load(from: URL)` and `save(to: URL)` with atomic write.
+`SweepState` includes `load(from: URL)` and `save(to: URL)` with atomic write.
 
 Files:
-- `Sources/SDKs/MaintenanceSDK/MaintenanceCursorConfig.swift`
-- `Sources/SDKs/MaintenanceSDK/MaintenanceCursorScope.swift`
-- `Sources/SDKs/MaintenanceSDK/MaintenanceCursorState.swift`
+- `Sources/Services/SweepService/SweepConfig.swift`
+- `Sources/Services/SweepService/SweepScope.swift`
+- `Sources/Services/SweepService/SweepState.swift`
 
 ---
 
-## - [ ] Phase 3: `MaintenanceClaudeChainSource`
+## - [ ] Phase 3: `SweepClaudeChainSource`
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `logging`
 
@@ -395,21 +395,21 @@ Single class implementing `ClaudeChainSource` — covers both display and execut
 | **Pending** | Candidate task from `loadProject()` — suppressed when open PRs exist |
 
 Files:
-- `Sources/Services/ClaudeChainService/MaintenanceClaudeChainSource.swift`
+- `Sources/Services/ClaudeChainService/SweepClaudeChainSource.swift`
 
 ---
 
-## - [ ] Phase 4: `MaintenanceFeature` Use Case + CLI
+## - [ ] Phase 4: `SweepFeature` Use Case + CLI
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
-**`RunMaintenanceBatchUseCase`:**
-- Constructs `MaintenanceClaudeChainSource` internally (mirrors `RunMarkdownChainTaskUseCase` — each use case owns its source type; commands pass plain data only)
+**`RunSweepBatchUseCase`:**
+- Constructs `SweepClaudeChainSource` internally (mirrors `RunSpecChainTaskUseCase` — each use case owns its source type; commands pass plain data only)
 - Reads `config.yaml`; passes source to `TaskSourceNode`; runs `PipelineRunner` with `[TaskSourceNode, PRStep, ChainPRCommentStep]`
 - `drainTaskSource` handles per-file AITask execution; `PRStep` opens one PR for all batch commits
 
 ```swift
-struct MaintenanceCursorBatchResult: Sendable {
+struct SweepBatchResult: Sendable {
     let tasks: Int
     let modifyingTasks: Int
     let skipped: Int
@@ -417,16 +417,16 @@ struct MaintenanceCursorBatchResult: Sendable {
 }
 ```
 
-**CLI command** — `maintenance run` (alphabetically in subcommand list):
+**CLI command** — `sweep run` (alphabetically in subcommand list):
 ```
-swift run ai-dev-tools-kit maintenance run --task <path> --repo <path>
+swift run ai-dev-tools-kit sweep run --task <path> --repo <path>
 ```
 Prints: N tasks run, N modifying, N skipped, cursor advanced to `<path>`.
 
 Files:
-- `Sources/Features/MaintenanceFeature/RunMaintenanceBatchUseCase.swift`
-- `Sources/Features/MaintenanceFeature/MaintenanceCursorBatchResult.swift`
-- `Sources/Apps/AIDevToolsKitCLI/MaintenanceCommand.swift`
+- `Sources/Features/SweepFeature/RunSweepBatchUseCase.swift`
+- `Sources/Features/SweepFeature/SweepBatchResult.swift`
+- `Sources/Apps/AIDevToolsKitCLI/SweepCommand.swift`
 
 ---
 
@@ -436,34 +436,34 @@ Files:
 
 **Unit tests:**
 - `PipelineRunnerTests`: `resetContextBetweenTasks: true` clears AI keys; infrastructure keys persist; `taskDiscovered` event fires
-- `MaintenanceCursorStateTests`: round-trip Codable; nil cursor starts from beginning; wraps at end
-- `MaintenanceCursorScopeTests`: from-only = prefix filter; from+to = lexicographic range; nil = no restriction
-- `MaintenanceClaudeChainSourceTests`: `nextTask()` respects `scanLimit`/`changeLimit`; skip detection works; returns nil when done; `loadProject()` maps cursor to pending task correctly
+- `SweepStateTests`: round-trip Codable; nil cursor starts from beginning; wraps at end
+- `SweepScopeTests`: from-only = prefix filter; from+to = lexicographic range; nil = no restriction
+- `SweepClaudeChainSourceTests`: `nextTask()` respects `scanLimit`/`changeLimit`; skip detection works; returns nil when done; `loadProject()` maps cursor to pending task correctly
 
 **CLI smoke test:**
 ```bash
-mkdir -p /tmp/test-claude-chain-maintenance
-echo "scanLimit: 3\nchangeLimit: 1\nfilePattern: Sources/Services/**/*.swift" > /tmp/test-claude-chain-maintenance/config.yaml
-echo "Review this file for service layer compliance." > /tmp/test-claude-chain-maintenance/spec.md
+mkdir -p /tmp/test-claude-chain-sweep
+echo "scanLimit: 3\nchangeLimit: 1\nfilePattern: Sources/Services/**/*.swift" > /tmp/test-claude-chain-sweep/config.yaml
+echo "Review this file for service layer compliance." > /tmp/test-claude-chain-sweep/spec.md
 
-swift run ai-dev-tools-kit maintenance run --task /tmp/test-claude-chain-maintenance --repo <repo>
+swift run ai-dev-tools-kit sweep run --task /tmp/test-claude-chain-sweep --repo <repo>
 # Verify: state.json cursor written; cursor commit in git log; 1 PR opened
 
-swift run ai-dev-tools-kit maintenance run --task /tmp/test-claude-chain-maintenance --repo <repo>
+swift run ai-dev-tools-kit sweep run --task /tmp/test-claude-chain-sweep --repo <repo>
 # Verify: cursor advanced; unchanged files appear as skipped
 ```
 
 **Log verification:**
 ```bash
-cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.label | startswith("Maintenance"))'
+cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.label | startswith("Sweep"))'
 ```
 
 **ClaudeChain regression** (after Phase 0 and Phase 1):
 - Run existing ClaudeChain tests to confirm behavior unchanged after refactors.
 
 **Mac app UI verification:**
-1. Place `claude-chain-maintenance/test-task/` in local repo
-2. Sidebar shows maintenance chain with `kindBadge` label (e.g. "maintenance")
+1. Place `claude-chain-sweep/test-task/` in local repo
+2. Sidebar shows sweep chain with `kindBadge` label (e.g. "sweep")
 3. No open PRs → one pending task shown (next file after cursor)
 4. Open PR → pending task suppressed; file in Open section
 5. Merged PR → file in Merged/Completed section
@@ -516,6 +516,6 @@ This is a leak: `Project` shouldn't know about source types. Each source type is
 **Files likely affected:**
 - `Project.swift` — remove `parseSpecPathToProject`, `fromBranchName`, `findAll`, default `basePath`
 - `MarkdownClaudeChainSource.swift` — add `matchesSpecPath`, `matchesBranchName`
-- `MaintenanceClaudeChainSource.swift` — add `matchesSpecPath`, `matchesBranchName`
+- `SweepClaudeChainSource.swift` — add `matchesSpecPath`, `matchesBranchName`
 - `ListChainsFromGitHubUseCase.swift` — replace `Project.parseSpecPathToProject` call
 - `AutoStartService.swift` — replace `Project.parseSpecPathToProject` calls

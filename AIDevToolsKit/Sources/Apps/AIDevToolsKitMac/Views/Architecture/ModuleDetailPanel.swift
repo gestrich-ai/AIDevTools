@@ -1,4 +1,4 @@
-import MarkdownPlannerService
+import PlanService
 import SwiftUI
 
 struct ModuleDetailPanel: View {

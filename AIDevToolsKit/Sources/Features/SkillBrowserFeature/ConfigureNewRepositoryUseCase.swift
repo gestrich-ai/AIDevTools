@@ -29,7 +29,7 @@ public struct ConfigureNewRepositoryUseCase: UseCase {
             full.eval = EvalRepoSettings(casesDirectory: casesDirectory)
         }
         if completedDirectory != nil || proposedDirectory != nil {
-            full.planner = MarkdownPlannerRepoSettings(
+            full.planner = PlanRepoSettings(
                 proposedDirectory: proposedDirectory,
                 completedDirectory: completedDirectory
             )

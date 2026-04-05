@@ -2,8 +2,8 @@ import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import DataPathsService
 import EvalService
-import MarkdownPlannerFeature
-import MarkdownPlannerService
+import PlanFeature
+import PlanService
 import ProviderRegistryService
 import RepositorySDK
 import SettingsService
@@ -17,7 +17,7 @@ public struct AIDevToolsKitMacEntryView: View {
     @State private var claudeChainModel: ClaudeChainModel
     @State private var credentialModel = CredentialModel()
     @State private var ipcServer = AppIPCServer()
-    @State private var markdownPlannerModel: MarkdownPlannerModel
+    @State private var planModel: PlanModel
     @State private var settingsModel: SettingsModel
     @State private var workspaceModel: WorkspaceModel
     private let evalProviderRegistry: EvalProviderRegistry
@@ -46,7 +46,7 @@ public struct AIDevToolsKitMacEntryView: View {
             updateRepository: UpdateRepositoryUseCase(store: store)
         ))
         let storedPlannerProviderName = UserDefaults.standard.string(forKey: "mdPlannerProviderName")
-        _markdownPlannerModel = State(initialValue: MarkdownPlannerModel(
+        _planModel = State(initialValue: PlanModel(
             mcpConfigPath: DataPathsService.mcpConfigFileURL.path,
             providerRegistry: appModel.providerModel.providerRegistry,
             selectedProviderName: storedPlannerProviderName
@@ -71,7 +71,7 @@ public struct AIDevToolsKitMacEntryView: View {
             .environment(architecturePlannerModel)
             .environment(claudeChainModel)
             .environment(credentialModel)
-            .environment(markdownPlannerModel)
+            .environment(planModel)
             .environment(workspaceModel)
             .frame(minWidth: 800, minHeight: 600)
             .task { await ipcServer.start() }
