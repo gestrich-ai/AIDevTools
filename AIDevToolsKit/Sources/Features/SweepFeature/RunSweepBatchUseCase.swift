@@ -89,6 +89,10 @@ public struct RunSweepBatchUseCase: UseCase {
             git: git
         )
 
+        if options.dryRun {
+            return try await runDryRun(source: source, options: options, onProgress: onProgress)
+        }
+
         // Check for open sweep PRs before starting
         onProgress?(.checkingOpenPRs)
         let openCount = try await countOpenSweepPRs(branchPrefix: branchPrefix, repoDir: repoDir)
@@ -198,6 +202,29 @@ public struct RunSweepBatchUseCase: UseCase {
     }
 
     // MARK: - Private
+
+    private func runDryRun(
+        source: SweepClaudeChainSource,
+        options: Options,
+        onProgress: (@Sendable (Progress) -> Void)?
+    ) async throws -> Result {
+        onProgress?(.runningTasks)
+        let candidates = try await source.candidatesForNextBatch()
+        for path in candidates {
+            onProgress?(.taskStarted(path))
+        }
+        let sweepResult = SweepBatchStats(
+            finalCursor: candidates.last,
+            modifyingTasks: 0,
+            skipped: 0,
+            tasks: candidates.count
+        )
+        onProgress?(.completed(sweepResult))
+        let message = sweepResult.tasks == 0
+            ? "No files to process"
+            : "\(sweepResult.tasks) candidate(s) found: \(candidates.joined(separator: ", "))"
+        return Result(success: true, message: message, sweepResult: sweepResult)
+    }
 
     private func makeBatchBranch(prefix: String) -> String {
         let formatter = DateFormatter()

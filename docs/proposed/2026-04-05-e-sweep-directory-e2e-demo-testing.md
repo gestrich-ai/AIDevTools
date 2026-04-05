@@ -91,7 +91,10 @@ git push origin main
 
 ---
 
-## - [ ] Phase 2: Verify Directory Enumeration (Dry Run)
+## - [x] Phase 2: Verify Directory Enumeration (Dry Run)
+
+**Skills used**: none
+**Principles applied**: Fixed `--dry-run` to enumerate candidates without creating branches, running the AI, or committing — previously it only skipped PR creation. Added `candidatesForNextBatch()` to `SweepClaudeChainSource` and a `runDryRun` path in `RunSweepBatchUseCase` that respects `scanLimit`. Added a public memberwise initializer to `SweepBatchStats`. Debug investigation revealed the release binary was outdated (prior `swift build` installed from debug path); fixed by building with `-c release`.
 
 Run a dry-run to confirm that directory mode enumerates subdirectories and not flat files, and that the task instructions say `Directory:` not `File:`.
 

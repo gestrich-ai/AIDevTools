@@ -70,6 +70,15 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         )
     }
 
+    /// Returns paths that would be enumerated in the next batch, limited by scanLimit.
+    public func candidatesForNextBatch() throws -> [String] {
+        let config = try loadSweepConfig()
+        let state = try SweepState.load(from: stateURL)
+        let paths = try candidatePaths(config: config)
+        guard let startIndex = nextPathIndex(in: paths, after: state.cursor) else { return [] }
+        return Array(paths[startIndex...].prefix(config.scanLimit))
+    }
+
     /// Returns a basic unenriched project detail.
     ///
     /// For enriched PR data use `GetChainDetailUseCase` directly.
@@ -378,4 +387,11 @@ public struct SweepBatchStats: Sendable {
     public let modifyingTasks: Int
     public let skipped: Int
     public let tasks: Int
+
+    public init(finalCursor: String?, modifyingTasks: Int, skipped: Int, tasks: Int) {
+        self.finalCursor = finalCursor
+        self.modifyingTasks = modifyingTasks
+        self.skipped = skipped
+        self.tasks = tasks
+    }
 }
