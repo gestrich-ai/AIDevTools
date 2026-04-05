@@ -92,7 +92,10 @@ git push origin main
 
 ---
 
-## - [ ] Phase 2: Test Spec Chain — Local Staging
+## - [x] Phase 2: Test Spec Chain — Local Staging
+
+**Skills used**: none
+**Principles applied**: The installed `ai-dev-tools-kit` binary was stale and missing the `claude-chain` subcommand. Built and installed the release binary from source before running. All expected behaviours confirmed: branch created, `output/hello-1.txt` written with `Hello World`, changes committed, `spec.md` checkboxes unchanged, no PR created.
 
 Exercise `run-task --staging-only` to prove spec-chain discovery, AI execution, and local commit work without touching GitHub PRs.
 
@@ -369,3 +372,19 @@ All of the following should be provable by running CLI commands from `../AIDevTo
 Run through this table top-to-bottom. For each row that fails, apply a targeted fix with a descriptive commit, then re-run.
 
 End state: All rows pass with no manual intervention beyond running the CLI commands shown.
+
+---
+
+## - [ ] Phase 11: Enforce Coding Standards
+
+**Skills to read**: `ai-dev-tools-enforce`
+
+After all fixes are applied across Phases 2–10, run the enforce skill against every file changed in AIDevTools during this plan. This catches any quality, architecture, or build issues introduced by the fixes (e.g., the `kindBadge` fix in `GitHubChainProjectSource`, any new CLI commands, capacity-check fixes).
+
+Use the `ai-dev-tools-enforce` skill to:
+1. Check architecture layer violations
+2. Check code quality (force unwraps, raw strings, fallback values)
+3. Check build quality (warnings, dead code, TODO/FIXME left behind)
+4. Check file/type organization
+
+Apply any corrections as a final clean-up commit: `chore: enforce standards on sweep e2e fixes`.
