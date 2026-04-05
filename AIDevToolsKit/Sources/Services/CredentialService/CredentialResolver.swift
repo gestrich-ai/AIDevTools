@@ -29,7 +29,15 @@ public struct CredentialResolver: Sendable {
         if let auth = resolveGitHubAppAuth() {
             return auth
         }
-        if let token = resolveValue(envKey: Self.githubTokenKey, keychainType: SecureSettingsService.gitHubTokenType) {
+        // Check GITHUB_TOKEN first, then GH_TOKEN (used by gh CLI locally), before falling back to keychain.
+        // This prevents a keychain entry for a different account from shadowing the active shell token.
+        if let token = processEnvironment[Self.githubTokenKey] ?? dotEnv[Self.githubTokenKey] {
+            return .token(token)
+        }
+        if let token = processEnvironment["GH_TOKEN"] ?? dotEnv["GH_TOKEN"] {
+            return .token(token)
+        }
+        if let token = try? settingsService.loadCredential(account: account, type: SecureSettingsService.gitHubTokenType) {
             return .token(token)
         }
         return nil

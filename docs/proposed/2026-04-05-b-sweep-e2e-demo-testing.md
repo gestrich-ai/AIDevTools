@@ -125,7 +125,10 @@ Fix any failures before proceeding. Commit fixes to AIDevTools with a message li
 
 ---
 
-## - [ ] Phase 3: Test Spec Chain — Full PR Creation
+## - [x] Phase 3: Test Spec Chain — Full PR Creation
+
+**Skills used**: none
+**Principles applied**: Two bugs surfaced and were fixed. (1) `CredentialResolver.getGitHubAuth()` only checked `GITHUB_TOKEN` env — if keychain had a different account's token (e.g. `bill_jepp`), that would override the shell `GH_TOKEN`, causing push auth failures. Fixed to check `GITHUB_TOKEN` then `GH_TOKEN` from env before falling back to keychain. (2) `gestrich/AIDevToolsDemo` lacked the `claudechain` label required by `PRStep` — created it as a one-time repo setup step. After fixes: three tasks ran across three invocations, each picking the next uncompleted branch-less task; three draft PRs created at gestrich/AIDevToolsDemo#1–3. PR body includes a "Task N/M:" prefix (by design in `RunChainTaskUseCase`). Multi-run skip detection confirmed: CLI skips tasks whose branch already exists on the remote.
 
 Run the same chain without `--staging-only` to prove the full pipeline: branch → AI → commit → push → PR.
 
