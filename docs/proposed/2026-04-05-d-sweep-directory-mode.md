@@ -107,7 +107,10 @@ When building an `AITask` for a directory, pass the directory path as the scope 
   - Cursor commit message: `[claude-sweep] task=<name> cursor=<dirPath>\nprocessed: <dir1> <dir2> ...`
   - `finalizeBatch()` unchanged structurally — just ensure directory paths flow through
 
-## - [ ] Phase 6: Tests
+## - [x] Phase 6: Tests
+
+**Skills used**: `ai-dev-tools-swift-testing`
+**Principles applied**: Created `SweepConfigTests.swift` with two focused tests for `isDirectoryMode`. Added `makeSubDir` and `gitCommitAll` helpers to the existing test file, then added two new suites covering directory enumeration (single-star vs double-star), scope filtering, task instructions label, cursor advancement, scanLimit, and canSkipDirectory (no commit → process, unchanged → skip, changed → process).
 
 **Skills to read**: `ai-dev-tools-swift-testing`
 

@@ -32,6 +32,15 @@ private func writeCursor(_ path: String?, to taskDir: URL) throws {
     try json.write(to: taskDir.appendingPathComponent("state.json"), atomically: true, encoding: .utf8)
 }
 
+private func gitCommitAll(message: String, in dir: URL) {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/bin/sh")
+    p.arguments = ["-c", "git add -A && git commit -m '\(message)'"]
+    p.currentDirectoryURL = dir
+    try? p.run()
+    p.waitUntilExit()
+}
+
 private func initGitRepo(at dir: URL, files: [String] = []) {
     let sh: (String) -> Void = { cmd in
         let p = Process()
@@ -45,6 +54,12 @@ private func initGitRepo(at dir: URL, files: [String] = []) {
     sh("git config user.email test@test.com")
     sh("git config user.name Test")
     sh("git add -A && git commit -m 'Initial commit'")
+}
+
+private func makeSubDir(_ relativePath: String, in repoDir: URL) throws {
+    let url = repoDir.appendingPathComponent(relativePath)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    try "".write(to: url.appendingPathComponent(".gitkeep"), atomically: true, encoding: .utf8)
 }
 
 // MARK: - loadProject tests (no git required)
@@ -262,5 +277,190 @@ struct SweepClaudeChainSourceNextTaskGitTests {
         let stats = await source2.batchStats()
         #expect(stats.skipped == 1)
         #expect(stats.tasks == 0)
+    }
+}
+
+// MARK: - loadProject directory-mode tests (no git required)
+
+@Suite("SweepClaudeChainSource.loadProject (directory mode)")
+struct SweepClaudeChainSourceDirectoryLoadProjectTests {
+
+    @Test("Sources/*/ expands to immediate subdirectories only")
+    func singleStarExpandsImmediateSubdirsOnly() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskDir = try makeTaskDir(in: repoDir, filePattern: "Sources/*/")
+        try makeSubDir("Sources/A", in: repoDir)
+        try makeSubDir("Sources/A/Sub", in: repoDir)
+        try makeSubDir("Sources/B", in: repoDir)
+
+        let source = SweepClaudeChainSource(taskName: "test-task", taskDirectory: taskDir, repoPath: repoDir)
+        let project = try await source.loadProject()
+
+        #expect(project.tasks.count == 2)
+        #expect(project.tasks.map(\.description).sorted() == ["Sources/A", "Sources/B"])
+    }
+
+    @Test("Sources/**/*/ expands to all nested subdirectories")
+    func doubleStarExpandsRecursively() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskDir = try makeTaskDir(in: repoDir, filePattern: "Sources/**/*/")
+        try makeSubDir("Sources/A", in: repoDir)
+        try makeSubDir("Sources/A/Sub", in: repoDir)
+        try makeSubDir("Sources/B", in: repoDir)
+
+        let source = SweepClaudeChainSource(taskName: "test-task", taskDirectory: taskDir, repoPath: repoDir)
+        let project = try await source.loadProject()
+
+        #expect(project.tasks.count == 3)
+        #expect(project.tasks.map(\.description).sorted() == ["Sources/A", "Sources/A/Sub", "Sources/B"])
+    }
+
+    @Test("SweepScope filters directory paths lexicographically")
+    func scopeFiltersDirectoryPaths() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskDir = try makeTaskDir(
+            in: repoDir,
+            filePattern: "Sources/*/",
+            scope: "scope:\n  from: Sources/A\n  to: Sources/C"
+        )
+        try makeSubDir("Sources/A", in: repoDir)
+        try makeSubDir("Sources/B", in: repoDir)
+        try makeSubDir("Sources/C", in: repoDir)
+
+        let source = SweepClaudeChainSource(taskName: "test-task", taskDirectory: taskDir, repoPath: repoDir)
+        let project = try await source.loadProject()
+
+        #expect(project.tasks.count == 2)
+        #expect(project.tasks.map(\.description).sorted() == ["Sources/A", "Sources/B"])
+    }
+}
+
+// MARK: - nextTask directory-mode tests (with git)
+
+@Suite("SweepClaudeChainSource.nextTask (directory mode)")
+struct SweepClaudeChainSourceDirectoryNextTaskTests {
+
+    @Test("returns first directory with Directory label in instructions")
+    func returnsFirstDirectoryWithLabel() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskDir = try makeTaskDir(in: repoDir, scanLimit: 2, changeLimit: 2, filePattern: "Sources/*/")
+        try makeSubDir("Sources/A", in: repoDir)
+        initGitRepo(at: repoDir)
+
+        let source = SweepClaudeChainSource(taskName: "test-task", taskDirectory: taskDir, repoPath: repoDir)
+        let task = try await source.nextTask()
+
+        #expect(task?.id == "Sources/A")
+        #expect(task?.instructions.contains("Directory: Sources/A") == true)
+    }
+
+    @Test("cursor advances through directory list")
+    func cursorAdvancesThroughDirectories() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskDir = try makeTaskDir(in: repoDir, scanLimit: 3, changeLimit: 3, filePattern: "Sources/*/")
+        try makeSubDir("Sources/A", in: repoDir)
+        try makeSubDir("Sources/B", in: repoDir)
+        initGitRepo(at: repoDir)
+
+        let source = SweepClaudeChainSource(taskName: "test-task", taskDirectory: taskDir, repoPath: repoDir)
+
+        let task1 = try await source.nextTask()
+        #expect(task1?.id == "Sources/A")
+        try await source.markComplete(try #require(task1))
+
+        let task2 = try await source.nextTask()
+        #expect(task2?.id == "Sources/B")
+        try await source.markComplete(try #require(task2))
+
+        let task3 = try await source.nextTask()
+        #expect(task3 == nil)
+    }
+
+    @Test("scanLimit limits directories processed")
+    func scanLimitLimitsDirectories() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskDir = try makeTaskDir(in: repoDir, scanLimit: 1, changeLimit: 1, filePattern: "Sources/*/")
+        try makeSubDir("Sources/A", in: repoDir)
+        try makeSubDir("Sources/B", in: repoDir)
+        initGitRepo(at: repoDir)
+
+        let source = SweepClaudeChainSource(taskName: "test-task", taskDirectory: taskDir, repoPath: repoDir)
+
+        let task1 = try await source.nextTask()
+        try await source.markComplete(try #require(task1))
+
+        let task2 = try await source.nextTask()
+        #expect(task2 == nil)
+
+        let stats = await source.batchStats()
+        #expect(stats.tasks == 1)
+        #expect(stats.finalCursor == "Sources/A")
+    }
+
+    @Test("skips unchanged directory after previous batch")
+    func skipsUnchangedDirectoryAfterPreviousBatch() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskName = "test-dir-skip"
+        let taskDir = try makeTaskDir(in: repoDir, taskName: taskName, scanLimit: 2, changeLimit: 2, filePattern: "Sources/*/")
+        try makeSubDir("Sources/A", in: repoDir)
+        initGitRepo(at: repoDir)
+
+        let source1 = SweepClaudeChainSource(taskName: taskName, taskDirectory: taskDir, repoPath: repoDir)
+        let firstTask = try await source1.nextTask()
+        try await source1.markComplete(try #require(firstTask))
+        let done = try await source1.nextTask()
+        #expect(done == nil)
+
+        try #"{"cursor":null,"lastRunDate":null}"#.write(
+            to: taskDir.appendingPathComponent("state.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let source2 = SweepClaudeChainSource(taskName: taskName, taskDirectory: taskDir, repoPath: repoDir)
+        let task = try await source2.nextTask()
+
+        #expect(task == nil)
+        let stats = await source2.batchStats()
+        #expect(stats.skipped == 1)
+        #expect(stats.tasks == 0)
+    }
+
+    @Test("processes directory when it contains changes since last batch")
+    func processesDirectoryWithChanges() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskName = "test-dir-changed"
+        let taskDir = try makeTaskDir(in: repoDir, taskName: taskName, scanLimit: 2, changeLimit: 2, filePattern: "Sources/*/")
+        try makeSubDir("Sources/A", in: repoDir)
+        initGitRepo(at: repoDir)
+
+        let source1 = SweepClaudeChainSource(taskName: taskName, taskDirectory: taskDir, repoPath: repoDir)
+        let firstTask = try await source1.nextTask()
+        try await source1.markComplete(try #require(firstTask))
+        let done = try await source1.nextTask()
+        #expect(done == nil)
+
+        try makeSourceFile("Sources/A/NewFile.swift", in: repoDir)
+        gitCommitAll(message: "Add new file", in: repoDir)
+
+        try #"{"cursor":null,"lastRunDate":null}"#.write(
+            to: taskDir.appendingPathComponent("state.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let source2 = SweepClaudeChainSource(taskName: taskName, taskDirectory: taskDir, repoPath: repoDir)
+        let task = try await source2.nextTask()
+
+        #expect(task != nil)
+        #expect(task?.id == "Sources/A")
     }
 }
