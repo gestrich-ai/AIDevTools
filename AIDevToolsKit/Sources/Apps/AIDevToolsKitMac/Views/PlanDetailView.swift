@@ -221,11 +221,6 @@ struct PlanDetailView: View {
             .frame(width: 120)
             .disabled(isBusy)
 
-            Toggle("Next only", isOn: $executeNextOnly)
-                .toggleStyle(.checkbox)
-                .font(.caption)
-                .help("Execute only the next incomplete phase")
-
             Toggle("Pause for architecture", isOn: $stopAfterArchitectureDiagram)
                 .toggleStyle(.checkbox)
                 .font(.caption)
@@ -262,12 +257,36 @@ struct PlanDetailView: View {
                 addTaskPopover
             }
 
-            Button {
-                startExecution()
-            } label: {
-                Label(executeNextOnly ? "Execute Next" : "Execute All", systemImage: "play.fill")
+            HStack(spacing: 0) {
+                Button(action: startExecution) {
+                    Label(executeNextOnly ? "Execute Next" : "Execute All", systemImage: "play.fill")
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Rectangle()
+                    .fill(.white.opacity(0.3))
+                    .frame(width: 1, height: 16)
+
+                Menu {
+                    Button("Next") { executeNextOnly = true }
+                    Button("All") { executeNextOnly = false }
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 8)
+                }
+                .menuIndicator(.hidden)
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.borderedProminent)
+            .foregroundStyle(.white)
+            .background(isBusy ? Color(NSColor.disabledControlTextColor) : .accentColor)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .disabled(isBusy)
         }
         .padding()
