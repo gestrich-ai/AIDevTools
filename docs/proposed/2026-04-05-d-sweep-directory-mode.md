@@ -65,7 +65,10 @@ In `SweepClaudeChainSource`, add a method to expand a directory-mode `filePatter
     - `true` → call `expandDirectories`
     - `false` → existing file expansion (unchanged)
 
-## - [ ] Phase 3: Skip Detection for Directories
+## - [x] Phase 3: Skip Detection for Directories
+
+**Skills used**: none
+**Principles applied**: Added `canSkipDirectory` that reuses `logGrep` to find the cursor commit (same as `canSkip`) then delegates to a new `GitClient.hasDirectoryChanges` method which runs `git diff --name-only <cursorCommit> HEAD <path>` — empty output means skip. Branched `nextTask()` on `config.isDirectoryMode` to call the correct skip check.
 
 **Skills to read**: (none beyond existing code)
 

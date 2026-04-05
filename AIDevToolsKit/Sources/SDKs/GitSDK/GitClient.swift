@@ -263,6 +263,12 @@ public struct GitClient: Sendable {
         return result.stdout
     }
 
+    public func hasDirectoryChanges(from ref1: String, to ref2: String, path: String, workingDirectory: String) async throws -> Bool {
+        let command = GitCLI.Diff(nameOnly: true, ref1: ref1, ref2: ref2, pattern: path)
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return !result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     public func getBlobHash(ref: String, path: String, workingDirectory: String) async throws -> String {
         let command = GitCLI.RevParse(ref: "\(ref):\(path)")
         let result = try await execute(command, workingDirectory: workingDirectory)

@@ -102,7 +102,10 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         }
 
         for path in paths[startIndex...] {
-            if try await canSkip(path: path) {
+            let skip = config.isDirectoryMode
+                ? try await canSkipDirectory(path: path)
+                : try await canSkip(path: path)
+            if skip {
                 logger.debug("[\(taskName)] Skipping unchanged: \(path)")
                 processedPaths.append(path)
                 continue
@@ -312,6 +315,12 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
             return next < paths.endIndex ? next : nil
         }
         return paths.isEmpty ? nil : 0
+    }
+
+    private func canSkipDirectory(path: String) async throws -> Bool {
+        guard let entry = try await git.logGrep(sweepLogPattern, workingDirectory: repoPath.path) else { return false }
+        let hasChanges = try await git.hasDirectoryChanges(from: entry.hash, to: "HEAD", path: path, workingDirectory: repoPath.path)
+        return !hasChanges
     }
 
     private func canSkip(path: String) async throws -> Bool {
