@@ -1,0 +1,298 @@
+## Relevant Skills
+
+| Skill | Description |
+|-------|-------------|
+| `ai-dev-tools-enforce` | Enforces coding standards, architecture, and quality after code changes |
+
+## Background
+
+The directory walking feature was added to sweep chains in the commits preceding this plan (see `2026-04-05-d-sweep-directory-mode.md`). Key mechanics:
+
+- **Mode detection**: a `filePattern` ending in `/` activates directory mode — e.g., `src/*/` walks immediate subdirs, `src/**/*/` walks all depths.
+- **Directory enumeration**: `SweepClaudeChainSource.expandDirectories()` walks the repo and filters dirs against the glob, sorted alphabetically.
+- **Task instructions**: instead of `File: <path>`, the AI receives `Directory: <path>` so it knows it's operating on a whole folder.
+- **Skip detection**: `canSkipDirectory()` runs `git diff --name-only <cursorCommit> HEAD <dir>` — empty output means no files inside changed, so skip.
+- **Cursor mechanics**: identical to file mode — the cursor is the last processed directory path, persisted in `state.json`.
+
+The `AIDevToolsDemo` repo (`../AIDevToolsDemo` relative to AIDevTools) already has a flat `src/` with `a.txt`–`d.txt` and a file-mode sweep chain (`add-header`). This plan sets up subdirectories and a new directory-mode sweep chain to exercise the feature end-to-end.
+
+### CLI entry points (unchanged from file mode)
+
+| Command | What it does |
+|---|---|
+| `ai-dev-tools-kit sweep run --task <dir> --repo <dir>` | Full sweep batch: branch, AI, commit, push, PR |
+| `ai-dev-tools-kit sweep run --task <dir> --repo <dir> --dry-run` | Prints PR comment instead of posting |
+| `ai-dev-tools-kit claude-chain list --repo-path <dir>` | Lists chains locally |
+| `ai-dev-tools-kit claude-chain status --repo-path <dir>` | GitHub-enriched status |
+
+---
+
+## Phases
+
+## - [ ] Phase 1: Set Up Directory Structure and Sweep Chain
+
+Create subdirectories in `../AIDevToolsDemo/src/` and a new directory-mode sweep chain. The existing flat files (`a.txt`–`d.txt`) stay untouched — they should not appear in a `src/*/` enumeration (files are excluded, only directories match).
+
+### 1a — Create four source directories
+
+```bash
+cd ../AIDevToolsDemo
+mkdir -p src/alpha src/beta src/gamma src/delta
+echo "Alpha module source" > src/alpha/main.txt
+echo "Beta module source"  > src/beta/main.txt
+echo "Gamma module source" > src/gamma/main.txt
+echo "Delta module source" > src/delta/main.txt
+```
+
+### 1b — Create a nested subdirectory (for Phase 5 recursive test)
+
+```bash
+mkdir -p src/alpha/subdir
+echo "Alpha subdir content" > src/alpha/subdir/extra.txt
+```
+
+### 1c — Create sweep chain `add-dir-readme`
+
+Files to create in `../AIDevToolsDemo/claude-chain-sweep/add-dir-readme/`:
+
+**`spec.md`**:
+```markdown
+# Add Directory README
+
+Add a `README.md` file to the given directory if none already exists.
+The README should contain a single line: `# <DirectoryName>` where `<DirectoryName>`
+is the last path component of the directory (e.g., `alpha` → `# alpha`).
+Do not modify any existing files.
+```
+
+**`config.yaml`**:
+```yaml
+filePattern: "src/*/"
+scanLimit: 2
+changeLimit: 1
+```
+
+### 1d — Commit and push
+
+```bash
+cd ../AIDevToolsDemo
+git add .
+git commit -m "Add directory structure and add-dir-readme sweep chain"
+git push origin main
+```
+
+**Success criteria**:
+- `ls src/` shows `alpha/`, `beta/`, `gamma/`, `delta/` alongside the existing flat files.
+- `cat claude-chain-sweep/add-dir-readme/config.yaml` shows `filePattern: "src/*/"`.
+- `git log --oneline -1` shows the commit.
+
+---
+
+## - [ ] Phase 2: Verify Directory Enumeration (Dry Run)
+
+Run a dry-run to confirm that directory mode enumerates subdirectories and not flat files, and that the task instructions say `Directory:` not `File:`.
+
+```bash
+cd ../AIDevToolsDemo
+ai-dev-tools-kit sweep run \
+  --task claude-chain-sweep/add-dir-readme \
+  --repo . \
+  --dry-run
+```
+
+**Expected behaviour**:
+- CLI prints batch stats. `scanLimit=2` so at most 2 directories are considered.
+- Output references `src/alpha` and `src/beta` (alphabetical order) — not `src/a.txt` or other flat files.
+- The PR comment preview (if any dirs would be modified) references `Directory: src/alpha`.
+- No branch, commit, or PR is created.
+
+**Verify** by inspecting stdout. If the dry-run output is minimal, add a brief `--verbose` or read the log output to confirm the paths enumerated.
+
+If flat files appear in the enumeration (regression), investigate `expandDirectories()` in `SweepClaudeChainSource.swift` — the directory filter must exclude non-directory filesystem entries.
+
+Fix any failures. Commit fixes to AIDevTools.
+
+---
+
+## - [ ] Phase 3: First Batch — Directory Mode PR
+
+Run the first real batch to produce a branch, AI-generated `README.md`, commit, and PR.
+
+```bash
+cd ../AIDevToolsDemo
+git checkout main && git pull origin main
+ai-dev-tools-kit sweep run \
+  --task claude-chain-sweep/add-dir-readme \
+  --repo .
+```
+
+**Expected behaviour**:
+1. CLI enumerates `src/alpha`, `src/beta` (scanLimit=2). Processes `src/alpha` (changeLimit=1 — stops after one modification).
+2. AI creates `src/alpha/README.md` containing `# alpha`.
+3. Changes committed: `Sweep [add-dir-readme]: src/alpha`.
+4. Cursor commit written: `[claude-sweep] task=add-dir-readme cursor=src/alpha`.
+5. Branch pushed and PR opened against `main`.
+
+**Verify**:
+```bash
+# Cursor advanced to src/alpha
+cat claude-chain-sweep/add-dir-readme/state.json
+# Should show: "cursor": "src/alpha"
+
+# Cursor commit present
+git log --oneline -4
+# Should show two commits: [claude-sweep] cursor and Sweep [...] src/alpha
+
+# PR exists
+gh pr list --repo gestrich/AIDevToolsDemo --label claudechain
+```
+
+Also confirm the PR diff contains `src/alpha/README.md` and that the PR title follows the pattern `ClaudeChain: [add-dir-readme] Sweep: 1 file(s) updated, cursor at src/alpha`.
+
+Fix any failures. Commit fixes to AIDevTools.
+
+---
+
+## - [ ] Phase 4: Cursor Advancement — Second Batch
+
+Merge the Phase 3 PR so `state.json` (cursor=`src/alpha`) is on `main`, then run a second batch to prove the cursor advances past `src/alpha` to `src/beta`.
+
+```bash
+# Merge Phase 3 PR (keeps cursor commit on main)
+gh pr merge <pr-number> --repo gestrich/AIDevToolsDemo --merge
+
+cd ../AIDevToolsDemo
+git checkout main && git pull origin main
+
+ai-dev-tools-kit sweep run \
+  --task claude-chain-sweep/add-dir-readme \
+  --repo .
+```
+
+**Expected behaviour**:
+- Cursor resumes from `src/alpha` → next directory is `src/beta`.
+- AI creates `src/beta/README.md` containing `# beta`.
+- New cursor commit: `cursor=src/beta`.
+- New PR opened.
+
+**Verify**:
+```bash
+cat claude-chain-sweep/add-dir-readme/state.json
+# Should show: "cursor": "src/beta"
+
+git log --oneline -6
+# Should show two [claude-sweep] cursor commits total
+```
+
+Fix any failures.
+
+---
+
+## - [ ] Phase 5: Skip Detection — Unchanged Directories
+
+After merging the Phase 4 PR (cursor=`src/beta` on main), run the sweep again **without making any changes** inside `src/gamma` or `src/delta`. Both should be processed as candidates but `src/gamma` should not be skipped (no prior commit for it). Confirm the skip count for previously-processed dirs with no new changes.
+
+The cleaner test: reset state to re-process `src/alpha` without touching its files.
+
+```bash
+# Reset cursor so src/alpha is re-evaluated
+cd ../AIDevToolsDemo
+git checkout main && git pull origin main
+
+# Manually set cursor to null to restart from beginning
+# Edit claude-chain-sweep/add-dir-readme/state.json:
+#   { "cursor": null, "lastRunDate": "..." }
+git add claude-chain-sweep/add-dir-readme/state.json
+git commit -m "Reset add-dir-readme cursor for skip detection test"
+
+ai-dev-tools-kit sweep run \
+  --task claude-chain-sweep/add-dir-readme \
+  --repo . \
+  --dry-run
+```
+
+**Expected behaviour**:
+- `src/alpha` is evaluated first. It already has a `README.md` committed and no files changed since the cursor commit → `canSkipDirectory` returns `true` → skipped.
+- `src/beta` is evaluated next. Same situation → skipped.
+- Dry-run stats show `skipped=2` (or equivalent), `tasks=0`.
+
+**Verify** by reading the dry-run stdout for skip indicators. If `skipped=0` and the AI is re-processing already-handled dirs, `canSkipDirectory` is not working correctly.
+
+Fix any failures. Commit fixes to AIDevTools.
+
+---
+
+## - [ ] Phase 6: Recursive Pattern `src/**/*/`
+
+Create a second sweep chain that uses double-star recursion to walk directories at all nesting depths. The `src/alpha/subdir/` created in Phase 1 should appear in this enumeration.
+
+### 6a — Create chain `add-dir-readme-recursive`
+
+Files in `../AIDevToolsDemo/claude-chain-sweep/add-dir-readme-recursive/`:
+
+**`spec.md`**: same as `add-dir-readme`.
+
+**`config.yaml`**:
+```yaml
+filePattern: "src/**/*/"
+scanLimit: 4
+changeLimit: 1
+```
+
+### 6b — Dry-run to confirm recursive enumeration
+
+```bash
+cd ../AIDevToolsDemo
+ai-dev-tools-kit sweep run \
+  --task claude-chain-sweep/add-dir-readme-recursive \
+  --repo . \
+  --dry-run
+```
+
+**Expected behaviour**:
+- Enumeration includes both top-level dirs (`src/alpha`, `src/beta`, ...) AND nested dirs (`src/alpha/subdir`).
+- Sorted alphabetically: `src/alpha`, `src/alpha/subdir`, `src/beta`, `src/delta`, `src/gamma`.
+- `src/a.txt`, `src/b.txt`, etc. do NOT appear.
+
+**Verify** that `src/alpha/subdir` appears in the enumerated list. If it does not, `expandDirectories` is not recursing correctly for `**/*/`.
+
+Fix any failures.
+
+---
+
+## - [ ] Phase 7: Validation
+
+All of the following should be provable by running CLI commands from `../AIDevToolsDemo`:
+
+| Feature | Verification command |
+|---|---|
+| Directory mode activated by trailing `/` | `config.yaml` has `filePattern: "src/*/"` and enumeration shows dirs not files |
+| Flat files excluded from `src/*/` enumeration | Dry-run output contains `src/alpha` but not `src/a.txt` |
+| Dirs enumerated in alphabetical order | First two candidates are `src/alpha`, `src/beta` |
+| Task instructions say `Directory:` not `File:` | PR diff commit message or AI output references "Directory: src/alpha" |
+| First batch creates PR with correct cursor | `state.json` cursor=`src/alpha`, PR opened |
+| Cursor advances on second batch | After merge, cursor=`src/beta`, new PR |
+| Skip detection skips unchanged dirs | Dry-run after reset shows `skipped=2` when dirs unmodified |
+| Recursive `src/**/*/` includes nested dirs | `src/alpha/subdir` appears in enumeration |
+| `status` command shows `add-dir-readme [sweep]` | `claude-chain status --repo-path ../AIDevToolsDemo` |
+| `list` command shows both sweep chains | `claude-chain list --repo-path ../AIDevToolsDemo` |
+
+Run through this table top-to-bottom. For each row that fails, apply a targeted fix with a descriptive commit, then re-verify.
+
+End state: All rows pass with no manual intervention beyond running the CLI commands shown.
+
+---
+
+## - [ ] Phase 8: Enforce Coding Standards
+
+**Skills used**: `ai-dev-tools-enforce`
+
+After all fixes are applied across Phases 2–7, run the enforce skill against every file changed in AIDevTools during this plan.
+
+Use the `ai-dev-tools-enforce` skill to:
+1. Check architecture layer violations
+2. Check code quality (force unwraps, raw strings, fallback values)
+3. Check build quality (warnings, dead code, TODO/FIXME left behind)
+4. Check file/type organization
+
+Apply any corrections as a final clean-up commit: `chore: enforce standards on directory sweep e2e fixes`.
