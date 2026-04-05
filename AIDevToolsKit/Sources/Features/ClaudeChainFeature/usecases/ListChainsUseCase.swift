@@ -2,6 +2,11 @@ import ClaudeChainService
 import Foundation
 import UseCaseSDK
 
+// Local discovery only finds chains present on disk in the current checkout.
+// Chain definitions typically live on feature branches; callers that need to
+// enumerate all chains across branches should use ListChainsFromGitHubUseCase.
+// This use case is only appropriate when the caller has already checked out
+// the relevant branch (e.g., inside RunSpecChainTaskUseCase).
 public struct ListChainsUseCase: UseCase {
 
     public struct Options: Sendable {

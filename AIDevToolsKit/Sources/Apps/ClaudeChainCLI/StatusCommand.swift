@@ -16,9 +16,6 @@ public struct StatusCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Path to the repository containing claude-chain/")
     public var repoPath: String?
 
-    @Flag(name: [.short, .long], help: "Fetch GitHub enrichment data (PR status, reviews, CI)")
-    public var github: Bool = false
-
     @Argument(help: "Project name to show details for (optional, shows all if omitted)")
     public var project: String?
 
@@ -35,48 +32,31 @@ public struct StatusCommand: AsyncParsableCommand {
         }
 
         let repoURL = URL(fileURLWithPath: path)
+        let prService = try await makeGitHubPRService(repoPath: repoURL)
+        let projects = try await ListChainsFromGitHubUseCase(gitHubPRService: prService).run()
 
-        if github {
-            let prService = try await makeGitHubPRService(repoPath: repoURL)
-            let projects = try await ListChainsFromGitHubUseCase(gitHubPRService: prService).run()
+        if projects.isEmpty {
+            print("No chain projects found via GitHub for \(repoURL.lastPathComponent)")
+            return
+        }
 
-            if projects.isEmpty {
-                print("No chain projects found via GitHub for \(repoURL.lastPathComponent)")
-                return
-            }
+        let detailUseCase = GetChainDetailUseCase(gitHubPRService: prService)
 
-            let detailUseCase = GetChainDetailUseCase(gitHubPRService: prService)
-
-            if let projectName = project {
-                let matched = try findProject(named: projectName, in: projects)
-                let detail = try await detailUseCase.run(options: .init(project: matched))
-                printEnrichedProjectDetail(detail)
-            } else {
-                var details: [ChainProjectDetail] = []
-                for p in projects {
-                    do {
-                        let detail = try await detailUseCase.run(options: .init(project: p))
-                        details.append(detail)
-                    } catch {
-                        fputs("Warning: failed to fetch GitHub data for '\(p.name)': \(error)\n", stderr)
-                    }
-                }
-                printEnrichedProjectList(details, allProjects: projects)
-            }
+        if let projectName = project {
+            let matched = try findProject(named: projectName, in: projects)
+            let detail = try await detailUseCase.run(options: .init(project: matched))
+            printEnrichedProjectDetail(detail)
         } else {
-            let projects = try await ListChainsUseCase().run(options: .init(repoPath: repoURL))
-
-            if projects.isEmpty {
-                print("No chain projects found in \(repoURL.appendingPathComponent("claude-chain").path)")
-                return
+            var details: [ChainProjectDetail] = []
+            for p in projects {
+                do {
+                    let detail = try await detailUseCase.run(options: .init(project: p))
+                    details.append(detail)
+                } catch {
+                    fputs("Warning: failed to fetch GitHub data for '\(p.name)': \(error)\n", stderr)
+                }
             }
-
-            if let projectName = project {
-                let matched = try findProject(named: projectName, in: projects)
-                printProjectDetail(matched)
-            } else {
-                printProjectList(projects)
-            }
+            printEnrichedProjectList(details, allProjects: projects)
         }
     }
 
@@ -174,33 +154,6 @@ public struct StatusCommand: AsyncParsableCommand {
             return "⏳ Pending review: \(status.pendingReviewers.joined(separator: ", "))"
         } else {
             return "👤 No reviewers"
-        }
-    }
-
-    private func printProjectList(_ projects: [ChainProject]) {
-        let sorted = projects.sorted { $0.name < $1.name }
-        let maxNameLen = sorted.map(\.name.count).max() ?? 0
-
-        for project in sorted {
-            let padded = project.name.padding(toLength: maxNameLen, withPad: " ", startingAt: 0)
-            let bar = progressBar(completed: project.completedTasks, total: project.totalTasks)
-            let counts = "\(project.completedTasks)/\(project.totalTasks) tasks completed"
-            let pending = project.pendingTasks > 0 ? " · \(project.pendingTasks) pending" : ""
-            print("  \(padded)  \(bar)  \(counts)\(pending)")
-        }
-
-        printProjectSummaryFooter(projects)
-    }
-
-    private func printProjectDetail(_ project: ChainProject) {
-        print(project.name)
-        print("Progress  \(project.completedTasks)/\(project.totalTasks) tasks completed")
-        print()
-        print("Tasks")
-
-        for task in project.tasks {
-            let icon = task.isCompleted ? "✓" : "○"
-            print("  \(icon) \(task.description)")
         }
     }
 

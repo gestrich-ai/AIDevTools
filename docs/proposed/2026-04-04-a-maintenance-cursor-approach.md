@@ -480,7 +480,10 @@ cat ~/Library/Logs/AIDevTools/aidevtools.log | jq 'select(.label | startswith("S
 
 ---
 
-## - [ ] Phase 6: Audit Local Discovery vs. GitHub API
+## - [x] Phase 6: Audit Local Discovery vs. GitHub API
+
+**Skills used**: none
+**Principles applied**: `StatusCommand` now always uses `ListChainsFromGitHubUseCase` — the `--github` flag and local-only display methods (`printProjectList`, `printProjectDetail`) were removed since chain specs typically live on feature branches that aren't locally checked out. `MCPCommand.handleGetChainStatus` was migrated to `ListChainsFromGitHubUseCase` with a `makeGitHubPRService` static helper added (mirroring the pattern in `StatusCommand`). `GitHubService` added as an explicit direct dependency of `AIDevToolsKitCLI`. `ListChainsUseCase` retained with a comment documenting its local-only constraint — appropriate when the caller has already checked out the relevant branch; `LocalChainDiscoveryService` retained for Phase 7 per-source-type discovery.
 
 Investigate every caller of `ListChainsUseCase` (local filesystem) and decide whether each use case is correctly served by local discovery or should use the GitHub API instead.
 

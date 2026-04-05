@@ -89,6 +89,7 @@ let package = Package(
                 "EvalFeature",
                 "EvalSDK",
                 "EvalService",
+                "GitHubService",
                 "LoggingSDK",
                 "PlanFeature",
                 "PlanService",

@@ -1,11 +1,14 @@
 import AppIPCSDK
 import ArgumentParser
 import ClaudeChainFeature
+import CredentialService
 import DataPathsService
 import Foundation
+import GitHubService
 import MCP
 import PlanFeature
 import PlanService
+import PRRadarCLIService
 import RepositorySDK
 
 struct MCPCommand: AsyncParsableCommand {
@@ -39,7 +42,7 @@ struct MCPCommand: AsyncParsableCommand {
     private static let allTools: [Tool] = [
         Tool(
             name: "get_chain_status",
-            description: "Returns task completion status for a named chain project in the current repository",
+            description: "Returns task completion status for a named chain project, discovered via GitHub API across all branches",
             inputSchema: .object([
                 "type": .string("object"),
                 "properties": .object([
@@ -157,7 +160,8 @@ struct MCPCommand: AsyncParsableCommand {
 
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         do {
-            let chains = try await ListChainsUseCase().run(options: .init(repoPath: cwd))
+            let prService = try await makeGitHubPRService(repoPath: cwd)
+            let chains = try await ListChainsFromGitHubUseCase(gitHubPRService: prService).run()
             guard let chain = chains.first(where: { $0.name == name }) else {
                 return .init(content: [.text(text: "Chain '\(name)' not found", annotations: nil, _meta: nil)], isError: false)
             }
@@ -175,6 +179,20 @@ struct MCPCommand: AsyncParsableCommand {
         } catch {
             return .init(content: [.text(text: error.localizedDescription, annotations: nil, _meta: nil)], isError: true)
         }
+    }
+
+    private static func makeGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
+        let accounts = try SecureSettingsService().listCredentialAccounts()
+        let gitOps = GitHubServiceFactory.createGitOps()
+        let remoteURL = try await gitOps.getRemoteURL(path: repoPath.path)
+        let owner = GitHubAPIService.parseOwnerRepo(from: remoteURL)?.owner ?? ""
+        let account = accounts.first(where: { $0 == owner }) ?? accounts.first ?? "default"
+        let dataPathsService = try DataPathsService(rootPath: DataPathsService.appSupportDirectory)
+        return try await GitHubServiceFactory.createPRService(
+            repoPath: repoPath.path,
+            githubAccount: account,
+            dataPathsService: dataPathsService
+        )
     }
 
     private static func handleGetPlanDetails(_ arguments: [String: Value]) async throws -> CallTool.Result {
