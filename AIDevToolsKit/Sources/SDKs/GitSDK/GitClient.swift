@@ -152,7 +152,6 @@ public struct GitClient: Sendable {
         do {
             _ = try await catFile(type: true, object: ref, workingDirectory: workingDirectory)
         } catch {
-            print("Fetching ref \(String(ref.prefix(12)))...")
             _ = try await fetchDepth(remote: "origin", ref: ref, depth: 1, workingDirectory: workingDirectory)
         }
     }

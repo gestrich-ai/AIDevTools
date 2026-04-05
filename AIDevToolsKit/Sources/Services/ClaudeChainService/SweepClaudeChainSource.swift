@@ -351,7 +351,7 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         guard !cursorCommitWritten, !processedPaths.isEmpty else { return }
         cursorCommitWritten = true
 
-        let cursor = processedPaths.last ?? ""
+        guard let cursor = processedPaths.last else { return }
         var state = try SweepState.load(from: stateURL)
         state.cursor = cursor
         state.lastRunDate = Date()

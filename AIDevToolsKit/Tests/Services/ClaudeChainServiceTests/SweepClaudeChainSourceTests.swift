@@ -41,7 +41,7 @@ private func gitCommitAll(message: String, in dir: URL) {
     p.waitUntilExit()
 }
 
-private func initGitRepo(at dir: URL, files: [String] = []) {
+private func initGitRepo(at dir: URL) {
     let sh: (String) -> Void = { cmd in
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/sh")

@@ -7,11 +7,6 @@ public struct SweepState: Codable, Sendable {
     /// When the sweep last ran successfully.
     public var lastRunDate: Date?
 
-    public init(cursor: String? = nil, lastRunDate: Date? = nil) {
-        self.cursor = cursor
-        self.lastRunDate = lastRunDate
-    }
-
     /// Loads state from `url`, returning an empty state if the file does not exist.
     public static func load(from url: URL) throws -> SweepState {
         guard FileManager.default.fileExists(atPath: url.path()) else {

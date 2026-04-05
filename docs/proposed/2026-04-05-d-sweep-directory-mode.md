@@ -133,8 +133,9 @@ When building an `AITask` for a directory, pass the directory path as the scope 
 - Run new Phase 6 tests
 - Optional: dry-run (`--dry-run`) against a local repo with `filePattern: "Sources/*/"` to confirm directory enumeration and cursor output
 
-## - [ ] Phase 8: Enforce
+## - [x] Phase 8: Enforce
 
-**Skills to read**: `ai-dev-tools-enforce`
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-swift-testing`
+**Principles applied**: Removed debug `print(...)` from `GitClient.ensureRefAvailable` (SDK should not log); replaced unreachable `?? ""` fallback in `finalizeBatch` with `guard let` to make the non-empty invariant explicit; removed redundant explicit memberwise init from `SweepState`; removed unused `files` parameter from the `initGitRepo` test helper. Kept `execute` as `internal` (not `private`) since `GitOperationsService` in the same SDK module calls it directly.
 
 - Run `ai-dev-tools-enforce` on all files changed during this plan
