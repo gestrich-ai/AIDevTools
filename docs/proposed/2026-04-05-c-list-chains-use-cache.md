@@ -78,9 +78,10 @@ In `AIDevToolsKitMac/Models/ClaudeChainModel.swift`, update `loadChains(for:cred
 
 Run `/ai-dev-tools-enforce` against all files changed across Phases 1–3 and fix any reported violations before proceeding to validation.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
-**Skills to read**: `ai-dev-tools-swift-testing`
+**Skills used**: `ai-dev-tools-swift-testing`
+**Principles applied**: Added a `SpyChainProjectSource` class (final, `@unchecked Sendable`) to capture the `useCache` argument, and a new `@Test("useCache: true is forwarded to remote source")` test. `swift build` produced no errors or new warnings; all 11 tests in `ClaudeChainServiceListingTests` pass.
 
 1. `swift build` — no errors, no new warnings
 2. Existing `ClaudeChainServiceListingTests` still pass — add a test verifying `useCache: true` is forwarded to the stub source

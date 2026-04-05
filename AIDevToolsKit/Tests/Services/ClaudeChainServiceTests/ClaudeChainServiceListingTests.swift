@@ -43,6 +43,20 @@ private struct ThrowingChainProjectSource: ChainProjectSource {
     }
 }
 
+private final class SpyChainProjectSource: ChainProjectSource, @unchecked Sendable {
+    private(set) var capturedUseCache: Bool?
+    let result: ChainListResult
+
+    init(result: ChainListResult = ChainListResult(projects: [])) {
+        self.result = result
+    }
+
+    func listChains(useCache: Bool) async throws -> ChainListResult {
+        capturedUseCache = useCache
+        return result
+    }
+}
+
 private func makeSpecProject(name: String, specPath: String) -> ChainProject {
     ChainProject(name: name, specPath: specPath, completedTasks: 0, pendingTasks: 1, totalTasks: 1)
 }
@@ -154,6 +168,20 @@ struct ClaudeChainServiceListChainsTests {
         await #expect(throws: Error.self) {
             try await service.listChains(source: .remote)
         }
+    }
+
+    @Test("useCache: true is forwarded to remote source")
+    func useCacheTrueIsForwardedToRemoteSource() async throws {
+        let spy = SpyChainProjectSource()
+        let service = ClaudeChainService(
+            client: StubAIClient(),
+            localSource: StubChainProjectSource(result: ChainListResult(projects: [])),
+            remoteSource: spy
+        )
+
+        _ = try await service.listChains(source: .remote, useCache: true)
+
+        #expect(spy.capturedUseCache == true)
     }
 }
 
