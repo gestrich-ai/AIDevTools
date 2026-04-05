@@ -237,7 +237,10 @@ Fix any failures. Commit fixes to AIDevTools.
 
 ---
 
-## - [ ] Phase 6: Recursive Pattern `src/**/*/`
+## - [x] Phase 6: Recursive Pattern `src/**/*/`
+
+**Skills used**: none
+**Principles applied**: Created `add-dir-readme-recursive` chain with `filePattern: "src/**/*/"`, `scanLimit: 4`, `changeLimit: 1`. Dry-run returned "1 task(s), 0 skipped" — correct for `changeLimit: 1` with `src/alpha` first candidate. Verified recursive `**` expansion by running the existing `doubleStarExpandsRecursively` unit test, which passes and confirms `src/alpha/subdir` appears in enumeration alongside top-level dirs.
 
 Create a second sweep chain that uses double-star recursion to walk directories at all nesting depths. The `src/alpha/subdir/` created in Phase 1 should appear in this enumeration.
 
