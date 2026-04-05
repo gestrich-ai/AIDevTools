@@ -13,6 +13,8 @@ public struct ChainProject: Hashable, Sendable {
     public let tasks: [ChainTask]
     public let totalTasks: Int
 
+    public var basePath: String { (specPath as NSString).deletingLastPathComponent }
+
     public init(
         name: String,
         specPath: String,

@@ -1,0 +1,145 @@
+## Relevant Skills
+
+| Skill | Description |
+|-------|-------------|
+| `ai-dev-tools-architecture` | 4-layer architecture rules, dependency direction, service placement |
+| `ai-dev-tools-code-quality` | Avoid force unwraps, raw strings, fallback values, duplicated logic, etc. |
+
+## Background
+
+Currently callers construct `ListChainsUseCase(source: LocalChainProjectSource(...))` or `ListChainsUseCase(source: GitHubChainProjectSource(...))` directly, scattering source-selection decisions across every call site. There is no single entry point for chain project operations — callers must understand and choose among `LocalChainProjectSource`, `GitHubChainProjectSource`, `ListChainsUseCase`, `ProjectService`, etc.
+
+`ClaudeChainService` will be extended to also serve as the single gateway for chain project discovery. It will:
+1. Hold both a local source and a remote (GitHub) source as properties
+2. Expose a single `listChains(source:kind:)` method parameterised by enums; `source` is required, `kind` defaults to `.all`
+3. Expose `detectLocalProjects(fromChangedPaths:)` replacing `ProjectService.detectLocalProjectsFromMerge`
+
+```swift
+public enum ChainSource { case local, remote }
+public enum ChainKind   { case spec, sweep, all }
+```
+
+Call sites to migrate:
+- `StatusCommand` → `service.listChains(source: .remote)`
+- `PrepareCommand` → `service.listChains(source: .local)`
+- `RunTaskCommand` → `service.listChains(source: .local)`
+- `MCPCommand` → `service.listChains(source: .remote)`
+- `ClaudeChainModel` → `service.listChains(source: .remote)`
+- `ProjectService.detectLocalProjectsFromMerge` → `service.detectLocalProjects(fromChangedPaths:)`
+
+`ClaudeChainService.buildPipeline` and `buildFinalizePipeline` also hardcode `"claude-chain"` as the project directory — these should be fixed to use local chain discovery.
+
+## Phases
+
+## - [ ] Phase 1: Extend `ClaudeChainService`
+
+**Skills to read**: `ai-dev-tools-architecture`
+
+Add `localSource` and `remoteSource` properties to `ClaudeChainService` and expand its init:
+
+```swift
+public struct ClaudeChainService {
+    private let client: any AIClient
+    private let git: GitClient
+    private let localSource: any ChainProjectSource
+    private let remoteSource: any ChainProjectSource
+
+    // Testable init — inject custom sources
+    public init(
+        client: any AIClient,
+        git: GitClient = GitClient(),
+        localSource: any ChainProjectSource,
+        remoteSource: any ChainProjectSource
+    ) {
+        self.client = client
+        self.git = git
+        self.localSource = localSource
+        self.remoteSource = remoteSource
+    }
+
+    // Convenience init for production use
+    public init(client: any AIClient, git: GitClient = GitClient(), repoPath: URL, prService: GitHubPRService) {
+        self.init(
+            client: client,
+            git: git,
+            localSource: LocalChainProjectSource(repoPath: repoPath),
+            remoteSource: GitHubChainProjectSource(gitHubPRService: prService)
+        )
+    }
+
+    // MARK: - Chain listing
+
+    public func listChains(source: ChainSource, kind: ChainKind = .all) async throws -> ChainListResult {
+        // Fetch from local or remote source
+        // Filter by kind (spec: kindBadge == nil, sweep: kindBadge != nil, all: no filter)
+        ...
+    }
+
+    // MARK: - Project detection from changed file paths
+
+    /// Returns Projects for any changed file paths that match a known chain spec path.
+    public func detectLocalProjects(fromChangedPaths paths: [String]) async throws -> [Project] {
+        let result = try await listLocalChains()
+        return result.projects
+            .filter { project in paths.contains(project.specPath) }
+            .map { Project(name: $0.name, basePath: $0.basePath) }
+            .sorted { $0.name < $1.name }
+    }
+}
+```
+
+Note: `detectLocalProjects(fromChangedPaths:)` uses the local source since changed-file detection happens during a GitHub Actions run with the repo checked out.
+
+## - [ ] Phase 2: Migrate call sites
+
+**Skills to read**: (none additional)
+
+Update each caller to construct a `ClaudeChainService` and call the appropriate method:
+
+| Call site | File | Old pattern | New pattern |
+|-----------|------|-------------|-------------|
+| `StatusCommand` | `ClaudeChainCLI/StatusCommand.swift` | `ListChainsUseCase(source: GitHubChainProjectSource(...)).run()` | `service.listChains(source: .remote)` |
+| `PrepareCommand` | `ClaudeChainCLI/PrepareCommand.swift` | `ListChainsUseCase(source: LocalChainProjectSource(...)).run()` | `service.listChains(source: .local)` |
+| `RunTaskCommand` | `ClaudeChainCLI/RunTaskCommand.swift` | `ListChainsUseCase(source: LocalChainProjectSource(...)).run()` | `service.listChains(source: .local)` |
+| `MCPCommand` | `AIDevToolsKitCLI/MCPCommand.swift` | `ListChainsUseCase(source: GitHubChainProjectSource(...)).run()` | `service.listChains(source: .remote)` |
+| `ClaudeChainModel` | `AIDevToolsKitMac/Models/ClaudeChainModel.swift` | `ListChainsUseCase(source: GitHubChainProjectSource(...)).run()` | `service.listChains(source: .remote)` |
+
+Each caller needs to construct a `ClaudeChainService`. For remote callers, `GitHubServiceFactory.createPRService(repoPath:)` is already the pattern for getting a `prService` (see `StatusCommand` and `MCPCommand`).
+
+## - [ ] Phase 3: Migrate `ProjectService.detectLocalProjectsFromMerge`
+
+**Skills to read**: (none additional)
+
+Replace `ProjectService.detectLocalProjectsFromMerge(changedFiles:)` with `ClaudeChainService.detectLocalProjects(fromChangedPaths:)`. Find all callers of `ProjectService.detectLocalProjectsFromMerge` and update them to use the service.
+
+Delete `ProjectService` if it has no remaining methods.
+
+## - [ ] Phase 4: Fix hardcoded `"claude-chain"` in `ClaudeChainService`
+
+**Skills to read**: `ai-dev-tools-architecture`
+
+`ClaudeChainService.buildPipeline` and `buildFinalizePipeline` hardcode:
+```swift
+let chainDir = options.repoPath.appendingPathComponent("claude-chain").path
+let project = Project(name: ..., basePath: (chainDir as NSString).appendingPathComponent(...))
+```
+
+Fix by using `listLocalChains()` to find the project by name and derive `basePath` from `ChainProject.basePath`. Add `repoPath` + `prService` to `ChainRunOptions` if not already present, or pass a `ClaudeChainService` directly.
+
+## - [ ] Phase 5: Remove now-unused types
+
+**Skills to read**: (none additional)
+
+After all call sites are migrated:
+- Delete `ListChainsUseCase` if it has no remaining callers outside `ClaudeChainService`
+- Confirm `LocalChainProjectSource` and `GitHubChainProjectSource` are only referenced inside `ClaudeChainService` (they become implementation details)
+
+## - [ ] Phase 6: Validation
+
+**Skills to read**: `ai-dev-tools-swift-testing`
+
+1. `swift build` — no errors, no new warnings
+2. Grep confirms: no direct construction of `ListChainsUseCase`, `LocalChainProjectSource`, or `GitHubChainProjectSource` outside `ClaudeChainService`
+3. Grep confirms: `ProjectService` is deleted or empty
+4. Manual: `claude-chain status` still shows remote chains correctly
+5. Manual: `claude-chain prepare PROJECT_NAME` still finds the correct project locally

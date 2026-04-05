@@ -66,8 +66,13 @@ public struct PrepareCommand: AsyncParsableCommand {
                 print("Using provided project name: \(projectName)")
             }
             
-            // Create Project domain model
-            let project = Project(name: projectName, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\(projectName)")
+            let repoURL = URL(fileURLWithPath: workingDirectory)
+            let result = try await ListChainsUseCase(source: LocalChainProjectSource(repoPath: repoURL)).run()
+            guard let chainProject = result.projects.first(where: { $0.name == projectName }) else {
+                gh.setError(message: "Project '\(projectName)' not found under \(ClaudeChainConstants.projectDirectoryPrefix)/ or \(ClaudeChainConstants.sweepChainDirectory)/")
+                throw ExitCode(1)
+            }
+            let project = Project(name: projectName, basePath: chainProject.basePath)
 
             // Get default base branch from environment (workflow provides this)
             // Use env var if set and non-empty, otherwise fall back to constant

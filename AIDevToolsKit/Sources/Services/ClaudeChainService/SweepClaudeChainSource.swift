@@ -43,6 +43,8 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
     // MARK: - ClaudeChainSource
 
     public let kindBadge: String? = "sweep"
+    nonisolated public var projectName: String { taskName }
+    nonisolated public var projectBasePath: String { taskDirectory.path }
 
     public func loadProject() async throws -> ChainProject {
         let config = try loadSweepConfig()

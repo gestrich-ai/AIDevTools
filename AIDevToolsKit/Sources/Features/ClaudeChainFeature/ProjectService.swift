@@ -3,23 +3,15 @@ import Foundation
 
 public struct ProjectService {
 
-    private static let specRegex: NSRegularExpression = {
-        do {
-            return try NSRegularExpression(pattern: #"^claude-chain/([^/]+)/spec\.md$"#, options: [])
-        } catch {
-            fatalError("Invalid regex pattern: \(error)")
-        }
-    }()
-
     public static func detectProjectsFromMerge(changedFiles: [String]) -> [Project] {
-        var projectNames = Set<String>()
+        var projects = Set<Project>()
         for filePath in changedFiles {
-            let range = NSRange(location: 0, length: filePath.utf16.count)
-            if let match = specRegex.firstMatch(in: filePath, options: [], range: range),
-               let captureRange = Range(match.range(at: 1), in: filePath) {
-                projectNames.insert(String(filePath[captureRange]))
+            if let name = MarkdownClaudeChainSource.matchesSpecPath(filePath) {
+                projects.insert(Project(name: name, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\(name)"))
+            } else if let name = SweepClaudeChainSource.matchesSpecPath(filePath) {
+                projects.insert(Project(name: name, basePath: "\(ClaudeChainConstants.sweepChainDirectory)/\(name)"))
             }
         }
-        return projectNames.sorted().map { Project(name: $0, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\($0)") }
+        return projects.sorted { $0.name < $1.name }
     }
 }

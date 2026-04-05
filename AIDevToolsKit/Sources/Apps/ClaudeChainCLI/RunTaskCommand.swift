@@ -81,15 +81,16 @@ struct RunTaskCommand: AsyncParsableCommand {
         if let baseBranch {
             resolvedBaseBranch = baseBranch
         } else {
-            let chainDir = repoURL.appendingPathComponent(ClaudeChainConstants.projectDirectoryPrefix).path
-            let chainProject = Project(
-                name: project,
-                basePath: (chainDir as NSString).appendingPathComponent(project)
-            )
-            let githubClient = GitHubClient(workingDirectory: chainDir)
+            let listResult = try await ListChainsUseCase(source: LocalChainProjectSource(repoPath: repoURL)).run()
+            guard let chainProject = listResult.projects.first(where: { $0.name == project }) else {
+                print("Error: Project '\(project)' not found under \(ClaudeChainConstants.projectDirectoryPrefix)/ or \(ClaudeChainConstants.sweepChainDirectory)/")
+                throw ExitCode.failure
+            }
+            let domainProject = Project(name: project, basePath: chainProject.basePath)
+            let githubClient = GitHubClient(workingDirectory: chainProject.basePath)
             let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
-            let config = (try? repository.loadLocalConfiguration(project: chainProject))
-                ?? ProjectConfiguration.default(project: chainProject)
+            let config = (try? repository.loadLocalConfiguration(project: domainProject))
+                ?? ProjectConfiguration.default(project: domainProject)
             resolvedBaseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)
         }
 

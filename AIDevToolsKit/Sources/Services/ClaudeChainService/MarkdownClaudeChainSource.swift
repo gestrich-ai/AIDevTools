@@ -9,7 +9,7 @@ import PipelineSDK
 /// Task selection skips tasks that already have an open remote branch.
 public actor MarkdownClaudeChainSource: ClaudeChainSource {
 
-    private let project: Project
+    nonisolated private let project: Project
     private let repoPath: URL
     private let repository: ProjectRepository
     private let git: GitClient
@@ -35,6 +35,8 @@ public actor MarkdownClaudeChainSource: ClaudeChainSource {
     // MARK: - ClaudeChainSource
 
     public let kindBadge: String? = nil
+    nonisolated public var projectName: String { project.name }
+    nonisolated public var projectBasePath: String { project.basePath }
 
     public func loadProject() async throws -> ChainProject {
         guard let spec = try? repository.loadLocalSpec(project: project) else {
