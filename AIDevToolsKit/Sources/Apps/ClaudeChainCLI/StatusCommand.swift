@@ -1,10 +1,7 @@
 import ArgumentParser
 import ClaudeChainFeature
 import ClaudeChainService
-import CredentialService
-import DataPathsService
 import Foundation
-import GitHubService
 import PRRadarCLIService
 
 public struct StatusCommand: AsyncParsableCommand {
@@ -32,10 +29,14 @@ public struct StatusCommand: AsyncParsableCommand {
         }
 
         let repoURL = URL(fileURLWithPath: path)
-        let prService = try await makeGitHubPRService(repoPath: repoURL)
-        let projects = try await ListChainsFromGitHubUseCase(gitHubPRService: prService).run()
+        let prService = try await GitHubServiceFactory.createPRService(repoPath: repoURL)
+        let result = try await ListChainsUseCase(source: GitHubChainProjectSource(gitHubPRService: prService)).run()
 
-        if projects.isEmpty {
+        for failure in result.failures {
+            fputs("Warning: \(failure.localizedDescription)\n", stderr)
+        }
+
+        if result.projects.isEmpty {
             print("No chain projects found via GitHub for \(repoURL.lastPathComponent)")
             return
         }
@@ -43,12 +44,12 @@ public struct StatusCommand: AsyncParsableCommand {
         let detailUseCase = GetChainDetailUseCase(gitHubPRService: prService)
 
         if let projectName = project {
-            let matched = try findProject(named: projectName, in: projects)
+            let matched = try findProject(named: projectName, in: result.projects)
             let detail = try await detailUseCase.run(options: .init(project: matched))
             printEnrichedProjectDetail(detail)
         } else {
             var details: [ChainProjectDetail] = []
-            for p in projects {
+            for p in result.projects {
                 do {
                     let detail = try await detailUseCase.run(options: .init(project: p))
                     details.append(detail)
@@ -56,7 +57,7 @@ public struct StatusCommand: AsyncParsableCommand {
                     fputs("Warning: failed to fetch GitHub data for '\(p.name)': \(error)\n", stderr)
                 }
             }
-            printEnrichedProjectList(details, allProjects: projects)
+            printEnrichedProjectList(details, allProjects: result.projects)
         }
     }
 
@@ -69,20 +70,6 @@ public struct StatusCommand: AsyncParsableCommand {
             throw ExitCode.failure
         }
         return matched
-    }
-
-    private func makeGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
-        let accounts = try SecureSettingsService().listCredentialAccounts()
-        let gitOps = GitHubServiceFactory.createGitOps()
-        let remoteURL = try await gitOps.getRemoteURL(path: repoPath.path)
-        let owner = GitHubAPIService.parseOwnerRepo(from: remoteURL)?.owner ?? ""
-        let account = accounts.first(where: { $0 == owner }) ?? accounts.first ?? "default"
-        let dataPathsService = try DataPathsService(rootPath: DataPathsService.appSupportDirectory)
-        return try await GitHubServiceFactory.createPRService(
-            repoPath: repoPath.path,
-            githubAccount: account,
-            dataPathsService: dataPathsService
-        )
     }
 
     private func printEnrichedProjectDetail(_ detail: ChainProjectDetail) {

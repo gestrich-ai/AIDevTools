@@ -1,4 +1,5 @@
 import CLISDK
+import CredentialService
 import DataPathsService
 import Foundation
 import GitHubService
@@ -60,6 +61,16 @@ public struct GitHubServiceFactory: Sendable {
         let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
         let cacheURL = try dataPathsService.path(for: .github(repoSlug: normalizedSlug))
         return GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
+    }
+
+    public static func createPRService(repoPath: URL) async throws -> GitHubPRService {
+        let accounts = try SecureSettingsService().listCredentialAccounts()
+        let gitOps = createGitOps()
+        let remoteURL = try await gitOps.getRemoteURL(path: repoPath.path)
+        let owner = GitHubAPIService.parseOwnerRepo(from: remoteURL)?.owner
+        let account = owner.flatMap { o in accounts.first(where: { $0 == o }) } ?? accounts.first ?? "default"
+        let dataPathsService = try DataPathsService(rootPath: DataPathsService.appSupportDirectory)
+        return try await createPRService(repoPath: repoPath.path, githubAccount: account, dataPathsService: dataPathsService)
     }
 
     public static func resolveToken(githubAccount: String) async throws -> String {

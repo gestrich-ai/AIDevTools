@@ -4,11 +4,7 @@ import GitHubService
 import OctokitSDK
 import PRRadarModelsService
 
-public struct ListChainsFromGitHubUseCase {
-
-    public struct Options: Sendable {
-        public init() {}
-    }
+public struct GitHubChainProjectSource: ChainProjectSource {
 
     private let gitHubPRService: any GitHubPRServiceProtocol
 
@@ -16,28 +12,39 @@ public struct ListChainsFromGitHubUseCase {
         self.gitHubPRService = gitHubPRService
     }
 
-    public func run(options: Options = Options()) async throws -> [ChainProject] {
-        let defaultBranch = (try? await gitHubPRService.repository(useCache: true).defaultBranch) ?? "develop"
-
-        // Get non-default base branches referenced by open chain PRs
+    public func listChains() async throws -> ChainListResult {
+        let defaultBranch = try await gitHubPRService.repository(useCache: true).defaultBranch
         let nonDefaultBranches = try await discoverNonDefaultBranches(defaultBranch: defaultBranch)
 
-        // For each branch, fetch branch HEAD → git tree → filter to claude-chain/ blobs
         var treeEntriesByBranch: [String: [GitTreeEntry]] = [:]
-        treeEntriesByBranch[defaultBranch] = (try? await loadChainTreeEntries(branch: defaultBranch)) ?? []
-        await withTaskGroup(of: (String, [GitTreeEntry]).self) { group in
+        var failures: [ChainFetchFailure] = []
+
+        do {
+            treeEntriesByBranch[defaultBranch] = try await loadChainTreeEntries(branch: defaultBranch)
+        } catch {
+            failures.append(ChainFetchFailure(context: "Failed to load chains from '\(defaultBranch)'", underlyingError: error))
+        }
+
+        await withTaskGroup(of: (String, Result<[GitTreeEntry], Error>).self) { group in
             for branch in nonDefaultBranches {
                 group.addTask {
-                    let entries = (try? await self.loadChainTreeEntries(branch: branch)) ?? []
-                    return (branch, entries)
+                    do {
+                        return (branch, .success(try await self.loadChainTreeEntries(branch: branch)))
+                    } catch {
+                        return (branch, .failure(error))
+                    }
                 }
             }
-            for await (branch, entries) in group {
-                treeEntriesByBranch[branch] = entries
+            for await (branch, result) in group {
+                switch result {
+                case .success(let entries):
+                    treeEntriesByBranch[branch] = entries
+                case .failure(let error):
+                    failures.append(ChainFetchFailure(context: "Failed to load chains from '\(branch)'", underlyingError: error))
+                }
             }
         }
 
-        // Build unique project → branch mapping (default branch takes priority)
         var projectBranch: [String: String] = [:]
         for branch in nonDefaultBranches {
             for name in projectNames(from: treeEntriesByBranch[branch] ?? []) {
@@ -48,20 +55,24 @@ public struct ListChainsFromGitHubUseCase {
             projectBranch[name] = defaultBranch
         }
 
-        return try await withThrowingTaskGroup(of: ChainProject.self) { group in
+        let projects = try await withThrowingTaskGroup(of: ChainProject.self) { group in
             for (name, branch) in projectBranch {
                 let entries = treeEntriesByBranch[branch] ?? []
                 group.addTask {
                     try await self.fetchChainProject(name: name, baseRef: branch, treeEntries: entries)
                 }
             }
-            var projects: [ChainProject] = []
+            var result: [ChainProject] = []
             for try await project in group {
-                projects.append(project)
+                result.append(project)
             }
-            return projects.sorted { $0.name < $1.name }
+            return result.sorted { $0.name < $1.name }
         }
+
+        return ChainListResult(projects: projects, failures: failures)
     }
+
+    // MARK: - Private
 
     private func loadChainTreeEntries(branch: String) async throws -> [GitTreeEntry] {
         let head = try await gitHubPRService.branchHead(branch: branch, ttl: 300)

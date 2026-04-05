@@ -321,6 +321,7 @@ let package = Package(
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
                 "ClaudeAgentSDK",
+                "CredentialService",
                 "DataPathsService",
                 "EnvironmentSDK",
                 "GitHubService",

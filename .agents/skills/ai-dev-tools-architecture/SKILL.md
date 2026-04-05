@@ -259,7 +259,55 @@ func withSuite(_ suite: EvalSuite) -> EvalCase {
 
 **On logging:** `logger.error(...)` is only appropriate when there is no other communication channel (e.g., a background task with no observable state). Never use `print(...)` as a substitute — use the structured logger if logging is genuinely needed.
 
-**When swallowing is intentional:** The rare cases where swallowing is correct (e.g., best-effort cleanup where failure is harmless) must be documented at the call site:
+### Non-fatal does not mean invisible
+
+An error that doesn't crash the app can still mean the user is seeing incomplete or wrong data. If an error represents missing data, a misconfiguration, or a partial failure that affects what the user sees, it must be surfaced — even if the app can continue running.
+
+**Bad reasoning:** "The app keeps working, so we can swallow this."
+**Correct reasoning:** "The user sees fewer chains than exist because a branch failed to load. They deserve to know, and they need a message that tells them why and how to fix it."
+
+Apply this test: *Would a user be confused by the result if this error were silent?* If yes, surface it.
+
+### Partial failures — use a result type
+
+When an operation processes multiple items and some may fail independently (e.g., loading chains across several branches), throwing on the first failure is too strict and swallowing all failures is too loose. Use a result struct that carries both the successful data and the collected failures:
+
+```swift
+public struct ChainListResult: Sendable {
+    public let projects: [ChainProject]
+    public let failures: [ChainFetchFailure]
+}
+```
+
+Callers that don't care about failures use `.projects`. Callers that surface errors to the user inspect `.failures`. Every failure in the list is shown to the user — in the Mac app as a warning banner, in the CLI as stderr output, in MCP responses as a `Warnings:` section.
+
+### Always use `LocalizedError` with actionable messages
+
+Every `Error` type defined in this codebase must conform to `LocalizedError` and provide an `errorDescription` that:
+1. States what failed in plain language
+2. Identifies the context (which branch, which repo, which config file)
+3. Suggests how to fix it when the fix is knowable
+
+```swift
+// Bad
+struct FetchError: Error {}
+
+// Good
+struct ChainFetchFailure: Error, LocalizedError, Sendable {
+    let context: String
+    let underlyingDescription: String
+
+    var errorDescription: String? {
+        "\(context): \(underlyingDescription)"
+    }
+}
+```
+
+Raw `Error` types with no `errorDescription` produce useless messages like "The operation couldn't be completed." when shown to users.
+
+### When swallowing is intentional
+
+The rare cases where swallowing is correct (e.g., best-effort cleanup where failure is harmless and invisible to the user) must be documented at the call site:
 
 ```swift
 // Swallowing intentionally: cache clearing is best-effort; a failure here

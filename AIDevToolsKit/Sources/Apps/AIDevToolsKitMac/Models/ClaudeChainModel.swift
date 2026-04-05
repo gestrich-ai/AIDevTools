@@ -48,6 +48,7 @@ final class ClaudeChainModel {
     private(set) var chainDetailLoading: Set<String> = []
     private(set) var chainDetails: [String: ChainProjectDetail] = [:]
     private var chainDetailNetworkFetched: Set<String> = []
+    private(set) var fetchWarnings: [ChainFetchFailure] = []
     private(set) var lastLoadedProjects: [ChainProject] = []
     private(set) var state: State = .idle
     private(set) var taskPipelines: [Int: PipelineModel] = [:]
@@ -102,6 +103,7 @@ final class ClaudeChainModel {
             chatModels = [:]
             chainDetails = [:]
             chainDetailLoading = []
+            fetchWarnings = []
             gitHubPRService = nil
         }
         currentRepoPath = repoPath
@@ -110,14 +112,14 @@ final class ClaudeChainModel {
         Task {
             do {
                 let service = try await makeOrGetGitHubPRService(repoPath: repoPath)
-                let projects = try await ListChainsFromGitHubUseCase(gitHubPRService: service).run()
-                lastLoadedProjects = projects
-                state = .loaded(projects)
-                for project in projects {
+                let result = try await ListChainsUseCase(source: GitHubChainProjectSource(gitHubPRService: service)).run()
+                lastLoadedProjects = result.projects
+                fetchWarnings = result.failures
+                state = .loaded(result.projects)
+                for project in result.projects {
                     loadChainDetail(project: project)
                 }
             } catch {
-                logger.error("loadChains failed: \(error)")
                 state = .error(error)
             }
         }

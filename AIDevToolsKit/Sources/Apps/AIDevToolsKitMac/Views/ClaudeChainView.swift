@@ -28,6 +28,11 @@ struct ClaudeChainView: View {
                     .tag(project)
                 }
                 .listStyle(.sidebar)
+                .safeAreaInset(edge: .bottom) {
+                    if !model.fetchWarnings.isEmpty {
+                        ChainFetchWarningBanner(warnings: model.fetchWarnings)
+                    }
+                }
                 .overlay {
                     if case .loadingChains = model.state, model.lastLoadedProjects.isEmpty {
                         ProgressView("Loading chains...")
@@ -83,6 +88,28 @@ struct ClaudeChainView: View {
         .sheet(isPresented: $showCreateSheet) {
             CreateChainSheet(repository: repository)
         }
+    }
+}
+
+// MARK: - Chain Fetch Warning Banner
+
+private struct ChainFetchWarningBanner: View {
+    let warnings: [ChainFetchFailure]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(warnings.count == 1 ? "1 branch failed to load" : "\(warnings.count) branches failed to load", systemImage: "exclamationmark.triangle.fill")
+                .font(.caption.bold())
+                .foregroundStyle(.orange)
+            ForEach(warnings, id: \.context) { warning in
+                Text(warning.localizedDescription)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.bar)
     }
 }
 

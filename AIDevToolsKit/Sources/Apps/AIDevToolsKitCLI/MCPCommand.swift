@@ -1,10 +1,8 @@
 import AppIPCSDK
 import ArgumentParser
 import ClaudeChainFeature
-import CredentialService
 import DataPathsService
 import Foundation
-import GitHubService
 import MCP
 import PlanFeature
 import PlanService
@@ -160,9 +158,9 @@ struct MCPCommand: AsyncParsableCommand {
 
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         do {
-            let prService = try await makeGitHubPRService(repoPath: cwd)
-            let chains = try await ListChainsFromGitHubUseCase(gitHubPRService: prService).run()
-            guard let chain = chains.first(where: { $0.name == name }) else {
+            let prService = try await GitHubServiceFactory.createPRService(repoPath: cwd)
+            let result = try await ListChainsUseCase(source: GitHubChainProjectSource(gitHubPRService: prService)).run()
+            guard let chain = result.projects.first(where: { $0.name == name }) else {
                 return .init(content: [.text(text: "Chain '\(name)' not found", annotations: nil, _meta: nil)], isError: false)
             }
             var lines = [
@@ -175,24 +173,17 @@ struct MCPCommand: AsyncParsableCommand {
                 let marker = task.isCompleted ? "✓" : "○"
                 lines.append("  \(marker) \(task.description)")
             }
+            if !result.failures.isEmpty {
+                lines.append("")
+                lines.append("Warnings:")
+                for failure in result.failures {
+                    lines.append("  \(failure.localizedDescription)")
+                }
+            }
             return .init(content: [.text(text: lines.joined(separator: "\n"), annotations: nil, _meta: nil)], isError: false)
         } catch {
             return .init(content: [.text(text: error.localizedDescription, annotations: nil, _meta: nil)], isError: true)
         }
-    }
-
-    private static func makeGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
-        let accounts = try SecureSettingsService().listCredentialAccounts()
-        let gitOps = GitHubServiceFactory.createGitOps()
-        let remoteURL = try await gitOps.getRemoteURL(path: repoPath.path)
-        let owner = GitHubAPIService.parseOwnerRepo(from: remoteURL)?.owner ?? ""
-        let account = accounts.first(where: { $0 == owner }) ?? accounts.first ?? "default"
-        let dataPathsService = try DataPathsService(rootPath: DataPathsService.appSupportDirectory)
-        return try await GitHubServiceFactory.createPRService(
-            repoPath: repoPath.path,
-            githubAccount: account,
-            dataPathsService: dataPathsService
-        )
     }
 
     private static func handleGetPlanDetails(_ arguments: [String: Value]) async throws -> CallTool.Result {
