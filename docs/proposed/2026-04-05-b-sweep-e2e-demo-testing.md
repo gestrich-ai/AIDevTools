@@ -2,7 +2,7 @@
 
 | Skill | Description |
 |-------|-------------|
-| `claude-chain` | ClaudeChain chain management context |
+| `ai-dev-tools-enforce` | Enforces coding standards, architecture, and quality after code changes |
 
 ## Background
 
@@ -38,10 +38,9 @@ The plan will set up real spec and sweep chains there and exercise them via CLI,
 
 ## - [x] Phase 1: Create Demo App Chains
 
-**Skills used**: `claude-chain`
 **Principles applied**: Created chain files directly without a setup wizard. Spec chain uses the same `configuration.yml`/`pr-template.md` pattern as existing chains in AIDevTools. Sweep `config.yaml` uses `filePattern: "src/**/*.txt"` with `scanLimit: 2` / `changeLimit: 1` as specified. Created 4 plain-text source files (`a.txt`–`d.txt`) for the sweep to process. Committed and pushed to `gestrich/AIDevToolsDemo` main.
 
-**Skills to read**: `claude-chain`
+**Skills to read**: 
 
 Create both chain types in `../AIDevToolsDemo` by hand (no interactive setup wizard — direct file creation to keep it scriptable and repeatable).
 

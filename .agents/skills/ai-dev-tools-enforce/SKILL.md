@@ -23,13 +23,19 @@ If the user's request is ambiguous, default to **Fix**.
 
 ## Step 1: Load the Practice Skills
 
-Read all five practice skills before touching any code. They define every rule you will enforce:
+Read all six practice skills before touching any code. Your role is to ensure changed code conforms to these guides.
 
+Some describe **how things should be designed** — layer boundaries, dependency direction, configuration wiring:
 - **Architecture**: `.agents/skills/ai-dev-tools-architecture/SKILL.md`
+- **Configuration Architecture**: `.agents/skills/ai-dev-tools-configuration-architecture/SKILL.md`
+
+Others define **quality standards** — code hygiene, organization, and test conventions:
 - **Build Quality**: `.agents/skills/ai-dev-tools-build-quality/SKILL.md`
 - **Code Organization**: `.agents/skills/ai-dev-tools-code-organization/SKILL.md`
 - **Code Quality**: `.agents/skills/ai-dev-tools-code-quality/SKILL.md`
 - **Swift Testing**: `.agents/skills/ai-dev-tools-swift-testing/SKILL.md`
+
+**Load them in parallel** — launch six agents simultaneously, one per skill, to minimize wall time.
 
 ## Step 2: Get the Changed Files
 
@@ -56,7 +62,9 @@ For each changed file, determine its layer before applying rules:
 | Shared models/config across features, `Services/` in path | **Services** |
 | Stateless `Sendable` structs, single-operation, `SDK` in module name | **SDKs** |
 
-## Step 4: Apply Rules
+## Step 4: Apply Rules in Parallel
+
+Launch one agent per practice skill simultaneously — Architecture, Configuration Architecture, Build Quality, Code Organization, Code Quality, and Swift Testing — each analyzing the same set of changed files against its own rules. Collect all findings before proceeding to Step 5.
 
 Use this severity scale across both modes:
 
