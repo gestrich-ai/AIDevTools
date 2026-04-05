@@ -56,7 +56,10 @@ public func listChains(source: ChainSource, kind: ChainKind = .all, useCache: Bo
 
 Pass `useCache` through to the underlying `source.listChains(useCache:)` call. Default of `false` means all existing CLI call sites require no changes.
 
-## - [ ] Phase 3: Update `ClaudeChainModel` to show cache then refresh
+## - [x] Phase 3: Update `ClaudeChainModel` to show cache then refresh
+
+**Skills used**: none
+**Principles applied**: Separated `makeOrGetGitHubPRService` into its own do-catch (returns early on failure), then used `try?` for the cache fetch to silently ignore cache misses. A `showedCachedData` flag tracks whether to suppress network errors when stale data is already displayed.
 
 **Skills to read**: (none additional)
 

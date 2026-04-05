@@ -110,10 +110,29 @@ final class ClaudeChainModel {
         currentCredentialAccount = credentialAccount
         state = .loadingChains
         Task {
+            let prService: any GitHubPRServiceProtocol
             do {
-                let prService = try await makeOrGetGitHubPRService(repoPath: repoPath)
-                let chainService = ClaudeChainService(client: activeClient, repoPath: repoPath, prService: prService)
-                let result = try await chainService.listChains(source: .remote)
+                prService = try await makeOrGetGitHubPRService(repoPath: repoPath)
+            } catch {
+                state = .error(error)
+                return
+            }
+            let chainService = ClaudeChainService(client: activeClient, repoPath: repoPath, prService: prService)
+
+            var showedCachedData = false
+            if let cached = try? await chainService.listChains(source: .remote, useCache: true),
+               !cached.projects.isEmpty {
+                lastLoadedProjects = cached.projects
+                fetchWarnings = cached.failures
+                state = .loaded(cached.projects)
+                for project in cached.projects {
+                    loadChainDetail(project: project)
+                }
+                showedCachedData = true
+            }
+
+            do {
+                let result = try await chainService.listChains(source: .remote, useCache: false)
                 lastLoadedProjects = result.projects
                 fetchWarnings = result.failures
                 state = .loaded(result.projects)
@@ -121,7 +140,9 @@ final class ClaudeChainModel {
                     loadChainDetail(project: project)
                 }
             } catch {
-                state = .error(error)
+                if !showedCachedData {
+                    state = .error(error)
+                }
             }
         }
     }
