@@ -102,7 +102,7 @@ public struct ClaudeChainService {
 
     // MARK: - Chain listing
 
-    public func listChains(source: ChainSource, kind: ChainKind = .all) async throws -> ChainListResult {
+    public func listChains(source: ChainSource, kind: ChainKind = .all, useCache: Bool = false) async throws -> ChainListResult {
         let result: ChainListResult
         switch source {
         case .local:
@@ -111,7 +111,7 @@ public struct ClaudeChainService {
             guard let remoteSource else {
                 throw ChainServiceError.missingSource(sourceType: "remote")
             }
-            result = try await remoteSource.listChains(useCache: false)
+            result = try await remoteSource.listChains(useCache: useCache)
         }
         let filtered = result.projects.filter { project in
             switch kind {

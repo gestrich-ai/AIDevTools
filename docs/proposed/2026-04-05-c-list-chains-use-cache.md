@@ -3,6 +3,7 @@
 | Skill | Description |
 |-------|-------------|
 | `ai-dev-tools-architecture` | 4-layer architecture rules, dependency direction, service placement |
+| `ai-dev-tools-enforce` | Orchestrates enforcement of coding standards against changed files |
 | `ai-dev-tools-swift-testing` | Swift Testing conventions for writing tests |
 
 ## Background
@@ -40,7 +41,10 @@ public func listChains(useCache: Bool) async throws -> ChainListResult {
 **`ClaudeChainService/LocalChainProjectSource.swift`**
 Add `useCache: Bool` parameter, ignore it — local file reads have no cache concept.
 
-## - [ ] Phase 2: Thread `useCache` through `ClaudeChainService`
+## - [x] Phase 2: Thread `useCache` through `ClaudeChainService`
+
+**Skills used**: none
+**Principles applied**: Added `useCache: Bool = false` to `listChains(source:kind:)` and forwarded it to `remoteSource.listChains(useCache:)`. Default of `false` keeps all existing CLI call sites unchanged.
 
 **Skills to read**: (none additional)
 
@@ -62,7 +66,13 @@ In `AIDevToolsKitMac/Models/ClaudeChainModel.swift`, update `loadChains(for:cred
 2. Then fetch `listChains(source: .remote, useCache: false)` for fresh data and update state
 3. On network error: if cached data was already shown, leave the state as `.loaded` (don't replace with `.error`); if no cached data was shown, set `state = .error`
 
-## - [ ] Phase 4: Validation
+## - [ ] Phase 4: Enforce Coding Standards
+
+**Skills to read**: `ai-dev-tools-enforce`
+
+Run `/ai-dev-tools-enforce` against all files changed across Phases 1–3 and fix any reported violations before proceeding to validation.
+
+## - [ ] Phase 5: Validation
 
 **Skills to read**: `ai-dev-tools-swift-testing`
 
