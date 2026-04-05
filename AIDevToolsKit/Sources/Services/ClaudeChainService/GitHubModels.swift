@@ -208,7 +208,7 @@ public struct GitHubPullRequest: Equatable {
     /// - Returns: Project name if branch follows ClaudeChain pattern, nil otherwise
     public var projectName: String? {
         guard let headRefName = headRefName else { return nil }
-        return Project.fromBranchName(headRefName)?.name
+        return MarkdownClaudeChainSource.matchesBranchName(headRefName) ?? SweepClaudeChainSource.matchesBranchName(headRefName)
     }
     
     /// Extract task hash from branch name.
@@ -250,7 +250,7 @@ public struct GitHubPullRequest: Equatable {
     /// - Returns: True if branch name matches claude-chain-{project}-{index} pattern
     public var isClaudeChainPR: Bool {
         guard let headRefName = headRefName else { return false }
-        return Project.fromBranchName(headRefName) != nil
+        return MarkdownClaudeChainSource.matchesBranchName(headRefName) != nil || SweepClaudeChainSource.matchesBranchName(headRefName) != nil
     }
     
     /// Calculate days the PR was/is open.

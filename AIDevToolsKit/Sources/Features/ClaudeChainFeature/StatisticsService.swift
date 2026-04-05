@@ -1,23 +1,9 @@
-/**
- * Service Layer class for statistics operations.
- *
- * Follows Service Layer pattern (Fowler, PoEAA) - encapsulates business logic
- * for collecting and aggregating project statistics from GitHub API and spec.md files.
- */
-
 import ClaudeChainService
 import ClaudeChainSDK
 import Foundation
 
-public class StatisticsService {
-    /**
-     * Service Layer class for statistics operations.
-     *
-     * Coordinates statistics collection by orchestrating GitHub PR queries and
-     * spec.md parsing. Implements business logic for ClaudeChain's statistics
-     * and reporting workflows.
-     */
-    
+public struct StatisticsService {
+
     private let repo: String
     private let projectRepository: ProjectRepository
     private let prService: PRService
@@ -163,7 +149,7 @@ public class StatisticsService {
          */
         print("Collecting statistics for project: \(projectName)")
         
-        let proj = project ?? Project(name: projectName)
+        let proj = project ?? Project(name: projectName, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\(projectName)")
         let stats = ProjectStats(projectName: projectName, specPath: proj.specPath)
         
         // Fetch and parse spec.md using repository
@@ -439,7 +425,7 @@ public class StatisticsService {
          * Returns:
          *     ProjectConfiguration domain model, or throws if config couldn't be loaded
          */
-        let project = Project(name: projectName)
+        let project = Project(name: projectName, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\(projectName)")
         return try projectRepository.loadConfiguration(project: project, baseBranch: baseBranch)
     }
     
@@ -463,7 +449,7 @@ public class StatisticsService {
             let range = NSRange(location: 0, length: commentBody.utf16.count)
             
             if let match = regex.firstMatch(in: commentBody, options: [], range: range) {
-                let costRange = Range(match.range(at: 1), in: commentBody)!
+                guard let costRange = Range(match.range(at: 1), in: commentBody) else { return nil }
                 let costString = String(commentBody[costRange])
                 return Double(costString)
             }

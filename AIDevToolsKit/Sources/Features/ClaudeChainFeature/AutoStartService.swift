@@ -1,26 +1,10 @@
-/**
- * Service Layer class for auto-start orchestration.
- *
- * Follows Service Layer pattern (Fowler, PoEAA) - encapsulates business logic
- * for detecting and determining which projects should be auto-triggered when
- * their spec.md files change.
- */
-
 import ClaudeChainService
 import ClaudeChainSDK
 import Foundation
 import GitSDK
-import ClaudeChainService
 
-public class AutoStartService {
-    /**
-     * Service Layer class for auto-start orchestration.
-     *
-     * Coordinates auto-start workflow by orchestrating git diff operations and
-     * GitHub PR queries. Implements business logic for ClaudeChain's auto-start
-     * detection and decision workflows.
-     */
-    
+public struct AutoStartService {
+
     private let repo: String
     private let prService: PRService
     private let autoStartEnabled: Bool
@@ -72,10 +56,8 @@ public class AutoStartService {
         do {
             let changedFiles = try await gitClient.diffChangedFiles(ref1: refBefore, ref2: refAfter, pattern: specPattern, workingDirectory: workingDirectory)
             for filePath in changedFiles {
-                if let projectName = Project.parseSpecPathToProject(path: filePath) {
-                    // Determine if this is a new file (added) or modified
-                    // For now, we'll treat all changes as MODIFIED and rely on
-                    // determineNewProjects() to check if the project is truly new
+                let projectName = MarkdownClaudeChainSource.matchesSpecPath(filePath) ?? SweepClaudeChainSource.matchesSpecPath(filePath)
+                if let projectName {
                     changedProjects.append(
                         AutoStartProject(
                             name: projectName,
@@ -93,7 +75,8 @@ public class AutoStartService {
         do {
             let deletedFiles = try await gitClient.diffDeletedFiles(ref1: refBefore, ref2: refAfter, pattern: specPattern, workingDirectory: workingDirectory)
             for filePath in deletedFiles {
-                if let projectName = Project.parseSpecPathToProject(path: filePath) {
+                let projectName = MarkdownClaudeChainSource.matchesSpecPath(filePath) ?? SweepClaudeChainSource.matchesSpecPath(filePath)
+                if let projectName {
                     changedProjects.append(
                         AutoStartProject(
                             name: projectName,

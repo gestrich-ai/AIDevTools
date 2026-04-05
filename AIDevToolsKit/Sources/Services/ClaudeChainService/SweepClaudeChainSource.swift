@@ -150,6 +150,27 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         )
     }
 
+    // MARK: - Static matching
+
+    /// Returns the project name if `path` is a sweep chain spec path, nil otherwise.
+    public static func matchesSpecPath(_ path: String) -> String? {
+        let parts = path.components(separatedBy: "/")
+        guard parts.count == 3,
+              parts[0] == ClaudeChainConstants.sweepChainDirectory,
+              parts[2] == ClaudeChainConstants.specFileName else { return nil }
+        return parts[1]
+    }
+
+    /// Returns the project name if `branch` follows the ClaudeChain naming convention, nil otherwise.
+    public static func matchesBranchName(_ branch: String) -> String? {
+        let pattern = #"^claude-chain-(.+)-([0-9a-f]{8})$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(branch.startIndex..<branch.endIndex, in: branch)
+        guard let match = regex.firstMatch(in: branch, range: range),
+              let nameRange = Range(match.range(at: 1), in: branch) else { return nil }
+        return String(branch[nameRange])
+    }
+
     // MARK: - Private
 
     private var stateURL: URL { taskDirectory.appendingPathComponent("state.json") }

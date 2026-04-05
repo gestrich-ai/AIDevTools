@@ -15,20 +15,12 @@ public struct PrepareCommand: AsyncParsableCommand {
     public init() {}
     
     public func run() async throws {
-        /**
-         * Orchestrate preparation workflow using Service Layer classes.
-         *
-         * This command instantiates services and coordinates their operations but
-         * does not implement business logic directly. Follows Service Layer pattern
-         * where CLI acts as thin orchestration layer.
-         *
-         * Workflow: detect-project, setup, check-capacity, find-task, create-branch, prepare-prompt
-         */
+        let gh = GitHubActions()
         do {
             // === Get common dependencies ===
             let env = ProcessInfo.processInfo.environment
             let repo = env["GITHUB_REPOSITORY"] ?? ""
-            
+
             // Initialize GitClient
             let gitClient = GitClient()
             let workingDirectory = FileManager.default.currentDirectoryPath
@@ -50,14 +42,11 @@ public struct PrepareCommand: AsyncParsableCommand {
             // Initialize infrastructure
             let githubClient = GitHubClient(workingDirectory: workingDirectory)
             let projectRepository = ProjectRepository(repo: repo, gitHubOperations: GitHubOperations(githubClient: githubClient))
-            
+
             // Initialize services
             let prService = PRService(repo: repo)
             let taskService = TaskService(repo: repo, prService: prService)
             let assigneeService = AssigneeService(repo: repo, prService: prService)
-            
-            // Initialize GitHub Actions helper
-            let gh = GitHubActions()
             
             // === STEP 1: Detect Project ===
             print("=== Step 1/6: Detecting project ===")
@@ -78,8 +67,8 @@ public struct PrepareCommand: AsyncParsableCommand {
             }
             
             // Create Project domain model
-            let project = Project(name: projectName)
-            
+            let project = Project(name: projectName, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\(projectName)")
+
             // Get default base branch from environment (workflow provides this)
             // Use env var if set and non-empty, otherwise fall back to constant
             let envBaseBranch = env["BASE_BRANCH"] ?? ""
@@ -214,11 +203,10 @@ public struct PrepareCommand: AsyncParsableCommand {
                         let msg = "PR #\(pr.number) (\(pr.headRefName ?? "")) - task hash \(taskHash) no longer matches any task"
                         print("  - \(msg)")
                         orphanedList.append("- \(msg)")
-                    } else if pr.headRefName?.contains("-") == true {
-                        // Try to extract index from old-style branches
-                        let components = pr.headRefName!.components(separatedBy: "-")
+                    } else if let headRefName = pr.headRefName, headRefName.contains("-") {
+                        let components = headRefName.components(separatedBy: "-")
                         if let lastComponent = components.last, Int(lastComponent) != nil {
-                            let msg = "PR #\(pr.number) (\(pr.headRefName!)) - task index \(lastComponent) no longer valid"
+                            let msg = "PR #\(pr.number) (\(headRefName)) - task index \(lastComponent) no longer valid"
                             print("  - \(msg)")
                             orphanedList.append("- \(msg)")
                         }
@@ -239,10 +227,10 @@ public struct PrepareCommand: AsyncParsableCommand {
                         let prUrl = "https://github.com/\(repo)/pull/\(pr.number)"
                         if let taskHash = pr.taskHash {
                             summaryText += "- [PR #\(pr.number)](\(prUrl)) (`\(pr.headRefName ?? "")`) - task hash `\(taskHash)` no longer matches any task\n"
-                        } else if pr.headRefName?.contains("-") == true {
-                            let components = pr.headRefName!.components(separatedBy: "-")
+                        } else if let headRefName = pr.headRefName, headRefName.contains("-") {
+                            let components = headRefName.components(separatedBy: "-")
                             if let lastComponent = components.last, Int(lastComponent) != nil {
-                                summaryText += "- [PR #\(pr.number)](\(prUrl)) (`\(pr.headRefName!)`) - task index `\(lastComponent)` no longer valid\n"
+                                summaryText += "- [PR #\(pr.number)](\(prUrl)) (`\(headRefName)`) - task index `\(lastComponent)` no longer valid\n"
                             }
                         }
                     }
@@ -340,25 +328,20 @@ public struct PrepareCommand: AsyncParsableCommand {
             print("\n✅ Preparation complete - ready to run Claude Code")
             
         } catch let error as FileNotFoundError {
-            let gh = GitHubActions()
             gh.setError(message: "Preparation failed: \(error.message)")
             throw ExitCode(1)
         } catch let error as ConfigurationError {
-            let gh = GitHubActions()
             gh.setError(message: "Preparation failed: \(error.message)")
             throw ExitCode(1)
         } catch let error as GitError {
-            let gh = GitHubActions()
             gh.setError(message: "Preparation failed: \(error.message)")
             throw ExitCode(1)
         } catch let error as GitHubAPIError {
-            let gh = GitHubActions()
             gh.setError(message: "Preparation failed: \(error.message)")
             throw ExitCode(1)
         } catch let exitCode as ExitCode {
             throw exitCode
         } catch {
-            let gh = GitHubActions()
             gh.setError(message: "Unexpected error in prepare: \(error.localizedDescription)")
             print("Stacktrace: \(error)")
             throw ExitCode(1)

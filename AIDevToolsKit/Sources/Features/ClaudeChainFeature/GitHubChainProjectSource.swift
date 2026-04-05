@@ -45,21 +45,21 @@ public struct GitHubChainProjectSource: ChainProjectSource {
             }
         }
 
-        var projectBranch: [String: String] = [:]
+        var projectBranch: [String: (branch: String, basePath: String)] = [:]
         for branch in nonDefaultBranches {
-            for name in projectNames(from: treeEntriesByBranch[branch] ?? []) {
-                if projectBranch[name] == nil { projectBranch[name] = branch }
+            for (name, basePath) in projectNamesAndBasePaths(from: treeEntriesByBranch[branch] ?? []) {
+                if projectBranch[name] == nil { projectBranch[name] = (branch, basePath) }
             }
         }
-        for name in projectNames(from: treeEntriesByBranch[defaultBranch] ?? []) {
-            projectBranch[name] = defaultBranch
+        for (name, basePath) in projectNamesAndBasePaths(from: treeEntriesByBranch[defaultBranch] ?? []) {
+            projectBranch[name] = (defaultBranch, basePath)
         }
 
         let projects = try await withThrowingTaskGroup(of: ChainProject.self) { group in
-            for (name, branch) in projectBranch {
-                let entries = treeEntriesByBranch[branch] ?? []
+            for (name, info) in projectBranch {
+                let entries = treeEntriesByBranch[info.branch] ?? []
                 group.addTask {
-                    try await self.fetchChainProject(name: name, baseRef: branch, treeEntries: entries)
+                    try await self.fetchChainProject(name: name, basePath: info.basePath, baseRef: info.branch, treeEntries: entries)
                 }
             }
             var result: [ChainProject] = []
@@ -82,14 +82,23 @@ public struct GitHubChainProjectSource: ChainProjectSource {
         }
     }
 
-    private func projectNames(from entries: [GitTreeEntry]) -> [String] {
-        var names: Set<String> = []
+    private func projectNamesAndBasePaths(from entries: [GitTreeEntry]) -> [(name: String, basePath: String)] {
+        var seen: Set<String> = []
+        var result: [(name: String, basePath: String)] = []
         for entry in entries {
-            if let name = Project.parseSpecPathToProject(path: entry.path) {
-                names.insert(name)
+            let match: (name: String, dir: String)?
+            if let name = MarkdownClaudeChainSource.matchesSpecPath(entry.path) {
+                match = (name, ClaudeChainConstants.projectDirectoryPrefix)
+            } else if let name = SweepClaudeChainSource.matchesSpecPath(entry.path) {
+                match = (name, ClaudeChainConstants.sweepChainDirectory)
+            } else {
+                match = nil
+            }
+            if let (name, dir) = match, seen.insert(name).inserted {
+                result.append((name, "\(dir)/\(name)"))
             }
         }
-        return Array(names)
+        return result
     }
 
     private func discoverNonDefaultBranches(defaultBranch: String) async throws -> [String] {
@@ -112,8 +121,8 @@ public struct GitHubChainProjectSource: ChainProjectSource {
         return try? await gitHubPRService.fileBlob(blobSHA: entry.sha, path: path, ref: ref)
     }
 
-    private func fetchChainProject(name: String, baseRef: String, treeEntries: [GitTreeEntry]) async throws -> ChainProject {
-        let project = Project(name: name)
+    private func fetchChainProject(name: String, basePath: String, baseRef: String, treeEntries: [GitTreeEntry]) async throws -> ChainProject {
+        let project = Project(name: name, basePath: basePath)
         let specPath = project.specPath
         let configPath = project.configPath
 

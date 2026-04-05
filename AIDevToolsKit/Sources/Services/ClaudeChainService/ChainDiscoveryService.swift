@@ -1,5 +1,4 @@
 import Foundation
-import GitSDK
 
 /// Discovers `ClaudeChainSource` instances from a repository.
 public protocol ChainDiscoveryService: Sendable {
@@ -22,10 +21,17 @@ public struct LocalChainDiscoveryService: ChainDiscoveryService {
     // MARK: - Private
 
     private func discoverPlanSources(repoPath: URL) -> [any ClaudeChainSource] {
-        let chainDir = repoPath.appendingPathComponent(ClaudeChainConstants.projectDirectoryPrefix).path
-        let projects = Project.findAll(baseDir: chainDir)
-        return projects.map { project in
-            MarkdownClaudeChainSource(projectName: project.name, repoPath: repoPath)
+        let chainDir = repoPath.appendingPathComponent(ClaudeChainConstants.projectDirectoryPrefix)
+        guard FileManager.default.fileExists(atPath: chainDir.path),
+              let entries = try? FileManager.default.contentsOfDirectory(atPath: chainDir.path) else { return [] }
+        return entries.sorted().compactMap { entry -> (any ClaudeChainSource)? in
+            let taskDir = chainDir.appendingPathComponent(entry)
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: taskDir.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue,
+                  FileManager.default.fileExists(atPath: taskDir.appendingPathComponent(ClaudeChainConstants.specFileName).path)
+            else { return nil }
+            return MarkdownClaudeChainSource(projectName: entry, repoPath: repoPath)
         }
     }
 
@@ -39,7 +45,7 @@ public struct LocalChainDiscoveryService: ChainDiscoveryService {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: taskDir.path, isDirectory: &isDirectory),
                   isDirectory.boolValue,
-                  FileManager.default.fileExists(atPath: taskDir.appendingPathComponent("spec.md").path)
+                  FileManager.default.fileExists(atPath: taskDir.appendingPathComponent(ClaudeChainConstants.specFileName).path)
             else { return nil }
             return SweepClaudeChainSource(taskName: entry, taskDirectory: taskDir, repoPath: repoPath)
         }

@@ -2,7 +2,7 @@ import ClaudeChainSDK
 import Foundation
 
 /// Repository for loading project data from GitHub or local filesystem
-public class ProjectRepository {
+public struct ProjectRepository {
     private let repo: String
     private let gitHubOperations: GitHubOperationsProtocol
 
@@ -151,7 +151,7 @@ public class ProjectRepository {
     /// - Parameter baseBranch: Branch to fetch from
     /// - Returns: Tuple of (Project, ProjectConfiguration, SpecContent) or nil if spec not found
     public func loadProjectFull(projectName: String, baseBranch: String = "main") throws -> (Project, ProjectConfiguration, SpecContent)? {
-        let project = Project(name: projectName)
+        let project = Project(name: projectName, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\(projectName)")
 
         // Spec is required for a valid project
         guard let spec = try loadSpec(project: project, baseBranch: baseBranch) else {

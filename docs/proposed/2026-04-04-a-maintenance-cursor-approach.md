@@ -507,7 +507,10 @@ Investigate every caller of `ListChainsUseCase` (local filesystem) and decide wh
 
 ---
 
-## - [ ] Phase 7: Move Directory Scheme Knowledge Out of `Project`
+## - [x] Phase 7: Move Directory Scheme Knowledge Out of `Project`
+
+**Skills used**: none
+**Principles applied**: Added static `matchesSpecPath` and `matchesBranchName` to both `MarkdownClaudeChainSource` and `SweepClaudeChainSource`. Removed `parseSpecPathToProject`, `fromBranchName`, and `findAll` from `Project`, and made `basePath` a required init parameter. `GitHubChainProjectSource.projectNames` replaced with `projectNamesAndBasePaths` returning tuples so each project gets the correct base path. `ChainDiscoveryService.discoverPlanSources` now scans the directory directly (matching the existing sweep discovery pattern). All `Project(name:)` callers updated to pass explicit `basePath` derived from `ClaudeChainConstants.projectDirectoryPrefix`.
 
 `Project` is a data model but currently encodes knowledge of all chain directory schemes in several places:
 
