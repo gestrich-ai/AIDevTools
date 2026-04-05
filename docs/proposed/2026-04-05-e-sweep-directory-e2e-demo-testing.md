@@ -162,7 +162,10 @@ Fix any failures. Commit fixes to AIDevTools.
 
 ---
 
-## - [ ] Phase 4: Cursor Advancement — Second Batch
+## - [x] Phase 4: Cursor Advancement — Second Batch
+
+**Skills used**: none
+**Principles applied**: Fixed `canSkipDirectory()` bug — it was skipping unprocessed directories because it only checked `hasDirectoryChanges` without first verifying the directory appeared in the `processed:` list of the cursor commit. Made it match the `canSkip()` file-mode logic: guard on `processedDirs.contains(path)` before the git-diff check. The initial bad run (cursor advanced to `src/gamma` with 0 tasks) was discarded by deleting the local branch before re-running with the fixed binary.
 
 Merge the Phase 3 PR so `state.json` (cursor=`src/alpha`) is on `main`, then run a second batch to prove the cursor advances past `src/alpha` to `src/beta`.
 

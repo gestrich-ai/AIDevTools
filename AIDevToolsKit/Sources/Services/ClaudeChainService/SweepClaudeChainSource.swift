@@ -329,6 +329,19 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
 
     private func canSkipDirectory(path: String) async throws -> Bool {
         guard let entry = try await git.logGrep(sweepLogPattern, workingDirectory: repoPath.path) else { return false }
+
+        let processedLine = entry.body
+            .components(separatedBy: .newlines)
+            .first(where: { $0.hasPrefix(Self.processedKey) })
+        guard let processedLine else { return false }
+
+        let processedDirs = processedLine
+            .dropFirst(Self.processedKey.count)
+            .trimmingCharacters(in: .whitespaces)
+            .components(separatedBy: " ")
+            .filter { !$0.isEmpty }
+        guard processedDirs.contains(path) else { return false }
+
         let hasChanges = try await git.hasDirectoryChanges(from: entry.hash, to: "HEAD", path: path, workingDirectory: repoPath.path)
         return !hasChanges
     }
