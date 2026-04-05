@@ -278,7 +278,10 @@ Fix any failures.
 
 ---
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
+
+**Skills used**: none
+**Principles applied**: Ran each verification command in the table top-to-bottom. All 10 rows passed without fixes: dry-run confirmed dir-only enumeration with 2 skipped, git log confirmed alphabetical cursor progression (alpha→beta), `status`/`list` commands confirmed both sweep chains visible, unit test `doubleStarExpandsRecursively` confirmed nested dir enumeration, and SweepClaudeChainSource.swift:162 confirms `"Directory"` label is used in directory mode.
 
 All of the following should be provable by running CLI commands from `../AIDevToolsDemo`:
 
