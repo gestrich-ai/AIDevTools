@@ -203,7 +203,10 @@ Fix any failures. Commit fixes.
 
 ---
 
-## - [ ] Phase 5: Test Sweep Chain — Multiple Batches (Cursor Tracking)
+## - [x] Phase 5: Test Sweep Chain — Multiple Batches (Cursor Tracking)
+
+**Skills used**: none
+**Principles applied**: Merged the Phase 4 batch branch into main (rather than just closing the PR) so that `state.json` (cursor=src/a.txt) and the sweep commit history were present on main before running Batch 2. Batch 2 correctly resumed from b.txt (cursor advancement bypassed a.txt), modified b.txt, wrote a new cursor commit at `src/b.txt`, and created PR gestrich/AIDevToolsDemo#5. Two `[claude-sweep]` cursor commits confirmed in `git log`. No code fixes needed.
 
 Close or merge the PR from Phase 4, then run the sweep again to prove the cursor advances and skip detection works.
 
