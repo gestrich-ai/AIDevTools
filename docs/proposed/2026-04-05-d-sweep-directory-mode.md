@@ -95,9 +95,10 @@ When building an `AITask` for a directory, pass the directory path as the scope 
     - Pass the directory path as the task's file/scope context
     - Task instructions from config.yaml are unchanged — the prompt already describes what to do
 
-## - [ ] Phase 5: Cursor Semantics
+## - [x] Phase 5: Cursor Semantics
 
-**Skills to read**: (none beyond existing code)
+**Skills used**: none
+**Principles applied**: No structural changes needed — `SweepState.cursor` is already `String?` and all cursor mechanics (`nextPathIndex`, `finalizeBatch`, `processedPaths`) operate on plain strings and work identically for directory paths. Updated the `cursor` doc comment and two log messages ("files" → "paths") to be mode-agnostic.
 
 `SweepState.cursor` is already `String?` — no model changes needed. Directory paths slot in directly.
 

@@ -96,7 +96,7 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         let effectiveCursor = processedPaths.last ?? state.cursor
 
         guard let startIndex = nextPathIndex(in: paths, after: effectiveCursor) else {
-            logger.info("[\(taskName)] No more files after cursor, batch complete")
+            logger.info("[\(taskName)] No more paths after cursor, batch complete")
             try await finalizeBatch()
             return nil
         }
@@ -369,7 +369,7 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
             return
         }
         try await git.commit(message: commitMessage, workingDirectory: resolvedRepoPath)
-        logger.info("[\(taskName)] Cursor commit written: cursor=\(cursor), processed=\(processedPaths.count) files")
+        logger.info("[\(taskName)] Cursor commit written: cursor=\(cursor), processed=\(processedPaths.count) paths")
     }
 }
 

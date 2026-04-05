@@ -2,7 +2,7 @@ import Foundation
 
 /// Persisted progress for a sweep.
 public struct SweepState: Codable, Sendable {
-    /// The last file path processed, used to resume on the next run.
+    /// The last path processed (file or directory), used to resume on the next run.
     public var cursor: String?
     /// When the sweep last ran successfully.
     public var lastRunDate: Date?
