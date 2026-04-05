@@ -32,6 +32,7 @@ public struct PRStep: PipelineNode {
     public let displayName: String
     public let gitClient: GitClient
     public let id: String
+    public let prTemplatePath: String?
     public let projectName: String?
     public let taskDescription: String?
 
@@ -46,6 +47,7 @@ public struct PRStep: PipelineNode {
         gitClient: GitClient,
         projectName: String? = nil,
         taskDescription: String? = nil,
+        prTemplatePath: String? = nil,
         cliClient: CLIClient = CLIClient()
     ) {
         self.baseBranch = baseBranch
@@ -54,6 +56,7 @@ public struct PRStep: PipelineNode {
         self.displayName = displayName
         self.gitClient = gitClient
         self.id = id
+        self.prTemplatePath = prTemplatePath
         self.projectName = projectName
         self.taskDescription = taskDescription
     }
@@ -104,13 +107,25 @@ public struct PRStep: PipelineNode {
         }
 
         var prCreateArgs = ["pr", "create", "--draft", "--head", branch, "--base", baseBranch]
+        var tempBodyURL: URL?
+        defer { tempBodyURL.flatMap { try? FileManager.default.removeItem(at: $0) } }
+
         if let taskDescription {
             let prefix = projectName.map { "ClaudeChain: [\($0)] " } ?? "ClaudeChain: "
             let maxTask = 80 - prefix.count
             let truncated = taskDescription.count > maxTask
                 ? String(taskDescription.prefix(maxTask - 3)) + "..."
                 : taskDescription
-            prCreateArgs += ["--title", "\(prefix)\(truncated)", "--body", taskDescription]
+            let body: String
+            if let path = prTemplatePath, let template = try? String(contentsOfFile: path) {
+                body = template.replacingOccurrences(of: "{{TASK_DESCRIPTION}}", with: taskDescription)
+            } else {
+                body = taskDescription
+            }
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
+            try body.write(to: tempURL, atomically: true, encoding: .utf8)
+            tempBodyURL = tempURL
+            prCreateArgs += ["--title", "\(prefix)\(truncated)", "--body-file", tempURL.path]
         } else {
             prCreateArgs += ["--fill"]
         }

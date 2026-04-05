@@ -1,0 +1,3 @@
+scanLimit: 3
+changeLimit: 2
+filePattern: AIDevToolsKit/Sources/Apps/AIDevToolsKitMac/**/*Model.swift

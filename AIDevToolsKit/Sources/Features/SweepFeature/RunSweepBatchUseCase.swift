@@ -164,6 +164,7 @@ public struct RunSweepBatchUseCase: UseCase {
                 workingDirectory: repoDir
             )
             var prNodes: [any PipelineNode] = []
+            let templatePath = options.taskDirectory.appendingPathComponent("pr-template.md").path
             let prStep = PRStep(
                 id: "pr-step",
                 displayName: "Create PR",
@@ -171,7 +172,8 @@ public struct RunSweepBatchUseCase: UseCase {
                 configuration: prConfig,
                 gitClient: git,
                 projectName: taskName,
-                taskDescription: batchDescription
+                taskDescription: batchDescription,
+                prTemplatePath: FileManager.default.fileExists(atPath: templatePath) ? templatePath : nil
             )
             prNodes.append(prStep)
             prNodes.append(commentStep)

@@ -6,6 +6,7 @@ import Foundation
 import GitSDK
 import Logging
 import PipelineSDK
+import PipelineService
 import UseCaseSDK
 
 public struct RunSpecChainTaskUseCase: UseCase {
@@ -307,52 +308,37 @@ public struct RunSpecChainTaskUseCase: UseCase {
             onProgress?(.reviewCompleted(summary: reviewSummary))
         }
 
-        // Push branch
-        try await git.push(remote: "origin", branch: branchName, setUpstream: true, force: true, workingDirectory: repoDir)
-
-        // Create draft PR
-        let prTitle = ChainPRHelpers.buildPRTitle(projectName: options.projectName, task: taskDescription)
-        let prBody = "Task \(stepIndex)/\(totalSteps): \(taskDescription)"
-        var prCreateArgs = [
-            "pr", "create",
-            "--draft",
-            "--title", prTitle,
-            "--body", prBody,
-            "--label", Constants.defaultPRLabel,
-            "--head", branchName,
-            "--base", baseBranch,
-        ]
-        if !repoSlug.isEmpty {
-            prCreateArgs += ["--repo", repoSlug]
-        }
-        for assignee in projectConfig?.assignees ?? [] {
-            prCreateArgs += ["--assignee", assignee]
-        }
-        for reviewer in projectConfig?.reviewers ?? [] {
-            prCreateArgs += ["--reviewer", reviewer]
-        }
-        let prURL: String
-        do {
-            prURL = try GitHubOperations.runGhCommand(args: prCreateArgs)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        } catch {
-            guard error.localizedDescription.contains("already exists") else { throw error }
-            var prViewURLArgs = ["pr", "view", branchName, "--json", "url", "--jq", ".url"]
-            if !repoSlug.isEmpty { prViewURLArgs += ["--repo", repoSlug] }
-            prURL = try GitHubOperations.runGhCommand(args: prViewURLArgs)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        // Get PR number
-        var prViewArgs = [
-            "pr", "view", branchName,
-            "--json", "number",
-        ]
-        if !repoSlug.isEmpty {
-            prViewArgs += ["--repo", repoSlug]
-        }
-        let prViewOutput = try GitHubOperations.runGhCommand(args: prViewArgs)
-        let prNumber = ChainPRHelpers.parsePRNumber(from: prViewOutput)
+        // Phase 5: Create PR via PRStep (handles push, template, labels, assignees, reviewers)
+        let prTemplatePath: String? = {
+            let path = project.prTemplatePath
+            return FileManager.default.fileExists(atPath: path) ? path : nil
+        }()
+        let prConfig = PRConfiguration(
+            assignees: projectConfig?.assignees ?? [],
+            labels: [Constants.defaultPRLabel],
+            reviewers: projectConfig?.reviewers ?? []
+        )
+        let prStep = PRStep(
+            id: "pr-step",
+            displayName: "Create PR",
+            baseBranch: baseBranch,
+            configuration: prConfig,
+            gitClient: git,
+            projectName: options.projectName,
+            taskDescription: taskDescription,
+            prTemplatePath: prTemplatePath
+        )
+        let prPipelineConfig = PipelineConfiguration(
+            executionMode: .all,
+            provider: client,
+            workingDirectory: repoDir
+        )
+        let prContext = try await PipelineRunner().run(
+            nodes: [prStep],
+            configuration: prPipelineConfig
+        ) { _ in }
+        let prURL = prContext[PRStep.prURLKey] ?? ""
+        let prNumber = prContext[PRStep.prNumberKey]
 
         if let prNumber {
             onProgress?(.prCreated(prNumber: prNumber, prURL: prURL))
