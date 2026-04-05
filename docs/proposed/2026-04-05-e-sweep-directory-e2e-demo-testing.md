@@ -120,7 +120,10 @@ Fix any failures. Commit fixes to AIDevTools.
 
 ---
 
-## - [ ] Phase 3: First Batch — Directory Mode PR
+## - [x] Phase 3: First Batch — Directory Mode PR
+
+**Skills used**: none
+**Principles applied**: Ran the first real sweep batch; all expected outputs matched without any fixes needed — cursor advanced to `src/alpha`, `README.md` created with correct content, PR #9 opened with correct title and `claudechain` label.
 
 Run the first real batch to produce a branch, AI-generated `README.md`, commit, and PR.
 
