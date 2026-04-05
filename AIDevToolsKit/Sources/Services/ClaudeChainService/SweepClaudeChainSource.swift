@@ -22,7 +22,11 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
     private var headHashAtTaskStart: String?
     private var cursorCommitWritten = false
 
-    private static let logger = Logger(label: "SweepClaudeChainSource")
+    private let logger = Logger(label: "SweepClaudeChainSource")
+    private static let sweepCommitPrefix = "[claude-sweep]"
+    private static let processedKey = "processed:"
+    private var sweepLogPattern: String { "claude-sweep.*task=\(taskName)" }
+    private var sweepCommitMessage: String { return "\(Self.sweepCommitPrefix) task=\(taskName)" }
 
     public init(
         taskName: String,
@@ -79,34 +83,35 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         let config = try loadSweepConfig()
 
         if scanCount >= config.scanLimit || modifyingTaskCount >= config.changeLimit {
-            Self.logger.debug("[\(taskName)] Batch limit reached: scanned=\(scanCount)/\(config.scanLimit), modified=\(modifyingTaskCount)/\(config.changeLimit)")
+            logger.debug("[\(taskName)] Batch limit reached: scanned=\(scanCount)/\(config.scanLimit), modified=\(modifyingTaskCount)/\(config.changeLimit)")
             try await finalizeBatch()
             return nil
         }
 
         let state = try SweepState.load(from: stateURL)
         let paths = try candidatePaths(config: config)
+        // On the first call in a batch, processedPaths is empty so we resume from the persisted cursor.
         let effectiveCursor = processedPaths.last ?? state.cursor
 
         guard let startIndex = nextPathIndex(in: paths, after: effectiveCursor) else {
-            Self.logger.info("[\(taskName)] No more files after cursor, batch complete")
+            logger.info("[\(taskName)] No more files after cursor, batch complete")
             try await finalizeBatch()
             return nil
         }
 
         for path in paths[startIndex...] {
             if try await canSkip(path: path) {
-                Self.logger.debug("[\(taskName)] Skipping unchanged: \(path)")
+                logger.debug("[\(taskName)] Skipping unchanged: \(path)")
                 processedPaths.append(path)
                 continue
             }
 
-            headHashAtTaskStart = try? await git.getHeadHash(workingDirectory: repoPath.path)
+            headHashAtTaskStart = try await git.getHeadHash(workingDirectory: repoPath.path)
             let specContent = try String(contentsOf: specURL, encoding: .utf8)
             return PendingTask(id: path, instructions: specContent + "\n\nFile: \(path)", skills: [])
         }
 
-        Self.logger.info("[\(taskName)] All candidate paths exhausted, batch complete")
+        logger.info("[\(taskName)] All candidate paths exhausted, batch complete")
         try await finalizeBatch()
         return nil
     }
@@ -115,11 +120,10 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         processedPaths.append(task.id)
         scanCount += 1
 
-        if let before = headHashAtTaskStart,
-           let after = try? await git.getHeadHash(workingDirectory: repoPath.path),
-           after != before {
+        let after = try await git.getHeadHash(workingDirectory: repoPath.path)
+        if let before = headHashAtTaskStart, after != before {
             modifyingTaskCount += 1
-            Self.logger.debug("[\(taskName)] Task produced changes: \(task.id), modifyingTasks=\(modifyingTaskCount)")
+            logger.debug("[\(taskName)] Task produced changes: \(task.id), modifyingTasks=\(modifyingTaskCount)")
         }
         headHashAtTaskStart = nil
     }
@@ -158,7 +162,7 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
 
     private func expandGlob(pattern: String) throws -> [String] {
         let regexPattern = "^" + globToRegex(pattern) + "$"
-        guard let regex = try? NSRegularExpression(pattern: regexPattern) else { return [] }
+        let regex = try NSRegularExpression(pattern: regexPattern)
 
         var results: [String] = []
         let rootPath = repoPath.path
@@ -169,6 +173,7 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         ) else { return results }
 
         for case let fileURL as URL in enumerator {
+            // File may disappear between enumeration and the resource fetch; treat as non-regular and skip.
             let isRegularFile = (try? fileURL.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false
             guard isRegularFile else { continue }
 
@@ -232,25 +237,24 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
 
     private func canSkip(path: String) async throws -> Bool {
         guard let entry = try await git.logGrep(
-            "claude-sweep.*task=\(taskName)",
+            sweepLogPattern,
             workingDirectory: repoPath.path
         ) else { return false }
 
         let processedLine = entry.body
             .components(separatedBy: .newlines)
-            .first(where: { $0.hasPrefix("processed:") })
+            .first(where: { $0.hasPrefix(Self.processedKey) })
         guard let processedLine else { return false }
 
         let processedFiles = processedLine
-            .dropFirst("processed:".count)
+            .dropFirst(Self.processedKey.count)
             .trimmingCharacters(in: .whitespaces)
             .components(separatedBy: " ")
             .filter { !$0.isEmpty }
         guard processedFiles.contains(path) else { return false }
 
-        let hashAtCommit = try? await git.getBlobHash(ref: entry.hash, path: path, workingDirectory: repoPath.path)
-        let currentHash = try? await git.getBlobHash(ref: "HEAD", path: path, workingDirectory: repoPath.path)
-        guard let hashAtCommit, let currentHash else { return false }
+        let hashAtCommit = try await git.getBlobHash(ref: entry.hash, path: path, workingDirectory: repoPath.path)
+        let currentHash = try await git.getBlobHash(ref: "HEAD", path: path, workingDirectory: repoPath.path)
         return hashAtCommit == currentHash
     }
 
@@ -265,9 +269,9 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         try state.save(to: stateURL)
 
         let processedList = processedPaths.joined(separator: " ")
-        let commitMessage = "[claude-sweep] task=\(taskName) cursor=\(cursor)\nprocessed: \(processedList)"
+        let commitMessage = "\(sweepCommitMessage) cursor=\(cursor)\n\(Self.processedKey) \(processedList)"
         try await git.add(files: [stateURL.path], workingDirectory: repoPath.path)
         try await git.commit(message: commitMessage, workingDirectory: repoPath.path)
-        Self.logger.info("[\(taskName)] Cursor commit written: cursor=\(cursor), processed=\(processedPaths.count) files")
+        logger.info("[\(taskName)] Cursor commit written: cursor=\(cursor), processed=\(processedPaths.count) files")
     }
 }

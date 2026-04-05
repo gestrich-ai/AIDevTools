@@ -6,9 +6,6 @@ public struct ClaudeChainConstants {
     /// ClaudeChain projects directory prefix
     public static let projectDirectoryPrefix = "claude-chain"
 
-    /// Maintenance chain directory name
-    public static let maintenanceChainDirectory = "claude-chain-maintenance"
-
     /// Sweep chain directory name
     public static let sweepChainDirectory = "claude-chain-sweep"
     

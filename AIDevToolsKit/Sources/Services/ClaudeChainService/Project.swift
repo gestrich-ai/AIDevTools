@@ -38,7 +38,7 @@ public struct Project {
         }
 
         if parts[0] == ClaudeChainConstants.projectDirectoryPrefix ||
-           parts[0] == ClaudeChainConstants.maintenanceChainDirectory {
+           parts[0] == ClaudeChainConstants.sweepChainDirectory {
             return parts[1]
         }
         return nil
