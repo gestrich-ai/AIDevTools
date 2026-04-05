@@ -29,7 +29,10 @@ The `AIDevToolsDemo` repo (`../AIDevToolsDemo` relative to AIDevTools) already h
 
 ## Phases
 
-## - [ ] Phase 1: Set Up Directory Structure and Sweep Chain
+## - [x] Phase 1: Set Up Directory Structure and Sweep Chain
+
+**Skills used**: none
+**Principles applied**: Created directories and sweep chain files directly in AIDevToolsDemo on main branch; stashed in-progress branch work to keep the commit clean on main.
 
 Create subdirectories in `../AIDevToolsDemo/src/` and a new directory-mode sweep chain. The existing flat files (`a.txt`–`d.txt`) stay untouched — they should not appear in a `src/*/` enumeration (files are excluded, only directories match).
 
