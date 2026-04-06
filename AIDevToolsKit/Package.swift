@@ -144,6 +144,7 @@ let package = Package(
                 "SkillBrowserFeature",
                 "SkillScannerSDK",
                 "SkillService",
+                "SweepFeature",
             ],
             path: "Sources/Apps/AIDevToolsKitMac"
         ),
@@ -545,7 +546,7 @@ let package = Package(
         ),
         .target(
             name: "ClaudeChainFeature",
-            dependencies: ["AIOutputSDK", "ClaudeChainSDK", "ClaudeChainService", "CredentialService", "GitHubService", "GitSDK", "OctokitSDK", "PipelineSDK", "PipelineService", "PRRadarCLIService", "PRRadarModelsService", "UseCaseSDK"],
+            dependencies: ["AIOutputSDK", "ClaudeChainSDK", "ClaudeChainService", "CredentialService", "GitHubService", "GitSDK", "OctokitSDK", "PipelineSDK", "PipelineService", "PRRadarCLIService", "PRRadarModelsService", "SweepFeature", "UseCaseSDK"],
             path: "Sources/Features/ClaudeChainFeature"
         ),
 

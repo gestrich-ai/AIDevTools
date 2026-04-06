@@ -8,6 +8,7 @@ import Logging
 import PipelineService
 import PRRadarCLIService
 import ProviderRegistryService
+import SweepFeature
 
 @MainActor @Observable
 final class ClaudeChainModel {
@@ -185,6 +186,10 @@ final class ClaudeChainModel {
     }
 
     func executeChain(project: ChainProject, repoPath: URL, taskIndex: Int? = nil, stagingOnly: Bool = false) {
+        if project.kindBadge == "sweep" {
+            executeSweepBatch(project: project, repoPath: repoPath)
+            return
+        }
         let task: ChainTask?
         if let taskIndex {
             task = project.tasks.first(where: { $0.index == taskIndex })
@@ -200,6 +205,32 @@ final class ClaudeChainModel {
             return
         }
         executeTask(at: task.index, project: project, repoPath: repoPath, stagingOnly: stagingOnly)
+    }
+
+    func executeSweepBatch(project: ChainProject, repoPath: URL) {
+        state = .executing(progress: Self.sweepBatchProgress())
+
+        Task {
+            let useCase = ExecuteSweepChainUseCase(client: activeClient)
+            let options = ExecuteSweepChainUseCase.Options(
+                project: project,
+                repoPath: repoPath,
+                githubAccount: currentCredentialAccount
+            )
+
+            do {
+                let result = try await useCase.run(options: options) { [weak self] progress in
+                    Task { @MainActor [weak self] in
+                        self?.handleSweepProgress(progress)
+                    }
+                }
+                state = .completed(result: result)
+                refreshChainDetail(project: project)
+            } catch {
+                logger.error("executeSweepBatch: failed: \(error)")
+                state = .error(error)
+            }
+        }
     }
 
     func executeTask(at index: Int, project: ChainProject, repoPath: URL, stagingOnly: Bool) {
@@ -402,6 +433,46 @@ final class ClaudeChainModel {
             PhaseInfo(displayName: "Finalize / Create PR", id: "finalize", status: .pending),
             PhaseInfo(displayName: "PR Summary", id: "summary", status: .pending),
             PhaseInfo(displayName: "Post PR Comment", id: "prComment", status: .pending),
+        ])
+    }
+
+    private func handleSweepProgress(_ progress: RunSweepBatchUseCase.Progress) {
+        guard case .executing(var current) = state else { return }
+
+        switch progress {
+        case .checkingOpenPRs:
+            current.currentPhase = "Checking for open PRs..."
+            current.setPhaseStatus(id: "prepare", status: .running)
+        case .creatingBranch(let branch):
+            current.currentPhase = "Creating branch: \(branch)"
+            current.setPhaseStatus(id: "prepare", status: .completed)
+            current.setPhaseStatus(id: "ai", status: .running)
+        case .runningTasks:
+            current.currentPhase = "Running sweep tasks..."
+        case .taskStarted(let id):
+            current.currentPhase = "Processing: \(id)"
+        case .taskCompleted(let id):
+            current.currentPhase = "Completed: \(id)"
+        case .creatingPR:
+            current.currentPhase = "Creating PR..."
+            current.setPhaseStatus(id: "ai", status: .completed)
+            current.setPhaseStatus(id: "finalize", status: .running)
+        case .prCreated(let prURL):
+            current.currentPhase = "PR created: \(prURL)"
+            current.setPhaseStatus(id: "finalize", status: .completed)
+        case .completed:
+            current.currentPhase = "Completed"
+            current.setPhaseStatus(id: "ai", status: .completed)
+        }
+
+        state = .executing(progress: current)
+    }
+
+    private static func sweepBatchProgress() -> ExecutionProgress {
+        ExecutionProgress(phases: [
+            PhaseInfo(displayName: "Prepare", id: "prepare", status: .pending),
+            PhaseInfo(displayName: "AI Execution", id: "ai", status: .pending),
+            PhaseInfo(displayName: "Create PR", id: "finalize", status: .pending),
         ])
     }
 

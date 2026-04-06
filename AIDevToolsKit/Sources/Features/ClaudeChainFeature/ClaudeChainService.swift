@@ -103,7 +103,7 @@ public struct ClaudeChainService {
     // MARK: - Chain listing
 
     public func listChains(source: ChainSource, kind: ChainKind = .all, useCache: Bool = false) async throws -> ChainListResult {
-        let result: ChainListResult
+        var result: ChainListResult
         switch source {
         case .local:
             result = try await listLocalChains()
@@ -112,6 +112,9 @@ public struct ClaudeChainService {
                 throw ChainServiceError.missingSource(sourceType: "remote")
             }
             result = try await remoteSource.listChains(useCache: useCache)
+            if let localSource {
+                result = await mergeSweepData(from: localSource, into: result)
+            }
         }
         let filtered = result.projects.filter { project in
             switch kind {
@@ -134,6 +137,30 @@ public struct ClaudeChainService {
     }
 
     // MARK: - Private
+
+    private func mergeSweepData(from localSource: any ChainProjectSource, into remoteResult: ChainListResult) async -> ChainListResult {
+        let localResult = (try? await localSource.listChains(useCache: false)) ?? ChainListResult(projects: [], failures: [])
+        let localByName = Dictionary(uniqueKeysWithValues: localResult.projects.map { ($0.name, $0) })
+
+        let merged = remoteResult.projects.map { remote -> ChainProject in
+            guard remote.kindBadge == "sweep", let local = localByName[remote.name] else {
+                return remote
+            }
+            return ChainProject(
+                name: remote.name,
+                specPath: remote.specPath,
+                tasks: local.tasks,
+                completedTasks: local.completedTasks,
+                pendingTasks: local.pendingTasks,
+                totalTasks: local.totalTasks,
+                baseBranch: remote.baseBranch,
+                isGitHubOnly: remote.isGitHubOnly,
+                kindBadge: remote.kindBadge,
+                maxOpenPRs: remote.maxOpenPRs
+            )
+        }
+        return ChainListResult(projects: merged, failures: remoteResult.failures)
+    }
 
     private func listLocalChains() async throws -> ChainListResult {
         guard let localSource else {

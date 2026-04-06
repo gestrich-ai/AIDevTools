@@ -51,17 +51,20 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         let state = try SweepState.load(from: stateURL)
         let paths = try candidatePaths(config: config)
 
+        let cursorIndex = state.cursor.flatMap { cursor in paths.firstIndex(of: cursor) } ?? -1
+
         let tasks = paths.enumerated().map { index, path in
-            ChainTask(index: index, description: path, isCompleted: false)
+            ChainTask(index: index, description: path, isCompleted: index <= cursorIndex)
         }
 
-        let pendingCount = nextPathIndex(in: paths, after: state.cursor) != nil ? 1 : 0
+        let completedCount = max(0, cursorIndex + 1)
+        let pendingCount = cursorIndex + 1 < paths.count ? 1 : 0
 
         return ChainProject(
             name: taskName,
             specPath: specURL.path,
             tasks: tasks,
-            completedTasks: 0,
+            completedTasks: completedCount,
             pendingTasks: pendingCount,
             totalTasks: tasks.count,
             branchPrefix: "claude-chain-\(taskName)-",
