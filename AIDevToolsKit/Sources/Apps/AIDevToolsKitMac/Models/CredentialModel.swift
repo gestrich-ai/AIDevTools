@@ -5,58 +5,53 @@ import Foundation
 @MainActor @Observable
 final class CredentialModel {
 
-    private let listCredentialAccountsUseCase: ListCredentialAccountsUseCase
-    private let loadCredentialStatusUseCase: LoadCredentialStatusUseCase
+    private let listCredentialStatusesUseCase: ListCredentialStatusesUseCase
     private let removeCredentialsUseCase: RemoveCredentialsUseCase
     private let saveCredentialsUseCase: SaveCredentialsUseCase
 
-    private(set) var credentialAccounts: [CredentialStatus] = []
+    private(set) var state: ModelState = .loaded([])
+
+    var credentialAccounts: [CredentialStatus] {
+        if case .loaded(let accounts) = state { return accounts }
+        return []
+    }
 
     init(
-        listCredentialAccountsUseCase: ListCredentialAccountsUseCase,
-        loadCredentialStatusUseCase: LoadCredentialStatusUseCase,
+        listCredentialStatusesUseCase: ListCredentialStatusesUseCase,
         removeCredentialsUseCase: RemoveCredentialsUseCase,
         saveCredentialsUseCase: SaveCredentialsUseCase
     ) {
-        self.listCredentialAccountsUseCase = listCredentialAccountsUseCase
-        self.loadCredentialStatusUseCase = loadCredentialStatusUseCase
+        self.listCredentialStatusesUseCase = listCredentialStatusesUseCase
         self.removeCredentialsUseCase = removeCredentialsUseCase
         self.saveCredentialsUseCase = saveCredentialsUseCase
-        self.credentialAccounts = Self.loadCredentialAccounts(
-            listUseCase: listCredentialAccountsUseCase,
-            statusUseCase: loadCredentialStatusUseCase
-        )
+        do {
+            self.state = .loaded(try listCredentialStatusesUseCase.execute())
+        } catch {
+            self.state = .error(error)
+        }
     }
 
     convenience init() {
         let service = SecureSettingsService()
         self.init(
-            listCredentialAccountsUseCase: ListCredentialAccountsUseCase(settingsService: service),
-            loadCredentialStatusUseCase: LoadCredentialStatusUseCase(settingsService: service),
+            listCredentialStatusesUseCase: ListCredentialStatusesUseCase(settingsService: service),
             removeCredentialsUseCase: RemoveCredentialsUseCase(settingsService: service),
             saveCredentialsUseCase: SaveCredentialsUseCase(settingsService: service)
         )
     }
 
     func saveCredentials(account: String, gitHubAuth: GitHubAuth?, anthropicKey: String?) throws {
-        credentialAccounts = try saveCredentialsUseCase.execute(
+        state = .loaded(try saveCredentialsUseCase.execute(
             account: account, gitHubAuth: gitHubAuth, anthropicKey: anthropicKey
-        )
+        ))
     }
 
     func removeCredentials(account: String) throws {
-        credentialAccounts = try removeCredentialsUseCase.execute(account: account)
+        state = .loaded(try removeCredentialsUseCase.execute(account: account))
     }
 
-    func credentialStatus(for account: String) -> CredentialStatus {
-        loadCredentialStatusUseCase.execute(account: account)
-    }
-
-    private static func loadCredentialAccounts(
-        listUseCase: ListCredentialAccountsUseCase,
-        statusUseCase: LoadCredentialStatusUseCase
-    ) -> [CredentialStatus] {
-        guard let accounts = try? listUseCase.execute() else { return [] }
-        return accounts.map { statusUseCase.execute(account: $0) }
+    enum ModelState {
+        case loaded([CredentialStatus])
+        case error(Error)
     }
 }

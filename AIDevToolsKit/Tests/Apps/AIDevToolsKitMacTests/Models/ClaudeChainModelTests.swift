@@ -3,6 +3,7 @@ import ClaudeChainFeature
 import ClaudeChainService
 import DataPathsService
 import Foundation
+import GitSDK
 import ProviderRegistryService
 import Testing
 
@@ -39,7 +40,7 @@ struct ClaudeChainModelTests {
         let registry = ProviderRegistry(providers: [StubAIClient()])
         let tempRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let dataPathsService = try DataPathsService(rootPath: tempRoot)
-        return ClaudeChainModel(providerRegistry: registry, dataPathsService: dataPathsService)
+        return ClaudeChainModel(providerRegistry: registry, dataPathsService: dataPathsService, gitClientFactory: { _ in GitClient() })
     }
 
     // MARK: - loadChains state transitions
