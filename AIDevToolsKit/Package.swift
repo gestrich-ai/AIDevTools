@@ -308,7 +308,6 @@ let package = Package(
             name: "PipelineService",
             dependencies: [
                 "AIOutputSDK",
-                "ClaudeChainService",
                 .product(name: "CLISDK", package: "SwiftCLI"),
                 "GitSDK",
                 .product(name: "Logging", package: "swift-log"),
@@ -524,14 +523,16 @@ let package = Package(
         .target(
             name: "ClaudeChainService",
             dependencies: [
+                "AIOutputSDK",
                 .product(name: "CLISDK", package: "SwiftCLI"),
-                .product(name: "Logging", package: "swift-log"),
-                .product(name: "Yams", package: "Yams"),
                 "ClaudeChainSDK",
                 "GitSDK",
+                .product(name: "Logging", package: "swift-log"),
                 "PipelineSDK",
+                "PipelineService",
                 "PRRadarModelsService",
                 "SweepService",
+                .product(name: "Yams", package: "Yams"),
             ],
             path: "Sources/Services/ClaudeChainService"
         ),

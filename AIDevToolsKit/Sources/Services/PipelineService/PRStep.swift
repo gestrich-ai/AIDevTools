@@ -11,7 +11,7 @@ public struct PRStep: PipelineNode {
     public let baseBranch: String
     public let configuration: PRConfiguration
     public let displayName: String
-    public let gitClient: GitClient
+    private let gitClient: GitClient
     public let id: String
     public let prTemplatePath: String?
     public let projectName: String?
@@ -98,7 +98,7 @@ public struct PRStep: PipelineNode {
                 ? String(taskDescription.prefix(maxTask - 3)) + "..."
                 : taskDescription
             let body: String
-            if let path = prTemplatePath, let template = try? String(contentsOfFile: path) {
+            if let path = prTemplatePath, let template = try? String(contentsOfFile: path, encoding: .utf8) {
                 body = template.replacingOccurrences(of: "{{TASK_DESCRIPTION}}", with: taskDescription)
             } else {
                 body = taskDescription
@@ -206,16 +206,19 @@ public struct PRStep: PipelineNode {
             environment: nil,
             printCommand: false
         )
-        guard result.isSuccess, let data = result.stdout.data(using: .utf8),
-              let json = try? JSONDecoder().decode([String: Int].self, from: data),
-              let number = json["number"] else {
+        guard result.isSuccess, let data = result.stdout.data(using: .utf8) else {
             throw PRStepError.commandFailed(command: "gh pr view", output: result.errorOutput)
         }
-        return String(number)
+        let item = try JSONDecoder().decode(PRNumberItem.self, from: data)
+        return String(item.number)
     }
 
 }
 
 private struct PRListItem: Decodable {
+    let number: Int
+}
+
+private struct PRNumberItem: Decodable {
     let number: Int
 }

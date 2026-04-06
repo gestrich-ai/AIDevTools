@@ -1,10 +1,10 @@
 import AIOutputSDK
 import CLISDK
-import ClaudeChainService
 import Foundation
 import GitSDK
 import Logging
 import PipelineSDK
+import PipelineService
 
 /// Pipeline step that generates an AI summary and posts the full PR comment.
 ///
@@ -69,7 +69,7 @@ public struct ChainPRCommentStep: PipelineNode {
 
         logger.debug("ChainPRCommentStep: generating summary for PR #\(prNumber)")
 
-        let mainCost = context[AITask<String>.metricsKey]?.cost ?? 0.0
+        let mainCost = context[PipelineContextKey<AIMetrics>("AITask.metrics")]?.cost ?? 0.0
 
         let (summaryContent, summaryCost) = await generateSummary(workingDirectory: workingDirectory)
 
@@ -90,10 +90,7 @@ public struct ChainPRCommentStep: PipelineNode {
         let comment = formatter.format(report.buildCommentElements())
 
         if dryRun {
-            print("\n=== PR Comment Preview ===")
-            print(comment)
-            print("=== End PR Comment Preview ===\n")
-            logger.debug("ChainPRCommentStep: dry-run, printed comment to console")
+            logger.info("ChainPRCommentStep: dry-run PR comment preview:\n\(comment)")
             return context
         }
 

@@ -208,7 +208,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
         )
 
         let mainAccumulator = StreamAccumulator()
-        let aiResult = try await client.run(
+        _ = try await client.run(
             prompt: task.instructions,
             options: aiOptions,
             onOutput: { text in
