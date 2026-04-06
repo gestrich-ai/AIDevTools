@@ -4,6 +4,7 @@ import ClaudeChainSDK
 import ClaudeChainService
 import ClaudeCLISDK
 import Foundation
+import GitHubService
 
 public struct ParseEventCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
@@ -318,7 +319,7 @@ public struct ParseEventCommand: AsyncParsableCommand {
         print("  Comparing \(baseDisplay)...\(headDisplay)")
 
         do {
-            let changedFiles = try GitHubOperations.compareCommits(repo: repo, base: baseRef, head: headRef)
+            let changedFiles = try compareCommits(repo: repo, base: baseRef, head: headRef)
             print("  Found \(changedFiles.count) changed files")
             let projects = try await service.detectLocalProjects(fromChangedPaths: changedFiles)
             if !projects.isEmpty {
@@ -332,6 +333,77 @@ public struct ParseEventCommand: AsyncParsableCommand {
         }
 
         return []
+    }
+
+    private func compareCommits(repo: String, base: String, head: String) throws -> [String] {
+        let encoded = "\(base)...\(head)".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? "\(base)...\(head)"
+        let response = try githubAPIRequest(repo: repo, path: "/compare/\(encoded)")
+        let files = response["files"] as? [[String: Any]] ?? []
+        return files.compactMap { $0["filename"] as? String }
+    }
+
+    private func getPullRequestFiles(repo: String, prNumber: Int) throws -> [String] {
+        let env = ProcessInfo.processInfo.environment
+        guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] else {
+            throw GitHubAPIError("No GH_TOKEN or GITHUB_TOKEN environment variable set")
+        }
+        guard let url = URL(string: "https://api.github.com/repos/\(repo)/pulls/\(prNumber)/files?per_page=100") else {
+            throw GitHubAPIError("Invalid repository: \(repo)")
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+        var responseData: Data?
+        var responseError: Error?
+        let semaphore = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            responseData = data
+            responseError = error
+            semaphore.signal()
+        }.resume()
+        semaphore.wait()
+
+        if let error = responseError {
+            throw GitHubAPIError("HTTP request failed: \(error.localizedDescription)")
+        }
+        guard let data = responseData,
+              let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return []
+        }
+        return array.compactMap { $0["filename"] as? String }
+    }
+
+    private func githubAPIRequest(repo: String, path: String) throws -> [String: Any] {
+        let env = ProcessInfo.processInfo.environment
+        guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] else {
+            throw GitHubAPIError("No GH_TOKEN or GITHUB_TOKEN environment variable set")
+        }
+        guard let url = URL(string: "https://api.github.com/repos/\(repo)\(path)") else {
+            throw GitHubAPIError("Invalid API path: \(path)")
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+        var responseData: Data?
+        var responseError: Error?
+        let semaphore = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            responseData = data
+            responseError = error
+            semaphore.signal()
+        }.resume()
+        semaphore.wait()
+
+        if let error = responseError {
+            throw GitHubAPIError("HTTP request failed: \(error.localizedDescription)")
+        }
+        guard let data = responseData,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return [:]
+        }
+        return json
     }
 
     /// Detect project from ClaudeChain branch name pattern.
@@ -369,7 +441,7 @@ public struct ParseEventCommand: AsyncParsableCommand {
         print("\n  Detecting project from PR #\(prNumber) files...")
 
         do {
-            let changedFiles = try GitHubOperations.getPullRequestFiles(repo: repo, prNumber: prNumber)
+            let changedFiles = try getPullRequestFiles(repo: repo, prNumber: prNumber)
             print("  Found \(changedFiles.count) changed files")
             let projects = try await service.detectLocalProjects(fromChangedPaths: changedFiles)
             if !projects.isEmpty {

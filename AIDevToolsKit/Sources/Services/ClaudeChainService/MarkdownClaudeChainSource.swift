@@ -26,8 +26,7 @@ public actor MarkdownClaudeChainSource: ClaudeChainSource {
         let basePath = chainDir.appendingPathComponent(projectName).path
         self.project = Project(name: projectName, basePath: basePath)
         self.repoPath = repoPath
-        let githubClient = GitHubClient(workingDirectory: chainDir.path)
-        self.repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
+        self.repository = ProjectRepository(repo: "")
         self.git = git
         self.taskIndex = taskIndex
     }

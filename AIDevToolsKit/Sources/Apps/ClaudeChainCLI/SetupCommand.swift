@@ -1,9 +1,9 @@
 import ArgumentParser
-import CLISDK
-import ClaudeChainSDK
 import ClaudeChainService
 import Foundation
+import GitHubService
 import GitSDK
+import PRRadarCLIService
 
 public struct SetupCommand: ParsableCommand {
     public static let configuration = CommandConfiguration(
@@ -52,15 +52,14 @@ public struct SetupCommand: ParsableCommand {
                 throw ExitCode.failure
             }
         case 1:
-            let result = try await addProject(repoPath: resolvedPath)
-            if result == nil {
+            guard let result = try await addProject(repoPath: resolvedPath) else {
                 throw ExitCode.failure
-            } else {
-                let (projectName, _) = result!
-                print("\n" + String(repeating: "=", count: 50))
-                print("Spec Created!")
-                print(String(repeating: "=", count: 50))
-                print("""
+            }
+            let (projectName, _) = result
+            print("\n" + String(repeating: "=", count: 50))
+            print("Spec Created!")
+            print(String(repeating: "=", count: 50))
+            print("""
 
 Project '\(projectName)' is ready.
 
@@ -68,7 +67,6 @@ Next step: Deploy spec (project)
   Run this command again and select 'Deploy spec (project)' to push
   your changes and trigger the first workflow.
 """)
-            }
         case 2:
             let result = try await deployToGitHub(repoPath: resolvedPath)
             if result != 0 {
@@ -667,17 +665,18 @@ private func runFirstWorkflow(repoPath: String, workflowName: String, projectNam
     if promptYesNo(question: "  Proceed?", defaultValue: true) {
         print("\n  Running workflow...")
         do {
-            // Get the repository name from git remote
-            let repo = try GitHubOperations.getCurrentRepository(workingDirectory: repoPath)
-            
-            // Trigger the workflow using GitHubOperations
-            try GitHubOperations.triggerWorkflow(
-                repo: repo,
-                workflowName: workflowName,
-                inputs: inputs,
-                ref: baseBranch
-            )
-            
+            let repoSlug = try await RepositoryService().getCurrentRepository(workingDirectory: repoPath)
+            let env = ProcessInfo.processInfo.environment
+            guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] else {
+                throw GitHubAPIError("No GH_TOKEN or GITHUB_TOKEN environment variable set")
+            }
+            let parts = repoSlug.split(separator: "/")
+            guard parts.count == 2 else {
+                throw GitHubAPIError("Invalid repository slug: \(repoSlug)")
+            }
+            let service = GitHubServiceFactory.make(token: token, owner: String(parts[0]), repo: String(parts[1]))
+            try await service.triggerWorkflowDispatch(workflowId: workflowName, ref: baseBranch, inputs: inputs)
+
             print("  Workflow triggered successfully!")
             print("\n  Check the Actions tab in GitHub to monitor progress.")
         } catch {

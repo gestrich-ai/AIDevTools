@@ -124,8 +124,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
         let chainDir = URL(fileURLWithPath: projectBasePath).deletingLastPathComponent().path
         let project = Project(name: options.projectName, basePath: projectBasePath)
         let specURL = URL(fileURLWithPath: project.specPath)
-        let githubClient = GitHubClient(workingDirectory: chainDir)
-        let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
+        let repository = ProjectRepository(repo: "")
         var projectConfig: ProjectConfiguration? = nil
         do {
             projectConfig = try repository.loadLocalConfiguration(project: project)
@@ -511,7 +510,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
 
     // MARK: - Helpers
 
-    private func appendReviewNote(specPath: String, taskDescription: String, summary: String) {
+    func appendReviewNote(specPath: String, taskDescription: String, summary: String) {
         guard var content = try? String(contentsOfFile: specPath, encoding: .utf8) else { return }
         let taskLine = "- [x] \(taskDescription)"
         guard let range = content.range(of: taskLine) else { return }

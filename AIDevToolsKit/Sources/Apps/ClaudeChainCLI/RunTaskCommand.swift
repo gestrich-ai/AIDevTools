@@ -88,8 +88,7 @@ struct RunTaskCommand: AsyncParsableCommand {
                 throw ExitCode.failure
             }
             let domainProject = Project(name: project, basePath: chainProject.basePath)
-            let githubClient = GitHubClient(workingDirectory: chainProject.basePath)
-            let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
+            let repository = ProjectRepository(repo: "")
             let config = (try? repository.loadLocalConfiguration(project: domainProject))
                 ?? ProjectConfiguration.default(project: domainProject)
             resolvedBaseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)

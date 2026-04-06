@@ -2,10 +2,13 @@ import AIOutputSDK
 import CLISDK
 import ClaudeChainService
 import Foundation
+import GitHubService
 import GitSDK
 import Logging
 import PipelineSDK
 import PipelineService
+import PRRadarCLIService
+import PRRadarModelsService
 import UseCaseSDK
 
 public struct RunSweepBatchUseCase: UseCase {
@@ -224,23 +227,34 @@ public struct RunSweepBatchUseCase: UseCase {
     }
 
     private func countOpenSweepPRs(branchPrefix: String, repoDir: String) async throws -> Int {
-        let cliClient = CLIClient()
-        let result = try await cliClient.execute(
-            command: "gh",
-            arguments: ["pr", "list", "--state", "open", "--json", "headRefName"],
-            workingDirectory: repoDir,
-            environment: nil,
-            printCommand: false
-        )
-        guard result.isSuccess, let data = result.stdout.data(using: .utf8) else {
-            throw RunSweepBatchError.openPRQueryFailed(branchPrefix: branchPrefix)
-        }
-        let prs = try JSONDecoder().decode([OpenPR].self, from: data)
-        return prs.filter { $0.headRefName.hasPrefix(branchPrefix) }.count
+        let repoSlug = try await detectRepoSlug(workingDirectory: repoDir)
+        let service = try resolveGitHubService(repoSlug: repoSlug)
+        let openPRs = try await service.listPullRequests(limit: 100, filter: PRFilter(state: .open))
+        return openPRs.filter { ($0.headRefName ?? "").hasPrefix(branchPrefix) }.count
     }
-}
 
-private struct OpenPR: Decodable {
-    let headRefName: String
+    private func detectRepoSlug(workingDirectory: String) async throws -> String {
+        if let repo = ProcessInfo.processInfo.environment["GITHUB_REPOSITORY"], !repo.isEmpty {
+            return repo
+        }
+        let remoteURL = try await git.remoteGetURL(workingDirectory: workingDirectory)
+        return remoteURL
+            .replacingOccurrences(of: "git@github.com:", with: "")
+            .replacingOccurrences(of: "https://github.com/", with: "")
+            .replacingOccurrences(of: ".git", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func resolveGitHubService(repoSlug: String) throws -> any GitHubPRServiceProtocol {
+        let env = ProcessInfo.processInfo.environment
+        guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] else {
+            throw RunSweepBatchError.openPRQueryFailed(branchPrefix: "")
+        }
+        let parts = repoSlug.split(separator: "/")
+        guard parts.count == 2 else {
+            throw RunSweepBatchError.openPRQueryFailed(branchPrefix: "")
+        }
+        return GitHubServiceFactory.make(token: token, owner: String(parts[0]), repo: String(parts[1]))
+    }
 }
 

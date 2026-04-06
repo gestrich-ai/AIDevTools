@@ -1,57 +1,39 @@
 import ClaudeChainService
-import ClaudeChainSDK
 import Foundation
 import GitHubService
 import Logging
 
 public struct WorkflowService {
 
-    private let githubService: (any GitHubPRServiceProtocol)?
+    private let githubService: any GitHubPRServiceProtocol
     private let logger = Logger(label: "WorkflowService")
-
-    public init() {
-        self.githubService = nil
-    }
 
     public init(githubService: any GitHubPRServiceProtocol) {
         self.githubService = githubService
     }
 
     public func triggerClaudeChainWorkflow(projectName: String, baseBranch: String, checkoutRef: String) throws {
-        if let service = githubService {
-            var triggerError: Error?
-            let semaphore = DispatchSemaphore(value: 0)
-            Task {
-                do {
-                    try await service.triggerWorkflowDispatch(
-                        workflowId: "claudechain.yml",
-                        ref: checkoutRef,
-                        inputs: [
-                            ClaudeChainConstants.workflowProjectNameKey: projectName,
-                            ClaudeChainConstants.workflowBaseBranchKey: baseBranch,
-                            "checkout_ref": checkoutRef,
-                        ]
-                    )
-                } catch let e {
-                    triggerError = e
-                }
-                semaphore.signal()
-            }
-            semaphore.wait()
-            if let error = triggerError {
-                throw GitHubAPIError("Failed to trigger workflow for project '\(projectName)': \(error)")
-            }
-        } else {
+        var triggerError: Error?
+        let semaphore = DispatchSemaphore(value: 0)
+        Task {
             do {
-                _ = try GitHubOperations.runGhCommand(args: [
-                    "workflow", "run", "claudechain.yml",
-                    "-f", "\(ClaudeChainConstants.workflowProjectNameKey)=\(projectName)",
-                    "-f", "\(ClaudeChainConstants.workflowBaseBranchKey)=\(baseBranch)",
-                    "-f", "checkout_ref=\(checkoutRef)",
-                ])
-            } catch {
-                throw GitHubAPIError("Failed to trigger workflow for project '\(projectName)': \(error)")
+                try await githubService.triggerWorkflowDispatch(
+                    workflowId: "claudechain.yml",
+                    ref: checkoutRef,
+                    inputs: [
+                        ClaudeChainConstants.workflowProjectNameKey: projectName,
+                        ClaudeChainConstants.workflowBaseBranchKey: baseBranch,
+                        "checkout_ref": checkoutRef,
+                    ]
+                )
+            } catch let e {
+                triggerError = e
             }
+            semaphore.signal()
+        }
+        semaphore.wait()
+        if let error = triggerError {
+            throw GitHubAPIError("Failed to trigger workflow for project '\(projectName)': \(error)")
         }
     }
 

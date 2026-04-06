@@ -73,8 +73,7 @@ struct FinalizeStagedCommand: AsyncParsableCommand {
                 name: project,
                 basePath: (chainDir as NSString).appendingPathComponent(project)
             )
-            let githubClient = GitHubClient(workingDirectory: chainDir)
-            let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
+            let repository = ProjectRepository(repo: "")
             let config = (try? repository.loadLocalConfiguration(project: chainProject))
                 ?? ProjectConfiguration.default(project: chainProject)
             resolvedBaseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)

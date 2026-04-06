@@ -243,10 +243,13 @@ let package = Package(
                 "AIOutputSDK",
                 "ClaudeChainService",
                 .product(name: "CLISDK", package: "SwiftCLI"),
+                "GitHubService",
                 "GitSDK",
                 .product(name: "Logging", package: "swift-log"),
                 "PipelineSDK",
                 "PipelineService",
+                "PRRadarCLIService",
+                "PRRadarModelsService",
                 "UseCaseSDK",
             ],
             path: "Sources/Features/SweepFeature"
@@ -519,20 +522,18 @@ let package = Package(
         ),
         .target(
             name: "ClaudeChainSDK",
-            dependencies: [
-                .product(name: "CLISDK", package: "SwiftCLI"),
-            ],
+            dependencies: [],
             path: "Sources/SDKs/ClaudeChainSDK"
         ),
         .target(
             name: "ClaudeChainService",
             dependencies: [
                 "AIOutputSDK",
-                .product(name: "CLISDK", package: "SwiftCLI"),
                 "ClaudeChainSDK",
                 "GitHubService",
                 "GitSDK",
                 .product(name: "Logging", package: "swift-log"),
+                "OctokitSDK",
                 "PipelineSDK",
                 "PipelineService",
                 "PRRadarCLIService",
@@ -598,7 +599,15 @@ let package = Package(
         ),
         .testTarget(
             name: "ClaudeChainFeatureTests",
-            dependencies: ["AIOutputSDK", "ClaudeChainFeature", "ClaudeChainSDK", "ClaudeChainService"],
+            dependencies: [
+                "AIOutputSDK",
+                "ClaudeChainFeature",
+                "ClaudeChainSDK",
+                "ClaudeChainService",
+                "GitHubService",
+                "OctokitSDK",
+                "PRRadarModelsService",
+            ],
             path: "Tests/Features/ClaudeChainFeatureTests"
         ),
         .testTarget(

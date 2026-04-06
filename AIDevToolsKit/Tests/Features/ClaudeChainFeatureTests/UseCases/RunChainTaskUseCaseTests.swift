@@ -1,5 +1,5 @@
 import AIOutputSDK
-import ClaudeChainFeature
+@testable import ClaudeChainFeature
 import ClaudeChainSDK
 import ClaudeChainService
 import Foundation

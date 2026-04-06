@@ -4,13 +4,19 @@ import Foundation
 /// Repository for loading project data from GitHub or local filesystem
 public struct ProjectRepository {
     private let repo: String
-    private let gitHubOperations: GitHubOperationsProtocol
+    private let gitHubOperations: (any GitHubOperationsProtocol)?
 
-    /// Initialize repository
+    /// Initialize repository for local-filesystem-only access (loadLocalConfiguration, loadLocalSpec, loadLocalReview).
+    public init(repo: String) {
+        self.repo = repo
+        self.gitHubOperations = nil
+    }
+
+    /// Initialize repository with GitHub operations for remote API access.
     ///
     /// - Parameter repo: GitHub repository in format 'owner/name'
-    /// - Parameter gitHubOperations: GitHubOperations instance for dependency injection (defaults to real GitHubOperations)
-    public init(repo: String, gitHubOperations: GitHubOperationsProtocol) {
+    /// - Parameter gitHubOperations: GitHubOperations instance for dependency injection
+    public init(repo: String, gitHubOperations: any GitHubOperationsProtocol) {
         self.repo = repo
         self.gitHubOperations = gitHubOperations
     }
@@ -82,6 +88,9 @@ public struct ProjectRepository {
     /// - Returns: Parsed ProjectConfiguration or default configuration if not found
     /// - Throws: GitHubAPIError if GitHub API fails, ConfigurationError if configuration is invalid
     public func loadConfiguration(project: Project, baseBranch: String = "main") throws -> ProjectConfiguration {
+        guard let gitHubOperations else {
+            throw GitHubAPIError("No GitHub operations configured for remote access")
+        }
         let configContent = try gitHubOperations.getFileFromBranch(
             repo: repo,
             branch: baseBranch,
@@ -105,6 +114,9 @@ public struct ProjectRepository {
     /// - Returns: Parsed ProjectConfiguration or nil if file doesn't exist
     /// - Throws: GitHubAPIError if GitHub API fails, ConfigurationError if configuration is invalid
     public func loadConfigurationIfExists(project: Project, baseBranch: String = "main") throws -> ProjectConfiguration? {
+        guard let gitHubOperations else {
+            throw GitHubAPIError("No GitHub operations configured for remote access")
+        }
         let configContent = try gitHubOperations.getFileFromBranch(
             repo: repo,
             branch: baseBranch,
@@ -125,6 +137,9 @@ public struct ProjectRepository {
     /// - Returns: Parsed SpecContent or nil if not found
     /// - Throws: GitHubAPIError if GitHub API fails
     public func loadSpec(project: Project, baseBranch: String = "main") throws -> SpecContent? {
+        guard let gitHubOperations else {
+            throw GitHubAPIError("No GitHub operations configured for remote access")
+        }
         let specContent = try gitHubOperations.getFileFromBranch(
             repo: repo,
             branch: baseBranch,

@@ -1,20 +1,7 @@
-/**
- * Service Layer utilities for artifact operations.
- *
- * Follows Service Layer pattern (Fowler, PoEAA) - provides a unified interface for
- * working with GitHub workflow artifacts that contain task metadata. These are utility
- * functions supporting the Service Layer rather than a full service class.
- */
-
 import ClaudeChainService
-import ClaudeChainSDK
 import Foundation
 
 public struct ProjectArtifact {
-    /**
-     * An artifact with its metadata
-     */
-    
     public let artifactId: Int
     public let artifactName: String
     public let workflowRunId: Int
@@ -27,9 +14,6 @@ public struct ProjectArtifact {
         self.metadata = metadata
     }
     
-    /**
-     * Convenience accessor for task index
-     */
     public var taskIndex: Int? {
         // TaskMetadata doesn't have taskIndex, parse from name
         return ArtifactService.parseTaskIndexFromName(artifactName: artifactName)
@@ -47,27 +31,6 @@ public class ArtifactService {
         limit: Int = 50,
         downloadMetadata: Bool = false
     ) -> [ProjectArtifact] {
-        /**
-         * Find all artifacts for a project from a specific workflow.
-         *
-         * This is the primary API for getting project artifacts.
-         *
-         * Args:
-         *     repo: GitHub repository (owner/name)
-         *     project: Project name to filter artifacts
-         *     workflowFile: Name of the workflow that creates PRs (from workflow's name: property)
-         *     limit: Maximum number of workflow runs to check
-         *     downloadMetadata: Whether to download full metadata JSON
-         *
-         * Returns:
-         *     List of ProjectArtifact objects, optionally with metadata populated
-         *
-         * Algorithm:
-         *     1. Query workflow runs for the specific workflow by name
-         *     2. For each successful run, get its artifacts
-         *     3. Filter artifacts by project name prefix
-         *     4. Optionally download and parse metadata JSON
-         */
         var resultArtifacts: [ProjectArtifact] = []
         var seenArtifactIds = Set<Int>()
         
@@ -77,7 +40,7 @@ public class ArtifactService {
         
         let runs: [[String: Any]]
         do {
-            let apiResponse = try GitHubOperations.ghApiCall(endpoint: "/repos/\(repo)/actions/workflows/\(workflowFileEncoded)/runs?status=completed&per_page=\(limit)")
+            let apiResponse = try githubAPIRequest(repo: repo, path: "/actions/workflows/\(workflowFileEncoded)/runs?status=completed&per_page=\(limit)")
             runs = apiResponse["workflow_runs"] as? [[String: Any]] ?? []
         } catch {
             print("Warning: Failed to get workflow runs for '\(workflowFile)': \(error)")
@@ -121,12 +84,8 @@ public class ArtifactService {
                 
                 // Optionally download metadata
                 if downloadMetadata {
-                    if let metadataDict = GitHubOperations.downloadArtifactJson(repo: repo, artifactId: artifactId) {
-                        do {
-                            projectArtifact.metadata = TaskMetadata.fromDict(metadataDict)
-                        } catch {
-                            print("Warning: Failed to parse metadata for artifact \(artifactId): \(error)")
-                        }
+                    if let metadataDict = downloadArtifactJson(repo: repo, artifactId: artifactId) {
+                        projectArtifact.metadata = TaskMetadata.fromDict(metadataDict)
                     }
                 }
                 
@@ -139,40 +98,13 @@ public class ArtifactService {
     }
     
     public static func getArtifactMetadata(repo: String, artifactId: Int) -> TaskMetadata? {
-        /**
-         * Download and parse metadata from a specific artifact.
-         *
-         * Args:
-         *     repo: GitHub repository (owner/name)
-         *     artifactId: Artifact ID to download
-         *
-         * Returns:
-         *     TaskMetadata object or nil if download fails
-         */
-        if let metadataDict = GitHubOperations.downloadArtifactJson(repo: repo, artifactId: artifactId) {
-            do {
-                return TaskMetadata.fromDict(metadataDict)
-            } catch {
-                print("Warning: Failed to parse metadata for artifact \(artifactId): \(error)")
-            }
+        if let metadataDict = downloadArtifactJson(repo: repo, artifactId: artifactId) {
+            return TaskMetadata.fromDict(metadataDict)
         }
         return nil
     }
     
     public static func findInProgressTasks(repo: String, project: String, workflowFile: String) -> Set<Int> {
-        /**
-         * Get task indices for all in-progress tasks (open PRs).
-         *
-         * This is a convenience wrapper around findProjectArtifacts.
-         *
-         * Args:
-         *     repo: GitHub repository
-         *     project: Project name
-         *     workflowFile: Name of the workflow that creates PRs
-         *
-         * Returns:
-         *     Set of task indices that are currently in progress
-         */
         let artifacts = findProjectArtifacts(
             repo: repo,
             project: project,
@@ -185,34 +117,12 @@ public class ArtifactService {
     }
     
     public static func getAssigneeAssignments(repo: String, project: String, workflowFile: String) -> [Int: String] {
-        /**
-         * Get mapping of PR numbers to assigned assignees.
-         *
-         * Args:
-         *     repo: GitHub repository
-         *     project: Project name
-         *     workflowFile: Name of the workflow that creates PRs
-         *
-         * Returns:
-         *     Dict mapping PR number -> assignee username
-         */
         return [:]
     }
     
     // MARK: - Module utilities
     
     public static func parseTaskIndexFromName(artifactName: String) -> Int? {
-        /**
-         * Parse task index from artifact name.
-         *
-         * Expected format: task-metadata-{project}-{index}.json
-         *
-         * Args:
-         *     artifactName: Artifact name
-         *
-         * Returns:
-         *     Task index or nil if parsing fails
-         */
         // Pattern: task-metadata-{project}-{index}.json
         // Example: task-metadata-myproject-1.json
         // Note: Project names can contain dashes, so we use .+ to match the entire project name
@@ -223,8 +133,8 @@ public class ArtifactService {
             let regex = try NSRegularExpression(pattern: pattern, options: [])
             let range = NSRange(location: 0, length: artifactName.utf16.count)
             
-            if let match = regex.firstMatch(in: artifactName, options: [], range: range) {
-                let numberRange = Range(match.range(at: 1), in: artifactName)!
+            if let match = regex.firstMatch(in: artifactName, options: [], range: range),
+               let numberRange = Range(match.range(at: 1), in: artifactName) {
                 let numberString = String(artifactName[numberRange])
                 return Int(numberString)
             }
@@ -238,65 +148,93 @@ public class ArtifactService {
     // MARK: - Private helper functions
     
     private static func getWorkflowRunsForBranch(repo: String, branch: String, limit: Int = 10) -> [[String: Any]] {
-        /**
-         * Get workflow runs for a branch
-         *
-         * Args:
-         *     repo: GitHub repository (owner/name)
-         *     branch: Branch name
-         *     limit: Maximum number of runs to fetch
-         *
-         * Returns:
-         *     List of workflow run dictionaries
-         *
-         * Throws:
-         *     GitHubAPIError: If API call fails
-         */
+        let encodedBranch = branch.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? branch
         do {
-            let apiResponse = try GitHubOperations.ghApiCall(
-                endpoint: "/repos/\(repo)/actions/runs?branch=\(branch)&status=completed&per_page=\(limit)"
-            )
-            return apiResponse["workflow_runs"] as? [[String: Any]] ?? []
+            let response = try githubAPIRequest(repo: repo, path: "/actions/runs?branch=\(encodedBranch)&status=completed&per_page=\(limit)")
+            return response["workflow_runs"] as? [[String: Any]] ?? []
         } catch {
             print("Warning: Failed to get workflow runs for branch \(branch): \(error)")
             return []
         }
     }
-    
+
     private static func getArtifactsForRun(repo: String, runId: Int) -> [[String: Any]] {
-        /**
-         * Get artifacts from a workflow run
-         *
-         * Args:
-         *     repo: GitHub repository (owner/name)
-         *     runId: Workflow run ID
-         *
-         * Returns:
-         *     List of artifact dictionaries
-         *
-         * Throws:
-         *     GitHubAPIError: If API call fails
-         */
         do {
-            let artifactsData = try GitHubOperations.ghApiCall(endpoint: "/repos/\(repo)/actions/runs/\(runId)/artifacts")
-            return artifactsData["artifacts"] as? [[String: Any]] ?? []
+            let response = try githubAPIRequest(repo: repo, path: "/actions/runs/\(runId)/artifacts")
+            return response["artifacts"] as? [[String: Any]] ?? []
         } catch {
             print("Warning: Failed to get artifacts for run \(runId): \(error)")
             return []
         }
     }
+
+    private static func downloadArtifactJson(repo: String, artifactId: Int) -> [String: Any]? {
+        let env = ProcessInfo.processInfo.environment
+        guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] else {
+            print("Warning: No GH_TOKEN or GITHUB_TOKEN set; cannot download artifact \(artifactId)")
+            return nil
+        }
+        guard let url = URL(string: "https://api.github.com/repos/\(repo)/actions/artifacts/\(artifactId)/zip") else {
+            return nil
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+        var responseData: Data?
+        var responseError: Error?
+        let semaphore = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            responseData = data
+            responseError = error
+            semaphore.signal()
+        }.resume()
+        semaphore.wait()
+
+        if let responseError {
+            print("Warning: Failed to download artifact \(artifactId): \(responseError.localizedDescription)")
+            return nil
+        }
+        guard let data = responseData,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return json
+    }
+
+    private static func githubAPIRequest(repo: String, path: String) throws -> [String: Any] {
+        let env = ProcessInfo.processInfo.environment
+        guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] else {
+            throw GitHubAPIError("No GH_TOKEN or GITHUB_TOKEN environment variable set")
+        }
+        guard let url = URL(string: "https://api.github.com/repos/\(repo)\(path)") else {
+            throw GitHubAPIError("Invalid API path: \(path)")
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+        var responseData: Data?
+        var responseError: Error?
+        let semaphore = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            responseData = data
+            responseError = error
+            semaphore.signal()
+        }.resume()
+        semaphore.wait()
+
+        if let responseError {
+            throw GitHubAPIError("HTTP request failed: \(responseError.localizedDescription)")
+        }
+        guard let data = responseData,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return [:]
+        }
+        return json
+    }
     
     private static func filterProjectArtifacts(artifacts: [[String: Any]], project: String) -> [[String: Any]] {
-        /**
-         * Filter artifacts by project name pattern
-         *
-         * Args:
-         *     artifacts: List of artifact dictionaries
-         *     project: Project name to filter by
-         *
-         * Returns:
-         *     List of artifacts matching the project
-         */
         return artifacts.filter { artifact in
             guard let name = artifact["name"] as? String else {
                 return false

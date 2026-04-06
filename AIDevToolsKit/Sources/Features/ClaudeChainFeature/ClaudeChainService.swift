@@ -157,9 +157,7 @@ public struct ClaudeChainService {
         let repoDir = options.repoPath.path
         let chainProject = try await findLocalProject(named: options.projectName, repoPath: options.repoPath)
         let project = Project(name: options.projectName, basePath: chainProject.basePath)
-        let chainDir = (chainProject.basePath as NSString).deletingLastPathComponent
-        let githubClient = GitHubClient(workingDirectory: chainDir)
-        let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
+        let repository = ProjectRepository(repo: "")
         let projectConfig = try? repository.loadLocalConfiguration(project: project)
 
         // Fetch + checkout base branch so spec.md reflects latest remote state
@@ -277,9 +275,7 @@ public struct ClaudeChainService {
         let repoDir = options.repoPath.path
         let chainProject = try await findLocalProject(named: options.projectName, repoPath: options.repoPath)
         let project = Project(name: options.projectName, basePath: chainProject.basePath)
-        let chainDir = (chainProject.basePath as NSString).deletingLastPathComponent
-        let githubClient = GitHubClient(workingDirectory: chainDir)
-        let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
+        let repository = ProjectRepository(repo: "")
         let projectConfig = try? repository.loadLocalConfiguration(project: project)
 
         // Resolve credentials

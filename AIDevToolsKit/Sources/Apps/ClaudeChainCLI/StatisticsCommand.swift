@@ -1,8 +1,10 @@
 import ArgumentParser
-import ClaudeChainService
-import ClaudeChainSDK
 import ClaudeChainFeature
+import ClaudeChainSDK
+import ClaudeChainService
 import Foundation
+import GitHubService
+import PRRadarCLIService
 
 public struct StatisticsCommand: ParsableCommand {
     public static let configuration = CommandConfiguration(
@@ -72,8 +74,19 @@ public struct StatisticsCommand: ParsableCommand {
         
         do {
             // Initialize services (dependency injection pattern)
-            let githubClient = GitHubClient(workingDirectory: FileManager.default.currentDirectoryPath)
-            let projectRepository = ProjectRepository(repo: repoName, gitHubOperations: GitHubOperations(githubClient: githubClient))
+            let projectRepository: ProjectRepository
+            let env = ProcessInfo.processInfo.environment
+            if let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] {
+                let parts = repoName.split(separator: "/")
+                if parts.count == 2 {
+                    let service = GitHubServiceFactory.make(token: token, owner: String(parts[0]), repo: String(parts[1]))
+                    projectRepository = ProjectRepository(repo: repoName, gitHubOperations: GitHubOperations(githubService: service))
+                } else {
+                    projectRepository = ProjectRepository(repo: repoName)
+                }
+            } else {
+                projectRepository = ProjectRepository(repo: repoName)
+            }
             let prService = PRService(repo: repoName)
             let statisticsService = StatisticsService(repo: repoName, projectRepository: projectRepository, prService: prService, workflowFile: workflowFileName)
             

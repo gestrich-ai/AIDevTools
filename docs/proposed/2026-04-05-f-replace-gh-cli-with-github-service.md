@@ -273,7 +273,7 @@ Run `ai-dev-tools-enforce` on all files changed in Phase 9.
 
 ---
 
-## - [ ] Phase 11: Delete Dead `gh`-Backed Code + Validation
+## - [x] Phase 11: Delete Dead `gh`-Backed Code + Validation
 
 **Skills to read**: `ai-dev-tools-build-quality`, `ai-dev-tools-enforce`, `ai-dev-tools-swift-testing`
 
@@ -292,6 +292,8 @@ Run `ai-dev-tools-enforce` on all files changed in Phase 9.
 - Manually trigger a chain sweep against a test repo to confirm PR creation, comment posting, and workflow dispatch work end-to-end without `gh`
 
 Run `ai-dev-tools-enforce` on all files changed in this phase.
+
+**Completion notes**: Deleted `GitHubCLI.swift` and `GitHubClient.swift` from `ClaudeChainSDK`; removed `CLISDK` dep from `ClaudeChainSDK` in `Package.swift`. Removed all static `gh`-backed methods from `GitHubOperations`; replaced callers across `ArtifactService`, `PRService`, `PostPRCommentCommand`, `SetupCommand`, `ParseEventCommand`, `PrepareCommand`, `StatisticsCommand`, `RunSweepBatchUseCase`, `WorkflowService`, and `AutoStartCommand` with URLSession-based HTTP calls or `GitHubPRServiceProtocol` service calls. `ProjectRepository` gained a local-only `init(repo:)` for callers that only access the filesystem. `ClaudeChainSDK` dep retained in `ClaudeChainService` for `GitHubOperationsProtocol` and `GitHubActions`. Migrated `WorkflowServiceTests` and `GitHubOperationsTests` to Swift Testing; fixed pre-existing `appendReviewNote` accessibility issue. `grep -r '"gh"' AIDevToolsKit/Sources` → zero matches. Build clean; ClaudeChain test suites pass.
 
 ---
 

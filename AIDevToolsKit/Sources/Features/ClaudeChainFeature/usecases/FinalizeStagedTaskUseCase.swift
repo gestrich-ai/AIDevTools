@@ -86,8 +86,7 @@ public struct FinalizeStagedTaskUseCase: UseCase {
             name: options.projectName,
             basePath: (chainDir as NSString).appendingPathComponent(options.projectName)
         )
-        let githubClient = GitHubClient(workingDirectory: chainDir)
-        let repository = ProjectRepository(repo: "", gitHubOperations: GitHubOperations(githubClient: githubClient))
+        let repository = ProjectRepository(repo: "")
         let projectConfig = try? repository.loadLocalConfiguration(project: project)
 
         logger.debug("finalize: checking out \(options.branchName)")

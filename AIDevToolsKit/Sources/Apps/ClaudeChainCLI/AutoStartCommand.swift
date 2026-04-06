@@ -1,8 +1,10 @@
 import ArgumentParser
-import Foundation
-import ClaudeChainService
-import ClaudeChainSDK
 import ClaudeChainFeature
+import ClaudeChainSDK
+import ClaudeChainService
+import Foundation
+import GitHubService
+import PRRadarCLIService
 
 public struct AutoStartCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
@@ -144,7 +146,15 @@ private func cmdAutoStart(
 
     if !projectsToTrigger.isEmpty {
         print("=== Step 4/4: Triggering workflows ===")
-        let workflowService = WorkflowService()
+        let env = ProcessInfo.processInfo.environment
+        guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"],
+              let slugParts = repo.split(separator: "/", maxSplits: 1).map(String.init) as [String]?,
+              slugParts.count == 2 else {
+            gh.setError(message: "GH_TOKEN/GITHUB_TOKEN not set or repo slug invalid for workflow trigger")
+            return 1
+        }
+        let service = GitHubServiceFactory.make(token: token, owner: slugParts[0], repo: slugParts[1])
+        let workflowService = WorkflowService(githubService: service)
         let (successful, failed) = workflowService.batchTriggerClaudeChainWorkflows(
             projects: projectsToTrigger,
             baseBranch: baseBranch,

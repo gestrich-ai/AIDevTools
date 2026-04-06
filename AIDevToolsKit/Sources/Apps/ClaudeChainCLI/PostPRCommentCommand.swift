@@ -1,6 +1,6 @@
 import ArgumentParser
-import ClaudeChainService
 import ClaudeChainSDK
+import ClaudeChainService
 import Foundation
 
 public struct PostPRCommentCommand: ParsableCommand {
@@ -132,11 +132,15 @@ public struct PostPRCommentCommand: ParsableCommand {
             let formatter = MarkdownReportFormatter()
             let comment = formatter.format(report.buildCommentElements())
             
-            // Post comment to PR using GitHubOperations
+            // Post comment to PR
             print("Posting PR comment to PR #\(prNumber)...")
-            
+
             do {
-                try GitHubOperations.postPRComment(repo: repo, prNumber: Int(prNumber)!, body: comment)
+                guard let prNum = Int(prNumber) else {
+                    gh.setError(message: "Invalid PR number: '\(prNumber)'")
+                    return 1
+                }
+                try postPRComment(repo: repo, prNumber: prNum, body: comment)
                 
                 print("✅ PR comment posted to PR #\(prNumber)")
                 if summary.hasContent {
@@ -161,6 +165,40 @@ public struct PostPRCommentCommand: ParsableCommand {
         } catch {
             gh.setError(message: "Error posting PR comment: \(error.localizedDescription)")
             return 1
+        }
+    }
+
+    private func postPRComment(repo: String, prNumber: Int, body: String) throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] else {
+            throw GitHubAPIError("No GH_TOKEN or GITHUB_TOKEN environment variable set")
+        }
+        guard let url = URL(string: "https://api.github.com/repos/\(repo)/issues/\(prNumber)/comments") else {
+            throw GitHubAPIError("Invalid repository: \(repo)")
+        }
+        let bodyJSON = try JSONSerialization.data(withJSONObject: ["body": body])
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = bodyJSON
+
+        var responseError: Error?
+        var statusCode = 0
+        let semaphore = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            responseError = error
+            statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            semaphore.signal()
+        }.resume()
+        semaphore.wait()
+
+        if let error = responseError {
+            throw GitHubAPIError("Failed to post PR comment: \(error.localizedDescription)")
+        }
+        if statusCode < 200 || statusCode >= 300 {
+            throw GitHubAPIError("GitHub API returned status \(statusCode) when posting PR comment")
         }
     }
 }

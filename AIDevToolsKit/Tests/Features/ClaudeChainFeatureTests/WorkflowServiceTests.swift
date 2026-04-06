@@ -1,255 +1,133 @@
-/**
- * Tests for GitHub workflow triggering service
- */
+import ClaudeChainFeature
+import ClaudeChainService
+import Foundation
+import GitHubService
+import OctokitSDK
+import PRRadarModelsService
+import Testing
 
-import XCTest
-@testable import ClaudeChainFeature
-@testable import ClaudeChainService
+@Suite("WorkflowService")
+struct WorkflowServiceTests {
 
-final class WorkflowServiceTests: XCTestCase {
-    
-    // MARK: - Test triggerClaudeChainWorkflow() method
-    
-    func testTriggerClaudeChainWorkflowSuccess() throws {
-        let service = WorkflowService()
-        
-        // Note: This test would require mocking GitHubOperations.runGhCommand
-        // For now, we test that the method exists and has correct signature
-        // In a full implementation, we'd mock the infrastructure layer
-        
-        do {
-            try service.triggerClaudeChainWorkflow(
-                projectName: "test-project",
-                baseBranch: "main",
-                checkoutRef: "main"
-            )
-            // If we get here without throwing, the method completed
-            // In practice, this would fail because we don't have gh CLI configured
-            // But the method signature and basic structure are correct
-        } catch {
-            // Expected to fail in test environment without proper gh CLI setup
-            // The error should be wrapped in GitHubAPIError
-            if let apiError = error as? GitHubAPIError {
-                XCTAssertTrue(apiError.message.contains("Failed to trigger workflow for project 'test-project'"))
-            } else {
-                XCTFail("Expected GitHubAPIError but got \(type(of: error))")
-            }
-        }
-    }
-    
-    func testTriggerClaudeChainWorkflowWithDifferentParameters() throws {
-        let service = WorkflowService()
-        
-        do {
-            try service.triggerClaudeChainWorkflow(
-                projectName: "my-refactor",
-                baseBranch: "develop",
-                checkoutRef: "feature-branch"
-            )
-        } catch {
-            // Expected to fail in test environment
-            if let apiError = error as? GitHubAPIError {
-                XCTAssertTrue(apiError.message.contains("Failed to trigger workflow for project 'my-refactor'"))
-            } else {
-                XCTFail("Expected GitHubAPIError but got \(type(of: error))")
-            }
-        }
-    }
-    
-    // MARK: - Test batchTriggerClaudeChainWorkflows() method
-    
-    func testBatchTriggerClaudeChainWorkflowsEmptyList() throws {
-        let service = WorkflowService()
-        
+    // MARK: - batchTriggerClaudeChainWorkflows
+
+    @Test("empty project list returns empty arrays")
+    func batchTriggerEmptyList() {
+        let service = WorkflowService(githubService: FailingGitHubPRService())
         let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
             projects: [],
             baseBranch: "main",
             checkoutRef: "main"
         )
-        
-        XCTAssertEqual(successful.count, 0)
-        XCTAssertEqual(failed.count, 0)
+        #expect(successful.isEmpty)
+        #expect(failed.isEmpty)
     }
-    
-    func testBatchTriggerClaudeChainWorkflowsSingleProject() throws {
-        let service = WorkflowService()
-        
+
+    @Test("single failing project goes to failed list")
+    func batchTriggerSingleProject() {
+        let service = WorkflowService(githubService: FailingGitHubPRService())
         let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
             projects: ["project1"],
             baseBranch: "main",
             checkoutRef: "main"
         )
-        
-        // Expected to fail in test environment without gh CLI setup
-        XCTAssertEqual(successful.count, 0)
-        XCTAssertEqual(failed.count, 1)
-        XCTAssertEqual(failed[0], "project1")
+        #expect(successful.isEmpty)
+        #expect(failed == ["project1"])
     }
-    
-    func testBatchTriggerClaudeChainWorkflowsMultipleProjects() throws {
-        let service = WorkflowService()
-        
+
+    @Test("multiple failing projects all go to failed list")
+    func batchTriggerMultipleProjects() {
+        let service = WorkflowService(githubService: FailingGitHubPRService())
         let projects = ["project1", "project2", "project3"]
         let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
             projects: projects,
             baseBranch: "main",
             checkoutRef: "main"
         )
-        
-        // Expected to fail in test environment without gh CLI setup
-        XCTAssertEqual(successful.count, 0)
-        XCTAssertEqual(failed.count, 3)
-        XCTAssertEqual(Set(failed), Set(projects))
+        #expect(successful.isEmpty)
+        #expect(Set(failed) == Set(projects))
     }
-    
-    func testBatchTriggerClaudeChainWorkflowsWithDifferentParameters() throws {
-        let service = WorkflowService()
-        
-        let projects = ["project1", "project2"]
-        let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
-            projects: projects,
-            baseBranch: "develop",
-            checkoutRef: "feature-branch"
-        )
-        
-        // Expected to fail in test environment
-        XCTAssertEqual(successful.count, 0)
-        XCTAssertEqual(failed.count, 2)
-        XCTAssertEqual(Set(failed), Set(projects))
-    }
-    
-    func testBatchTriggerContinuesOnIndividualFailures() throws {
-        let service = WorkflowService()
-        
-        // All projects should be attempted even if some fail
-        let projects = ["project1", "project2", "project3", "project4"]
+
+    @Test("successful.count + failed.count equals input count")
+    func batchTriggerCountInvariant() {
+        let service = WorkflowService(githubService: FailingGitHubPRService())
+        let projects = ["p1", "p2", "p3", "p4"]
         let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
             projects: projects,
             baseBranch: "main",
             checkoutRef: "main"
         )
-        
-        // Should attempt all projects
-        XCTAssertEqual(successful.count + failed.count, projects.count)
-        
-        // In test environment, all should fail
-        XCTAssertEqual(failed.count, projects.count)
-        XCTAssertEqual(Set(failed), Set(projects))
+        #expect(successful.count + failed.count == projects.count)
     }
-    
-    // MARK: - Test service initialization
-    
-    func testServiceInitialization() throws {
-        let service = WorkflowService()
-        
-        // Should be able to create service without parameters
-        XCTAssertNotNil(service)
-        
-        // Should be able to call methods
-        let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
-            projects: [],
-            baseBranch: "main",
-            checkoutRef: "main"
-        )
-        
-        XCTAssertEqual(successful.count, 0)
-        XCTAssertEqual(failed.count, 0)
-    }
-    
-    // MARK: - Test error handling consistency
-    
-    func testErrorWrappingConsistency() throws {
-        let service = WorkflowService()
-        
-        do {
+
+    // MARK: - triggerClaudeChainWorkflow
+
+    @Test("trigger wraps service error in GitHubAPIError")
+    func triggerWrapsErrorInGitHubAPIError() throws {
+        let service = WorkflowService(githubService: FailingGitHubPRService())
+        #expect(throws: GitHubAPIError.self) {
             try service.triggerClaudeChainWorkflow(
                 projectName: "test-project",
+                baseBranch: "main",
+                checkoutRef: "main"
+            )
+        }
+    }
+
+    @Test("GitHubAPIError message names the project")
+    func triggerErrorMessageNamesProject() {
+        let service = WorkflowService(githubService: FailingGitHubPRService())
+        do {
+            try service.triggerClaudeChainWorkflow(
+                projectName: "my-refactor",
                 baseBranch: "main",
                 checkoutRef: "main"
             )
         } catch let error as GitHubAPIError {
-            // Verify error message format matches Python implementation
-            XCTAssertTrue(error.message.hasPrefix("Failed to trigger workflow for project 'test-project':"))
+            #expect(error.message.contains("my-refactor"))
         } catch {
-            XCTFail("Expected GitHubAPIError but got \(type(of: error))")
+            Issue.record("Expected GitHubAPIError, got \(type(of: error))")
         }
     }
-    
-    func testBatchProcessingErrorHandling() throws {
-        let service = WorkflowService()
-        
-        // Test that batch processing handles individual failures gracefully
-        let projects = ["valid-project", "another-project"]
-        let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
-            projects: projects,
-            baseBranch: "main",
-            checkoutRef: "main"
-        )
-        
-        // Should not throw exceptions, should collect failures
-        XCTAssertTrue(successful.count + failed.count == projects.count)
-        
-        // In test environment without gh CLI, all should fail
-        XCTAssertEqual(failed.count, projects.count)
+}
+
+// MARK: - Test doubles
+
+private final class FailingGitHubPRService: GitHubPRServiceProtocol {
+    private struct Unimplemented: Error {}
+
+    func triggerWorkflowDispatch(workflowId: String, ref: String, inputs: [String: String]) async throws {
+        throw Unimplemented()
     }
-    
-    // MARK: - Test parameter validation
-    
-    func testTriggerWorkflowWithEmptyProjectName() throws {
-        let service = WorkflowService()
-        
-        do {
-            try service.triggerClaudeChainWorkflow(
-                projectName: "",
-                baseBranch: "main",
-                checkoutRef: "main"
-            )
-        } catch {
-            // Should fail, either due to empty project name or gh CLI error
-            // The specific error depends on infrastructure implementation
-        }
-    }
-    
-    func testTriggerWorkflowWithEmptyBranches() throws {
-        let service = WorkflowService()
-        
-        do {
-            try service.triggerClaudeChainWorkflow(
-                projectName: "test-project",
-                baseBranch: "",
-                checkoutRef: ""
-            )
-        } catch {
-            // Should fail due to empty branch parameters
-        }
-    }
-    
-    // MARK: - Test return value consistency
-    
-    func testBatchReturnValueStructure() throws {
-        let service = WorkflowService()
-        
-        let projects = ["project1", "project2"]
-        let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
-            projects: projects,
-            baseBranch: "main",
-            checkoutRef: "main"
-        )
-        
-        // Return values should be arrays of strings (remove redundant type checks)
-        XCTAssertTrue(type(of: successful) == [String].self)
-        XCTAssertTrue(type(of: failed) == [String].self)
-        
-        // Total should equal input
-        XCTAssertEqual(successful.count + failed.count, projects.count)
-        
-        // No duplicates between successful and failed
-        let successfulSet = Set(successful)
-        let failedSet = Set(failed)
-        XCTAssertTrue(successfulSet.intersection(failedSet).isEmpty)
-        
-        // All projects should be accounted for
-        let allResultProjects = successfulSet.union(failedSet)
-        XCTAssertEqual(allResultProjects, Set(projects))
-    }
+
+    func branchHead(branch: String, ttl: Foundation.TimeInterval) async throws -> BranchHead { throw Unimplemented() }
+    func changes() -> AsyncStream<Int> { AsyncStream { _ in } }
+    func checkRuns(number: Int, useCache: Bool) async throws -> [GitHubCheckRun] { throw Unimplemented() }
+    func closePullRequest(number: Int) async throws { throw Unimplemented() }
+    func comments(number: Int, useCache: Bool) async throws -> GitHubPullRequestComments { throw Unimplemented() }
+    func createLabel(name: String, color: String, description: String) async throws { throw Unimplemented() }
+    func createPullRequest(title: String, body: String, head: String, base: String, draft: Bool, labels: [String], assignees: [String], reviewers: [String]) async throws -> CreatedPullRequest { throw Unimplemented() }
+    func deleteBranch(branch: String) async throws { throw Unimplemented() }
+    func fileBlob(blobSHA: String, path: String, ref: String) async throws -> String { throw Unimplemented() }
+    func fileContent(path: String, ref: String) async throws -> String { throw Unimplemented() }
+    func gitTree(treeSHA: String) async throws -> [GitTreeEntry] { throw Unimplemented() }
+    func isMergeable(number: Int) async throws -> Bool? { throw Unimplemented() }
+    func listBranches(ttl: Foundation.TimeInterval) async throws -> [String] { throw Unimplemented() }
+    func listDirectoryNames(path: String, ref: String) async throws -> [String] { throw Unimplemented() }
+    func listPullRequests(limit: Int, filter: PRFilter) async throws -> [PRRadarModelsService.GitHubPullRequest] { throw Unimplemented() }
+    func listWorkflowRuns(workflow: String, branch: String?, limit: Int, ttl: Foundation.TimeInterval) async throws -> [OctokitSDK.WorkflowRun] { throw Unimplemented() }
+    func mergePullRequest(number: Int, mergeMethod: String) async throws { throw Unimplemented() }
+    func postIssueComment(prNumber: Int, body: String) async throws { throw Unimplemented() }
+    func pullRequest(number: Int, useCache: Bool) async throws -> PRRadarModelsService.GitHubPullRequest { throw Unimplemented() }
+    func pullRequestByHeadBranch(branch: String) async throws -> CreatedPullRequest? { throw Unimplemented() }
+    func readCachedIndex(key: String) async throws -> [Int]? { throw Unimplemented() }
+    func repository(useCache: Bool) async throws -> GitHubRepository { throw Unimplemented() }
+    func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview] { throw Unimplemented() }
+    func updateAllPRs(filter: PRFilter) async throws -> [PRRadarModelsService.GitHubPullRequest] { throw Unimplemented() }
+    func updatePR(number: Int) async throws { throw Unimplemented() }
+    func updatePRs(numbers: [Int]) async throws { throw Unimplemented() }
+    func updateRepository() async throws { throw Unimplemented() }
+    func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws { throw Unimplemented() }
+    func writeCachedIndex(_ numbers: [Int], key: String) async throws { throw Unimplemented() }
+    func writePR(_ pr: PRRadarModelsService.GitHubPullRequest, number: Int) async throws { throw Unimplemented() }
 }

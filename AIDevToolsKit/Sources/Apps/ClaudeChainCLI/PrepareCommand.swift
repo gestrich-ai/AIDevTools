@@ -41,8 +41,7 @@ public struct PrepareCommand: AsyncParsableCommand {
             }
 
             // Initialize infrastructure
-            let githubClient = GitHubClient(workingDirectory: workingDirectory)
-            let projectRepository = ProjectRepository(repo: repo, gitHubOperations: GitHubOperations(githubClient: githubClient))
+            let projectRepository = ProjectRepository(repo: repo)
 
             // Initialize services
             let prService = PRService(repo: repo)
@@ -144,7 +143,7 @@ public struct PrepareCommand: AsyncParsableCommand {
             let label = env["PR_LABEL"] ?? "claudechain"  // From action input, defaults to "claudechain"
             
             // Ensure label exists
-            GitHubOperations.ensureLabelExists(label: label, gh: gh)
+            ensureLabelExists(repo: repo, label: label)
             
             // Load spec from local filesystem (after checkout)
             print("Loading spec from local filesystem...")
@@ -303,7 +302,7 @@ public struct PrepareCommand: AsyncParsableCommand {
             // === Add label to merged PR (Phase 6) ===
             // This helps statistics discover all ClaudeChain-related PRs
             if !mergedPRNumber.isEmpty, let prNumber = Int(mergedPRNumber) {
-                if GitHubOperations.addLabelToPr(repo: repo, prNumber: prNumber, label: label) {
+                if addLabelToPr(repo: repo, prNumber: prNumber, label: label) {
                     print("✅ Added '\(label)' label to merged PR #\(mergedPRNumber)")
                 }
             }
@@ -357,6 +356,63 @@ public struct PrepareCommand: AsyncParsableCommand {
 }
 
 // MARK: - Private helper functions
+
+private func ensureLabelExists(repo: String, label: String) {
+    let env = ProcessInfo.processInfo.environment
+    guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"] else { return }
+    guard let checkURL = URL(string: "https://api.github.com/repos/\(repo)/labels/\(label.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? label)") else { return }
+
+    var checkRequest = URLRequest(url: checkURL)
+    checkRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    checkRequest.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+    var statusCode = 0
+    let semaphore = DispatchSemaphore(value: 0)
+    URLSession.shared.dataTask(with: checkRequest) { _, response, _ in
+        statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+        semaphore.signal()
+    }.resume()
+    semaphore.wait()
+
+    if statusCode == 200 { return }
+
+    guard let createURL = URL(string: "https://api.github.com/repos/\(repo)/labels"),
+          let body = try? JSONSerialization.data(withJSONObject: ["name": label, "color": "0075ca"]) else { return }
+    var createRequest = URLRequest(url: createURL)
+    createRequest.httpMethod = "POST"
+    createRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    createRequest.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+    createRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    createRequest.httpBody = body
+
+    let semaphore2 = DispatchSemaphore(value: 0)
+    URLSession.shared.dataTask(with: createRequest) { _, _, _ in semaphore2.signal() }.resume()
+    semaphore2.wait()
+}
+
+private func addLabelToPr(repo: String, prNumber: Int, label: String) -> Bool {
+    let env = ProcessInfo.processInfo.environment
+    guard let token = env["GH_TOKEN"] ?? env["GITHUB_TOKEN"],
+          let url = URL(string: "https://api.github.com/repos/\(repo)/issues/\(prNumber)/labels"),
+          let body = try? JSONSerialization.data(withJSONObject: ["labels": [label]]) else { return false }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = body
+
+    var statusCode = 0
+    let semaphore = DispatchSemaphore(value: 0)
+    URLSession.shared.dataTask(with: request) { _, response, _ in
+        statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+        semaphore.signal()
+    }.resume()
+    semaphore.wait()
+
+    return statusCode >= 200 && statusCode < 300
+}
 
 /// Validate base branch for PR merge events.
 ///
