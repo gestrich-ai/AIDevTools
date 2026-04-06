@@ -102,7 +102,10 @@ Run `ai-dev-tools-enforce` on all files changed in Phase 1.
 
 ---
 
-## - [ ] Phase 3: Add Write Methods to `GitHubAPIServiceProtocol` and `GitHubAPIService`
+## - [x] Phase 3: Add Write Methods to `GitHubAPIServiceProtocol` and `GitHubAPIService`
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: All 12 new methods added alphabetically to the protocol; each `GitHubAPIService` implementation is a thin one-liner forward to the corresponding `OctokitClient` method using stored `owner`/`repo`. No caching at this layer. `closePullRequest` maps to `updatePullRequestState(state: "closed")` per the SDK design.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

@@ -347,6 +347,70 @@ public struct GitHubAPIService: Sendable {
         try await octokitClient.isMergeable(owner: owner, repository: repo, number: prNumber)
     }
 
+    // MARK: - Write Operations
+
+    public func addAssignees(prNumber: Int, assignees: [String]) async throws {
+        try await octokitClient.addAssignees(owner: owner, repository: repo, issueNumber: prNumber, assignees: assignees)
+    }
+
+    public func addLabels(prNumber: Int, labels: [String]) async throws {
+        try await octokitClient.addLabels(owner: owner, repository: repo, issueNumber: prNumber, labels: labels)
+    }
+
+    public func closePullRequest(number: Int) async throws {
+        try await octokitClient.updatePullRequestState(owner: owner, repository: repo, number: number, state: "closed")
+    }
+
+    public func createLabel(name: String, color: String, description: String) async throws {
+        try await octokitClient.createLabel(owner: owner, repository: repo, name: name, color: color, description: description)
+    }
+
+    public func createPullRequest(
+        title: String,
+        body: String,
+        head: String,
+        base: String,
+        draft: Bool
+    ) async throws -> CreatedPullRequest {
+        try await octokitClient.createPullRequest(
+            owner: owner, repository: repo, title: title, body: body, head: head, base: base, draft: draft
+        )
+    }
+
+    public func deleteBranch(branch: String) async throws {
+        try await octokitClient.deleteBranchRef(owner: owner, repository: repo, branch: branch)
+    }
+
+    public func listBranches() async throws -> [String] {
+        try await octokitClient.listBranches(owner: owner, repository: repo)
+    }
+
+    public func listWorkflowRuns(workflow: String, branch: String?, limit: Int) async throws -> [WorkflowRun] {
+        try await octokitClient.listWorkflowRuns(
+            owner: owner, repository: repo, workflow: workflow, branch: branch, limit: limit
+        )
+    }
+
+    public func mergePullRequest(number: Int, mergeMethod: String) async throws {
+        try await octokitClient.mergePullRequest(
+            owner: owner, repository: repo, number: number, mergeMethod: mergeMethod
+        )
+    }
+
+    public func pullRequestByHeadBranch(branch: String) async throws -> CreatedPullRequest? {
+        try await octokitClient.pullRequestByHeadBranch(owner: owner, repository: repo, branch: branch)
+    }
+
+    public func requestReviewers(prNumber: Int, reviewers: [String]) async throws {
+        try await octokitClient.requestReviewers(owner: owner, repository: repo, number: prNumber, reviewers: reviewers)
+    }
+
+    public func triggerWorkflowDispatch(workflowId: String, ref: String, inputs: [String: String]) async throws {
+        try await octokitClient.triggerWorkflowDispatch(
+            owner: owner, repository: repo, workflowId: workflowId, ref: ref, inputs: inputs
+        )
+    }
+
     // MARK: - Factory
 
     /// Parse owner and repo name from a git remote URL.
