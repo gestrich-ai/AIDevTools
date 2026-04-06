@@ -91,13 +91,18 @@ public struct GitCLI {
         }
 
         @CLICommand
-        public struct Remove {
-            @Flag public var force: Bool = false
-            @Positional public var path: String
+        public struct List {
+            @Flag("--porcelain") public var porcelain: Bool = false
         }
 
         @CLICommand
         public struct Prune {}
+
+        @CLICommand
+        public struct Remove {
+            @Flag public var force: Bool = false
+            @Positional public var path: String
+        }
     }
 
     @CLICommand

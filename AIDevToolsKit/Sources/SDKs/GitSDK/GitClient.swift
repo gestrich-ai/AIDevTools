@@ -46,6 +46,12 @@ public struct GitClient: Sendable {
         return try await execute(command, workingDirectory: workingDirectory)
     }
 
+    public func listWorktrees(workingDirectory: String) async throws -> [WorktreeInfo] {
+        let command = GitCLI.Worktree.List(porcelain: true)
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return parseWorktreeList(result.stdout)
+    }
+
     public func diffCachedNames(workingDirectory: String) async throws -> [String] {
         let command = GitCLI.Diff(cached: true, nameOnly: true)
         let result = try await execute(command, workingDirectory: workingDirectory)
@@ -358,6 +364,28 @@ public struct GitClient: Sendable {
             return commits
         } catch {
             return []
+        }
+    }
+
+    private func parseWorktreeList(_ output: String) -> [WorktreeInfo] {
+        let blocks = output.components(separatedBy: "\n\n")
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        return blocks.enumerated().compactMap { index, block in
+            let lines = block.components(separatedBy: .newlines)
+            var path: String?
+            var branch = "(detached)"
+            for line in lines {
+                if line.hasPrefix("worktree ") {
+                    path = String(line.dropFirst("worktree ".count))
+                } else if line.hasPrefix("branch ") {
+                    let ref = String(line.dropFirst("branch ".count))
+                    branch = ref.hasPrefix("refs/heads/") ? String(ref.dropFirst("refs/heads/".count)) : ref
+                } else if line == "detached" {
+                    branch = "(detached)"
+                }
+            }
+            guard let worktreePath = path else { return nil }
+            return WorktreeInfo(id: UUID(), path: worktreePath, branch: branch, isMain: index == 0)
         }
     }
 

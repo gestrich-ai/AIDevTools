@@ -39,7 +39,10 @@ Patterns to adapt (do not copy wholesale):
 
 ## Phases
 
-## - [ ] Phase 1: Extend GitSDK — List command, WorktreeInfo model, listWorktrees method
+## - [x] Phase 1: Extend GitSDK — List command, WorktreeInfo model, listWorktrees method
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Added `GitCLI.Worktree.List` in alphabetical order within the `Worktree` namespace. `WorktreeInfo` is a pure `Sendable` struct with only what `git worktree list --porcelain` provides (no dirty-state — that's Feature-layer orchestration). `listWorktrees` makes exactly one CLI call; parsing extracted into a private helper to keep the public method clean.
 
 **Skills to read**: `ai-dev-tools-architecture` (SDKs layer rules)
 
