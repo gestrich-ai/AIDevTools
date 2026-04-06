@@ -50,10 +50,10 @@ public struct PRStep: PipelineNode {
         onProgress: @escaping @Sendable (PipelineNodeProgress) -> Void
     ) async throws -> PipelineContext {
         let workingDirectory = context[PipelineContext.workingDirectoryKey] ?? ""
-        logger.debug("PRStep.run: workingDirectory='\(workingDirectory)'")
+        logger.info("PRStep.run: workingDirectory='\(workingDirectory)'")
 
         let branch = try await gitClient.getCurrentBranch(workingDirectory: workingDirectory)
-        logger.debug("PRStep.run: branch='\(branch)', baseBranch='\(baseBranch)'")
+        logger.info("PRStep.run: branch='\(branch)', baseBranch='\(baseBranch)'")
 
         // Commit any uncommitted changes (Claude may leave changes unstaged/uncommitted)
         if let taskDescription {
