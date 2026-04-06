@@ -118,32 +118,25 @@ final class ClaudeChainModel {
                 state = .error(error)
                 return
             }
-            let chainService = ClaudeChainService(client: activeClient, repoPath: repoPath, prService: prService)
-
+            let listChainsUseCase = ListChainsUseCase(client: activeClient, repoPath: repoPath, prService: prService)
             var showedCachedData = false
-            if let cached = try? await chainService.listChains(source: .remote, useCache: true),
-               !cached.projects.isEmpty {
-                lastLoadedProjects = cached.projects
-                fetchWarnings = cached.failures
-                state = .loaded(cached.projects)
-                for project in cached.projects {
-                    loadChainDetail(project: project)
-                }
-                showedCachedData = true
-            }
-
             do {
-                let result = try await chainService.listChains(source: .remote, useCache: false)
-                lastLoadedProjects = result.projects
-                fetchWarnings = result.failures
-                state = .loaded(result.projects)
-                for project in result.projects {
-                    loadChainDetail(project: project)
+                for try await result in listChainsUseCase.stream() {
+                    lastLoadedProjects = result.projects
+                    fetchWarnings = result.failures
+                    state = .loaded(result.projects)
+                    for project in result.projects {
+                        loadChainDetail(project: project)
+                    }
+                    showedCachedData = true
                 }
             } catch {
                 if !showedCachedData {
                     state = .error(error)
                 }
+                // Swallowing intentionally when showedCachedData is true: stale results are
+                // already visible; replacing them with an error would discard data the user
+                // can act on. A reload will retry on the next call to loadChains.
             }
         }
     }
@@ -245,7 +238,6 @@ final class ClaudeChainModel {
         let taskHash = TaskService.generateTaskHash(description: task.description)
         let branchName = PRService.formatBranchName(projectName: project.name, taskHash: taskHash)
 
-        let service = ClaudeChainService(client: activeClient)
         let options = ChainRunOptions(
             baseBranch: project.baseBranch,
             githubAccount: currentCredentialAccount,
@@ -283,7 +275,7 @@ final class ClaudeChainModel {
 
         Task {
             do {
-                let blueprint = try await service.buildPipeline(for: task, options: options)
+                let blueprint = try await BuildTaskPipelineUseCase(client: activeClient).run(task: task, options: options)
                 let finalContext = try await pipelineModel.run(blueprint: blueprint)
 
                 let prURL = finalContext[PRStep.prURLKey]
@@ -324,7 +316,6 @@ final class ClaudeChainModel {
         let taskHash = TaskService.generateTaskHash(description: task.description)
         let branchName = PRService.formatBranchName(projectName: project.name, taskHash: taskHash)
 
-        let service = ClaudeChainService(client: activeClient)
         let options = ChainRunOptions(
             baseBranch: project.baseBranch,
             branchName: branchName,
@@ -342,7 +333,7 @@ final class ClaudeChainModel {
 
         Task {
             do {
-                let blueprint = try await service.buildFinalizePipeline(for: task, options: options)
+                let blueprint = try await BuildFinalizePipelineUseCase(client: activeClient).run(task: task, options: options)
                 let finalContext = try await pipelineModel.run(blueprint: blueprint)
 
                 let prURL = finalContext[PRStep.prURLKey]
