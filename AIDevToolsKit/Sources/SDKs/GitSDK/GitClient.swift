@@ -100,8 +100,8 @@ public struct GitClient: Sendable {
     }
 
     @discardableResult
-    public func removeWorktree(worktreePath: String, workingDirectory: String) async throws -> ExecutionResult {
-        let command = GitCLI.Worktree.Remove(force: true, path: worktreePath)
+    public func removeWorktree(worktreePath: String, force: Bool = true, workingDirectory: String) async throws -> ExecutionResult {
+        let command = GitCLI.Worktree.Remove(force: force, path: worktreePath)
         return try await execute(command, workingDirectory: workingDirectory)
     }
 

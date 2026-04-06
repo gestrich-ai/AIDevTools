@@ -98,7 +98,10 @@ Parse blocks separated by blank lines. Detect the main worktree as the first ent
 
 ---
 
-## - [ ] Phase 2: WorktreeFeature — Use cases, Package.swift, CLI parity
+## - [x] Phase 2: WorktreeFeature — Use cases, Package.swift, CLI parity
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Three use cases as plain `UseCase` structs taking `GitClient` via `init`. `ListWorktreesUseCase` does the Feature-layer orchestration (sequential `isWorkingDirectoryClean` per worktree) that belongs above the SDK. `WorktreeError` wraps failures at the Feature boundary with `LocalizedError`. `GitClient.removeWorktree` gained a `force: Bool = true` parameter (backward-compatible) so the use case can honor the caller's intent. CLI subcommands (add/list/remove) follow the existing `AsyncParsableCommand` pattern; `WorktreeCommand` registered alphabetically in `EntryPoint`. `WorktreeFeature` product and target added to `Package.swift` with dependencies sorted alphabetically.
 
 **Skills to read**: `ai-dev-tools-architecture` (Features layer rules)
 

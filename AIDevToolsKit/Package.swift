@@ -52,6 +52,7 @@ let package = Package(
         .library(name: "SkillScannerSDK", targets: ["SkillScannerSDK"]),
         .library(name: "SkillService", targets: ["SkillService"]),
         .library(name: "UseCaseSDK", targets: ["UseCaseSDK"]),
+        .library(name: "WorktreeFeature", targets: ["WorktreeFeature"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
@@ -103,6 +104,7 @@ let package = Package(
                 "SettingsService",
                 "SkillBrowserFeature",
                 "SweepFeature",
+                "WorktreeFeature",
             ],
             path: "Sources/Apps/AIDevToolsKitCLI"
         ),
@@ -255,6 +257,14 @@ let package = Package(
                 "UseCaseSDK",
             ],
             path: "Sources/Features/SweepFeature"
+        ),
+        .target(
+            name: "WorktreeFeature",
+            dependencies: [
+                "GitSDK",
+                "UseCaseSDK",
+            ],
+            path: "Sources/Features/WorktreeFeature"
         ),
 
         // Services Layer
