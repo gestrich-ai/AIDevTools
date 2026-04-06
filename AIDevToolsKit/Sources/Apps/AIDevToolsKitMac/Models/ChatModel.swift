@@ -23,6 +23,7 @@ public final class ChatModel {
     private let listSessionsUseCase: ListSessionsUseCase
     private let loadSessionMessagesUseCase: LoadSessionMessagesUseCase
     private let mcpConfigPath: String?
+    private let resumeLatestSessionUseCase: ResumeLatestSessionUseCase
     private let sendMessageUseCase: SendChatMessageUseCase
     private let systemPrompt: String?
     private var currentTask: Task<Void, Never>?
@@ -33,6 +34,7 @@ public final class ChatModel {
         getSessionDetailsUseCase: GetSessionDetailsUseCase,
         listSessionsUseCase: ListSessionsUseCase,
         loadSessionMessagesUseCase: LoadSessionMessagesUseCase,
+        resumeLatestSessionUseCase: ResumeLatestSessionUseCase,
         sendMessageUseCase: SendChatMessageUseCase,
         providerDisplayName: String,
         providerName: String,
@@ -45,6 +47,7 @@ public final class ChatModel {
         self.listSessionsUseCase = listSessionsUseCase
         self.loadSessionMessagesUseCase = loadSessionMessagesUseCase
         self.mcpConfigPath = mcpConfigPath
+        self.resumeLatestSessionUseCase = resumeLatestSessionUseCase
         self.sendMessageUseCase = sendMessageUseCase
         self.settings = settings
         self.providerDisplayName = providerDisplayName
@@ -72,6 +75,7 @@ public final class ChatModel {
             getSessionDetailsUseCase: GetSessionDetailsUseCase(client: client),
             listSessionsUseCase: ListSessionsUseCase(client: client),
             loadSessionMessagesUseCase: LoadSessionMessagesUseCase(client: client),
+            resumeLatestSessionUseCase: ResumeLatestSessionUseCase(client: client),
             sendMessageUseCase: SendChatMessageUseCase(client: client),
             providerDisplayName: client.displayName,
             providerName: client.name,
@@ -369,15 +373,11 @@ public final class ChatModel {
     }
 
     private func resumeLatestSession(workingDirectory: String) async {
-        let sessions = await listSessionsUseCase.run(.init(workingDirectory: workingDirectory))
+        guard let result = await resumeLatestSessionUseCase.run(.init(workingDirectory: workingDirectory)) else { return }
         guard self.workingDirectory == workingDirectory else { return }
-        if let mostRecent = sessions.first {
-            let messages = await loadSessionMessagesUseCase.run(.init(sessionId: mostRecent.id, workingDirectory: workingDirectory))
-            guard self.workingDirectory == workingDirectory else { return }
-            self.messages = messages
-            self.sessionId = mostRecent.id
-            self.hasStartedSession = true
-        }
+        self.messages = result.messages
+        self.sessionId = result.sessionId
+        self.hasStartedSession = true
     }
 
     // MARK: - Helpers
