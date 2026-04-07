@@ -2,12 +2,11 @@ import LoggingSDK
 import LogsFeature
 import Observation
 
-@Observable
 @MainActor
+@Observable
 final class LogsModel {
     private let streamLogsUseCase: StreamLogsUseCase
     private let clearLogsUseCase: ClearLogsUseCase
-    private(set) var items: [LogItem] = []
     var searchText: String = ""
     private(set) var state: ModelState = .idle
     private var nextID = 0
@@ -23,6 +22,11 @@ final class LogsModel {
     var isLoading: Bool {
         if case .loading = state { return true }
         return false
+    }
+
+    var items: [LogItem] {
+        if case .streaming(let items) = state { return items }
+        return []
     }
 
     var filteredItems: [LogItem] {
@@ -41,7 +45,6 @@ final class LogsModel {
         state = .loading
         do {
             for try await newEntries in streamLogsUseCase.stream() {
-                state = .streaming
                 append(newEntries)
             }
         } catch is CancellationError {
@@ -52,7 +55,7 @@ final class LogsModel {
 
     func deleteLogs() {
         clearLogsUseCase.execute()
-        items = []
+        state = .streaming([])
         nextID = 0
     }
 
@@ -61,18 +64,13 @@ final class LogsModel {
             LogItem(id: nextID + offset, entry: entry)
         }
         nextID += entries.count
-        items.append(contentsOf: newItems)
+        state = .streaming(items + newItems)
     }
 
     enum ModelState {
+        case error(Error)
         case idle
         case loading
-        case streaming
-        case error(Error)
+        case streaming([LogItem])
     }
-}
-
-struct LogItem: Identifiable {
-    let id: Int
-    let entry: LogEntry
 }

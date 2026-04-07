@@ -137,6 +137,7 @@ let package = Package(
                 "PlanFeature",
                 "PlanService",
                 "OctokitSDK",
+                "PipelineFeature",
                 "PipelineSDK",
                 "PipelineService",
                 "PRRadarCLIService",
@@ -197,6 +198,14 @@ let package = Package(
             path: "Sources/Features/EvalFeature"
         ),
         .target(
+            name: "LogsFeature",
+            dependencies: [
+                "LoggingSDK",
+                "UseCaseSDK",
+            ],
+            path: "Sources/Features/LogsFeature"
+        ),
+        .target(
             name: "PlanFeature",
             dependencies: [
                 "AIOutputSDK",
@@ -210,14 +219,6 @@ let package = Package(
                 "UseCaseSDK",
             ],
             path: "Sources/Features/PlanFeature"
-        ),
-        .target(
-            name: "LogsFeature",
-            dependencies: [
-                "LoggingSDK",
-                "UseCaseSDK",
-            ],
-            path: "Sources/Features/LogsFeature"
         ),
         .target(
             name: "PipelineFeature",

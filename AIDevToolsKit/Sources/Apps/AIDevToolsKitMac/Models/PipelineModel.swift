@@ -1,4 +1,5 @@
 import Foundation
+import PipelineFeature
 import PipelineSDK
 
 @MainActor @Observable
@@ -12,16 +13,21 @@ final class PipelineModel {
     }
 
     enum ModelState {
+        case failed(Error)
         case idle
         case running
-        case failed(Error)
     }
 
-    var nodes: [NodeState] = []
-    var state: ModelState = .idle
+    private(set) var nodes: [NodeState] = []
+    private(set) var state: ModelState = .idle
     var onEvent: (@MainActor (PipelineEvent) -> Void)?
 
-    @ObservationIgnored private var runningTask: Task<Void, any Error>?
+    var isRunning: Bool {
+        if case .running = state { return true }
+        return false
+    }
+
+    @ObservationIgnored private var runningTask: Task<PipelineContext, any Error>?
 
     @discardableResult
     func run(blueprint: PipelineBlueprint) async throws -> PipelineContext {
@@ -30,34 +36,27 @@ final class PipelineModel {
             NodeState(displayName: $0.displayName, id: $0.id)
         }
 
-        let box = PipelineContextBox()
-        let task = Task { [box] in
-            let runner = PipelineRunner()
-            let finalContext = try await runner.run(
-                nodes: blueprint.nodes,
-                configuration: blueprint.configuration,
-                onProgress: { [weak self] event in
-                    Task { @MainActor [weak self] in
-                        guard let self else { return }
-                        self.handleEvent(event)
-                        self.onEvent?(event)
-                    }
+        let task = Task<PipelineContext, any Error> {
+            try await RunBlueprintUseCase().run(blueprint: blueprint) { [weak self] event in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.handleEvent(event)
+                    self.onEvent?(event)
                 }
-            )
-            box.context = finalContext
+            }
         }
         runningTask = task
 
         do {
-            try await task.value
+            let result = try await task.value
             state = .idle
+            runningTask = nil
+            return result
         } catch {
             state = .failed(error)
             runningTask = nil
             throw error
         }
-        runningTask = nil
-        return box.context ?? PipelineContext()
     }
 
     func stop() {
@@ -83,8 +82,4 @@ final class PipelineModel {
             break
         }
     }
-}
-
-private final class PipelineContextBox: @unchecked Sendable {
-    var context: PipelineContext?
 }

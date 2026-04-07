@@ -1,17 +1,19 @@
 import LoggingSDK
 import UseCaseSDK
 
+/// Reads all existing log entries then streams new ones as they are appended.
+/// The stream never finishes on its own — cancel the enclosing `Task` to stop.
 public struct StreamLogsUseCase: StreamingUseCase {
     public init() {}
 
-    /// Returns an async stream that first yields all existing log entries, then yields
-    /// new entries as they are appended to the log file.
     public func stream() -> AsyncThrowingStream<[LogEntry], Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let existing = try LogReaderService().readAll()
-                    continuation.yield(existing)
+                    if !existing.isEmpty {
+                        continuation.yield(existing)
+                    }
                     for await newEntries in LogFileWatcher().stream() {
                         continuation.yield(newEntries)
                     }
