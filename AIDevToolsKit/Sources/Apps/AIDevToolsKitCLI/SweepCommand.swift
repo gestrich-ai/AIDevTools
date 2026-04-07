@@ -101,6 +101,8 @@ struct SweepRunCommand: AsyncParsableCommand {
             print("Checking for open sweep PRs...")
         case .creatingBranch(let branch):
             print("Creating batch branch: \(branch)")
+        case .creatingWorktree(let path):
+            print("Creating worktree: \(URL(fileURLWithPath: path).lastPathComponent)")
         case .runningTasks:
             print("Running sweep tasks...")
         case .taskStarted(let id):

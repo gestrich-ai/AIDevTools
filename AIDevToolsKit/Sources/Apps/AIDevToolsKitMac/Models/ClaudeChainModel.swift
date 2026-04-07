@@ -366,9 +366,18 @@ final class ClaudeChainModel {
             executionChatModel?.appendStatusMessage("Checking for open PRs...")
         case .creatingBranch(let b):
             current.setPhaseStatus(id: "prepare", status: .completed)
-            current.setPhaseStatus(id: "ai", status: .running)
             executionChatModel?.appendStatusMessage("Creating branch: \(b)")
+        case .creatingWorktree(let path):
+            current.setPhaseStatus(id: "worktree", status: .running)
+            executionChatModel?.appendStatusMessage("Creating worktree: \(URL(fileURLWithPath: path).lastPathComponent)")
         case .runningTasks:
+            let worktreeStatus = current.phases.first(where: { $0.id == "worktree" })?.status
+            if worktreeStatus == .running {
+                current.setPhaseStatus(id: "worktree", status: .completed)
+            } else {
+                current.setPhaseStatus(id: "worktree", status: .skipped)
+            }
+            current.setPhaseStatus(id: "ai", status: .running)
             executionChatModel?.appendStatusMessage("Running sweep tasks...")
         case .taskStarted(let id):
             executionChatModel?.appendStatusMessage("Processing: \(id)")

@@ -68,6 +68,7 @@ public struct RunSweepBatchUseCase: UseCase {
         case contentBlocks([AIContentBlock])
         case creatingBranch(String)
         case creatingPR
+        case creatingWorktree(String)
         case prCreated(prURL: String)
         case runningTasks
         case taskCompleted(String)
@@ -75,30 +76,33 @@ public struct RunSweepBatchUseCase: UseCase {
 
         public var displayText: String {
             switch self {
-            case .checkingOpenPRs:          return "Checking for open PRs..."
-            case .contentBlocks:            return ""
-            case .creatingBranch(let b):    return "Creating branch: \(b)"
-            case .runningTasks:             return "Running sweep tasks..."
-            case .taskStarted(let id):      return "Processing: \(id)"
-            case .taskCompleted(let id):    return "Completed: \(id)"
-            case .creatingPR:               return "Creating PR..."
-            case .prCreated(let url):       return "PR created: \(url)"
-            case .completed:                return "Completed"
+            case .checkingOpenPRs:              return "Checking for open PRs..."
+            case .contentBlocks:                return ""
+            case .creatingBranch(let b):        return "Creating branch: \(b)"
+            case .creatingWorktree(let path):   return "Creating worktree: \(URL(fileURLWithPath: path).lastPathComponent)"
+            case .runningTasks:                 return "Running sweep tasks..."
+            case .taskStarted(let id):          return "Processing: \(id)"
+            case .taskCompleted(let id):        return "Completed: \(id)"
+            case .creatingPR:                   return "Creating PR..."
+            case .prCreated(let url):           return "PR created: \(url)"
+            case .completed:                    return "Completed"
             }
         }
 
         public var phaseId: String? {
             switch self {
-            case .checkingOpenPRs, .creatingBranch:             return "prepare"
-            case .contentBlocks, .runningTasks, .taskStarted, .taskCompleted: return "ai"
-            case .creatingPR, .prCreated:                       return "finalize"
-            case .completed:                                     return nil
+            case .checkingOpenPRs, .creatingBranch:                             return "prepare"
+            case .creatingWorktree:                                             return "worktree"
+            case .contentBlocks, .runningTasks, .taskStarted, .taskCompleted:  return "ai"
+            case .creatingPR, .prCreated:                                       return "finalize"
+            case .completed:                                                     return nil
             }
         }
     }
 
     public static let phases: [ChainExecutionPhase] = [
         ChainExecutionPhase(id: "prepare", displayName: "Prepare"),
+        ChainExecutionPhase(id: "worktree", displayName: "Creating Worktree"),
         ChainExecutionPhase(id: "ai", displayName: "AI Execution"),
         ChainExecutionPhase(id: "finalize", displayName: "Create PR"),
     ]
@@ -152,6 +156,7 @@ public struct RunSweepBatchUseCase: UseCase {
         if let worktreesDir = options.worktreesDirectory {
             let worktreePath = worktreesDir.appendingPathComponent(batchBranch).path
             let basedOn = fetchSucceeded ? "FETCH_HEAD" : "HEAD"
+            onProgress?(.creatingWorktree(worktreePath))
             logger.info("[\(taskName)] Creating worktree at \(worktreePath) based on \(basedOn)")
             do {
                 try await git.createWorktreeWithNewBranch(
