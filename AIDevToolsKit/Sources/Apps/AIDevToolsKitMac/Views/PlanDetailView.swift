@@ -18,6 +18,7 @@ struct PlanDetailView: View {
     @State private var isArchitectureExpanded = true
     @AppStorage("planExecuteNextOnly") private var executeNextOnly = false
     @AppStorage("planStopAfterArchitectureDiagram") private var stopAfterArchitectureDiagram = false
+    @AppStorage("planUseWorktree") private var useWorktree = false
 
     @State private var executionChatModel: ChatModel?
     @State private var activePlanModel = ActivePlanModel()
@@ -226,6 +227,12 @@ struct PlanDetailView: View {
                 .font(.caption)
                 .help("Stop execution after the architecture diagram is generated")
 
+            Toggle("Use worktree", isOn: $useWorktree)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+                .help("Run plan execution in an isolated git worktree")
+                .disabled(isBusy)
+
             Button {
                 completePlan()
             } label: {
@@ -430,12 +437,14 @@ struct PlanDetailView: View {
 
         let stopForDiagram = stopAfterArchitectureDiagram
         let mode: PlanService.ExecuteMode = executeNextOnly ? .next : .all
+        let worktree = useWorktree
         Task {
             await planModel.execute(
                 plan: plan,
                 repository: repository,
                 executeMode: mode,
-                stopAfterArchitectureDiagram: stopForDiagram
+                stopAfterArchitectureDiagram: stopForDiagram,
+                useWorktree: worktree
             )
         }
     }

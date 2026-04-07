@@ -162,10 +162,22 @@ final class ClaudeChainModel {
         loadChainDetail(project: project)
     }
 
-    func executeChain(project: ChainProject, repoPath: URL, taskIndex: Int? = nil, stagingOnly: Bool = false) {
+    func executeChain(
+        project: ChainProject,
+        repoPath: URL,
+        taskIndex: Int? = nil,
+        stagingOnly: Bool = false,
+        useWorktree: Bool = false
+    ) {
         let strategy = ChainExecutionStrategyFactory.strategy(for: project.kind)
         state = .executing(progress: ExecutionProgress(phases: strategy.initialPhases))
         streamAccumulator.reset()
+
+        let worktreeOptions = useWorktree ? computeChainWorktreeOptions(
+            project: project,
+            repoPath: repoPath,
+            taskIndex: taskIndex
+        ) : nil
 
         Task {
             let git = makeGitClient()
@@ -175,6 +187,7 @@ final class ClaudeChainModel {
                     repoPath: repoPath,
                     taskIndex: taskIndex,
                     stagingOnly: stagingOnly,
+                    worktreeOptions: worktreeOptions,
                     client: activeClient,
                     git: git,
                     githubAccount: currentCredentialAccount
@@ -289,6 +302,29 @@ final class ClaudeChainModel {
     }
 
     // MARK: - Private
+
+    private func computeChainWorktreeOptions(
+        project: ChainProject,
+        repoPath: URL,
+        taskIndex: Int?
+    ) -> WorktreeOptions? {
+        let nextTask: ChainTask?
+        if let idx = taskIndex {
+            nextTask = project.tasks.first(where: { $0.index == idx })
+        } else {
+            nextTask = project.tasks.first(where: { !$0.isCompleted })
+        }
+        guard let task = nextTask else { return nil }
+        let taskHash = TaskService.generateTaskHash(description: task.description)
+        let branchName = PRService.formatBranchName(projectName: project.name, taskHash: taskHash)
+        guard let worktreesDir = try? dataPathsService.path(for: .worktrees(feature: "claude-chain")) else { return nil }
+        let destinationPath = worktreesDir.appendingPathComponent(branchName).path
+        return WorktreeOptions(
+            branchName: branchName,
+            destinationPath: destinationPath,
+            repoPath: repoPath.path
+        )
+    }
 
     private func makeGitClient() -> GitClient {
         gitClientFactory(currentCredentialAccount)

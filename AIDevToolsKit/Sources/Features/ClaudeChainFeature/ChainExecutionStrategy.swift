@@ -2,6 +2,7 @@ import AIOutputSDK
 import ClaudeChainService
 import Foundation
 import GitSDK
+import PipelineService
 import SweepFeature
 
 /// Unified progress event emitted by any chain execution strategy.
@@ -19,6 +20,7 @@ public protocol ChainExecutionStrategy: Sendable {
         repoPath: URL,
         taskIndex: Int?,
         stagingOnly: Bool,
+        worktreeOptions: WorktreeOptions?,
         client: any AIClient,
         git: GitClient,
         githubAccount: String?,
@@ -34,6 +36,7 @@ struct SpecChainExecutionStrategy: ChainExecutionStrategy {
         repoPath: URL,
         taskIndex: Int?,
         stagingOnly: Bool,
+        worktreeOptions: WorktreeOptions?,
         client: any AIClient,
         git: GitClient,
         githubAccount: String?,
@@ -45,7 +48,8 @@ struct SpecChainExecutionStrategy: ChainExecutionStrategy {
             baseBranch: project.baseBranch,
             githubAccount: githubAccount,
             taskIndex: taskIndex,
-            stagingOnly: stagingOnly
+            stagingOnly: stagingOnly,
+            worktreeOptions: worktreeOptions
         )
         let useCase = ExecuteSpecChainUseCase(client: client, git: git)
         return try await useCase.run(options: options) { progress in
@@ -62,6 +66,7 @@ struct SweepChainExecutionStrategy: ChainExecutionStrategy {
         repoPath: URL,
         taskIndex: Int?,
         stagingOnly: Bool,
+        worktreeOptions: WorktreeOptions?,
         client: any AIClient,
         git: GitClient,
         githubAccount: String?,

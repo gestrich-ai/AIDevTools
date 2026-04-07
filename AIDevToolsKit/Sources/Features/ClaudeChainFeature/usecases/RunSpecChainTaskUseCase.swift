@@ -19,6 +19,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
         public let repoPath: URL
         public let stagingOnly: Bool
         public let taskIndex: Int?
+        public let worktreeOptions: WorktreeOptions?
 
         public init(
             repoPath: URL,
@@ -26,7 +27,8 @@ public struct RunSpecChainTaskUseCase: UseCase {
             baseBranch: String,
             taskIndex: Int? = nil,
             stagingOnly: Bool = false,
-            dryRun: Bool = false
+            dryRun: Bool = false,
+            worktreeOptions: WorktreeOptions? = nil
         ) {
             self.baseBranch = baseBranch
             self.dryRun = dryRun
@@ -34,6 +36,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
             self.repoPath = repoPath
             self.stagingOnly = stagingOnly
             self.taskIndex = taskIndex
+            self.worktreeOptions = worktreeOptions
         }
     }
 
@@ -256,12 +259,25 @@ public struct RunSpecChainTaskUseCase: UseCase {
         let branchName = chainProject.branchPrefix + task.id
         try await git.checkout(ref: branchName, forceCreate: true, workingDirectory: repoDir)
 
+        // Create worktree if requested; subsequent AI and script steps run inside it
+        let aiWorkingDirectory: String
+        if let wo = options.worktreeOptions {
+            try await git.createWorktree(
+                baseBranch: wo.branchName,
+                destination: wo.destinationPath,
+                workingDirectory: repoDir
+            )
+            aiWorkingDirectory = wo.destinationPath
+        } else {
+            aiWorkingDirectory = options.repoPath.path
+        }
+
         // Phase 2: Pre-action script
         onProgress?(.runningPreScript)
         let preResult = try ScriptRunner.runActionScript(
             projectPath: project.basePath,
             scriptType: "pre",
-            workingDirectory: options.repoPath.path
+            workingDirectory: aiWorkingDirectory
         )
         onProgress?(.preScriptCompleted(preResult))
         phasesCompleted += 1
@@ -271,7 +287,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
 
         let aiOptions = AIClientOptions(
             dangerouslySkipPermissions: true,
-            workingDirectory: options.repoPath.path
+            workingDirectory: aiWorkingDirectory
         )
 
         let mainAccumulator = StreamAccumulator()
@@ -298,7 +314,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
         let postResult = try ScriptRunner.runActionScript(
             projectPath: project.basePath,
             scriptType: "post",
-            workingDirectory: options.repoPath.path
+            workingDirectory: aiWorkingDirectory
         )
         onProgress?(.postScriptCompleted(postResult))
         phasesCompleted += 1
@@ -307,12 +323,12 @@ public struct RunSpecChainTaskUseCase: UseCase {
         onProgress?(.finalizing)
 
         // Commit any uncommitted changes from the AI run
-        let statusLines = try await git.status(workingDirectory: repoDir)
+        let statusLines = try await git.status(workingDirectory: aiWorkingDirectory)
         if !statusLines.isEmpty {
-            try await git.addAll(workingDirectory: repoDir)
-            let stagedFiles = try await git.diffCachedNames(workingDirectory: repoDir)
+            try await git.addAll(workingDirectory: aiWorkingDirectory)
+            let stagedFiles = try await git.diffCachedNames(workingDirectory: aiWorkingDirectory)
             if !stagedFiles.isEmpty {
-                try await git.commit(message: "Complete task: \(taskDescription)", workingDirectory: repoDir)
+                try await git.commit(message: "Complete task: \(taskDescription)", workingDirectory: aiWorkingDirectory)
             }
         }
 
@@ -355,7 +371,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
             )
             let reviewOptions = AIClientOptions(
                 dangerouslySkipPermissions: true,
-                workingDirectory: options.repoPath.path
+                workingDirectory: aiWorkingDirectory
             )
             let reviewSchema = """
             {"type":"object","properties":{"commitMessage":{"type":"string"},"summary":{"type":"string"}},"required":["commitMessage","summary"]}

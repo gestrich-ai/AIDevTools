@@ -126,7 +126,10 @@ Wire `WorktreeOptions` into plan execution.
   ```
 - The `PipelineConfiguration.workingDirectory` still holds the original repo path (as a fallback); the node overrides it in context
 
-## - [ ] Phase 4: Mac App layer — UI toggles with AppStorage
+## - [x] Phase 4: Mac App layer — UI toggles with AppStorage
+
+**Skills used**: `swift-architecture`
+**Principles applied**: `@AppStorage` toggles added for both features using the same pattern as existing `chainCreatePR` and `planStopAfterArchitectureDiagram` toggles. `DataPathsService` injected into `PlanModel` as optional to preserve backward compatibility with existing callers. `WorktreeOptions` computed in models using `DataPathsService.path(for: .worktrees(feature:))`. For `ClaudeChain`, `worktreeOptions` threaded through `ChainExecutionStrategy` protocol → `ExecuteSpecChainUseCase.Options` → `RunSpecChainTaskUseCase.Options`, with AI and script steps running inside the worktree path when set.
 
 **Skills to read**: `swift-architecture`
 

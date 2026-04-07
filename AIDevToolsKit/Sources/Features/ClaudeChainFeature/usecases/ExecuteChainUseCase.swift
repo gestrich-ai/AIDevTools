@@ -3,6 +3,7 @@ import ClaudeChainSDK
 import ClaudeChainService
 import Foundation
 import GitSDK
+import PipelineService
 import UseCaseSDK
 
 public struct ExecuteSpecChainUseCase: UseCase {
@@ -14,14 +15,24 @@ public struct ExecuteSpecChainUseCase: UseCase {
         public let repoPath: URL
         public let stagingOnly: Bool
         public let taskIndex: Int?
+        public let worktreeOptions: WorktreeOptions?
 
-        public init(repoPath: URL, projectName: String, baseBranch: String, githubAccount: String? = nil, taskIndex: Int? = nil, stagingOnly: Bool = false) {
+        public init(
+            repoPath: URL,
+            projectName: String,
+            baseBranch: String,
+            githubAccount: String? = nil,
+            taskIndex: Int? = nil,
+            stagingOnly: Bool = false,
+            worktreeOptions: WorktreeOptions? = nil
+        ) {
             self.baseBranch = baseBranch
             self.githubAccount = githubAccount
             self.projectName = projectName
             self.repoPath = repoPath
             self.stagingOnly = stagingOnly
             self.taskIndex = taskIndex
+            self.worktreeOptions = worktreeOptions
         }
     }
 
@@ -75,7 +86,8 @@ public struct ExecuteSpecChainUseCase: UseCase {
             projectName: options.projectName,
             baseBranch: options.baseBranch,
             taskIndex: options.taskIndex,
-            stagingOnly: options.stagingOnly
+            stagingOnly: options.stagingOnly,
+            worktreeOptions: options.worktreeOptions
         )
 
         let useCase = RunSpecChainTaskUseCase(client: client, git: git)

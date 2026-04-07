@@ -191,6 +191,7 @@ private struct ChainProjectDetailView: View {
     let repository: RepositoryConfiguration
 
     @AppStorage("chainCreatePR") private var createPR: Bool = true
+    @AppStorage("chainUseWorktree") private var useWorktree: Bool = false
     @State private var executionChatModel: ChatModel?
 
     private var isExecuting: Bool {
@@ -292,6 +293,11 @@ private struct ChainProjectDetailView: View {
                 .toggleStyle(.checkbox)
                 .disabled(isExecuting)
                 .help("When checked, pushes branch and creates a draft PR after the AI completes")
+
+            Toggle("Use worktree", isOn: $useWorktree)
+                .toggleStyle(.checkbox)
+                .disabled(isExecuting)
+                .help("Run chain execution in an isolated git worktree")
 
             Button {
                 startExecution()
@@ -719,7 +725,13 @@ private struct ChainProjectDetailView: View {
             }
         }
 
-        model.executeChain(project: project, repoPath: repository.path, taskIndex: taskIndex, stagingOnly: !createPR)
+        model.executeChain(
+            project: project,
+            repoPath: repository.path,
+            taskIndex: taskIndex,
+            stagingOnly: !createPR,
+            useWorktree: useWorktree
+        )
     }
 
 }

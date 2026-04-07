@@ -1,5 +1,8 @@
 import AIOutputSDK
+import CryptoKit
+import DataPathsService
 import Foundation
+import PipelineService
 import PlanFeature
 import PlanService
 import PipelineSDK
@@ -57,18 +60,21 @@ final class PlanModel {
 
     private var activeClient: any AIClient
     @ObservationIgnored private var chatModels: [String: ChatModel] = [:]
+    private let dataPathsService: DataPathsService?
     private let deletePlanUseCase: DeletePlanUseCase
     private let mcpConfigPath: String?
     private let providerRegistry: ProviderRegistry
     private let togglePhaseUseCase: TogglePhaseUseCase
 
     init(
+        dataPathsService: DataPathsService? = nil,
         deletePlanUseCase: DeletePlanUseCase = DeletePlanUseCase(),
         mcpConfigPath: String? = nil,
         providerRegistry: ProviderRegistry,
         selectedProviderName: String? = nil,
         togglePhaseUseCase: TogglePhaseUseCase = TogglePhaseUseCase()
     ) {
+        self.dataPathsService = dataPathsService
         self.deletePlanUseCase = deletePlanUseCase
         self.mcpConfigPath = mcpConfigPath
         self.providerRegistry = providerRegistry
@@ -138,7 +144,8 @@ final class PlanModel {
         plan: MarkdownPlanEntry,
         repository: RepositoryConfiguration,
         executeMode: PlanService.ExecuteMode = .all,
-        stopAfterArchitectureDiagram: Bool = false
+        stopAfterArchitectureDiagram: Bool = false,
+        useWorktree: Bool = false
     ) async {
         state = .executing
         phaseCompleteCount = 0
@@ -151,12 +158,14 @@ final class PlanModel {
                     return s.resolvedProposedDirectory(repoPath: repo.path)
                 }
             )
+            let worktreeOptions = useWorktree ? computePlanWorktreeOptions(plan: plan, repoPath: repository.path) : nil
             let options = PlanService.ExecuteOptions(
                 executeMode: executeMode,
                 planPath: plan.planURL,
                 repoPath: repository.path,
                 repository: repository,
-                stopAfterArchitectureDiagram: stopAfterArchitectureDiagram
+                stopAfterArchitectureDiagram: stopAfterArchitectureDiagram,
+                worktreeOptions: worktreeOptions
             )
             let blueprint = try await service.buildExecutePipeline(
                 options: options,
@@ -276,6 +285,27 @@ final class PlanModel {
     }
 
     // MARK: - Private
+
+    private func computePlanWorktreeOptions(plan: MarkdownPlanEntry, repoPath: URL) -> WorktreeOptions? {
+        guard let service = dataPathsService else { return nil }
+        let stem = plan.planURL.deletingPathExtension().lastPathComponent
+        let identifier = hashString(stem)
+        let branchName = "plan-\(identifier)"
+        guard let worktreesDir = try? service.path(for: .worktrees(feature: "plan")) else { return nil }
+        let destinationPath = worktreesDir.appendingPathComponent(branchName).path
+        return WorktreeOptions(
+            branchName: branchName,
+            destinationPath: destinationPath,
+            repoPath: repoPath.path
+        )
+    }
+
+    private func hashString(_ value: String) -> String {
+        let normalized = value.split(separator: " ").joined(separator: " ")
+        let data = normalized.data(using: .utf8) ?? Data()
+        let hash = SHA256.hash(data: data)
+        return hash.compactMap { String(format: "%02x", $0) }.joined().prefix(8).lowercased()
+    }
 
     private func resolvedProposedDirectory(for repo: RepositoryConfiguration) -> URL {
         let settings = repo.planner ?? PlanRepoSettings()
