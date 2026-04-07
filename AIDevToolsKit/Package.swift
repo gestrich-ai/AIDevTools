@@ -130,9 +130,11 @@ let package = Package(
                 "GitHubService",
                 "GitSDK",
                 "LoggingSDK",
+                "LogsFeature",
                 "PlanFeature",
                 "PlanService",
                 "OctokitSDK",
+                "PipelineFeature",
                 "PipelineSDK",
                 "PipelineService",
                 "PRRadarCLIService",
@@ -190,6 +192,14 @@ let package = Package(
                 "UseCaseSDK",
             ],
             path: "Sources/Features/EvalFeature"
+        ),
+        .target(
+            name: "LogsFeature",
+            dependencies: [
+                "LoggingSDK",
+                "UseCaseSDK",
+            ],
+            path: "Sources/Features/LogsFeature"
         ),
         .target(
             name: "PlanFeature",
