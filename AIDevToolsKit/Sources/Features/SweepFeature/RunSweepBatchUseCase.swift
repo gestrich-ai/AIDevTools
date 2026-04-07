@@ -153,24 +153,21 @@ public struct RunSweepBatchUseCase: UseCase {
 
         let effectiveRepoPath: URL
         let effectiveTaskDirectory: URL
+        let worktreeNodeForPipeline: WorktreeNode?
+
         if let worktreesDir = options.worktreesDirectory {
             let worktreePath = worktreesDir.appendingPathComponent(batchBranch).path
             let basedOn = fetchSucceeded ? "FETCH_HEAD" : "HEAD"
-            onProgress?(.creatingWorktree(worktreePath))
-            logger.info("[\(taskName)] Creating worktree at \(worktreePath) based on \(basedOn)")
-            do {
-                try await git.createWorktreeWithNewBranch(
-                    branchName: batchBranch,
-                    basedOn: basedOn,
-                    destination: worktreePath,
-                    workingDirectory: repoDir
-                )
-            } catch {
-                logger.error("[\(taskName)] Failed to create worktree at \(worktreePath): \(error)")
-                throw error
-            }
+            logger.info("[\(taskName)] Will create worktree at \(worktreePath) based on \(basedOn)")
             effectiveRepoPath = URL(fileURLWithPath: worktreePath)
             effectiveTaskDirectory = effectiveRepoPath.appendingPathComponent(options.taskRelativePath)
+            let wOptions = WorktreeOptions(
+                branchName: batchBranch,
+                destinationPath: worktreePath,
+                repoPath: repoDir,
+                basedOn: basedOn
+            )
+            worktreeNodeForPipeline = WorktreeNode(options: wOptions, gitClient: git)
         } else {
             if fetchSucceeded {
                 try await git.checkout(ref: "FETCH_HEAD", workingDirectory: repoDir)
@@ -178,6 +175,7 @@ public struct RunSweepBatchUseCase: UseCase {
             try await git.checkout(ref: batchBranch, forceCreate: true, workingDirectory: repoDir)
             effectiveRepoPath = options.repoPath
             effectiveTaskDirectory = options.taskDirectory
+            worktreeNodeForPipeline = nil
         }
 
         let effectiveRepoDir = effectiveRepoPath.path
@@ -189,9 +187,9 @@ public struct RunSweepBatchUseCase: UseCase {
         )
 
         // Phase A: Drain all tasks via pipeline
-        onProgress?(.runningTasks)
+        let sweepSourceID = "sweep-source"
         let taskSourceNode = TaskSourceNode(
-            id: "sweep-source",
+            id: sweepSourceID,
             displayName: "Sweep: \(taskName)",
             source: effectiveSource
         )
@@ -201,14 +199,28 @@ public struct RunSweepBatchUseCase: UseCase {
             workingDirectory: effectiveRepoDir
         )
         let runner = PipelineRunner()
+
+        var pipelineNodes: [any PipelineNode] = []
+        let hasWorktreeNode = worktreeNodeForPipeline != nil
+        if let wn = worktreeNodeForPipeline {
+            pipelineNodes.append(wn)
+        } else {
+            onProgress?(.runningTasks)
+        }
+        pipelineNodes.append(taskSourceNode)
+
         _ = try await runner.run(
-            nodes: [taskSourceNode],
+            nodes: pipelineNodes,
             configuration: taskConfiguration
         ) { event in
             switch event {
-            case .nodeStarted(let id, _) where id != "sweep-source":
+            case .nodeStarted(let id, _) where id == WorktreeNode.nodeID:
+                onProgress?(.creatingWorktree(effectiveRepoDir))
+            case .nodeStarted(let id, _) where id == sweepSourceID && hasWorktreeNode:
+                onProgress?(.runningTasks)
+            case .nodeStarted(let id, _) where id != sweepSourceID && id != WorktreeNode.nodeID:
                 onProgress?(.taskStarted(id))
-            case .nodeCompleted(let id, _) where id != "sweep-source":
+            case .nodeCompleted(let id, _) where id != sweepSourceID && id != WorktreeNode.nodeID:
                 onProgress?(.taskCompleted(id))
             case .nodeProgress(_, let progress):
                 if case .contentBlocks(let blocks) = progress {

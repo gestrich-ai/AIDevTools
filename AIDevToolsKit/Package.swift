@@ -33,6 +33,7 @@ let package = Package(
         .library(name: "GitSDK", targets: ["GitSDK"]),
         .library(name: "KeychainSDK", targets: ["KeychainSDK"]),
         .library(name: "LoggingSDK", targets: ["LoggingSDK"]),
+        .library(name: "LogsFeature", targets: ["LogsFeature"]),
         .library(name: "SweepFeature", targets: ["SweepFeature"]),
         .library(name: "SweepService", targets: ["SweepService"]),
         .library(name: "PlanFeature", targets: ["PlanFeature"]),
@@ -132,6 +133,7 @@ let package = Package(
                 "GitHubService",
                 "GitSDK",
                 "LoggingSDK",
+                "LogsFeature",
                 "PlanFeature",
                 "PlanService",
                 "OctokitSDK",
@@ -208,6 +210,14 @@ let package = Package(
                 "UseCaseSDK",
             ],
             path: "Sources/Features/PlanFeature"
+        ),
+        .target(
+            name: "LogsFeature",
+            dependencies: [
+                "LoggingSDK",
+                "UseCaseSDK",
+            ],
+            path: "Sources/Features/LogsFeature"
         ),
         .target(
             name: "PipelineFeature",

@@ -1,20 +1,29 @@
-import Foundation
 import LoggingSDK
+import LogsFeature
 import Observation
-
-struct LogItem: Identifiable {
-    let id: Int
-    let entry: LogEntry
-}
 
 @Observable
 @MainActor
 final class LogsModel {
+    private let streamLogsUseCase: StreamLogsUseCase
+    private let clearLogsUseCase: ClearLogsUseCase
     private(set) var items: [LogItem] = []
     var searchText: String = ""
-    private(set) var isLoading = false
-    private var hasLoaded = false
+    private(set) var state: ModelState = .idle
     private var nextID = 0
+
+    init(
+        streamLogsUseCase: StreamLogsUseCase = StreamLogsUseCase(),
+        clearLogsUseCase: ClearLogsUseCase = ClearLogsUseCase()
+    ) {
+        self.streamLogsUseCase = streamLogsUseCase
+        self.clearLogsUseCase = clearLogsUseCase
+    }
+
+    var isLoading: Bool {
+        if case .loading = state { return true }
+        return false
+    }
 
     var filteredItems: [LogItem] {
         guard !searchText.isEmpty else { return items }
@@ -28,27 +37,21 @@ final class LogsModel {
     }
 
     func load() async {
-        guard !hasLoaded else { return }
-        hasLoaded = true
-
-        isLoading = true
-        let reader = LogReaderService()
-        let existing = (try? reader.readAll()) ?? []
-        append(existing)
-        isLoading = false
-
-        for await newEntries in LogFileWatcher().stream() {
-            append(newEntries)
+        guard case .idle = state else { return }
+        state = .loading
+        do {
+            for try await newEntries in streamLogsUseCase.stream() {
+                state = .streaming
+                append(newEntries)
+            }
+        } catch is CancellationError {
+        } catch {
+            state = .error(error)
         }
     }
 
     func deleteLogs() {
-        // Truncate rather than delete so the DispatchSource in LogFileWatcher
-        // keeps its file descriptor and streaming resumes for new entries.
-        if let handle = try? FileHandle(forWritingTo: AIDevToolsLogging.defaultLogFileURL) {
-            try? handle.truncate(atOffset: 0)
-            try? handle.close()
-        }
+        clearLogsUseCase.execute()
         items = []
         nextID = 0
     }
@@ -60,4 +63,16 @@ final class LogsModel {
         nextID += entries.count
         items.append(contentsOf: newItems)
     }
+
+    enum ModelState {
+        case idle
+        case loading
+        case streaming
+        case error(Error)
+    }
+}
+
+struct LogItem: Identifiable {
+    let id: Int
+    let entry: LogEntry
 }

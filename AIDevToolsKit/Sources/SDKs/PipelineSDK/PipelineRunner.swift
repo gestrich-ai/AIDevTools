@@ -72,7 +72,7 @@ public struct PipelineRunner: Sendable {
                 displayName: String(task.instructions.prefix(60)),
                 instructions: task.instructions,
                 client: configuration.provider,
-                workingDirectory: configuration.workingDirectory,
+                workingDirectory: context[PipelineContext.workingDirectoryKey] ?? configuration.workingDirectory,
                 environment: configuration.environment
             )
 

@@ -2,9 +2,10 @@ import GitSDK
 import PipelineSDK
 
 public struct WorktreeNode: PipelineNode {
+    public static let nodeID: String = "worktree-node"
     public static let worktreePathKey = PipelineContextKey<String>("WorktreeNode.worktreePath")
 
-    public let id: String = "worktree-node"
+    public let id: String = WorktreeNode.nodeID
     public let displayName: String = "Creating worktree"
 
     private let gitClient: GitClient
@@ -20,11 +21,20 @@ public struct WorktreeNode: PipelineNode {
         onProgress: @escaping @Sendable (PipelineNodeProgress) -> Void
     ) async throws -> PipelineContext {
         onProgress(.output("Creating worktree at \(options.destinationPath)..."))
-        try await gitClient.createWorktree(
-            baseBranch: options.branchName,
-            destination: options.destinationPath,
-            workingDirectory: options.repoPath
-        )
+        if let basedOn = options.basedOn {
+            try await gitClient.createWorktreeWithNewBranch(
+                branchName: options.branchName,
+                basedOn: basedOn,
+                destination: options.destinationPath,
+                workingDirectory: options.repoPath
+            )
+        } else {
+            try await gitClient.createWorktree(
+                baseBranch: options.branchName,
+                destination: options.destinationPath,
+                workingDirectory: options.repoPath
+            )
+        }
         var updated = context
         updated[PipelineContext.workingDirectoryKey] = options.destinationPath
         updated[WorktreeNode.worktreePathKey] = options.destinationPath
