@@ -294,7 +294,10 @@ Also add `WorktreeFeature` to `AIDevToolsKitMac`'s dependencies in `Package.swif
 
 ---
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
+
+**Skills used**: `ai-dev-tools-swift-testing`, `ai-dev-tools-enforce`
+**Principles applied**: Fixed error swallowing in `ListWorktreesUseCase` — replaced `try?` on `isWorkingDirectoryClean` with explicit `do/catch` that throws `WorktreeError.listFailed`, per the architecture skill's rule that Features must propagate errors. Added `worktreeListArguments` command test and three `listWorktrees` integration tests (main worktree, multiple worktrees, detached HEAD) to `GitClientTests`. Created `WorktreeFeatureTests` with 13 tests covering `WorktreeError` descriptions, `WorktreeStatus` property proxying, and all three use cases including error paths. Used POSIX `realpath()` to canonicalize temp paths so they match git's `/private/var/...` resolved paths on macOS.
 
 **Skills to read**: `ai-dev-tools-swift-testing`, `ai-dev-tools-enforce`
 

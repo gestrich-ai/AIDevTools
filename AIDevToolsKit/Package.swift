@@ -748,6 +748,11 @@ let package = Package(
             path: "Tests/Features/SkillBrowserFeatureTests"
         ),
         .testTarget(
+            name: "WorktreeFeatureTests",
+            dependencies: ["GitSDK", "WorktreeFeature"],
+            path: "Tests/Features/WorktreeFeatureTests"
+        ),
+        .testTarget(
             name: "SkillScannerSDKTests",
             dependencies: ["SkillScannerSDK"],
             path: "Tests/SDKs/SkillScannerSDKTests"

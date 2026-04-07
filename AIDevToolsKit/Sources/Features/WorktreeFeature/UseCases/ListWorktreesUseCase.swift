@@ -18,8 +18,12 @@ public struct ListWorktreesUseCase: UseCase {
         }
         var statuses: [WorktreeStatus] = []
         for info in worktrees {
-            let isClean = (try? await gitClient.isWorkingDirectoryClean(workingDirectory: info.path)) ?? true
-            statuses.append(WorktreeStatus(info: info, hasUncommittedChanges: !isClean))
+            do {
+                let isClean = try await gitClient.isWorkingDirectoryClean(workingDirectory: info.path)
+                statuses.append(WorktreeStatus(info: info, hasUncommittedChanges: !isClean))
+            } catch {
+                throw WorktreeError.listFailed(error.localizedDescription)
+            }
         }
         return statuses
     }

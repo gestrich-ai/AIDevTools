@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Darwin
 @testable import GitSDK
 
 // MARK: - Command argument tests
@@ -37,6 +38,11 @@ struct GitCLICommandTests {
         #expect(command.commandArguments == ["worktree", "remove", "/tmp/wt"])
     }
 
+    @Test func worktreeListArguments() {
+        let command = GitCLI.Worktree.List(porcelain: true)
+        #expect(command.commandArguments == ["worktree", "list", "--porcelain"])
+    }
+
     @Test func worktreePruneArguments() {
         let command = GitCLI.Worktree.Prune()
         #expect(command.commandArguments == ["worktree", "prune"])
@@ -51,8 +57,13 @@ struct GitClientTests {
     let client = GitClient()
 
     private func makeTempRepo() async throws -> String {
-        let tempDir = NSTemporaryDirectory() + "GitClientTests-\(UUID().uuidString)"
-        try FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
+        let rawPath = NSTemporaryDirectory() + "GitClientTests-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: rawPath, withIntermediateDirectories: true)
+        // Use realpath() so paths match what git reports (e.g. /var → /private/var on macOS)
+        let tempDir = rawPath.withCString { cPath -> String in
+            var buf = [CChar](repeating: 0, count: Int(PATH_MAX))
+            return Darwin.realpath(cPath, &buf).map { String(cString: $0) } ?? rawPath
+        }
         let result = try await client.execute(GitCLI.Init(), workingDirectory: tempDir)
         #expect(result.isSuccess)
         return tempDir
@@ -126,5 +137,62 @@ struct GitClientTests {
         await #expect(throws: (any Error).self) {
             try await client.commit(message: "empty", workingDirectory: repo)
         }
+    }
+
+    @Test func listWorktreesReturnsMainWorktree() async throws {
+        let repo = try await makeTempRepo()
+        defer { cleanup(repo) }
+
+        try "file".write(toFile: repo + "/file.txt", atomically: true, encoding: .utf8)
+        try await client.add(files: ["file.txt"], workingDirectory: repo)
+        try await client.commit(message: "Initial commit", workingDirectory: repo)
+
+        let worktrees = try await client.listWorktrees(workingDirectory: repo)
+
+        #expect(worktrees.count == 1)
+        #expect(worktrees[0].isMain)
+        #expect(worktrees[0].path == repo)
+    }
+
+    @Test func listWorktreesReturnsMultipleWorktrees() async throws {
+        let repo = try await makeTempRepo()
+        defer { cleanup(repo) }
+
+        try "file".write(toFile: repo + "/file.txt", atomically: true, encoding: .utf8)
+        try await client.add(files: ["file.txt"], workingDirectory: repo)
+        try await client.commit(message: "Initial commit", workingDirectory: repo)
+
+        let worktreePath = repo + "-wt-list"
+        defer { cleanup(worktreePath) }
+
+        try await client.execute(GitCLI.Branch(name: "list-test-branch"), workingDirectory: repo)
+        try await client.execute(
+            GitCLI.Worktree.Add(destination: worktreePath, commitish: "list-test-branch"),
+            workingDirectory: repo
+        )
+
+        let worktrees = try await client.listWorktrees(workingDirectory: repo)
+
+        #expect(worktrees.count == 2)
+        #expect(worktrees[0].isMain)
+        #expect(!worktrees[1].isMain)
+        #expect(worktrees[1].branch == "list-test-branch")
+    }
+
+    @Test func listWorktreesHandlesDetachedHead() async throws {
+        let repo = try await makeTempRepo()
+        defer { cleanup(repo) }
+
+        try "file".write(toFile: repo + "/file.txt", atomically: true, encoding: .utf8)
+        try await client.add(files: ["file.txt"], workingDirectory: repo)
+        try await client.commit(message: "Initial commit", workingDirectory: repo)
+
+        let headHash = try await client.getHeadHash(workingDirectory: repo)
+        try await client.checkout(ref: headHash, workingDirectory: repo)
+
+        let worktrees = try await client.listWorktrees(workingDirectory: repo)
+
+        #expect(worktrees.count == 1)
+        #expect(worktrees[0].branch == "(detached)")
     }
 }
