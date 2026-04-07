@@ -4,6 +4,7 @@ public enum ServicePath {
     case prradarOutput(String)
     case repoOutput(String)
     case repositories
+    case worktrees(feature: String)
 
     var relativePath: String {
         switch self {
@@ -17,6 +18,8 @@ public enum ServicePath {
             return "repos/\(repoName)"
         case .repositories:
             return "repositories"
+        case .worktrees(let feature):
+            return "\(feature)/worktrees"
         }
     }
 }
