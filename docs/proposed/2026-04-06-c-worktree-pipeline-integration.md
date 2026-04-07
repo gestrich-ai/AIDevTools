@@ -167,9 +167,10 @@ Add `Toggle("Use worktree", isOn: $useWorktree).toggleStyle(.checkbox).disabled(
 
 **Composition root** — wherever `PlanModel` is constructed (`AIDevToolsKitMacEntryView` or equivalent), pass the shared `DataPathsService` instance.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
-**Skills to read**: `ai-dev-tools-swift-testing`
+**Skills used**: `ai-dev-tools-swift-testing`, `ai-dev-tools-enforce`
+**Principles applied**: Fixed pre-existing broken test (`useWorktree` reference removed from `ExecutePlanUseCase.Options` test). `ServicePath.worktrees` tests placed in existing `DataPathsServiceTests`. `WorktreeOptions`/`WorktreeNode` identity tests in `PipelineSDKTests` (which already declares `PipelineService` as a dep). `PlanService.buildExecutePipeline` blueprint-structure tests use a temp plan file — no git needed during build phase. `ChainRunOptions.worktreeOptions` storage tests replace the impractical blueprint-building test (which requires a real git repo with project files). `PipelineService` added as explicit dep to `PlanFeatureTests` and `ClaudeChainFeatureTests`.
 
 Write tests and run the enforce skill against all changed files.
 

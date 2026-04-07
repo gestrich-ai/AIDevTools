@@ -177,7 +177,6 @@ struct PlanFeatureModelTests {
         #expect(options.maxMinutes == 90)
         #expect(options.repoPath == nil)
         #expect(options.repository == nil)
-        #expect(!options.useWorktree)
     }
 
     @Test("ExecutePlanUseCase.ExecuteError describes phase failure")

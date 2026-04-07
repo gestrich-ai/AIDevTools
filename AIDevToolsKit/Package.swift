@@ -620,6 +620,7 @@ let package = Package(
                 "ClaudeChainService",
                 "GitHubService",
                 "OctokitSDK",
+                "PipelineService",
                 "PRRadarModelsService",
             ],
             path: "Tests/Features/ClaudeChainFeatureTests"
@@ -703,7 +704,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PlanFeatureTests",
-            dependencies: ["GitSDK", "PlanFeature", "PlanService", "RepositorySDK"],
+            dependencies: ["AIOutputSDK", "GitSDK", "PipelineService", "PlanFeature", "PlanService", "RepositorySDK"],
             path: "Tests/Features/PlanFeatureTests"
         ),
         .testTarget(

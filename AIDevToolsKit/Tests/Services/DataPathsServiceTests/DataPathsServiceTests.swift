@@ -59,6 +59,18 @@ struct DataPathsServiceTests {
         #expect(path.path(percentEncoded: false).hasPrefix(root.path(percentEncoded: false)))
     }
 
+    @Test("worktrees resolves to feature/worktrees for claude-chain")
+    func worktreesClaudeChainRelativePath() {
+        let path = ServicePath.worktrees(feature: "claude-chain")
+        #expect(path.relativePath == "claude-chain/worktrees")
+    }
+
+    @Test("worktrees resolves to feature/worktrees for plan")
+    func worktreesPlanRelativePath() {
+        let path = ServicePath.worktrees(feature: "plan")
+        #expect(path.relativePath == "plan/worktrees")
+    }
+
     @Test func repoOutputResolvesToExpectedPath() throws {
         let root = makeTempRoot()
         defer { cleanup(root) }
