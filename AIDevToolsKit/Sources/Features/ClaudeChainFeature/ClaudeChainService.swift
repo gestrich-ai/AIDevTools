@@ -16,6 +16,7 @@ public struct ChainRunOptions: Sendable {
     public let projectName: String
     public let repoPath: URL
     public let stagingOnly: Bool
+    public let worktreeOptions: WorktreeOptions?
 
     public init(
         baseBranch: String,
@@ -24,7 +25,8 @@ public struct ChainRunOptions: Sendable {
         githubAccount: String? = nil,
         projectName: String,
         repoPath: URL,
-        stagingOnly: Bool = false
+        stagingOnly: Bool = false,
+        worktreeOptions: WorktreeOptions? = nil
     ) {
         self.baseBranch = baseBranch
         self.branchName = branchName
@@ -33,6 +35,7 @@ public struct ChainRunOptions: Sendable {
         self.projectName = projectName
         self.repoPath = repoPath
         self.stagingOnly = stagingOnly
+        self.worktreeOptions = worktreeOptions
     }
 }
 
@@ -234,10 +237,14 @@ public struct ClaudeChainService {
             source: taskSource
         )
 
-        var nodes: [any PipelineNode] = [taskSourceNode]
-        var manifests: [NodeManifest] = [
-            NodeManifest(id: "task-source", displayName: "Task: \(task.description)")
-        ]
+        var nodes: [any PipelineNode] = []
+        var manifests: [NodeManifest] = []
+        if let wo = options.worktreeOptions {
+            nodes.append(WorktreeNode(options: wo, gitClient: git))
+            manifests.append(NodeManifest(id: "worktree-node", displayName: "Creating worktree"))
+        }
+        nodes.append(taskSourceNode)
+        manifests.append(NodeManifest(id: "task-source", displayName: "Task: \(task.description)"))
 
         if !options.stagingOnly {
             let prConfiguration = PRConfiguration(
@@ -352,13 +359,21 @@ public struct ClaudeChainService {
             environment: environment
         )
 
+        var finalNodes: [any PipelineNode] = []
+        var finalManifests: [NodeManifest] = []
+        if let wo = options.worktreeOptions {
+            finalNodes.append(WorktreeNode(options: wo, gitClient: git))
+            finalManifests.append(NodeManifest(id: "worktree-node", displayName: "Creating worktree"))
+        }
+        finalNodes.append(prStep)
+        finalNodes.append(commentStep)
+        finalManifests.append(NodeManifest(id: "pr-step", displayName: "Create PR"))
+        finalManifests.append(NodeManifest(id: "pr-comment-step", displayName: "Post PR Comment"))
+
         return PipelineBlueprint(
-            nodes: [prStep, commentStep],
+            nodes: finalNodes,
             configuration: configuration,
-            initialNodeManifest: [
-                NodeManifest(id: "pr-step", displayName: "Create PR"),
-                NodeManifest(id: "pr-comment-step", displayName: "Post PR Comment"),
-            ]
+            initialNodeManifest: finalManifests
         )
     }
 }

@@ -75,9 +75,10 @@ public struct WorktreeOptions: Sendable {
 
 No new `Package.swift` dependencies needed — `PipelineService` already imports `GitSDK`.
 
-## - [ ] Phase 2: ClaudeChainFeature integration
+## - [x] Phase 2: ClaudeChainFeature integration
 
-**Skills to read**: `swift-architecture`
+**Skills used**: `swift-architecture`
+**Principles applied**: All worktree logic added to `ClaudeChainService.buildPipeline` and `buildFinalizePipeline` — no changes needed in the use case wrappers since the service already owns `self.git`. `worktreeOptions` added to `ChainRunOptions` in alphabetical order, defaulting to `nil` for backward compatibility.
 
 Wire `WorktreeOptions` into the ClaudeChain execution pipeline.
 
