@@ -136,11 +136,6 @@ func updateDataPath(_ path: String) throws {
 
 String formatting logic for derived values — branch names, cache keys, file paths, URL paths — must live in one place. When callers construct these strings themselves, small differences in format accumulate silently and become hard to find.
 
-**Look for:**
-- `let branchName = "plan-\(identifier)"` or `"claude-chain-\(project)-\(hash)"` inline in a model or use case
-- The same interpolation pattern appearing in more than one file
-- A private helper method on a model that formats an identifier — the method likely belongs on the owning service or use case instead
-
 **Fix:** Extract to a `static func` on the type that owns the concept. All callers use that method — no one builds the string themselves:
 
 ```swift
@@ -165,11 +160,6 @@ let branchName = PlanService.worktreeBranchName(for: plan.planURL)
 ## Raw String Literals as Shared Identifiers
 
 A string literal used in multiple places as an identifier (feature name, path component, dictionary key) is a coordination hazard. If one call site changes spelling, the others silently diverge.
-
-**Look for:**
-- `ServicePath.worktrees(feature: "plan")` and `ServicePath.worktrees(feature: "claude-chain")` repeated across files
-- The same string literal appearing in both production code and tests
-- Dictionary keys, UserDefaults keys, or notification names written as literals at each call site
 
 **Fix:** Define a named constant — a `static var` on the owning type, a `static let` on the relevant service or model, or a dedicated `enum` of cases. All callers reference the constant, not the literal:
 
