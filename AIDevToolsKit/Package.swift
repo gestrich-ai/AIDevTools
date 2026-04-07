@@ -48,6 +48,7 @@ let package = Package(
         .library(name: "PRReviewFeature", targets: ["PRReviewFeature"]),
         .library(name: "ProviderRegistryService", targets: ["ProviderRegistryService"]),
         .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
+        .library(name: "SettingsFeature", targets: ["SettingsFeature"]),
         .library(name: "SettingsService", targets: ["SettingsService"]),
         .library(name: "SkillBrowserFeature", targets: ["SkillBrowserFeature"]),
         .library(name: "SkillScannerSDK", targets: ["SkillScannerSDK"]),
@@ -146,6 +147,7 @@ let package = Package(
                 "PRReviewFeature",
                 "ProviderRegistryService",
                 "RepositorySDK",
+                "SettingsFeature",
                 "SettingsService",
                 "SkillBrowserFeature",
                 "SkillScannerSDK",
@@ -244,6 +246,14 @@ let package = Package(
                 "UseCaseSDK",
             ],
             path: "Sources/Features/PRReviewFeature"
+        ),
+        .target(
+            name: "SettingsFeature",
+            dependencies: [
+                "DataPathsService",
+                "UseCaseSDK",
+            ],
+            path: "Sources/Features/SettingsFeature"
         ),
         .target(
             name: "SkillBrowserFeature",
