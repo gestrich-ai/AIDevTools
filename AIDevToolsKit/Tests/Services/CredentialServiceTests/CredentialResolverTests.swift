@@ -131,4 +131,76 @@ struct CredentialResolverTests {
             return
         }
     }
+
+    @Test("named env key GITHUB_TOKEN_<account> takes priority over unnamed GITHUB_TOKEN")
+    func namedEnvKeyTakesPriorityOverUnnamed() {
+        let keychain = MockKeychainStore()
+        let service = SecureSettingsService(keychain: keychain)
+
+        let resolver = CredentialResolver(
+            settingsService: service,
+            githubAccount: "gestrich",
+            processEnvironment: [:],
+            dotEnv: [
+                "GITHUB_TOKEN_gestrich": "named-token",
+                "GITHUB_TOKEN": "unnamed-token",
+            ]
+        )
+
+        let auth = resolver.getGitHubAuth()
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
+        #expect(token == "named-token")
+    }
+
+    @Test("unnamed GITHUB_TOKEN is used as fallback when no named key exists")
+    func unnamedTokenUsedAsFallback() {
+        let keychain = MockKeychainStore()
+        let service = SecureSettingsService(keychain: keychain)
+
+        let resolver = CredentialResolver(
+            settingsService: service,
+            githubAccount: "gestrich",
+            processEnvironment: [:],
+            dotEnv: ["GITHUB_TOKEN": "fallback-token"]
+        )
+
+        let auth = resolver.getGitHubAuth()
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
+        #expect(token == "fallback-token")
+    }
+
+    @Test("withExplicitToken returns given token regardless of env and keychain")
+    func explicitTokenIgnoresOtherSources() {
+        let resolver = CredentialResolver.withExplicitToken("explicit-token")
+
+        let auth = resolver.getGitHubAuth()
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
+        #expect(token == "explicit-token")
+    }
+
+    @Test("requireGitHubAuth throws notConfigured when no credentials exist")
+    func requireGitHubAuthThrowsWhenNoCredentials() {
+        let keychain = MockKeychainStore()
+        let service = SecureSettingsService(keychain: keychain)
+
+        let resolver = CredentialResolver(
+            settingsService: service,
+            githubAccount: "gestrich",
+            processEnvironment: [:],
+            dotEnv: [:]
+        )
+
+        #expect(throws: CredentialError.self) {
+            try resolver.requireGitHubAuth()
+        }
+    }
 }

@@ -93,7 +93,10 @@ CLI commands to update (verify via grep for `GitHubServiceFactory` or `resolveTo
 - `ClaudeChainCLI/RunTaskCommand.swift` (and other chain CLI commands that call GitHub)
 - `AIDevToolsKitCLI/PRRadar/` commands
 
-## - [ ] Phase 4: Update Tests
+## - [x] Phase 4: Update Tests
+
+**Skills used**: `ai-dev-tools-swift-testing`
+**Principles applied**: Added four new `@Test` functions with descriptive sentence-form names covering: named env key priority, unnamed env key fallback, `withExplicitToken` isolation, and `requireGitHubAuth` error throwing. Each test has one behavior and uses Arrange-Act-Assert structure.
 
 **Skills to read**: `ai-dev-tools-swift-testing`
 
