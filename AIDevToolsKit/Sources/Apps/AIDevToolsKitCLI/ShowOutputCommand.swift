@@ -56,10 +56,11 @@ struct ShowOutputCommand: ParsableCommand {
         let registry = makeEvalRegistry()
         let resolvedProvider = Provider(rawValue: provider)
         let entry = registry.entries.first(where: { $0.name == provider })
-        let formatter = entry?.client.streamFormatter
-            ?? registry.defaultEntry!.client.streamFormatter
-        let rubricFormatter = entry?.client.streamFormatter
-            ?? registry.defaultEntry!.client.streamFormatter
+        guard let defaultEntry = registry.defaultEntry else {
+            throw ValidationError("No eval providers configured")
+        }
+        let formatter = entry?.client.streamFormatter ?? defaultEntry.client.streamFormatter
+        let rubricFormatter = entry?.client.streamFormatter ?? defaultEntry.client.streamFormatter
         let options = ReadCaseOutputUseCase.Options(
             caseId: caseId,
             formatter: formatter,

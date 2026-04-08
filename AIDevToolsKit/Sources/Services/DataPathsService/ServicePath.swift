@@ -7,7 +7,7 @@ public enum ServicePath {
     case repositories
     case worktrees(feature: String)
 
-    var relativePath: String {
+    public var relativePath: String {
         switch self {
         case .anthropicSessions:
             return "sdks/anthropic/sessions"
