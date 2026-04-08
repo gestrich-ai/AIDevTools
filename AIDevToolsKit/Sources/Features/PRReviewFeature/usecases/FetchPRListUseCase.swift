@@ -1,3 +1,4 @@
+import CredentialService
 import Foundation
 import GitHubService
 import Logging
@@ -25,9 +26,9 @@ public struct FetchPRListUseCase: StreamingUseCase {
             Task {
                 do {
                     let cacheURL = try config.requireGitHubCacheURL()
-                    let account = config.githubAccount.isEmpty
-                        ? try await GitHubServiceFactory.resolveAccount(repoPath: config.repoPath)
-                        : config.githubAccount
+                    guard let account = config.githubAccount, !account.isEmpty else {
+                        throw CredentialError.notConfigured(account: config.name)
+                    }
                     let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: account)
 
                     continuation.yield(.log(text: "Fetching PRs from GitHub...\n"))

@@ -1,3 +1,4 @@
+import CredentialService
 import Foundation
 import GitHubService
 import PRRadarCLIService
@@ -24,9 +25,12 @@ public struct FetchReviewCommentsUseCase: UseCase {
         cachedOnly: Bool
     ) async throws -> [ReviewComment] {
         if !cachedOnly {
+            guard let githubAccount = config.githubAccount else {
+                throw CredentialError.notConfigured(account: config.name)
+            }
             let cacheURL = try config.requireGitHubCacheURL()
             let (gitHub, gitOps) = try await GitHubServiceFactory.create(
-                repoPath: config.repoPath, githubAccount: config.githubAccount
+                repoPath: config.repoPath, githubAccount: githubAccount
             )
             let gitHubPRService = GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
             let historyProvider = LocalGitHistoryProvider(gitOps: gitOps, repoPath: config.repoPath)

@@ -52,7 +52,10 @@ Update the resolution order in `getGitHubAuth()`:
 
 Do not change `createPlatform` or `SecureSettingsService` — they are correct.
 
-## - [ ] Phase 2: Delete resolveAccount and Silent Fallbacks
+## - [x] Phase 2: Delete resolveAccount and Silent Fallbacks
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Deleted `resolveAccount()` entirely from `GitHubServiceFactory`. Changed `PRRadarRepoConfig.githubAccount` from `String` to `String?` and removed the `?? ""` silent fallback in `make(from:)`. Updated all 10+ callers across `PRReviewFeature` to `guard let` unwrap and throw `CredentialError.notConfigured(account:)`. Added `CredentialService` to `PRReviewFeature`'s Package.swift dependencies. For best-effort cleanup paths in `AnalyzeUseCase` (branch restoration), used `if let` rather than throwing since those operations are inherently optional. Kept `GitHubServiceFactory.make(token:owner:repo:)` as it is used extensively in production code, not just tests.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

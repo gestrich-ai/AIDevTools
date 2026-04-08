@@ -1,3 +1,4 @@
+import CredentialService
 import Foundation
 import GitHubService
 import PRRadarCLIService
@@ -63,7 +64,10 @@ public struct SyncPRUseCase: StreamingUseCase {
                 do {
                     try Task.checkCancellation()
 
-                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
+                    guard let githubAccount = config.githubAccount else {
+                        throw CredentialError.notConfigured(account: config.name)
+                    }
+                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: githubAccount)
 
                     try Task.checkCancellation()
 

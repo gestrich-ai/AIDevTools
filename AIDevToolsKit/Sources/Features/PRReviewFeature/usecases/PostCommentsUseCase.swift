@@ -1,3 +1,4 @@
+import CredentialService
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
@@ -186,7 +187,10 @@ public struct PostCommentsUseCase: StreamingUseCase {
         prNumber: Int,
         continuation: AsyncThrowingStream<PhaseProgress<CommentPhaseOutput>, Error>.Continuation
     ) async throws -> CommentPhaseOutput {
-        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
+        guard let githubAccount = config.githubAccount else {
+            throw CredentialError.notConfigured(account: config.name)
+        }
+        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: githubAccount)
         let commentService = CommentService(githubService: gitHub)
 
         var successful = 0

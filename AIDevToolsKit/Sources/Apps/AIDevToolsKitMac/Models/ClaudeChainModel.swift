@@ -1,5 +1,6 @@
 import AIOutputSDK
 import ClaudeChainFeature
+import CredentialService
 import ClaudeChainService
 import DataPathsService
 import Foundation
@@ -337,11 +338,8 @@ final class ClaudeChainModel {
 
     private func makeOrGetGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
         if let service = gitHubPRService { return service }
-        let account: String
-        if let configured = currentCredentialAccount, !configured.isEmpty {
-            account = configured
-        } else {
-            account = try await GitHubServiceFactory.resolveAccount(repoPath: repoPath.path)
+        guard let account = currentCredentialAccount, !account.isEmpty else {
+            throw CredentialError.notConfigured(account: "")
         }
         let service = try await GitHubServiceFactory.createPRService(
             repoPath: repoPath.path,

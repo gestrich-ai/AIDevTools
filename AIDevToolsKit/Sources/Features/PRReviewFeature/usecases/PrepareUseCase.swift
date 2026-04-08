@@ -1,5 +1,6 @@
 import CLISDK
 import ClaudeAgentSDK
+import CredentialService
 import EnvironmentSDK
 import Foundation
 import PRRadarCLIService
@@ -37,6 +38,9 @@ public struct PrepareUseCase: StreamingUseCase {
 
             Task {
                 do {
+                    guard let githubAccount = config.githubAccount else {
+                        throw CredentialError.notConfigured(account: config.name)
+                    }
                     let resolvedCommit: String?
                     if let hash = commitHash {
                         resolvedCommit = hash
@@ -81,7 +85,7 @@ public struct PrepareUseCase: StreamingUseCase {
                     } else {
                         continuation.yield(.log(text: "Generating focus areas...\n"))
 
-                        let resolver = CredentialResolver.createPlatform(githubAccount: config.githubAccount)
+                        let resolver = CredentialResolver.createPlatform(githubAccount: githubAccount)
                         guard let anthropicKey = resolver.getAnthropicKey() else {
                             throw ClaudeAgentError.missingAPIKey
                         }
@@ -129,7 +133,7 @@ public struct PrepareUseCase: StreamingUseCase {
                         return
                     }
 
-                    let gitOps = try await GitHubServiceFactory.createGitOps(githubAccount: self.config.githubAccount)
+                    let gitOps = try await GitHubServiceFactory.createGitOps(githubAccount: githubAccount)
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
                     var allRules: [ReviewRule] = []
                     var rulesByDir: [(rulesDir: String, rules: [ReviewRule])] = []
@@ -155,7 +159,7 @@ public struct PrepareUseCase: StreamingUseCase {
                     if let historyProvider {
                         resolvedProvider = historyProvider
                     } else {
-                        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
+                        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: githubAccount)
                         resolvedProvider = GitHubServiceFactory.createHistoryProvider(
                             diffSource: config.diffSource,
                             gitHub: gitHub,

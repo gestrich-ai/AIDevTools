@@ -74,14 +74,6 @@ public struct GitHubServiceFactory: Sendable {
         return GitHubPRService(rootURL: cacheURL, apiClient: apiService)
     }
 
-    public static func resolveAccount(repoPath: String) async throws -> String {
-        let accounts = try SecureSettingsService().listCredentialAccounts()
-        let gitOps = createGitOps()
-        let remoteURL = try await gitOps.getRemoteURL(path: repoPath)
-        let owner = GitHubAPIService.parseOwnerRepo(from: remoteURL)?.owner
-        return owner.flatMap { o in accounts.first(where: { $0 == o }) } ?? accounts.first ?? "default"
-    }
-
     public static func resolveToken(githubAccount: String) async throws -> String {
         let resolver = CredentialResolver.createPlatform(githubAccount: githubAccount)
         guard let auth = resolver.getGitHubAuth() else {

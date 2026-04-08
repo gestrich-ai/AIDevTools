@@ -1,3 +1,4 @@
+import CredentialService
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModelsService
@@ -17,7 +18,10 @@ public struct PostSingleCommentUseCase: UseCase {
         commitSHA: String,
         prNumber: Int
     ) async throws -> Bool {
-        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
+        guard let githubAccount = config.githubAccount else {
+            throw CredentialError.notConfigured(account: config.name)
+        }
+        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: githubAccount)
         let commentService = CommentService(githubService: gitHub)
 
         do {

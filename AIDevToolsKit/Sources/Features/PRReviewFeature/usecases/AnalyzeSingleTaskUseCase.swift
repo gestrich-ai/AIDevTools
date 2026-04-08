@@ -1,5 +1,6 @@
 import CLISDK
 import ClaudeAgentSDK
+import CredentialService
 import EnvironmentSDK
 import Foundation
 import PRRadarCLIService
@@ -66,7 +67,10 @@ public struct AnalyzeSingleTaskUseCase: StreamingUseCase {
                         result = outcome
                         try EvaluationOutputWriter.write(output, to: evalsDir)
                     } else {
-                        let resolver = CredentialResolver.createPlatform(githubAccount: config.githubAccount)
+                        guard let githubAccount = config.githubAccount else {
+                            throw CredentialError.notConfigured(account: config.name)
+                        }
+                        let resolver = CredentialResolver.createPlatform(githubAccount: githubAccount)
                         guard let anthropicKey = resolver.getAnthropicKey() else {
                             throw ClaudeAgentError.missingAPIKey
                         }

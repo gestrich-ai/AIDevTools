@@ -1,3 +1,4 @@
+import CredentialService
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
@@ -269,15 +270,15 @@ public struct AnalyzeUseCase: StreamingUseCase {
                 durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
                 totalCost = freshResults.compactMap(\.costUsd).reduce(0, +)
             } catch {
-                if let branch = branchToRestore {
-                    let gitOps = try? await GitHubServiceFactory.createGitOps(githubAccount: config.githubAccount)
+                if let branch = branchToRestore, let account = config.githubAccount {
+                    let gitOps = try? await GitHubServiceFactory.createGitOps(githubAccount: account)
                     try? await gitOps?.checkoutBranch(branch, repoPath: config.repoPath)
                 }
                 throw error
             }
 
-            if let branch = branchToRestore {
-                let gitOps = try? await GitHubServiceFactory.createGitOps(githubAccount: config.githubAccount)
+            if let branch = branchToRestore, let account = config.githubAccount {
+                let gitOps = try? await GitHubServiceFactory.createGitOps(githubAccount: account)
                 continuation.yield(.log(text: "Restoring branch \(branch)...\n"))
                 try? await gitOps?.checkoutBranch(branch, repoPath: config.repoPath)
             }
@@ -299,7 +300,10 @@ public struct AnalyzeUseCase: StreamingUseCase {
             return nil
         }
 
-        let gitOps = try await GitHubServiceFactory.createGitOps(githubAccount: config.githubAccount)
+        guard let githubAccount = config.githubAccount else {
+            throw CredentialError.notConfigured(account: config.name)
+        }
+        let gitOps = try await GitHubServiceFactory.createGitOps(githubAccount: githubAccount)
         let originalBranch = try? await gitOps.getCurrentBranch(path: config.repoPath)
         continuation.yield(.log(text: "Checking out PR #\(prNumber) commit \(String(fullHash.prefix(7)))...\n"))
         try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/head", repoPath: config.repoPath)
