@@ -16,12 +16,8 @@ struct PersistedSession: Codable, Sendable {
 actor AnthropicSessionStorage {
     private let sessionsDirectory: URL
 
-    init(baseDirectory: URL? = nil) {
-        let base = baseDirectory ?? FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".aidevtools")
-            .appendingPathComponent("anthropic")
-            .appendingPathComponent("sessions")
-        self.sessionsDirectory = base
+    init(sessionsDirectory: URL) {
+        self.sessionsDirectory = sessionsDirectory
     }
 
     func save(sessionId: String, messages: [(role: String, content: String)]) throws {

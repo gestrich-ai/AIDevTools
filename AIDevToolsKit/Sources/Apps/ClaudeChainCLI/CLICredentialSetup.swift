@@ -3,6 +3,7 @@ import AnthropicSDK
 import ClaudeCLISDK
 import CodexCLISDK
 import CredentialService
+import DataPathsService
 import Foundation
 import ProviderRegistryService
 
@@ -26,9 +27,11 @@ public func resolveGitHubCredentials(
 }
 
 public func makeProviderRegistry(credentialResolver: CredentialResolver) -> ProviderRegistry {
+    let dataRoot = AppPreferences().dataPath() ?? AppPreferences.defaultDataPath
+    let sessionsDirectory = dataRoot.appending(path: "sdks/anthropic/sessions")
     var providers: [any AIClient] = [ClaudeProvider(), CodexProvider()]
     if let key = credentialResolver.getAnthropicKey(), !key.isEmpty {
-        providers.append(AnthropicProvider(apiClient: AnthropicAPIClient(apiKey: key)))
+        providers.append(AnthropicProvider(apiClient: AnthropicAPIClient(apiKey: key), sessionsDirectory: sessionsDirectory))
     }
     return ProviderRegistry(providers: providers)
 }

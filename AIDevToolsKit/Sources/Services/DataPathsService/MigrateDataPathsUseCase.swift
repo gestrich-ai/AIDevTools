@@ -23,6 +23,7 @@ public struct MigrateDataPathsUseCase: UseCase {
         try migrateSettingsFile(name: "repositories.json", to: .repositories)
         try migrateArchitecturePlannerData()
         try migrateFeatureSettingsIntoRepositories()
+        try migrateAnthropicSessions()
     }
 
     private func migrateSettingsFile(name: String, to servicePath: ServicePath) throws {
@@ -114,6 +115,22 @@ public struct MigrateDataPathsUseCase: UseCase {
         let updatedData = try JSONSerialization.data(withJSONObject: repos, options: [.prettyPrinted, .sortedKeys])
         try updatedData.write(to: repositoriesFile, options: .atomic)
         Self.logger.info("Wrote merged repositories.json")
+    }
+
+    private func migrateAnthropicSessions() throws {
+        let oldSessions = fileManager.homeDirectoryForCurrentUser
+            .appending(path: ".aidevtools/anthropic/sessions")
+        guard fileManager.fileExists(atPath: oldSessions.path) else { return }
+
+        let newSessions = dataPathsService.rootPath.appending(path: ServicePath.anthropicSessions.relativePath)
+        guard !fileManager.fileExists(atPath: newSessions.path) else {
+            Self.logger.info("Skipping anthropic sessions migration: already exists at new location")
+            return
+        }
+
+        try fileManager.createDirectory(at: newSessions.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try fileManager.copyItem(at: oldSessions, to: newSessions)
+        Self.logger.info("Migrated anthropic sessions to \(newSessions.path)")
     }
 
     private func migrateArchitecturePlannerData() throws {

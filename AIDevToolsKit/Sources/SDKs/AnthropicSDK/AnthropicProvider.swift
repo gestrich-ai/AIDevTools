@@ -9,9 +9,9 @@ public actor AnthropicProvider: AIClient {
     private let apiClient: AnthropicAPIClient
     private let storage: AnthropicSessionStorage
 
-    public init(apiClient: AnthropicAPIClient, storageDirectory: URL? = nil) {
+    public init(apiClient: AnthropicAPIClient, sessionsDirectory: URL) {
         self.apiClient = apiClient
-        self.storage = AnthropicSessionStorage(baseDirectory: storageDirectory)
+        self.storage = AnthropicSessionStorage(sessionsDirectory: sessionsDirectory)
     }
 
     public func run(

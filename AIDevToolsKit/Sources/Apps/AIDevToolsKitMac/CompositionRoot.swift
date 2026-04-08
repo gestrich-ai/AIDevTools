@@ -42,11 +42,13 @@ struct CompositionRoot {
             return GitClient(environment: ["GH_TOKEN": token])
         }
 
+        let anthropicSessionsDirectory = try dataPathsService.path(for: .anthropicSessions)
+
         return CompositionRoot(
             dataPathsService: dataPathsService,
             evalProviderRegistry: evalProviderRegistry,
             gitClientFactory: gitClientFactory,
-            providerModel: ProviderModel(),
+            providerModel: ProviderModel(sessionsDirectory: anthropicSessionsDirectory),
             settingsModel: settingsModel,
             settingsService: settingsService
         )
