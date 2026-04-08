@@ -1,13 +1,10 @@
 import CredentialService
 import Foundation
 import GitHubService
-import Logging
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModelsService
 import UseCaseSDK
-
-private let logger = Logger(label: "FetchPRListUseCase")
 
 public struct FetchPRListUseCase: StreamingUseCase {
 
@@ -46,7 +43,6 @@ public struct FetchPRListUseCase: StreamingUseCase {
                     continuation.yield(.completed(output: FetchPRListResult(prList: filteredPRs, gitHubPRService: service)))
                     continuation.finish()
                 } catch {
-                    logger.error("execute() error", metadata: ["error": "\(error.localizedDescription)"])
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()
                 }

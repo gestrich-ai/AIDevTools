@@ -23,17 +23,12 @@ public struct PostSingleCommentUseCase: UseCase {
         }
         let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: githubAccount, explicitToken: config.explicitToken)
         let commentService = CommentService(githubService: gitHub)
-
-        do {
-            try await commentService.postReviewComment(
-                prNumber: prNumber,
-                comment: comment,
-                suppressedCount: suppressedCount,
-                commitSHA: commitSHA
-            )
-            return true
-        } catch {
-            return false
-        }
+        try await commentService.postReviewComment(
+            prNumber: prNumber,
+            comment: comment,
+            suppressedCount: suppressedCount,
+            commitSHA: commitSHA
+        )
+        return true
     }
 }

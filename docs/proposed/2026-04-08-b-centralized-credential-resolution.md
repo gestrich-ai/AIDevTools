@@ -107,9 +107,10 @@ CLI commands to update (verify via grep for `GitHubServiceFactory` or `resolveTo
   - `requireGitHubAuth()` throws `CredentialError.notConfigured` when no credentials exist
 - Update any existing tests that relied on `resolveAccount()` or the old fallback behavior.
 
-## - [ ] Phase 5: Enforce Standards
+## - [x] Phase 5: Enforce Standards
 
-**Skills to read**: `ai-dev-tools-enforce`
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-swift-testing`
+**Principles applied**: Added `LocalizedError` conformance to `CredentialError` (with actionable `errorDescription`) and `PRRadarCLIError` (replacing `CustomStringConvertible`). Removed error swallowing in `PostManualCommentUseCase` and `PostSingleCommentUseCase` — both now propagate throws instead of returning `false`; callers already have `do/catch` so behavior is preserved. Removed redundant `logger.error` call in `FetchPRListUseCase` (error already surfaced via `continuation.yield(.failed(...))`). Fixed trailing whitespace in `AnalyzeUseCase`. Added sentence-form `@Test("...")` strings to the seven older test functions in `CredentialResolverTests` that were missing them.
 
 Run the enforce skill against all files changed during this plan before considering the work done.
 

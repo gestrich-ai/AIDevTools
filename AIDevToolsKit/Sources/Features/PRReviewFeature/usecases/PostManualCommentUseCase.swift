@@ -22,18 +22,13 @@ public struct PostManualCommentUseCase: UseCase {
             throw CredentialError.notConfigured(account: config.name)
         }
         let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: githubAccount, explicitToken: config.explicitToken)
-
-        do {
-            try await gitHub.postReviewComment(
-                number: prNumber,
-                commitId: commitSHA,
-                path: filePath,
-                line: lineNumber,
-                body: body
-            )
-            return true
-        } catch {
-            return false
-        }
+        try await gitHub.postReviewComment(
+            number: prNumber,
+            commitId: commitSHA,
+            path: filePath,
+            line: lineNumber,
+            body: body
+        )
+        return true
     }
 }

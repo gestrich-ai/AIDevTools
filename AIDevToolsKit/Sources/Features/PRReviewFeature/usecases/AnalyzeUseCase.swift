@@ -314,7 +314,7 @@ public struct AnalyzeUseCase: StreamingUseCase {
     // MARK: - Helpers
 
     private static func cumulativeEvalCounts(evalsDir: String) -> (totalTasks: Int, violationsFound: Int, totalCostUsd: Double) {
-        let fm = FileManager.default 
+        let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(atPath: evalsDir) else {
             return (0, 0, 0.0)
         }

@@ -31,11 +31,11 @@ struct PRRadarCLIOptions: ParsableArguments {
 extension DiffSource: ExpressibleByArgument {}
 extension AnalysisMode: ExpressibleByArgument {}
 
-enum PRRadarCLIError: Error, CustomStringConvertible {
+enum PRRadarCLIError: Error, LocalizedError {
     case phaseFailed(String)
     case repoNotFound(String)
 
-    var description: String {
+    var errorDescription: String? {
         switch self {
         case .phaseFailed(let message):
             return message

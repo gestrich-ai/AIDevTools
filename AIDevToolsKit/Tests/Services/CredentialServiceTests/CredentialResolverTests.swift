@@ -5,7 +5,8 @@ import Testing
 @testable import CredentialService
 
 struct CredentialResolverTests {
-    @Test func envVarWinsOverKeychain() throws {
+    @Test("env var wins over keychain for Anthropic key")
+    func envVarWinsOverKeychain() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
         try service.saveAnthropicKey("keychain-key", account: "testaccount")
@@ -20,7 +21,8 @@ struct CredentialResolverTests {
         #expect(resolver.getAnthropicKey() == "env-key")
     }
 
-    @Test func dotEnvWinsOverKeychain() throws {
+    @Test("dotEnv wins over keychain for Anthropic key")
+    func dotEnvWinsOverKeychain() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
         try service.saveAnthropicKey("keychain-key", account: "testaccount")
@@ -35,7 +37,8 @@ struct CredentialResolverTests {
         #expect(resolver.getAnthropicKey() == "dotenv-key")
     }
 
-    @Test func keychainUsedWhenEnvMissing() throws {
+    @Test("keychain is used when env key is missing")
+    func keychainUsedWhenEnvMissing() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
         try service.saveAnthropicKey("keychain-key", account: "testaccount")
@@ -50,7 +53,8 @@ struct CredentialResolverTests {
         #expect(resolver.getAnthropicKey() == "keychain-key")
     }
 
-    @Test func returnsNilWhenNoSourceHasValue() {
+    @Test("returns nil when no credential source has a value")
+    func returnsNilWhenNoSourceHasValue() {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -65,7 +69,8 @@ struct CredentialResolverTests {
         #expect(resolver.getGitHubAuth() == nil)
     }
 
-    @Test func gitHubTokenResolution() throws {
+    @Test("resolves GitHub token from process environment")
+    func gitHubTokenResolution() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -84,7 +89,8 @@ struct CredentialResolverTests {
         #expect(token == "ghp_envtoken")
     }
 
-    @Test func gitHubAppAuthFromEnv() {
+    @Test("resolves GitHub App auth from process environment")
+    func gitHubAppAuthFromEnv() {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -109,7 +115,8 @@ struct CredentialResolverTests {
         #expect(privateKey == "PEM")
     }
 
-    @Test func appAuthTakesPriorityOverToken() throws {
+    @Test("GitHub App auth takes priority over token")
+    func appAuthTakesPriorityOverToken() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
