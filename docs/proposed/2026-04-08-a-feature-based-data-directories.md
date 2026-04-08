@@ -152,7 +152,10 @@ Compiler errors from renamed cases will surface all call sites.
 
 Migration path to add in `MigrateDataPathsUseCase`: `~/.aidevtools/anthropic/sessions/` → `<dataRoot>/sdks/anthropic/sessions/`.
 
-## - [ ] Phase 4: Add Data Migration
+## - [x] Phase 4: Add Data Migration
+
+**Skills used**: none
+**Principles applied**: Added `migrateDirectoryLayouts()` called at the end of `run()`, after all existing migrations so that `migrateFeatureSettingsIntoRepositories()` can still read from old paths (e.g. `prradar/settings/`) before they move. Simple renames use a `moveDirectory(from:to:)` helper that is idempotent (skips if destination exists or source absent). AppSupport `github/` is merged item-by-item into `services/github/` since it may already exist after the `github/` → `services/github/` move. Root-level repo dirs are matched via `knownRepoNames()` which reads `repositories.json` from the new or old location. Stale directories (`eval`, `logs`, `worktrees`) are deleted unconditionally.
 
 In `MigrateDataPathsUseCase.swift`, add a migration step that runs once on first launch. No need to write migration code — just copy/move the following paths (idempotent: skip if destination exists or source is absent):
 

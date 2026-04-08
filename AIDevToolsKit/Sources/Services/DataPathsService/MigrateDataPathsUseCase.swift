@@ -24,6 +24,7 @@ public struct MigrateDataPathsUseCase: UseCase {
         try migrateArchitecturePlannerData()
         try migrateFeatureSettingsIntoRepositories()
         try migrateAnthropicSessions()
+        try migrateDirectoryLayouts()
     }
 
     private func migrateSettingsFile(name: String, to servicePath: ServicePath) throws {
@@ -131,6 +132,107 @@ public struct MigrateDataPathsUseCase: UseCase {
         try fileManager.createDirectory(at: newSessions.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fileManager.copyItem(at: oldSessions, to: newSessions)
         Self.logger.info("Migrated anthropic sessions to \(newSessions.path)")
+    }
+
+    private func migrateDirectoryLayouts() throws {
+        let root = dataPathsService.rootPath
+
+        let simpleMovements: [(String, String)] = [
+            ("architecture-planner", "services/architecture-planner"),
+            ("claude-chain", "services/claude-chain"),
+            ("github", "services/github"),
+            ("plan", "services/plan"),
+            ("prradar", "services/pr-radar"),
+            ("repos", "services/evals"),
+            ("repositories", "services/repositories"),
+        ]
+        for (oldRelative, newRelative) in simpleMovements {
+            try moveDirectory(from: root.appending(path: oldRelative), to: root.appending(path: newRelative))
+        }
+
+        try mergeApplicationSupportGitHub()
+        try migrateRootLevelRepoDirs()
+
+        let staleDirectories = ["eval", "logs", "worktrees"]
+        for dirName in staleDirectories {
+            let staleDir = root.appending(path: dirName)
+            guard fileManager.fileExists(atPath: staleDir.path) else { continue }
+            try fileManager.removeItem(at: staleDir)
+            Self.logger.info("Deleted stale directory: \(staleDir.path)")
+        }
+    }
+
+    private func moveDirectory(from source: URL, to destination: URL) throws {
+        guard fileManager.fileExists(atPath: source.path) else { return }
+        guard !fileManager.fileExists(atPath: destination.path) else {
+            Self.logger.info("Skipping move of \(source.lastPathComponent): already exists at destination")
+            return
+        }
+        try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try fileManager.moveItem(at: source, to: destination)
+        Self.logger.info("Moved \(source.path) → \(destination.path)")
+    }
+
+    private func mergeApplicationSupportGitHub() throws {
+        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        let source = appSupport.appending(path: "AIDevTools/github")
+        guard fileManager.fileExists(atPath: source.path) else { return }
+
+        let destination = dataPathsService.rootPath.appending(path: "services/github")
+
+        if !fileManager.fileExists(atPath: destination.path) {
+            try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fileManager.moveItem(at: source, to: destination)
+            Self.logger.info("Moved Application Support github to \(destination.path)")
+            return
+        }
+
+        let contents = try fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)
+        for item in contents {
+            let dest = destination.appending(path: item.lastPathComponent)
+            guard !fileManager.fileExists(atPath: dest.path) else {
+                Self.logger.info("Skipping github/\(item.lastPathComponent): already at destination")
+                continue
+            }
+            try fileManager.moveItem(at: item, to: dest)
+            Self.logger.info("Merged github/\(item.lastPathComponent) from Application Support")
+        }
+
+        let remaining = try fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)
+        if remaining.isEmpty {
+            try fileManager.removeItem(at: source)
+        }
+    }
+
+    private func migrateRootLevelRepoDirs() throws {
+        let repoNames = try knownRepoNames()
+        guard !repoNames.isEmpty else { return }
+
+        let root = dataPathsService.rootPath
+        for repoName in repoNames {
+            let source = root.appending(path: repoName)
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: source.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue else { continue }
+            let destination = root.appending(path: "services/evals/\(repoName)")
+            try moveDirectory(from: source, to: destination)
+        }
+    }
+
+    private func knownRepoNames() throws -> [String] {
+        let candidates = [
+            dataPathsService.rootPath.appending(path: "services/repositories/repositories.json"),
+            dataPathsService.rootPath.appending(path: "repositories/repositories.json"),
+        ]
+        for file in candidates {
+            guard fileManager.fileExists(atPath: file.path),
+                  let data = fileManager.contents(atPath: file.path),
+                  let repos = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                continue
+            }
+            return repos.compactMap { $0["name"] as? String }
+        }
+        return []
     }
 
     private func migrateArchitecturePlannerData() throws {
