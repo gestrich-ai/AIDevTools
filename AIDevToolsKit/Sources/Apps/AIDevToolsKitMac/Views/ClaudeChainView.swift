@@ -304,7 +304,7 @@ private struct ChainProjectDetailView: View {
                 Label("Run Next Task", systemImage: "play.fill")
             }
             .buttonStyle(.borderedProminent)
-            .disabled(project.pendingTasks == 0 || isExecuting)
+            .disabled(isExecuting || (!project.isAlwaysExecutable && project.pendingTasks == 0))
         }
         .padding()
     }

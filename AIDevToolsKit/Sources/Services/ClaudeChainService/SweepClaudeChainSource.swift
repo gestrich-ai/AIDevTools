@@ -145,6 +145,28 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
         let effectiveCursor = processedPaths.last ?? state.cursor
 
         guard let startIndex = nextPathIndex(in: paths, after: effectiveCursor) else {
+            // Cursor is at the end of the path list. If no tasks have been processed in
+            // this batch yet, wrap around from the beginning to find any stale files.
+            if processedPaths.isEmpty {
+                var skippedInWrapAround: [String] = []
+                for path in paths {
+                    let skip = config.isDirectoryMode
+                        ? try await canSkipDirectory(path: path)
+                        : try await canSkip(path: path)
+                    if skip {
+                        logger.debug("[\(taskName)] Wrap-around: skipping unchanged: \(path)")
+                        skippedInWrapAround.append(path)
+                        continue
+                    }
+                    processedPaths.append(contentsOf: skippedInWrapAround)
+                    logger.info("[\(taskName)] Wrap-around: stale file found: \(path)")
+                    headHashAtTaskStart = try await git.getHeadHash(workingDirectory: repoPath.path)
+                    let specContent = try String(contentsOf: specURL, encoding: .utf8)
+                    let scopeLabel = config.isDirectoryMode ? "Directory" : "File"
+                    return PendingTask(id: path, instructions: specContent + "\n\n\(scopeLabel): \(path)", skills: [])
+                }
+                logger.info("[\(taskName)] Wrap-around: all files up to date, nothing to do")
+            }
             logger.info("[\(taskName)] No more paths after cursor, batch complete")
             try await finalizeBatch()
             return nil

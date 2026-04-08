@@ -19,6 +19,8 @@ public struct ChainProject: Hashable, Sendable {
 
     public var basePath: String { (specPath as NSString).deletingLastPathComponent }
     public var cacheIndexKey: String { "chain-\(name)" }
+    /// Sweep chains are always executable so stale files can be re-processed after completion.
+    public var isAlwaysExecutable: Bool { kind == .sweep }
 
     public init(
         name: String,

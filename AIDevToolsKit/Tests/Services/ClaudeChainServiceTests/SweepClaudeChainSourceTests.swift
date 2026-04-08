@@ -165,20 +165,6 @@ struct SweepClaudeChainSourceNextTaskNoGitTests {
         #expect(task == nil)
     }
 
-    @Test("returns nil when cursor is at last file")
-    func cursorAtLastFileReturnsNil() async throws {
-        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: repoDir) }
-        let taskDir = try makeTaskDir(in: repoDir)
-        try makeSourceFile("Sources/A/One.swift", in: repoDir)
-        try makeSourceFile("Sources/A/Two.swift", in: repoDir)
-        try writeCursor("Sources/A/Two.swift", to: taskDir)
-
-        let source = SweepClaudeChainSource(taskName: "test-task", taskDirectory: taskDir, repoPath: repoDir)
-        let task = try await source.nextTask()
-
-        #expect(task == nil)
-    }
 
     @Test("batchStats: initial values are zero")
     func batchStatsInitialValues() async throws {
@@ -240,6 +226,62 @@ struct SweepClaudeChainSourceNextTaskGitTests {
         let stats = await source.batchStats()
         #expect(stats.tasks == 1)
         #expect(stats.finalCursor == "Sources/A/One.swift")
+    }
+
+    @Test("cursor at last file: returns nil when all files unchanged")
+    func cursorAtLastFileAllUnchangedReturnsNil() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskName = "test-wrap-unchanged"
+        let taskDir = try makeTaskDir(in: repoDir, taskName: taskName, scanLimit: 2, changeLimit: 2)
+        try makeSourceFile("Sources/A/One.swift", in: repoDir)
+        try makeSourceFile("Sources/A/Two.swift", in: repoDir)
+        initGitRepo(at: repoDir)
+
+        // Run the full sweep to completion so sweep commits exist.
+        let source1 = SweepClaudeChainSource(taskName: taskName, taskDirectory: taskDir, repoPath: repoDir)
+        let t1 = try await source1.nextTask()
+        try await source1.markComplete(try #require(t1))
+        let t2 = try await source1.nextTask()
+        try await source1.markComplete(try #require(t2))
+        let done = try await source1.nextTask()
+        #expect(done == nil)
+
+        // Second run with cursor still at last file — no files changed → wrap-around finds nothing.
+        let source2 = SweepClaudeChainSource(taskName: taskName, taskDirectory: taskDir, repoPath: repoDir)
+        let task = try await source2.nextTask()
+
+        #expect(task == nil)
+    }
+
+    @Test("cursor at last file: returns stale file after commit")
+    func cursorAtLastFileReturnsStaleFileAfterCommit() async throws {
+        let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: repoDir) }
+        let taskName = "test-wrap-stale"
+        let taskDir = try makeTaskDir(in: repoDir, taskName: taskName, scanLimit: 2, changeLimit: 2)
+        try makeSourceFile("Sources/A/One.swift", in: repoDir)
+        try makeSourceFile("Sources/A/Two.swift", in: repoDir)
+        initGitRepo(at: repoDir)
+
+        // Run the full sweep to completion.
+        let source1 = SweepClaudeChainSource(taskName: taskName, taskDirectory: taskDir, repoPath: repoDir)
+        let t1 = try await source1.nextTask()
+        try await source1.markComplete(try #require(t1))
+        let t2 = try await source1.nextTask()
+        try await source1.markComplete(try #require(t2))
+        let done = try await source1.nextTask()
+        #expect(done == nil)
+
+        // Commit a change to One.swift — makes it stale.
+        try "// modified".write(to: repoDir.appendingPathComponent("Sources/A/One.swift"), atomically: true, encoding: .utf8)
+        gitCommitAll(message: "Modify One.swift", in: repoDir)
+
+        // Second run: wrap-around should find One.swift as stale.
+        let source2 = SweepClaudeChainSource(taskName: taskName, taskDirectory: taskDir, repoPath: repoDir)
+        let task = try await source2.nextTask()
+
+        #expect(task?.id == "Sources/A/One.swift")
     }
 
     @Test("skip detection: skips unchanged file after previous batch")

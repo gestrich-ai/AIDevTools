@@ -3,8 +3,7 @@ import PlanFeature
 import PlanService
 import Observation
 
-@Observable
-@MainActor
+@MainActor @Observable
 final class ActivePlanModel {
     enum ModelState {
         case idle
