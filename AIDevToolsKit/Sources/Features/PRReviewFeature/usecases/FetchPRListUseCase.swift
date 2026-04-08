@@ -25,7 +25,10 @@ public struct FetchPRListUseCase: StreamingUseCase {
             Task {
                 do {
                     let cacheURL = try config.requireGitHubCacheURL()
-                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
+                    let account = config.githubAccount.isEmpty
+                        ? try await GitHubServiceFactory.resolveAccount(repoPath: config.repoPath)
+                        : config.githubAccount
+                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: account)
 
                     continuation.yield(.log(text: "Fetching PRs from GitHub...\n"))
 

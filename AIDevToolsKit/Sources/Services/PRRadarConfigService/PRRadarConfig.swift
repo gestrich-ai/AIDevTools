@@ -1,3 +1,4 @@
+import DataPathsService
 import EnvironmentSDK
 import Foundation
 import PRRadarModelsService
@@ -103,7 +104,7 @@ public struct PRRadarRepoConfig: Sendable {
         guard let dataRootURL,
               let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoPath) else { return nil }
         let normalizedSlug = slug.replacingOccurrences(of: "/", with: "-")
-        return dataRootURL.appendingPathComponent("github/\(normalizedSlug)")
+        return dataRootURL.appendingPathComponent(ServicePath.github(repoSlug: normalizedSlug).relativePath)
     }
 
     /// Returns the shared GitHub PR cache URL, or throws if `dataRootURL` is not configured.

@@ -50,6 +50,7 @@ struct GeneralSettingsView: View {
                             panel.canChooseFiles = false
                             panel.canChooseDirectories = true
                             panel.allowsMultipleSelection = false
+                            panel.directoryURL = settingsModel.dataPath
                             if panel.runModal() == .OK, let url = panel.url {
                                 settingsModel.updateDataPath(url)
                             }

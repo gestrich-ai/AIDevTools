@@ -337,9 +337,15 @@ final class ClaudeChainModel {
 
     private func makeOrGetGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
         if let service = gitHubPRService { return service }
+        let account: String
+        if let configured = currentCredentialAccount, !configured.isEmpty {
+            account = configured
+        } else {
+            account = try await GitHubServiceFactory.resolveAccount(repoPath: repoPath.path)
+        }
         let service = try await GitHubServiceFactory.createPRService(
             repoPath: repoPath.path,
-            githubAccount: currentCredentialAccount ?? "",
+            githubAccount: account,
             dataPathsService: dataPathsService
         )
         gitHubPRService = service
