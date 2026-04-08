@@ -2,6 +2,7 @@ import AppIPCSDK
 import ArgumentParser
 import ClaudeChainFeature
 import ClaudeCLISDK
+import CredentialService
 import DataPathsService
 import Foundation
 import MCP
@@ -159,7 +160,17 @@ struct MCPCommand: AsyncParsableCommand {
 
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         do {
-            let prService = try await GitHubServiceFactory.createPRService(repoPath: cwd)
+            let accounts = try SecureSettingsService().listCredentialAccounts()
+            let dataPathsService = try DataPathsService.fromCLI(dataPath: nil)
+            let gitOps = GitHubServiceFactory.createGitOps()
+            let remoteURL = try await gitOps.getRemoteURL(path: cwd.path)
+            let owner = GitHubAPIService.parseOwnerRepo(from: remoteURL)?.owner
+            let account = owner.flatMap { o in accounts.first(where: { $0 == o }) } ?? accounts.first ?? "default"
+            let prService = try await GitHubServiceFactory.createPRService(
+                repoPath: cwd.path,
+                githubAccount: account,
+                dataPathsService: dataPathsService
+            )
             let chainService = ClaudeChainService(client: ClaudeProvider(), repoPath: cwd, prService: prService)
             let result = try await chainService.listChains(source: .remote)
             guard let chain = result.projects.first(where: { $0.name == name }) else {

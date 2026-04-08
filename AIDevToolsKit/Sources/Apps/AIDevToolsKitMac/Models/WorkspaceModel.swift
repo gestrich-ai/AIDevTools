@@ -1,3 +1,4 @@
+import DataPathsService
 import Foundation
 import PRRadarConfigService
 import RepositorySDK
@@ -20,7 +21,7 @@ final class WorkspaceModel {
     private(set) var skills: [SkillInfo] = []
     private(set) var state: State = .idle
 
-    private let dataPath: URL
+    private let dataPathsService: DataPathsService
     private let repositoryStore: RepositoryStore
     private let loadRepositories: LoadRepositoriesUseCase
     private let loadSkills: LoadSkillsUseCase
@@ -30,7 +31,7 @@ final class WorkspaceModel {
     private let worktreeModel: WorktreeModel?
 
     init(
-        dataPath: URL,
+        dataPathsService: DataPathsService,
         repositoryStore: RepositoryStore,
         loadRepositories: LoadRepositoriesUseCase,
         loadSkills: LoadSkillsUseCase,
@@ -39,7 +40,7 @@ final class WorkspaceModel {
         updateRepository: UpdateRepositoryUseCase,
         worktreeModel: WorktreeModel? = nil
     ) {
-        self.dataPath = dataPath
+        self.dataPathsService = dataPathsService
         self.repositoryStore = repositoryStore
         self.loadRepositories = loadRepositories
         self.loadSkills = loadSkills
@@ -51,9 +52,10 @@ final class WorkspaceModel {
 
     func evalConfig(for repo: RepositoryConfiguration) -> RepositoryEvalConfig? {
         guard let settings = repo.eval else { return nil }
+        guard let outputDirectory = try? dataPathsService.path(for: .evalsOutput(repo.name)) else { return nil }
         return RepositoryEvalConfig(
             casesDirectory: settings.resolvedCasesDirectory(repoPath: repo.path),
-            outputDirectory: dataPath.appendingPathComponent(repo.name),
+            outputDirectory: outputDirectory,
             repoRoot: repo.path
         )
     }
@@ -167,15 +169,14 @@ final class WorkspaceModel {
     func prradarConfig(for repo: RepositoryConfiguration) -> PRRadarRepoConfig? {
         guard !repo.path.path(percentEncoded: false).isEmpty else { return nil }
         let settings = prradarSettings(for: repo)
-        let outputDir = dataPath
-            .appendingPathComponent("prradar/repos/\(repo.name)")
-            .path(percentEncoded: false)
+        guard let outputDirURL = try? dataPathsService.path(for: .prradarOutput(repo.name)) else { return nil }
+        let outputDir = outputDirURL.path(percentEncoded: false)
         return PRRadarRepoConfig.make(
             from: repo,
             settings: settings,
             outputDir: outputDir,
             agentScriptPath: settings.agentScriptPath,
-            dataRootURL: dataPath
+            dataRootURL: dataPathsService.rootPath
         )
     }
 

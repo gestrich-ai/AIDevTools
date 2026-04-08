@@ -2,6 +2,8 @@ import ArgumentParser
 import ClaudeChainFeature
 import ClaudeChainService
 import ClaudeCLISDK
+import CredentialService
+import DataPathsService
 import Foundation
 import PRRadarCLIService
 
@@ -30,7 +32,18 @@ public struct StatusCommand: AsyncParsableCommand {
         }
 
         let repoURL = URL(fileURLWithPath: path)
-        let prService = try await GitHubServiceFactory.createPRService(repoPath: repoURL)
+        let accounts = try SecureSettingsService().listCredentialAccounts()
+        let dataRoot = ResolveDataPathUseCase().resolve().path
+        let dataPathsService = try DataPathsService(rootPath: dataRoot)
+        let gitOps = GitHubServiceFactory.createGitOps()
+        let remoteURL = try await gitOps.getRemoteURL(path: repoURL.path)
+        let owner = GitHubAPIService.parseOwnerRepo(from: remoteURL)?.owner
+        let account = owner.flatMap { o in accounts.first(where: { $0 == o }) } ?? accounts.first ?? "default"
+        let prService = try await GitHubServiceFactory.createPRService(
+            repoPath: repoURL.path,
+            githubAccount: account,
+            dataPathsService: dataPathsService
+        )
         let chainService = ClaudeChainService(client: ClaudeProvider(), repoPath: repoURL, prService: prService)
         let result = try await chainService.listChains(source: .remote)
 

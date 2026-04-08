@@ -63,16 +63,6 @@ public struct GitHubServiceFactory: Sendable {
         return GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
     }
 
-    public static func createPRService(repoPath: URL) async throws -> GitHubPRService {
-        let accounts = try SecureSettingsService().listCredentialAccounts()
-        let gitOps = createGitOps()
-        let remoteURL = try await gitOps.getRemoteURL(path: repoPath.path)
-        let owner = GitHubAPIService.parseOwnerRepo(from: remoteURL)?.owner
-        let account = owner.flatMap { o in accounts.first(where: { $0 == o }) } ?? accounts.first ?? "default"
-        let dataPathsService = try DataPathsService(rootPath: DataPathsService.appSupportDirectory)
-        return try await createPRService(repoPath: repoPath.path, githubAccount: account, dataPathsService: dataPathsService)
-    }
-
     public static func make(token: String, owner: String, repo: String) -> GitHubPRService {
         let octokitClient = OctokitClient(token: token)
         let apiService = GitHubAPIService(octokitClient: octokitClient, owner: owner, repo: repo)

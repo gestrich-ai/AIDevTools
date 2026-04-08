@@ -36,7 +36,7 @@ public struct AIDevToolsKitMacEntryView: View {
         let worktreeModel = WorktreeModel(gitClient: root.gitClientFactory(nil))
         _worktreeModel = State(initialValue: worktreeModel)
         _workspaceModel = State(initialValue: WorkspaceModel(
-            dataPath: root.settingsModel.dataPath,
+            dataPathsService: root.dataPathsService,
             repositoryStore: store,
             loadRepositories: LoadRepositoriesUseCase(store: store),
             loadSkills: LoadSkillsUseCase(),
@@ -102,7 +102,7 @@ public struct AIDevToolsSettingsView: View {
         _settingsModel = State(initialValue: root.settingsModel)
         let store = root.settingsService.repositoryStore
         _workspaceModel = State(initialValue: WorkspaceModel(
-            dataPath: root.settingsModel.dataPath,
+            dataPathsService: root.dataPathsService,
             repositoryStore: store,
             loadRepositories: LoadRepositoriesUseCase(store: store),
             loadSkills: LoadSkillsUseCase(),

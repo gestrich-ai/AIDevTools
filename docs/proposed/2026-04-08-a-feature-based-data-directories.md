@@ -131,7 +131,10 @@ Update `ServicePath.swift`:
 
 Compiler errors from renamed cases will surface all call sites.
 
-## - [ ] Phase 2: Fix Apps-Layer Violations
+## - [x] Phase 2: Fix Apps-Layer Violations
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Replaced `dataPath: URL` in `WorkspaceModel` with `dataPathsService: DataPathsService`; both `evalConfig(for:)` and `prradarConfig(for:)` now delegate path construction to `DataPathsService` using `.evalsOutput` and `.prradarOutput` ServicePath cases respectively. Deleted the dead `createPRService(repoPath: URL)` overload in `GitHubServiceFactory` (no callers after Phase 1 updates); two callers of that overload (`StatusCommand`, `MCPCommand`) were updated to inline the account-detection logic and call the `dataPathsService`-accepting overload directly. `make(token:owner:repo:)` retains its hardcoded AppSupport cache path as it is used across Features/Services/CLI layers and is out of scope for this Apps-layer violation phase.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
