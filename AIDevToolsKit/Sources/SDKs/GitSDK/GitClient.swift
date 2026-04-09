@@ -114,6 +114,12 @@ public struct GitClient: Sendable {
     }
 
     @discardableResult
+    public func reset(hard: Bool = false, ref: String? = nil, workingDirectory: String) async throws -> ExecutionResult {
+        let command = GitCLI.Reset(hard: hard, ref: ref)
+        return try await execute(command, workingDirectory: workingDirectory)
+    }
+
+    @discardableResult
     public func push(remote: String = "origin", branch: String, setUpstream: Bool = false, force: Bool = false, workingDirectory: String) async throws -> ExecutionResult {
         let command = GitCLI.Push(setUpstream: setUpstream, force: force, remote: remote, branch: branch)
         return try await execute(command, workingDirectory: workingDirectory)

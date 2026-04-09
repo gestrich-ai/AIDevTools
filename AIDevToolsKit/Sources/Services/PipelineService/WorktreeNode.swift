@@ -23,7 +23,9 @@ public struct WorktreeNode: PipelineNode {
         onProgress: @escaping @Sendable (PipelineNodeProgress) -> Void
     ) async throws -> PipelineContext {
         if FileManager.default.fileExists(atPath: options.destinationPath) {
-            onProgress(.output("Reusing existing worktree at \(options.destinationPath)..."))
+            onProgress(.output("Updating worktree at \(options.destinationPath)..."))
+            try await gitClient.fetch(remote: "origin", branch: options.branchName, workingDirectory: options.repoPath)
+            try await gitClient.reset(hard: true, ref: "origin/\(options.branchName)", workingDirectory: options.destinationPath)
         } else if let basedOn = options.basedOn {
             onProgress(.output("Creating worktree at \(options.destinationPath)..."))
             do {
@@ -34,6 +36,7 @@ public struct WorktreeNode: PipelineNode {
                     workingDirectory: options.repoPath
                 )
             } catch CLIClientError.executionFailed(_, _, let output) where output.contains("already exists") {
+                try await gitClient.fetch(remote: "origin", branch: options.branchName, workingDirectory: options.repoPath)
                 try await gitClient.createWorktreeForExistingLocalBranch(
                     branchName: options.branchName,
                     destination: options.destinationPath,
@@ -42,6 +45,7 @@ public struct WorktreeNode: PipelineNode {
             }
         } else {
             onProgress(.output("Creating worktree at \(options.destinationPath)..."))
+            try await gitClient.fetch(remote: "origin", branch: options.branchName, workingDirectory: options.repoPath)
             try await gitClient.createWorktree(
                 baseBranch: options.branchName,
                 destination: options.destinationPath,

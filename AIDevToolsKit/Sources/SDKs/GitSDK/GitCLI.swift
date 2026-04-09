@@ -78,6 +78,12 @@ public struct GitCLI {
     }
 
     @CLICommand
+    public struct Reset {
+        @Flag("--hard") public var hard: Bool = false
+        @Positional public var ref: String?
+    }
+
+    @CLICommand
     public struct Status {
         @Flag public var porcelain: Bool = false
     }
