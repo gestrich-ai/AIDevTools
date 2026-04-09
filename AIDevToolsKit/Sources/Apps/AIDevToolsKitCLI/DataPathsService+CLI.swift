@@ -12,7 +12,9 @@ extension DataPathsService {
 
     static func makeArchPlannerStore(dataPath: String?, repoName: String) throws -> ArchitecturePlannerStore {
         let service = try fromCLI(dataPath: dataPath)
-        let archDir = try service.path(for: "architecture-planner", subdirectory: repoName)
+        let baseDir = try service.path(for: .architecturePlanner)
+        let archDir = baseDir.appendingPathComponent(repoName)
+        try FileManager.default.createDirectory(at: archDir, withIntermediateDirectories: true, attributes: nil)
         return try ArchitecturePlannerStore(directoryURL: archDir)
     }
 }
