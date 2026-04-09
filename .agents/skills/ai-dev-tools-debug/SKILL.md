@@ -1,13 +1,14 @@
 ---
 name: ai-dev-tools-debug
 description: >
-  Debugging guide for AIDevTools (evals, plan runner, Mac app). Shows how to discover
-  configured repositories, eval cases, artifact paths, plan storage, log files, and
-  CLI commands for troubleshooting. Use this skill when: the user reports a bug, asks
+  Debugging guide for AIDevTools (evals, plan runner, Mac app, PRRadar). Shows how to
+  discover configured repositories, eval cases, artifact paths, plan storage, log files,
+  and CLI commands for troubleshooting. Use this skill when: the user reports a bug, asks
   to check eval data, shares a screenshot of eval results or the Mac app, mentions a
-  failing case, wants to inspect provider output, or needs to debug plan generation
-  or execution. Screenshots of the Mac app are a strong signal to invoke this skill —
-  they mean the user wants you to reproduce or investigate using the CLI.
+  failing case, wants to inspect provider output, needs to debug plan generation or
+  execution, or is debugging PRRadar behavior (pipeline output, rule evaluation, Mac app
+  issues). Screenshots of the Mac app are a strong signal to invoke this skill — they
+  mean the user wants you to reproduce or investigate using the CLI.
 ---
 
 # AIDevTools Eval System — Debugging & Data Access
@@ -265,6 +266,72 @@ Both providers produce a `toolCallSummary`:
 Logs are the primary tool for troubleshooting CLI and Mac app behavior. For reading logs, filtering output, and adding log statements for debugging, use the logging skill:
 
 `.agents/skills/logging/SKILL.md`
+
+## Playground: AIDevToolsDemo
+
+When reproducing issues or validating that something works end-to-end, use the AIDevToolsDemo repo as a playground. It is safe to create, close, and delete branches and PRs there freely — it exists purely for testing. Read the reference doc for details:
+
+`references/aidevtools-demo-playground.md`
+
+## PRRadar Debugging
+
+PRRadar's MacApp (GUI) and PRRadarMacCLI (CLI) share the same use cases and services, so any issue seen in the Mac app can be reproduced with CLI commands.
+
+### Discovering Configurations
+
+Settings live at:
+```
+~/Library/Application Support/PRRadar/settings.json
+```
+
+List configurations:
+```bash
+cd PRRadarLibrary
+swift run PRRadarMacCLI config list
+```
+
+Or read the JSON directly to see repo paths, rule paths, diff source, GitHub account, and default base branch:
+```bash
+cat ~/Library/Application\ Support/PRRadar/settings.json
+```
+
+### Output Directory
+
+Output location is defined per-config in settings. Inspect the settings JSON to find it. Output is organized as `<outputDir>/<PR_NUMBER>/` with subdirectories for each pipeline phase.
+
+### CLI Commands
+
+Run from `PRRadarLibrary/`:
+
+```bash
+# Fetch diff
+swift run PRRadarMacCLI diff <PR_NUMBER> --config <config-name>
+
+# Generate focus areas and filter rules
+swift run PRRadarMacCLI rules <PR_NUMBER> --config <config-name>
+
+# Run evaluations
+swift run PRRadarMacCLI evaluate <PR_NUMBER> --config <config-name>
+
+# Generate report
+swift run PRRadarMacCLI report <PR_NUMBER> --config <config-name>
+
+# Full pipeline (diff + rules + evaluate + report)
+swift run PRRadarMacCLI analyze <PR_NUMBER> --config <config-name>
+
+# Check pipeline status
+swift run PRRadarMacCLI status <PR_NUMBER> --config <config-name>
+```
+
+Use `--config <config-name>` to select the repository. Run `config list` to see available names. If `--config` is omitted, the default config is used.
+
+### PRRadar Debugging Tips
+
+- **Phase order:** METADATA → DIFF → PREPARE (focus areas, rules, tasks) → EVALUATE → REPORT
+- **Phase result files:** Each phase writes a `phase_result.json` indicating success/failure. Check `<outputDir>/<PR>/` for JSON artifacts.
+- **Rule directories:** Rule paths are defined per-config in settings. Some are relative to the repo, others are absolute.
+- **Build and test:** Run `swift build` and `swift test` from `PRRadarLibrary/` to verify changes.
+- **Daily review script:** `scripts/daily-review.sh` runs the `run-all` pipeline on a daily basis (via cron or launchd). Supports `--mode` and `--lookback-hours` flags.
 
 ## Debugging Tips
 

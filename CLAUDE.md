@@ -10,11 +10,10 @@
 * ai-dev-tools-build-quality: When cleaning up compiler warnings, TODO/FIXME comments, dead code, or debug artifacts
 * ai-dev-tools-code-organization: When reviewing or fixing Swift file and type organization
 * ai-dev-tools-code-quality: When reviewing or fixing code quality issues (force unwraps, raw strings, fallback values, duplicated logic, etc.)
-* ai-dev-tools-debug: When the user describes a problem, reports an error, or posts a screenshot showing an issue
+* ai-dev-tools-debug: When the user describes a problem, reports an error, posts a screenshot showing an issue, or is debugging PRRadar behavior (pipeline output, rule evaluation, Mac app issues)
 * ai-dev-tools-enforce: After making code changes, when asked to enforce standards, apply architecture guidelines, analyze for violations, or review what would need to change. Also use as a verification step at the end of every plan — after the final phase completes, run enforce on all files changed during the plan before considering the work done.
 * ai-dev-tools-logging: When reading logs, debugging via logs, or adding logging to new features
 * ai-dev-tools-pr-radar-add-rule: When adding new PRRadar code review rules
-* ai-dev-tools-pr-radar-debug: When debugging PRRadar behavior, inspecting pipeline output, or reproducing Mac app issues via CLI
 * ai-dev-tools-pr-radar-todo: When adding items to the PRRadar TODO list
 * ai-dev-tools-swift-testing: When writing or reviewing Swift test files
 * swift-architecture: For any architecture or planning activities
