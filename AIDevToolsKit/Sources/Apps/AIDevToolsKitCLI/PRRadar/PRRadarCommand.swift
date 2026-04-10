@@ -7,6 +7,7 @@ struct PRRadarCommand: AsyncParsableCommand {
         subcommands: [
             PRRadarAnalyzeCommand.self,
             PRRadarCommentCommand.self,
+            PRRadarConfigCommand.self,
             PRRadarEffectiveDiffCommand.self,
             PRRadarLogsCommand.self,
             PRRadarOutputCommand.self,
