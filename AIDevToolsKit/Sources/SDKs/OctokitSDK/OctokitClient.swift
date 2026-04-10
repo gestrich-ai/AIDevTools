@@ -1147,10 +1147,11 @@ public struct OctokitClient: Sendable {
         case 401:
             throw OctokitClientError.authenticationFailed
         case 403:
-            throw OctokitClientError.rateLimitExceeded
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw OctokitClientError.requestFailed("HTTP 403: \(body)")
         case 422:
             let body = String(data: data, encoding: .utf8) ?? ""
-            throw OctokitClientError.requestFailed("already_exists: \(body)")
+            throw OctokitClientError.requestFailed("HTTP 422: \(body)")
         default:
             let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
             throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
@@ -1501,11 +1502,12 @@ public struct OctokitClient: Sendable {
     public func pullRequestByHeadBranch(
         owner: String,
         repository: String,
-        branch: String
+        branch: String,
+        state: String = "open"
     ) async throws -> CreatedPullRequest? {
         let queryItems = [
             URLQueryItem(name: "head", value: "\(owner):\(branch)"),
-            URLQueryItem(name: "state", value: "open")
+            URLQueryItem(name: "state", value: state)
         ]
         let request = makeRequest(
             path: GitHubPath.pullRequests(owner, repository),

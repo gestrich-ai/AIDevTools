@@ -142,15 +142,27 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
             title: title, body: body, head: head, base: base, draft: draft
         )
         if !labels.isEmpty {
-            try await apiClient.addLabels(prNumber: created.number, labels: labels)
+            do {
+                try await apiClient.addLabels(prNumber: created.number, labels: labels)
+            } catch {
+                logger.warning("createPullRequest: addLabels failed (non-fatal): \(error)")
+            }
         }
         if !assignees.isEmpty {
-            try await apiClient.addAssignees(prNumber: created.number, assignees: assignees)
+            do {
+                try await apiClient.addAssignees(prNumber: created.number, assignees: assignees)
+            } catch {
+                logger.warning("createPullRequest: addAssignees failed (non-fatal): \(error)")
+            }
         }
         if !reviewers.isEmpty {
-            try await apiClient.requestReviewers(prNumber: created.number, reviewers: reviewers)
+            do {
+                try await apiClient.requestReviewers(prNumber: created.number, reviewers: reviewers)
+            } catch {
+                logger.warning("createPullRequest: requestReviewers failed (non-fatal): \(error)")
+            }
         }
-        _ = try await updateAllPRs(filter: PRFilter())
+        _ = try? await updateAllPRs(filter: PRFilter())
         return created
     }
 
