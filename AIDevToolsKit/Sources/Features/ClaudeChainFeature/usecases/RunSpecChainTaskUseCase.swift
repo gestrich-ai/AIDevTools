@@ -210,6 +210,9 @@ public struct RunSpecChainTaskUseCase: UseCase {
         if (try? await git.fetch(remote: "origin", branch: baseBranch, workingDirectory: repoDir)) != nil {
             logger.debug("prepare: fetch complete, checking out FETCH_HEAD")
             try? await git.checkout(ref: "FETCH_HEAD", workingDirectory: repoDir)
+            // Hard reset to discard any staged changes (e.g. from a stale branch) so the
+            // new feature branch starts from a clean index.
+            try? await git.reset(hard: true, ref: "FETCH_HEAD", workingDirectory: repoDir)
         } else {
             logger.debug("prepare: fetch failed, continuing with local spec.md")
         }

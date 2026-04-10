@@ -90,9 +90,10 @@ jobs:
       - name: Install Claude CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      # Prevent the aidevtools checkout from being committed as a git submodule
+      # Prevent the aidevtools checkout from being committed as a git submodule.
+      # Use .git/info/exclude (local-only) so the exclusion is never committed.
       - name: Exclude aidevtools checkout from git tracking
-        run: echo "aidevtools/" >> ${{ github.workspace }}/.gitignore
+        run: echo "aidevtools/" >> ${{ github.workspace }}/.git/info/exclude
 
       # When triggered by a merged PR, extract the project name from the branch name.
       # Claude Chain branches follow the pattern: claude-chain-<project>-<8_hex_chars>
