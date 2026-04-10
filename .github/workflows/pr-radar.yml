@@ -69,7 +69,10 @@ jobs:
           swift build -c release --product ai-dev-tools-kit
 
       - name: Install Python dependencies for AI evaluation
-        run: pip3 install -r ${{ github.workspace }}/aidevtools/PRRadarLibrary/claude-agent/requirements.txt
+        run: |
+          AGENT_DIR=${{ github.workspace }}/aidevtools/PRRadarLibrary/claude-agent
+          python3 -m venv "$AGENT_DIR/.venv"
+          "$AGENT_DIR/.venv/bin/pip" install -r "$AGENT_DIR/requirements.txt"
 
       - name: Create PRRadar config
         run: |
