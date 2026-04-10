@@ -18,6 +18,9 @@ struct PRRadarCLIOptions: ParsableArguments {
     @Option(name: .long, help: "Commit hash to target (defaults to latest)")
     var commit: String?
 
+    @Option(name: .long, help: "Data directory path (overrides app settings)")
+    var dataPath: String?
+
     @Option(name: .long, help: "Diff source: 'git' (local git history) or 'github-api' (GitHub REST API)")
     var diffSource: DiffSource?
 
@@ -45,8 +48,8 @@ enum PRRadarCLIError: Error, LocalizedError {
     }
 }
 
-func resolvePRRadarConfig(repoName: String?, diffSource: DiffSource? = nil, githubToken: String? = nil) throws -> PRRadarRepoConfig {
-    let dataPathsService = try DataPathsService.fromCLI(dataPath: nil)
+func resolvePRRadarConfig(repoName: String?, diffSource: DiffSource? = nil, githubToken: String? = nil, dataPath: String? = nil) throws -> PRRadarRepoConfig {
+    let dataPathsService = try DataPathsService.fromCLI(dataPath: dataPath)
     let settingsService = try SettingsService(dataPathsService: dataPathsService)
     let repos = try settingsService.loadRepositories()
 
@@ -97,7 +100,7 @@ func resolvePRRadarConfig(repoName: String?, diffSource: DiffSource? = nil, gith
 }
 
 func resolvePRRadarConfigFromOptions(_ options: PRRadarCLIOptions) throws -> PRRadarRepoConfig {
-    try resolvePRRadarConfig(repoName: options.config, diffSource: options.diffSource, githubToken: options.githubToken)
+    try resolvePRRadarConfig(repoName: options.config, diffSource: options.diffSource, githubToken: options.githubToken, dataPath: options.dataPath)
 }
 
 func resolveRulesDir(rulesPathName: String?, config: PRRadarRepoConfig) throws -> String {
