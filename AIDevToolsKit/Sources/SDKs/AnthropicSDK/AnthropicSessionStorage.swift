@@ -43,6 +43,8 @@ actor AnthropicSessionStorage {
     }
 
     func listSessions() -> [ChatSession] {
+        // Swallowing intentionally: if the sessions directory doesn't exist yet,
+        // contentsOfDirectory throws — return an empty list rather than propagating.
         guard let files = try? FileManager.default.contentsOfDirectory(
             at: sessionsDirectory,
             includingPropertiesForKeys: [.contentModificationDateKey],
@@ -57,6 +59,8 @@ actor AnthropicSessionStorage {
         return files
             .filter { $0.pathExtension == "json" }
             .compactMap { url -> ChatSession? in
+                // Swallowing intentionally: a corrupt or unreadable session file is
+                // skipped rather than aborting the entire list.
                 guard let data = try? Data(contentsOf: url),
                       let session = try? decoder.decode(PersistedSession.self, from: data) else {
                     return nil
@@ -75,6 +79,8 @@ actor AnthropicSessionStorage {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
+        // Swallowing intentionally: a missing or corrupt session file returns an
+        // empty message list rather than propagating — callers treat this as a new session.
         guard let data = try? Data(contentsOf: fileURL),
               let session = try? decoder.decode(PersistedSession.self, from: data) else {
             return []
@@ -93,6 +99,7 @@ actor AnthropicSessionStorage {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
+        // Swallowing intentionally: same as loadMessages — missing/corrupt file returns empty.
         guard let data = try? Data(contentsOf: fileURL),
               let session = try? decoder.decode(PersistedSession.self, from: data) else {
             return []

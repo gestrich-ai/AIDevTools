@@ -271,6 +271,8 @@ public struct AnalyzeUseCase: StreamingUseCase {
                 totalCost = freshResults.compactMap(\.costUsd).reduce(0, +)
             } catch {
                 if let branch = branchToRestore, let account = config.githubAccount {
+                    // Swallowing intentionally: branch restoration is best-effort cleanup;
+                    // the original error is re-thrown regardless.
                     let gitOps = try? await GitHubServiceFactory.createGitOps(githubAccount: account, explicitToken: config.explicitToken)
                     try? await gitOps?.checkoutBranch(branch, repoPath: config.repoPath)
                 }
@@ -278,6 +280,8 @@ public struct AnalyzeUseCase: StreamingUseCase {
             }
 
             if let branch = branchToRestore, let account = config.githubAccount {
+                // Swallowing intentionally: branch restoration after a successful run is
+                // best-effort; a failure here should not abort the completed evaluation.
                 let gitOps = try? await GitHubServiceFactory.createGitOps(githubAccount: account, explicitToken: config.explicitToken)
                 continuation.yield(.log(text: "Restoring branch \(branch)...\n"))
                 try? await gitOps?.checkoutBranch(branch, repoPath: config.repoPath)

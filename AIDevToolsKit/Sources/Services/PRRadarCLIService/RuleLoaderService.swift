@@ -1,5 +1,6 @@
 import Foundation
 import GitSDK
+import Logging
 import PRRadarModelsService
 
 public enum RuleLoaderError: LocalizedError {
@@ -26,6 +27,7 @@ public enum RuleLoaderError: LocalizedError {
 /// for directory scanning — no CLI dependency.
 public struct RuleLoaderService: Sendable {
     private let gitOps: GitService
+    private let logger = Logger(label: "RuleLoaderService")
 
     public init(gitOps: GitService) {
         self.gitOps = gitOps
@@ -72,7 +74,7 @@ public struct RuleLoaderService: Sendable {
                 }
                 rules.append(rule)
             } catch {
-                print("Warning: Failed to parse rule \(filePath): \(error)")
+                logger.warning("Failed to parse rule \(filePath): \(error)")
             }
         }
 

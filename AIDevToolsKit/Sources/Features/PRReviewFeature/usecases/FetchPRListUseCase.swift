@@ -35,6 +35,8 @@ public struct FetchPRListUseCase: StreamingUseCase {
 
                     try await service.updateRepository()
 
+                    // Swallowing intentionally: a PR that fails to parse is omitted from
+                    // the list rather than aborting the entire fetch.
                     let filteredPRs = fetchedPRs
                         .compactMap { try? $0.toPRMetadata() }
                         .filter { filter.matches($0) }

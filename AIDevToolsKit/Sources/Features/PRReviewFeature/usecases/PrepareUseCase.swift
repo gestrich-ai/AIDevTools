@@ -63,6 +63,8 @@ public struct PrepareUseCase: StreamingUseCase {
                         commitHash: resolvedCommit
                     )
 
+                    // Swallowing intentionally: if the focus directory doesn't exist yet,
+                    // contentsOfDirectory throws — treat that as an empty cache.
                     let existingFocusFiles = (try? FileManager.default.contentsOfDirectory(atPath: focusDir))?.filter {
                         $0.hasPrefix(PRRadarPhasePaths.dataFilePrefix) && $0.hasSuffix(".json")
                     } ?? []

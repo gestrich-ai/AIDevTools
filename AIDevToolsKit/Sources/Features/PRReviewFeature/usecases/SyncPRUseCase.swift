@@ -76,6 +76,8 @@ public struct SyncPRUseCase: StreamingUseCase {
                     let gitHubPRService = GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
 
                     if !force {
+                        // Swallowing intentionally: if the cache is absent or corrupt, fall
+                        // through to a fresh GitHub fetch rather than failing the sync.
                         let cachedPR = try? await gitHubPRService.pullRequest(number: prNumber, useCache: true)
                         if let cachedUpdatedAt = cachedPR?.updatedAt {
                             let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNumber)
