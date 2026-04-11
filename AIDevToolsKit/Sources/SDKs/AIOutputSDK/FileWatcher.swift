@@ -1,3 +1,4 @@
+#if canImport(Darwin)
 import Foundation
 
 public struct FileWatcher: Sendable {
@@ -56,3 +57,4 @@ public struct FileWatcher: Sendable {
 private final class DebounceState {
     var task: Task<Void, Never>?
 }
+#endif
