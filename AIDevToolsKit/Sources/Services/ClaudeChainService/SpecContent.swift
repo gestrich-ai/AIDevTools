@@ -1,5 +1,9 @@
 /// Domain models for spec.md content parsing
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 
 /// Generate stable hash identifier for a task description.

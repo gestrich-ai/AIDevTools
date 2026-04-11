@@ -160,6 +160,7 @@ var targets: [Target] = [
         name: "PlanFeature",
         dependencies: [
             "AIOutputSDK",
+            .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
             "CredentialService",
             "GitSDK",
             "LoggingSDK",
@@ -516,6 +517,7 @@ var targets: [Target] = [
         dependencies: [
             "AIOutputSDK",
             "ClaudeChainSDK",
+            .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
             "GitHubService",
             "GitSDK",
             .product(name: "Logging", package: "swift-log"),
