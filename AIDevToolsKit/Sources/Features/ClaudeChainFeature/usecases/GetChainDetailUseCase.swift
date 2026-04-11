@@ -93,11 +93,11 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
         try await withThrowingTaskGroup(of: FetchedPRData.self) { group in
             for number in openPRs.map({ $0.number }) {
                 group.addTask {
-                    async let pr = gitHubPRService.pullRequest(number: number, useCache: true)
-                    async let reviews = gitHubPRService.reviews(number: number, useCache: false)
-                    async let checkRuns = gitHubPRService.checkRuns(number: number, useCache: false)
-                    async let isMergeable = gitHubPRService.isMergeable(number: number)
-                    return (try await pr, try await reviews, try await checkRuns, try await isMergeable)
+                    let pr = try await gitHubPRService.pullRequest(number: number, useCache: true)
+                    let reviews = try await gitHubPRService.reviews(number: number, useCache: false)
+                    let checkRuns = try await gitHubPRService.checkRuns(number: number, useCache: false)
+                    let isMergeable = try await gitHubPRService.isMergeable(number: number)
+                    return (pr, reviews, checkRuns, isMergeable)
                 }
             }
             for try await data in group {
