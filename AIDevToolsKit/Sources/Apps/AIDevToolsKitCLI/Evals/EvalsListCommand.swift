@@ -6,9 +6,9 @@ import Foundation
 import RepositorySDK
 import SettingsService
 
-struct ListCasesCommand: ParsableCommand {
+struct EvalsListCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "list-cases",
+        commandName: "list",
         abstract: "List eval cases and their definitions"
     )
 

@@ -1,14 +1,17 @@
+import AIOutputSDK
 import ArgumentParser
 import DataPathsService
 import EvalFeature
+import EvalService
 import Foundation
+import ProviderRegistryService
 import RepositorySDK
 import SettingsService
 
-struct ClearArtifactsCommand: ParsableCommand {
+struct EvalsShowOutputCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "clear-artifacts",
-        abstract: "Delete all prior eval run artifacts"
+        commandName: "show-output",
+        abstract: "Display formatted output from a completed eval run"
     )
 
     @Option(help: "Path to output directory")
@@ -19,6 +22,12 @@ struct ClearArtifactsCommand: ParsableCommand {
 
     @Option(help: "Data directory path (overrides app settings)")
     var dataPath: String?
+
+    @Option(help: "The eval case ID (e.g. feature-flags.add-bool-flag-structured)")
+    var caseId: String
+
+    @Option(help: "Provider name")
+    var provider: String
 
     func validate() throws {
         if outputDir != nil && repo != nil {
@@ -44,7 +53,29 @@ struct ClearArtifactsCommand: ParsableCommand {
             throw ValidationError("Must specify either --output-dir or --repo")
         }
 
-        try ClearArtifactsUseCase().run(outputDirectory: resolvedOutputDir)
-        print("Cleared artifacts in \(resolvedOutputDir.path)")
+        let root = try CLICompositionRoot.create()
+        let registry = root.evalProviderRegistry
+        let resolvedProvider = Provider(rawValue: provider)
+        let entry = registry.entries.first(where: { $0.name == provider })
+        guard let defaultEntry = registry.defaultEntry else {
+            throw ValidationError("No eval providers configured")
+        }
+        let formatter = entry?.client.streamFormatter ?? defaultEntry.client.streamFormatter
+        let rubricFormatter = entry?.client.streamFormatter ?? defaultEntry.client.streamFormatter
+        let options = ReadCaseOutputUseCase.Options(
+            caseId: caseId,
+            formatter: formatter,
+            provider: resolvedProvider,
+            outputDirectory: resolvedOutputDir,
+            rubricFormatter: rubricFormatter
+        )
+
+        let output = try ReadCaseOutputUseCase().run(options)
+        print(output.mainOutput)
+
+        if let rubricOutput = output.rubricOutput {
+            print("\n--- Rubric Evaluation ---\n")
+            print(rubricOutput)
+        }
     }
 }

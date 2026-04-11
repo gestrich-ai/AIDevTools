@@ -8,9 +8,9 @@ import ProviderRegistryService
 import RepositorySDK
 import SettingsService
 
-struct RunEvalsCommand: AsyncParsableCommand {
+struct EvalsRunCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "run-evals",
+        commandName: "run",
         abstract: "Run evaluation cases against AI providers"
     )
 
@@ -108,7 +108,7 @@ struct RunEvalsCommand: AsyncParsableCommand {
     }
 }
 
-extension RunEvalsCommand {
+extension EvalsRunCommand {
     static func printProgress(_ progress: RunEvalsUseCase.Progress) {
         switch progress {
         case .startingProvider(let provider, let caseCount):
