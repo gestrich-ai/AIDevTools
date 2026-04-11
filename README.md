@@ -13,10 +13,7 @@ AIDevTools ships as two interfaces backed by the same shared logic:
 
 ### AI Chat
 
-Two chat modes in a toggleable panel:
-
-- **API Chat** — Talk to Claude directly via the Anthropic API with streaming responses and persistent conversation history.
-- **Claude Code Chat** — Interact with the Claude Code CLI with session history, slash command autocomplete, image attachments, and message queuing.
+Chat with AI providers using a unified interface. Select from available providers — Anthropic API, Claude Code CLI, or Codex — with streaming responses, persistent session history, and image attachment support.
 
 ### AI Evaluator
 
