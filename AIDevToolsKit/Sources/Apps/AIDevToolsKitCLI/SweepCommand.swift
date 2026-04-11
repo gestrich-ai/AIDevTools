@@ -56,7 +56,7 @@ struct SweepRunCommand: AsyncParsableCommand {
         }
 
         let resolver = resolveGitHubCredentials(githubAccount: githubAccount, githubToken: githubToken)
-        let registry = try CLICompositionRoot.create(credentialResolver: resolver).shared.providerRegistry
+        let registry = try CLICompositionRoot.create(credentialResolver: resolver).providerRegistry
         guard let client = provider.flatMap({ registry.client(named: $0) }) ?? registry.defaultClient else {
             print("Error: No AI provider available. Configure an API key or install Claude CLI.")
             throw ExitCode.failure

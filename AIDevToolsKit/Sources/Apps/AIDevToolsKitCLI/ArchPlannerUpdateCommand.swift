@@ -38,7 +38,7 @@ struct ArchPlannerUpdateCommand: AsyncParsableCommand {
         }
 
         let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
-        let registry = try CLICompositionRoot.create().shared.providerRegistry
+        let registry = try CLICompositionRoot.create().providerRegistry
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
         let stepName = step ?? "next"
 
