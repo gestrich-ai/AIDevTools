@@ -30,16 +30,28 @@ struct CompositionRoot {
             return GitClient(environment: ["GH_TOKEN": token])
         }
 
-        let anthropicSessionsDirectory = try shared.dataPathsService.path(for: .anthropicSessions)
+        let sessionsDirectory = try shared.dataPathsService.path(for: .anthropicSessions)
         let mcpModel = MCPModel(settingsModel: settingsModel)
         mcpModel.writeMCPConfigIfNeeded()
+
+        let providerModel = ProviderModel(registrySource: {
+            let secureSettings = SecureSettingsService()
+            let account = (try? secureSettings.listCredentialAccounts())?.first ?? "default"
+            let resolver = CredentialResolver(settingsService: secureSettings, githubAccount: account)
+            return SharedCompositionRoot.buildProviderRegistry(
+                anthropicAPIKey: resolver.getAnthropicKey(),
+                sessionsDirectory: sessionsDirectory,
+                includeCodex: AppPreferences().isCodexEnabled(),
+                includeAnthropicAPI: AppPreferences().isAnthropicAPIEnabled()
+            )
+        })
 
         return CompositionRoot(
             dataPathsService: shared.dataPathsService,
             evalProviderRegistry: shared.evalProviderRegistry,
             gitClientFactory: gitClientFactory,
             mcpModel: mcpModel,
-            providerModel: ProviderModel(sessionsDirectory: anthropicSessionsDirectory),
+            providerModel: providerModel,
             settingsModel: settingsModel,
             settingsService: shared.settingsService
         )
