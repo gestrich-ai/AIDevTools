@@ -1,5 +1,3 @@
-#if canImport(SwiftData)
-import ArchitecturePlannerService
 import DataPathsService
 import Foundation
 
@@ -10,7 +8,12 @@ extension DataPathsService {
         try MigrateDataPathsUseCase(dataPathsService: service).run()
         return service
     }
+}
 
+#if canImport(SwiftData)
+import ArchitecturePlannerService
+
+extension DataPathsService {
     static func makeArchPlannerStore(dataPath: String?, repoName: String) throws -> ArchitecturePlannerStore {
         let service = try fromCLI(dataPath: dataPath)
         let baseDir = try service.path(for: .architecturePlanner)
