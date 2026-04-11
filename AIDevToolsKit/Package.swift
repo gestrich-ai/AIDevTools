@@ -72,7 +72,7 @@ var targets: [Target] = [
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
             "AIOutputSDK",
             "AnthropicSDK",
-            "AppIPCSDK",
+            .target(name: "AppIPCSDK", condition: .when(platforms: [.macOS])),
             .target(name: "ArchitecturePlannerFeature", condition: .when(platforms: [.macOS])),
             .target(name: "ArchitecturePlannerService", condition: .when(platforms: [.macOS])),
             "ChatFeature",

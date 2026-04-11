@@ -1,4 +1,6 @@
+#if canImport(Darwin)
 import AppIPCSDK
+#endif
 import ArgumentParser
 import ClaudeChainFeature
 import CredentialFeature
@@ -39,7 +41,8 @@ struct MCPCommand: AsyncParsableCommand {
 
     // MARK: - Tool definitions
 
-    private static let allTools: [Tool] = [
+    private static var allTools: [Tool] {
+        var tools = [
         Tool(
             name: "get_chain_status",
             description: "Returns task completion status for a named chain project, discovered via GitHub API across all branches",
@@ -67,11 +70,6 @@ struct MCPCommand: AsyncParsableCommand {
                 ]),
                 "required": .array([.string("name")])
             ])
-        ),
-        Tool(
-            name: "get_ui_state",
-            description: "Returns current UI state of the AIDevTools Mac app: selected plan and current tab",
-            inputSchema: .object(["type": .string("object"), "properties": .object([:])])
         ),
         Tool(
             name: "list_plans",
@@ -111,7 +109,16 @@ struct MCPCommand: AsyncParsableCommand {
                 "required": .array([.string("name")])
             ])
         ),
-    ]
+        ]
+        #if canImport(Darwin)
+        tools.append(Tool(
+            name: "get_ui_state",
+            description: "Returns current UI state of the AIDevTools Mac app: selected plan and current tab",
+            inputSchema: .object(["type": .string("object"), "properties": .object([:])])
+        ))
+        #endif
+        return tools
+    }
 
     // MARK: - Tool dispatch
 
@@ -121,8 +128,10 @@ struct MCPCommand: AsyncParsableCommand {
             return try await handleGetChainStatus(params.arguments ?? [:])
         case "get_plan_details":
             return try await handleGetPlanDetails(params.arguments ?? [:])
+        #if canImport(Darwin)
         case "get_ui_state":
             return try await handleGetUIState()
+        #endif
         case "list_plans":
             return try await handleListPlans()
         case "navigate_to_tab":
@@ -235,6 +244,7 @@ struct MCPCommand: AsyncParsableCommand {
         return .init(content: [.text(text: "Plans reload triggered", annotations: nil, _meta: nil)], isError: false)
     }
 
+    #if canImport(Darwin)
     private static func handleGetUIState() async throws -> CallTool.Result {
         do {
             let state = try await AppIPCClient().getUIState()
@@ -251,6 +261,7 @@ struct MCPCommand: AsyncParsableCommand {
             )
         }
     }
+    #endif
 
     // MARK: - Deep link helper
 
