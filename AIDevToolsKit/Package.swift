@@ -731,7 +731,7 @@ products.append(contentsOf: [
 
 dependencies.append(contentsOf: [
     .package(url: "https://github.com/gonzalezreal/swift-markdown-ui.git", from: "2.0.0"),
-    .package(url: "https://github.com/jamesrochabrun/SwiftAnthropic", exact: "2.1.7"),
+    .package(url: "https://github.com/jamesrochabrun/SwiftAnthropic", from: "2.0.0"),
     .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main"),
 ])
 
