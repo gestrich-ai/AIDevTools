@@ -33,7 +33,8 @@ struct ArchPlannerScoreCommand: AsyncParsableCommand {
         }
 
         let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
-        let registry = try CLICompositionRoot.create().providerRegistry
+        let root = try CLICompositionRoot.create()
+        let registry = root.providerRegistry
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
         let useCase = ScoreConformanceUseCase(client: client)
         let options = ScoreConformanceUseCase.Options(jobId: uuid, repoPath: repoPath)
