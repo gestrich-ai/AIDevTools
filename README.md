@@ -19,12 +19,6 @@ The embedded chat connects to an **MCP server** (`ai-dev-tools-kit mcp`) that gi
 
 See [AI Chat documentation](docs/features/chat/chat.md) for setup and usage.
 
-### AI Evaluator
-
-Run structured test cases against AI providers to measure how well they handle coding tasks. Define assertions — required text, file changes, command traces, and rubric-based quality checks — then inspect results with per-case grading details and saved artifacts. Compare providers side-by-side across suites of test cases.
-
-See [AI Evaluator documentation](docs/features/evals/evals.md) for details.
-
 ### AI Planning
 
 Describe what you want to build in plain language and get a phased implementation plan. Execute phases one at a time with live progress tracking, completion checklists, and elapsed time monitoring. Plans are stored per repository and can be created, resumed, and managed from the app or CLI.
@@ -49,11 +43,17 @@ Review pull requests against configurable markdown rule files. The pipeline fetc
 
 See [PRRadar documentation](docs/features/pr-radar/pr-radar.md) for setup and usage.
 
-### Skill Evaluator
+### Skill Browser
 
 Browse, preview, and manage skills (`.agents/skills/`) available in the current repository.
 
-See [Skill Evaluator documentation](docs/features/skills/skills.md) for details.
+See [Skill Browser documentation](docs/features/skills/skills.md) for details.
+
+### Skill Evaluator
+
+Run structured test cases against AI providers to measure how well they handle coding tasks. Define assertions — required text, file changes, command traces, and rubric-based quality checks — then inspect results with per-case grading details and saved artifacts. Compare providers side-by-side across suites of test cases.
+
+See [Skill Evaluator documentation](docs/features/evals/evals.md) for details.
 
 ### Sweep
 
