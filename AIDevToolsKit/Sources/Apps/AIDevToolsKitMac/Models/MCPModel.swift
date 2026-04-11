@@ -21,6 +21,14 @@ final class MCPModel {
         self.settingsModel = settingsModel
     }
 
+    static func swiftBuildBinaryURL(repoPath: URL) -> URL {
+        repoPath
+            .appendingPathComponent("AIDevToolsKit")
+            .appendingPathComponent(".build")
+            .appendingPathComponent("debug")
+            .appendingPathComponent("ai-dev-tools-kit")
+    }
+
     var status: MCPStatus {
         let fm = FileManager.default
 
@@ -34,11 +42,7 @@ final class MCPModel {
         }
 
         if let repoPath = settingsModel.aiDevToolsRepoPath {
-            let swiftBuildURL = repoPath
-                .appendingPathComponent("AIDevToolsKit")
-                .appendingPathComponent(".build")
-                .appendingPathComponent("debug")
-                .appendingPathComponent("ai-dev-tools-kit")
+            let swiftBuildURL = MCPModel.swiftBuildBinaryURL(repoPath: repoPath)
             if fm.fileExists(atPath: swiftBuildURL.path) {
                 candidates.append(swiftBuildURL)
             }
@@ -51,11 +55,12 @@ final class MCPModel {
             return .binaryMissing
         }
 
-        let mostRecent = candidates.max(by: { a, b in
+        guard let mostRecent = candidates.max(by: { a, b in
+            // File attribute errors are acceptable; treat unreadable dates as oldest.
             let aDate = (try? fm.attributesOfItem(atPath: a.path)[.modificationDate] as? Date) ?? .distantPast
             let bDate = (try? fm.attributesOfItem(atPath: b.path)[.modificationDate] as? Date) ?? .distantPast
             return aDate < bDate
-        })!
+        }) else { return .binaryMissing }
 
         let builtAt = (try? fm.attributesOfItem(atPath: mostRecent.path)[.modificationDate] as? Date) ?? .distantPast
         return .ready(binaryURL: mostRecent, builtAt: builtAt)
@@ -74,6 +79,7 @@ final class MCPModel {
         }
         """
         let fileURL = DataPathsService.mcpConfigFileURL
+        // Best-effort write; failure here is non-fatal since the CLI fallback will update on next run.
         try? FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true

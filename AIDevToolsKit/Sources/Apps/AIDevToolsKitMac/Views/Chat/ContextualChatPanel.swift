@@ -124,8 +124,9 @@ struct ContextualChatPanel: View {
             mcpAmberBanner("MCP unavailable — set AIDevTools Repo Path in Settings")
         case .binaryMissing:
             mcpAmberBanner("MCP binary not found. Build the app in Xcode or run `swift build --target AIDevToolsKitCLI` in the repo.")
-        case .ready:
-            if let days = mcpModel.status.daysStale, days > 3 {
+        case let .ready(_, builtAt):
+            let days = Calendar.current.dateComponents([.day], from: builtAt, to: .now).day
+            if let days, days > 3 {
                 HStack {
                     Spacer()
                     Button { showingMCPPopover = true } label: {

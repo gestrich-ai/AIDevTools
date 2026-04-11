@@ -96,11 +96,7 @@ struct GeneralSettingsView: View {
                 }
 
                 if let repoPath = settingsModel.aiDevToolsRepoPath {
-                    let binaryPath = repoPath
-                        .appendingPathComponent("AIDevToolsKit")
-                        .appendingPathComponent(".build")
-                        .appendingPathComponent("debug")
-                        .appendingPathComponent("ai-dev-tools-kit")
+                    let binaryPath = MCPModel.swiftBuildBinaryURL(repoPath: repoPath)
                     Text("Binary: \(binaryPath.path(percentEncoded: false))")
                         .font(.caption)
                         .foregroundStyle(.secondary)

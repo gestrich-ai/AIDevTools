@@ -141,7 +141,10 @@ Update the `ContextualChatPanel` docstring (currently says "MCP config is writte
 
 Update the CLI's `EntryPoint.main()` comment to note that CLI self-registration is a fallback — the Mac app is now the primary writer when the repo path is configured.
 
-## - [ ] Phase 7: Enforce
+## - [x] Phase 7: Enforce
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-configuration-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-swift-testing`
+**Principles applied**: Fixed force unwrap in `MCPModel.status` (guard let instead of `!`); extracted `swiftBuildBinaryURL(repoPath:)` as a static helper on `MCPModel` to eliminate duplicated inline path construction in `GeneralSettingsView`; fixed double evaluation of `mcpModel.status` in `ContextualChatPanel.mcpStatusBanner` by extracting `builtAt` from the `.ready` associated value; added explanatory comments to all intentional `try?` swallowing sites in `MCPModel.writeMCPConfigIfNeeded` and `EntryPoint.writeMCPConfig`.
 
 **Skills to read**: `ai-dev-tools-enforce`
 

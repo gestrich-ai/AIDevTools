@@ -79,6 +79,7 @@ struct AIDevToolsKit: AsyncParsableCommand {
         }
         """
         let fileURL = DataPathsService.mcpConfigFileURL
+        // Best-effort write; failure here is non-fatal since the Mac app is the primary writer.
         try? FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
