@@ -54,8 +54,8 @@ struct FinalizeStagedCommand: AsyncParsableCommand {
             repoURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         }
 
-        let resolver = resolveGitHubCredentials(githubAccount: githubAccount, githubToken: githubToken)
-        let registry = try CLICompositionRoot.create(credentialResolver: resolver).providerRegistry
+        let root = try CLICompositionRoot.create(githubAccount: githubAccount, githubToken: githubToken)
+        let registry = root.providerRegistry
         guard let client = provider.flatMap({ registry.client(named: $0) }) ?? registry.defaultClient else {
             print("Error: No AI provider available. Configure an API key or install Claude CLI.")
             throw ExitCode.failure
@@ -84,7 +84,7 @@ struct FinalizeStagedCommand: AsyncParsableCommand {
         print("Provider: \(client.name)")
         print()
 
-        let useCase = FinalizeStagedTaskUseCase(client: client, git: GitClient(environment: resolver.gitEnvironment))
+        let useCase = FinalizeStagedTaskUseCase(client: client, git: GitClient(environment: root.credentialResolver.gitEnvironment))
         let result = try await useCase.run(
             options: .init(
                 repoPath: repoURL,

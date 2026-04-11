@@ -54,8 +54,8 @@ struct RunTaskCommand: AsyncParsableCommand {
             repoURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         }
 
-        let resolver = resolveGitHubCredentials(githubAccount: githubAccount, githubToken: githubToken)
-        let registry = try CLICompositionRoot.create(credentialResolver: resolver).providerRegistry
+        let root = try CLICompositionRoot.create(githubAccount: githubAccount, githubToken: githubToken)
+        let registry = root.providerRegistry
         guard let client = provider.flatMap({ registry.client(named: $0) }) ?? registry.defaultClient else {
             print("Error: No AI provider available. Configure an API key or install Claude CLI.")
             throw ExitCode.failure
@@ -85,7 +85,7 @@ struct RunTaskCommand: AsyncParsableCommand {
             resolvedBaseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)
         }
 
-        let useCase = RunSpecChainTaskUseCase(client: client, git: GitClient(environment: resolver.gitEnvironment))
+        let useCase = RunSpecChainTaskUseCase(client: client, git: GitClient(environment: root.credentialResolver.gitEnvironment))
         let options = RunSpecChainTaskUseCase.Options(
             repoPath: repoURL,
             projectName: project,
