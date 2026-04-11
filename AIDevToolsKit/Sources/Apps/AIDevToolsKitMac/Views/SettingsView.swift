@@ -30,6 +30,10 @@ struct SettingsView: View {
             Tab("Diagnostics", systemImage: "doc.text.magnifyingglass") {
                 DiagnosticsView()
             }
+
+            Tab("Experimental", systemImage: "flask") {
+                ExperimentalSettingsView()
+            }
         }
         .tabViewStyle(.tabBarOnly)
         .frame(width: 800, height: 550)
