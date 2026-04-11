@@ -43,11 +43,11 @@ public struct AppIPCClient: Sendable {
     }
 
     private static func performRequest(socketPath: String) throws -> IPCUIState {
-        let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else {
             throw IPCError.connectionFailed("Failed to create socket")
         }
-        defer { Darwin.close(fd) }
+        defer { close(fd) }
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
@@ -61,7 +61,7 @@ public struct AppIPCClient: Sendable {
         let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
         let connectResult = withUnsafePointer(to: addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                Darwin.connect(fd, $0, addrLen)
+                connect(fd, $0, addrLen)
             }
         }
         guard connectResult == 0 else {
@@ -71,7 +71,7 @@ public struct AppIPCClient: Sendable {
         let request = IPCRequest(query: "getUIState")
         var requestData = try JSONEncoder().encode(request)
         requestData.append(UInt8(ascii: "\n"))
-        let bytesSent = requestData.withUnsafeBytes { Darwin.send(fd, $0.baseAddress!, $0.count, 0) }
+        let bytesSent = requestData.withUnsafeBytes { send(fd, $0.baseAddress!, $0.count, 0) }
         guard bytesSent >= 0 else {
             throw IPCError.connectionFailed("Failed to send IPC request")
         }
@@ -79,7 +79,7 @@ public struct AppIPCClient: Sendable {
         var responseData = Data()
         var buffer = [UInt8](repeating: 0, count: 4096)
         while !responseData.contains(UInt8(ascii: "\n")) {
-            let n = Darwin.recv(fd, &buffer, buffer.count, 0)
+            let n = recv(fd, &buffer, buffer.count, 0)
             if n <= 0 { break }
             responseData.append(contentsOf: buffer[..<Int(n)])
         }
