@@ -5,7 +5,6 @@ import PackageDescription
 var products: [Product] = [
     .executable(name: "ai-dev-tools-kit", targets: ["AIDevToolsKitCLI"]),
     .library(name: "AIOutputSDK", targets: ["AIOutputSDK"]),
-    .library(name: "AnthropicSDK", targets: ["AnthropicSDK"]),
     .library(name: "AppIPCSDK", targets: ["AppIPCSDK"]),
     .library(name: "ClaudeAgentSDK", targets: ["ClaudeAgentSDK"]),
     .library(name: "ChatFeature", targets: ["ChatFeature"]),
@@ -58,7 +57,6 @@ var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.0.0"),
     .package(url: "https://github.com/gestrich/SwiftCLI", branch: "main"),
-    .package(url: "https://github.com/jamesrochabrun/SwiftAnthropic", exact: "2.1.7"),
     .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.0"),
     .package(url: "https://github.com/modelcontextprotocol/swift-sdk", from: "0.9.0"),
     .package(url: "https://github.com/nerdishbynature/octokit.swift", from: "0.14.0"),
@@ -71,7 +69,7 @@ var targets: [Target] = [
         dependencies: [
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
             "AIOutputSDK",
-            "AnthropicSDK",
+            .target(name: "AnthropicSDK", condition: .when(platforms: [.macOS])),
             .target(name: "AppIPCSDK", condition: .when(platforms: [.macOS])),
             .target(name: "ArchitecturePlannerFeature", condition: .when(platforms: [.macOS])),
             .target(name: "ArchitecturePlannerService", condition: .when(platforms: [.macOS])),
@@ -371,14 +369,6 @@ var targets: [Target] = [
         path: "Sources/SDKs/AIOutputSDK"
     ),
     .target(
-        name: "AnthropicSDK",
-        dependencies: [
-            "AIOutputSDK",
-            "SwiftAnthropic",
-        ],
-        path: "Sources/SDKs/AnthropicSDK"
-    ),
-    .target(
         name: "AppIPCSDK",
         dependencies: [],
         path: "Sources/SDKs/AppIPCSDK"
@@ -490,7 +480,7 @@ var targets: [Target] = [
         name: "ClaudeChainCLI",
         dependencies: [
             "AIOutputSDK",
-            "AnthropicSDK",
+            .target(name: "AnthropicSDK", condition: .when(platforms: [.macOS])),
             "ClaudeChainSDK",
             "ClaudeChainService",
             "ClaudeChainFeature",
@@ -736,16 +726,26 @@ var targets: [Target] = [
 ]
 
 #if os(macOS)
-products.append(
-    .library(name: "AIDevToolsKitMac", targets: ["AIDevToolsKitMac"])
-)
+products.append(contentsOf: [
+    .library(name: "AIDevToolsKitMac", targets: ["AIDevToolsKitMac"]),
+    .library(name: "AnthropicSDK", targets: ["AnthropicSDK"]),
+])
 
 dependencies.append(contentsOf: [
     .package(url: "https://github.com/gonzalezreal/swift-markdown-ui.git", from: "2.0.0"),
+    .package(url: "https://github.com/jamesrochabrun/SwiftAnthropic", exact: "2.1.7"),
     .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main"),
 ])
 
 targets.append(contentsOf: [
+    .target(
+        name: "AnthropicSDK",
+        dependencies: [
+            "AIOutputSDK",
+            "SwiftAnthropic",
+        ],
+        path: "Sources/SDKs/AnthropicSDK"
+    ),
     .target(
         name: "AIDevToolsKitMac",
         dependencies: [
