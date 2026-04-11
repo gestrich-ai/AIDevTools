@@ -58,6 +58,7 @@ struct AIDevToolsKit: AsyncParsableCommand {
         }
     }
 
+    // Fallback writer — the Mac app is the primary MCP config writer when the repo path is configured in Settings.
     private static func writeMCPConfig() {
         let arg0 = ProcessInfo.processInfo.arguments[0]
         let executableURL: URL

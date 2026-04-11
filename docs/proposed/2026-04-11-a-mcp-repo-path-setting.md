@@ -132,7 +132,10 @@ Create `docs/features/chat/chat.md` covering:
 
 Also update `README.md`'s AI Chat section to link to `docs/features/chat/chat.md`.
 
-## - [ ] Phase 6: Update stale comments
+## - [x] Phase 6: Update stale comments
+
+**Skills used**: none
+**Principles applied**: The `ContextualChatPanel` docstring was already correct from prior phases. Added a comment above `writeMCPConfig()` in `EntryPoint.swift` clarifying it is a fallback — the Mac app is the primary writer when the repo path is configured.
 
 Update the `ContextualChatPanel` docstring (currently says "MCP config is written once at app startup (CompositionRoot)") to reflect that config is written by `MCPModel` on startup and on repo path change.
 
