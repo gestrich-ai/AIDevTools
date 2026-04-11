@@ -14,20 +14,16 @@ struct CLICompositionRoot {
         return CLICompositionRoot(shared: shared)
     }
 
-    static func create(githubAccount: String?, githubToken: String? = nil) throws -> CLICompositionRoot {
+    static func create(githubAccount: String?, githubToken: String? = nil, printGitOutput: Bool = true) throws -> CLICompositionRoot {
         let resolver = resolveGitHubCredentials(githubAccount: githubAccount, githubToken: githubToken)
         let shared = try SharedCompositionRoot.create(credentialResolver: resolver)
-        return CLICompositionRoot(shared: shared)
+        return CLICompositionRoot(shared: shared, printGitOutput: printGitOutput)
     }
 
-    func makeGitClient(printOutput: Bool) -> GitClient {
-        GitClient(printOutput: printOutput, environment: credentialResolver.gitEnvironment)
-    }
-
-    private init(shared: SharedCompositionRoot) {
+    private init(shared: SharedCompositionRoot, printGitOutput: Bool = true) {
         self.credentialResolver = shared.credentialResolver
         self.evalProviderRegistry = shared.evalProviderRegistry
-        self.gitClient = GitClient(environment: shared.credentialResolver.gitEnvironment)
+        self.gitClient = GitClient(printOutput: printGitOutput, environment: shared.credentialResolver.gitEnvironment)
         self.providerRegistry = shared.providerRegistry
     }
 }
