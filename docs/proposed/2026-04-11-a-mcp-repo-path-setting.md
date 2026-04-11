@@ -21,7 +21,10 @@ Goals:
 
 ## Phases
 
-## - [ ] Phase 1: Add `aiDevToolsRepoPath` to `SettingsModel`
+## - [x] Phase 1: Add `aiDevToolsRepoPath` to `SettingsModel`
+
+**Skills used**: `ai-dev-tools-configuration-architecture`
+**Principles applied**: Followed the same `UserDefaults`-backed pattern as `dataPath`. Added the property, key constant, and update method to `SettingsModel`, loaded it in `init()`, and added a "AIDevTools Repo Path" row to `GeneralSettingsView` with Choose/Clear buttons and a secondary binary path display.
 
 **Skills to read**: `ai-dev-tools-configuration-architecture`
 

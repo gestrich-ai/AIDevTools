@@ -63,6 +63,48 @@ struct GeneralSettingsView: View {
                 Text("Directory where repository configurations and eval output are stored.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                LabeledContent("AIDevTools Repo Path") {
+                    HStack {
+                        if let repoPath = settingsModel.aiDevToolsRepoPath {
+                            Text(repoPath.path(percentEncoded: false))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        } else {
+                            Text("Not set")
+                                .foregroundStyle(.tertiary)
+                        }
+                        Button("Choose…") {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.allowsMultipleSelection = false
+                            if let repoPath = settingsModel.aiDevToolsRepoPath {
+                                panel.directoryURL = repoPath
+                            }
+                            if panel.runModal() == .OK, let url = panel.url {
+                                settingsModel.updateAIDevToolsRepoPath(url)
+                            }
+                        }
+                        if settingsModel.aiDevToolsRepoPath != nil {
+                            Button("Clear") {
+                                settingsModel.updateAIDevToolsRepoPath(nil)
+                            }
+                        }
+                    }
+                }
+
+                if let repoPath = settingsModel.aiDevToolsRepoPath {
+                    let binaryPath = repoPath
+                        .appendingPathComponent("AIDevToolsKit")
+                        .appendingPathComponent(".build")
+                        .appendingPathComponent("debug")
+                        .appendingPathComponent("ai-dev-tools-kit")
+                    Text("Binary: \(binaryPath.path(percentEncoded: false))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
