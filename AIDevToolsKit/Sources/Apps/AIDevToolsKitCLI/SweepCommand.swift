@@ -69,7 +69,7 @@ struct SweepRunCommand: AsyncParsableCommand {
         print("Provider: \(client.name)")
         print()
 
-        let useCase = RunSweepBatchUseCase(client: client, git: GitClient(printOutput: false, environment: root.credentialResolver.gitEnvironment))
+        let useCase = RunSweepBatchUseCase(client: client, git: root.makeGitClient(printOutput: false))
         let options = RunSweepBatchUseCase.Options(
             taskDirectory: taskURL,
             taskRelativePath: taskURL.path.hasPrefix(repoURL.path + "/")

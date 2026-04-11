@@ -85,7 +85,7 @@ struct RunTaskCommand: AsyncParsableCommand {
             resolvedBaseBranch = config.getBaseBranch(defaultBaseBranch: Constants.defaultBaseBranch)
         }
 
-        let useCase = RunSpecChainTaskUseCase(client: client, git: GitClient(environment: root.credentialResolver.gitEnvironment))
+        let useCase = RunSpecChainTaskUseCase(client: client, git: root.gitClient)
         let options = RunSpecChainTaskUseCase.Options(
             repoPath: repoURL,
             projectName: project,

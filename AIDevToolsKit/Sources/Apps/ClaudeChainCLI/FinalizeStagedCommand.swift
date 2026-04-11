@@ -84,7 +84,7 @@ struct FinalizeStagedCommand: AsyncParsableCommand {
         print("Provider: \(client.name)")
         print()
 
-        let useCase = FinalizeStagedTaskUseCase(client: client, git: GitClient(environment: root.credentialResolver.gitEnvironment))
+        let useCase = FinalizeStagedTaskUseCase(client: client, git: root.gitClient)
         let result = try await useCase.run(
             options: .init(
                 repoPath: repoURL,
