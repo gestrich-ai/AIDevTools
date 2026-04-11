@@ -21,7 +21,7 @@ public struct CredentialResolver: Sendable {
         dotEnv: [String: String]? = nil
     ) {
         self.account = githubAccount
-        self.dotEnv = dotEnv ?? DotEnvironmentLoader.loadDotEnv()
+        self.dotEnv = dotEnv ?? DotEnvironmentLoader().loadDotEnv()
         self.explicitToken = nil
         self.processEnvironment = processEnvironment
         self.settingsService = settingsService

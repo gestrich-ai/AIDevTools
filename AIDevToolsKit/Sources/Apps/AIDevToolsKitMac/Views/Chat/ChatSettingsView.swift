@@ -1,3 +1,4 @@
+import MCPService
 import SwiftUI
 
 struct ChatSettingsView: View {
@@ -59,7 +60,7 @@ struct ChatSettingsView: View {
                             Text("Not set")
                                 .foregroundStyle(.tertiary)
                         }
-                        Button("Choose…") {
+                        Button {
                             let panel = NSOpenPanel()
                             panel.canChooseFiles = false
                             panel.canChooseDirectories = true
@@ -70,11 +71,8 @@ struct ChatSettingsView: View {
                             if panel.runModal() == .OK, let url = panel.url {
                                 settingsModel.updateAIDevToolsRepoPath(url)
                             }
-                        }
-                        if settingsModel.aiDevToolsRepoPath != nil {
-                            Button("Clear") {
-                                settingsModel.updateAIDevToolsRepoPath(nil)
-                            }
+                        } label: {
+                            Image(systemName: "folder")
                         }
                     }
                 }
@@ -94,8 +92,7 @@ struct ChatSettingsView: View {
                     LabeledContent("Binary") {
                         Text(binaryURL.path(percentEncoded: false))
                             .foregroundStyle(.secondary)
-                            .fontDesign(.monospaced)
-                            .lineLimit(2)
+                            .lineLimit(1)
                             .truncationMode(.middle)
                     }
                     LabeledContent("Last Built") {
@@ -106,7 +103,7 @@ struct ChatSettingsView: View {
             } header: {
                 Text("MCP")
             } footer: {
-                Text("The MCP server lets Claude access live app state during chat. Set the AIDevTools repo path so the app can find the CLI binary.")
+                Text("With MCP active, Claude can read your plans, check chain status, see which tab is open, and navigate the app — all from within a chat conversation. Set the repo path above to locate the CLI binary. The config updates automatically each time you run the CLI from Terminal, or after a build in Xcode or swift build.")
             }
         }
         .formStyle(.grouped)

@@ -29,7 +29,7 @@ public struct ClaudeAgentEnvironment: Sendable {
         ]
         env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
 
-        let dotEnv = DotEnvironmentLoader.loadDotEnv()
+        let dotEnv = DotEnvironmentLoader().loadDotEnv()
         for (key, value) in dotEnv where env[key] == nil {
             env[key] = value
         }

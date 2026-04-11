@@ -1,6 +1,7 @@
 import AIOutputSDK
 import ArgumentParser
 import ChatFeature
+import DataPathsService
 import Foundation
 import ProviderRegistryService
 
@@ -73,7 +74,7 @@ struct ChatCommand: AsyncParsableCommand {
             message: text,
             workingDirectory: workingDirectory,
             sessionId: sessionId,
-            mcpConfigPath: mcpConfig,
+            mcpConfigPath: mcpConfig ?? DataPathsService.mcpConfigFileURL.path,
             systemPrompt: systemPrompt
         )
 
@@ -129,7 +130,7 @@ struct ChatCommand: AsyncParsableCommand {
                 message: input,
                 workingDirectory: workingDirectory,
                 sessionId: sessionId,
-                mcpConfigPath: mcpConfig,
+                mcpConfigPath: mcpConfig ?? DataPathsService.mcpConfigFileURL.path,
                 systemPrompt: systemPrompt
             )
 

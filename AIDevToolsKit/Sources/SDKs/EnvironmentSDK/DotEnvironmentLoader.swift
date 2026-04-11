@@ -1,7 +1,10 @@
 import Foundation
 
-public enum DotEnvironmentLoader {
-    public static func loadDotEnv() -> [String: String] {
+public struct DotEnvironmentLoader: Sendable {
+
+    public init() {}
+
+    public func loadDotEnv() -> [String: String] {
         var values: [String: String] = [:]
         var searchDir = FileManager.default.currentDirectoryPath
         while true {
@@ -24,6 +27,14 @@ public enum DotEnvironmentLoader {
             let parent = (searchDir as NSString).deletingLastPathComponent
             if parent == searchDir { return values }
             searchDir = parent
+        }
+    }
+
+    public func applyToEnvironment() {
+        for (key, value) in loadDotEnv() {
+            if ProcessInfo.processInfo.environment[key] == nil {
+                setenv(key, value, 0)
+            }
         }
     }
 }

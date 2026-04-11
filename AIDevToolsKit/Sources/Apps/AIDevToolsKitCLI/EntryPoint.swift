@@ -1,10 +1,7 @@
 import ArgumentParser
 import ClaudeChainCLI
-import DataPathsService
-import EnvironmentSDK
 import Foundation
 import Logging
-import LoggingSDK
 
 @main
 struct AIDevToolsKit: AsyncParsableCommand {
@@ -17,7 +14,6 @@ struct AIDevToolsKit: AsyncParsableCommand {
     )
 
     static func main() async {
-        writeMCPConfig()
         do {
             var command = try parseAsRoot()
             if var asyncCommand = command as? any AsyncParsableCommand {
@@ -45,47 +41,10 @@ struct AIDevToolsKit: AsyncParsableCommand {
 
     mutating func validate() throws {
         guard !Self.bootstrapped else { return }
-        AIDevToolsLogging.bootstrap(logLevel: logLevel)
-        loadDotEnv()
+        CLICompositionRoot.preServiceSetup(logLevel: logLevel)
         Self.bootstrapped = true
     }
 
-    private func loadDotEnv() {
-        for (key, value) in DotEnvironmentLoader.loadDotEnv() {
-            if ProcessInfo.processInfo.environment[key] == nil {
-                setenv(key, value, 0)
-            }
-        }
-    }
-
-    // Fallback writer — the Mac app is the primary MCP config writer when the repo path is configured in Settings.
-    private static func writeMCPConfig() {
-        let arg0 = ProcessInfo.processInfo.arguments[0]
-        let executableURL: URL
-        if arg0.hasPrefix("/") {
-            executableURL = URL(fileURLWithPath: arg0).standardizedFileURL
-        } else {
-            let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            executableURL = URL(fileURLWithPath: arg0, relativeTo: cwd).standardizedFileURL
-        }
-        let config = """
-        {
-          "mcpServers": {
-            "ai-dev-tools-kit": {
-              "command": "\(executableURL.path)",
-              "args": ["mcp"]
-            }
-          }
-        }
-        """
-        let fileURL = DataPathsService.mcpConfigFileURL
-        // Best-effort write; failure here is non-fatal since the Mac app is the primary writer.
-        try? FileManager.default.createDirectory(
-            at: fileURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try? config.write(to: fileURL, atomically: true, encoding: .utf8)
-    }
 }
 
 extension Logger.Level: @retroactive ExpressibleByArgument {

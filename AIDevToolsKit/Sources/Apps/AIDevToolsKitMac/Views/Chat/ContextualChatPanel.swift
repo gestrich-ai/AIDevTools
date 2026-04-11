@@ -1,6 +1,7 @@
 import AIOutputSDK
 import AppKit
 import DataPathsService
+import MCPService
 import ProviderRegistryService
 import SwiftUI
 

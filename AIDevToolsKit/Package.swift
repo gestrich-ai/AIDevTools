@@ -30,6 +30,7 @@ var products: [Product] = [
     .library(name: "KeychainSDK", targets: ["KeychainSDK"]),
     .library(name: "LoggingSDK", targets: ["LoggingSDK"]),
     .library(name: "LogsFeature", targets: ["LogsFeature"]),
+    .library(name: "MCPService", targets: ["MCPService"]),
     .library(name: "SweepFeature", targets: ["SweepFeature"]),
     .library(name: "SweepService", targets: ["SweepService"]),
     .library(name: "PlanFeature", targets: ["PlanFeature"]),
@@ -92,6 +93,7 @@ var targets: [Target] = [
             "EvalService",
             "GitHubService",
             "LoggingSDK",
+            "MCPService",
             "PlanFeature",
             "PlanService",
             .product(name: "MCP", package: "swift-sdk"),
@@ -284,6 +286,13 @@ var targets: [Target] = [
             "PRRadarModelsService",
         ],
         path: "Sources/Services/GitHubService"
+    ),
+    .target(
+        name: "MCPService",
+        dependencies: [
+            "DataPathsService",
+        ],
+        path: "Sources/Services/MCPService"
     ),
     .target(
         name: "SweepService",
@@ -781,6 +790,7 @@ targets.append(contentsOf: [
             "GitSDK",
             "LoggingSDK",
             "LogsFeature",
+            "MCPService",
             "PlanFeature",
             "PlanService",
             "OctokitSDK",

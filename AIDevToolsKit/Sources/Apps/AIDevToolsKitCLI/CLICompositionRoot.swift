@@ -1,13 +1,24 @@
 import CredentialFeature
 import CredentialService
+import EnvironmentSDK
 import GitSDK
+import Logging
+import LoggingSDK
+import MCPService
 import ProviderRegistryService
 
 struct CLICompositionRoot {
     let credentialResolver: CredentialResolver
+    let dotEnvLoader: DotEnvironmentLoader
     let evalProviderRegistry: EvalProviderRegistry
     let gitClient: GitClient
+    let mcpService: MCPService
     let providerRegistry: ProviderRegistry
+
+    static func preServiceSetup(logLevel: Logger.Level) {
+        AIDevToolsLogging.bootstrap(logLevel: logLevel)
+        DotEnvironmentLoader().applyToEnvironment()
+    }
 
     static func create() throws -> CLICompositionRoot {
         let shared = try SharedCompositionRoot.create()
@@ -21,9 +32,16 @@ struct CLICompositionRoot {
     }
 
     private init(shared: SharedCompositionRoot, printGitOutput: Bool = true) {
-        self.credentialResolver = shared.credentialResolver
-        self.evalProviderRegistry = shared.evalProviderRegistry
-        self.gitClient = GitClient(printOutput: printGitOutput, environment: shared.credentialResolver.gitEnvironment)
-        self.providerRegistry = shared.providerRegistry
+        credentialResolver = shared.credentialResolver
+        dotEnvLoader = DotEnvironmentLoader()
+        evalProviderRegistry = shared.evalProviderRegistry
+        gitClient = GitClient(printOutput: printGitOutput, environment: shared.credentialResolver.gitEnvironment)
+        mcpService = MCPService()
+        providerRegistry = shared.providerRegistry
+        postServiceSetup()
+    }
+
+    private func postServiceSetup() {
+        mcpService.writeMCPConfigFromCurrentProcess()
     }
 }

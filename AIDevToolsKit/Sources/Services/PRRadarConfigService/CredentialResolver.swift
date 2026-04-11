@@ -29,7 +29,7 @@ public struct CredentialResolver: Sendable {
         self.keychain = keychain
         self.account = githubAccount
         self.processEnvironment = processEnvironment
-        self.dotEnv = dotEnv ?? DotEnvironmentLoader.loadDotEnv()
+        self.dotEnv = dotEnv ?? DotEnvironmentLoader().loadDotEnv()
     }
 
     public static func createPlatform(githubAccount: String) -> CredentialResolver {
