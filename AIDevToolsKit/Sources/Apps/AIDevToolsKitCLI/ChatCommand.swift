@@ -29,7 +29,7 @@ struct ChatCommand: AsyncParsableCommand {
     var message: String?
 
     func run() async throws {
-        let registry = makeProviderRegistry()
+        let registry = try CLICompositionRoot.create().shared.providerRegistry
 
         let client: any AIClient
         if let provider {

@@ -53,7 +53,7 @@ struct ShowOutputCommand: ParsableCommand {
             throw ValidationError("Must specify either --output-dir or --repo")
         }
 
-        let registry = makeEvalRegistry()
+        let registry = SharedCompositionRoot.buildEvalProviderRegistry()
         let resolvedProvider = Provider(rawValue: provider)
         let entry = registry.entries.first(where: { $0.name == provider })
         guard let defaultEntry = registry.defaultEntry else {

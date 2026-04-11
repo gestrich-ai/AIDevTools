@@ -55,7 +55,7 @@ struct FinalizeStagedCommand: AsyncParsableCommand {
         }
 
         let resolver = resolveGitHubCredentials(githubAccount: githubAccount, githubToken: githubToken)
-        let registry = makeProviderRegistry(credentialResolver: resolver)
+        let registry = try CLICompositionRoot.create(credentialResolver: resolver).shared.providerRegistry
         guard let client = provider.flatMap({ registry.client(named: $0) }) ?? registry.defaultClient else {
             print("Error: No AI provider available. Configure an API key or install Claude CLI.")
             throw ExitCode.failure

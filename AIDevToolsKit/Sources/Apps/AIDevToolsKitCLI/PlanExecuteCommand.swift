@@ -57,7 +57,7 @@ struct PlanExecuteCommand: AsyncParsableCommand {
         let planPath = planURL.path(percentEncoded: false)
         let repository = repos.first { planPath.hasPrefix($0.path.path(percentEncoded: false)) }
 
-        let registry = makeProviderRegistry()
+        let registry = try CLICompositionRoot.create().shared.providerRegistry
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
 
         let service = PlanService(

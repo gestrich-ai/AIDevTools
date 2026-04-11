@@ -347,7 +347,15 @@ var targets: [Target] = [
     ),
     .target(
         name: "ProviderRegistryService",
-        dependencies: ["AIOutputSDK"],
+        dependencies: [
+            "AIOutputSDK",
+            "AnthropicSDK",
+            "ClaudeCLISDK",
+            "CodexCLISDK",
+            "CredentialService",
+            "DataPathsService",
+            "SettingsService",
+        ],
         path: "Sources/Services/ProviderRegistryService"
     ),
     .target(

@@ -1,7 +1,3 @@
-import AIOutputSDK
-import AnthropicSDK
-import ClaudeCLISDK
-import CodexCLISDK
 import CredentialService
 import Foundation
 import ProviderRegistryService
@@ -34,10 +30,6 @@ final class ProviderModel {
     }
 
     private static func buildRegistry(anthropicAPIKey: String?, sessionsDirectory: URL) -> ProviderRegistry {
-        var providers: [any AIClient] = [ClaudeProvider(), CodexProvider()]
-        if let key = anthropicAPIKey, !key.isEmpty {
-            providers.append(AnthropicProvider(apiClient: AnthropicAPIClient(apiKey: key), sessionsDirectory: sessionsDirectory))
-        }
-        return ProviderRegistry(providers: providers)
+        SharedCompositionRoot.buildProviderRegistry(anthropicAPIKey: anthropicAPIKey, sessionsDirectory: sessionsDirectory)
     }
 }

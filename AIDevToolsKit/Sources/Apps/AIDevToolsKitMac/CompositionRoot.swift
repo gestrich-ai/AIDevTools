@@ -1,11 +1,8 @@
-import ClaudeCLISDK
-import CodexCLISDK
 import CredentialService
 import DataPathsService
 import Foundation
 import GitSDK
 import ProviderRegistryService
-import RepositorySDK
 import SettingsService
 
 @MainActor
@@ -18,16 +15,8 @@ struct CompositionRoot {
     let settingsService: SettingsService
 
     static func create() throws -> CompositionRoot {
+        let shared = try SharedCompositionRoot.create()
         let settingsModel = SettingsModel()
-        let dataPathsService = try DataPathsService(rootPath: settingsModel.dataPath)
-        try MigrateDataPathsUseCase(dataPathsService: dataPathsService).run()
-
-        let settingsService = try SettingsService(dataPathsService: dataPathsService)
-
-        let evalProviderRegistry = EvalProviderRegistry(entries: [
-            EvalProviderEntry(client: ClaudeProvider()),
-            EvalProviderEntry(client: CodexProvider()),
-        ])
 
         writeMCPConfig()
 
@@ -42,15 +31,15 @@ struct CompositionRoot {
             return GitClient(environment: ["GH_TOKEN": token])
         }
 
-        let anthropicSessionsDirectory = try dataPathsService.path(for: .anthropicSessions)
+        let anthropicSessionsDirectory = try shared.dataPathsService.path(for: .anthropicSessions)
 
         return CompositionRoot(
-            dataPathsService: dataPathsService,
-            evalProviderRegistry: evalProviderRegistry,
+            dataPathsService: shared.dataPathsService,
+            evalProviderRegistry: shared.evalProviderRegistry,
             gitClientFactory: gitClientFactory,
             providerModel: ProviderModel(sessionsDirectory: anthropicSessionsDirectory),
             settingsModel: settingsModel,
-            settingsService: settingsService
+            settingsService: shared.settingsService
         )
     }
 

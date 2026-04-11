@@ -29,7 +29,7 @@ struct PlanPlanCommand: AsyncParsableCommand {
         let settings = try ReposCommand.makeSettingsService(dataPath: dataPath)
         let repos = try settings.repositoryStore.loadAll()
 
-        let registry = makeProviderRegistry()
+        let registry = try CLICompositionRoot.create().shared.providerRegistry
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
 
         let service = PlanService(
