@@ -39,16 +39,21 @@ public struct EnrichedPR: Sendable {
 
 public struct PRReviewStatus: Sendable {
     public let approvedBy: [String]
+    public let changesRequestedBy: [String]
     public let pendingReviewers: [String]
 
-    public init(approvedBy: [String], pendingReviewers: [String]) {
+    public init(approvedBy: [String], changesRequestedBy: [String] = [], pendingReviewers: [String]) {
         self.approvedBy = approvedBy
+        self.changesRequestedBy = changesRequestedBy
         self.pendingReviewers = pendingReviewers
     }
 
     public init(reviews: [GitHubReview]) {
         approvedBy = Array(Set(
             reviews.filter { $0.state == .approved }.compactMap { $0.author?.login }
+        ))
+        changesRequestedBy = Array(Set(
+            reviews.filter { $0.state == .changesRequested }.compactMap { $0.author?.login }
         ))
         pendingReviewers = Array(Set(
             reviews.filter { $0.state == .pending }.compactMap { $0.author?.login }

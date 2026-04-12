@@ -81,7 +81,11 @@ public struct GitHubPRLoaderUseCase: StreamingUseCase {
                 continuation.yield(.fetched(fetchedPRs))
 
                 for pr in fetchedPRs {
-                    if let prior = cachedByNumber[pr.number], prior.updatedAt == pr.updatedAt {
+                    // Only skip if we already have enriched data for this PR in this session.
+                    // Disk cache never stores enrichment fields, so always enrich on first load.
+                    if let prior = cachedByNumber[pr.number],
+                       prior.updatedAt == pr.updatedAt,
+                       prior.reviews != nil {
                         continue
                     }
 

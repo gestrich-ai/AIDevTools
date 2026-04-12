@@ -18,6 +18,14 @@ struct PullRequestsDetailView: View {
                     checkRunsSection(checkRuns)
                     Divider()
                 }
+                if let githubComments = metadata.githubComments {
+                    let prComments = githubComments.comments
+                    let reviewComments = githubComments.reviewComments
+                    if !prComments.isEmpty || !reviewComments.isEmpty {
+                        commentsSection(prComments: prComments, reviewComments: reviewComments)
+                        Divider()
+                    }
+                }
                 if let urlString = metadata.url, let url = URL(string: urlString) {
                     Link("Open on GitHub", destination: url)
                         .font(.body)
@@ -173,6 +181,55 @@ struct PullRequestsDetailView: View {
                     .foregroundStyle(.orange)
             }
         }
+    }
+
+    // MARK: - Comments
+
+    private func commentsSection(prComments: [GitHubComment], reviewComments: [GitHubReviewComment]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Comments")
+                .font(.headline)
+            ForEach(prComments, id: \.id) { comment in
+                commentRow(
+                    author: comment.author?.login ?? "Unknown",
+                    body: comment.body,
+                    location: nil
+                )
+            }
+            ForEach(reviewComments) { comment in
+                let location: String = {
+                    let line = comment.line.map { ":\($0)" } ?? ""
+                    return comment.path + line
+                }()
+                commentRow(
+                    author: comment.author?.login ?? "Unknown",
+                    body: comment.bodyWithoutMetadata,
+                    location: location
+                )
+            }
+        }
+    }
+
+    private func commentRow(author: String, body: String, location: String?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text(author)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                if let location {
+                    Text(location)
+                        .font(.caption)
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Text(body)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+        }
+        .padding(.leading, 4)
     }
 
     private func checkRunStatusLabel(_ run: GitHubCheckRun) -> String {

@@ -265,6 +265,16 @@ extension PRMetadata: Equatable {
     public static func == (lhs: PRMetadata, rhs: PRMetadata) -> Bool {
         lhs.number == rhs.number
     }
+
+    /// Encodes enrichment state for use as a SwiftUI view identity.
+    /// Changes when enrichment data arrives so List rows refresh without scrolling.
+    public var contentID: String {
+        "\(number)"
+        + "|\(reviews?.count ?? -1)"
+        + "|\(checkRuns?.count ?? -1)"
+        + "|\(githubComments?.comments.count ?? -1)"
+        + "|\(githubComments?.reviewComments.count ?? -1)"
+    }
 }
 
 extension PRMetadata {

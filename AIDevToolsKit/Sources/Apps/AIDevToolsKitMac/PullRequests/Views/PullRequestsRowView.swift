@@ -1,3 +1,4 @@
+import ClaudeChainService
 import PRRadarModelsService
 import SwiftUI
 
@@ -25,6 +26,8 @@ struct PullRequestsRowView: View {
                 }
 
                 Spacer()
+
+                commentsBadge
 
                 reviewStatusBadge
 
@@ -64,7 +67,7 @@ struct PullRequestsRowView: View {
 
     @ViewBuilder
     private var stateLabel: some View {
-        let prState = PRState(rawValue: metadata.state.uppercased()) ?? .open
+        let prState = PRRadarModelsService.PRState(rawValue: metadata.state.uppercased()) ?? .open
         let (color, label) = stateDisplay(prState)
         Text(label)
             .font(.caption2)
@@ -76,7 +79,7 @@ struct PullRequestsRowView: View {
             .clipShape(Capsule())
     }
 
-    private func stateDisplay(_ state: PRState) -> (Color, String) {
+    private func stateDisplay(_ state: PRRadarModelsService.PRState) -> (Color, String) {
         switch state {
         case .open:
             return (Color(red: 35/255, green: 134/255, blue: 54/255), "Open")
@@ -89,83 +92,99 @@ struct PullRequestsRowView: View {
         }
     }
 
-    // MARK: - Review Status Badge
+    // MARK: - Comments Badge
 
     @ViewBuilder
-    private var reviewStatusBadge: some View {
-        switch reviewStatus {
-        case .approved:
-            Image(systemName: "checkmark.seal.fill")
-                .font(.caption2)
-                .foregroundStyle(.green)
-                .help("Approved")
-        case .changesRequested:
-            Image(systemName: "xmark.seal.fill")
-                .font(.caption2)
-                .foregroundStyle(.red)
-                .help("Changes Requested")
-        case .pending:
-            Image(systemName: "clock.fill")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .help("Review Pending")
-        case .none:
-            EmptyView()
+    private var commentsBadge: some View {
+        let count = (metadata.githubComments?.comments.count ?? 0)
+            + (metadata.githubComments?.reviewComments.count ?? 0)
+        if count > 0 {
+            Text("\(count)")
+                .font(.caption2.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(.secondary, in: Capsule())
+                .help("\(count) comment\(count == 1 ? "" : "s")")
         }
     }
 
-    private enum ReviewStatus {
-        case approved, changesRequested, pending
+    // MARK: - Review Badges
+
+    @ViewBuilder
+    private var reviewStatusBadge: some View {
+        if let status = reviewStatus {
+            let approved = status.approvedBy.count
+            let rejected = status.changesRequestedBy.count
+            if approved == 0 && rejected == 0 {
+                Image(systemName: "clock.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .help("Review Pending")
+            } else {
+                HStack(spacing: 3) {
+                    if approved > 0 {
+                        countBadge(approved, color: .green,
+                                   help: "Approved by \(status.approvedBy.joined(separator: ", "))")
+                    }
+                    if rejected > 0 {
+                        countBadge(rejected, color: .red,
+                                   help: "Changes requested by \(status.changesRequestedBy.joined(separator: ", "))")
+                    }
+                }
+            }
+        }
     }
 
-    private var reviewStatus: ReviewStatus? {
+    private var reviewStatus: PRReviewStatus? {
         guard let reviews = metadata.reviews else { return nil }
-        if reviews.contains(where: { $0.state == .changesRequested }) { return .changesRequested }
-        if reviews.contains(where: { $0.state == .approved }) { return .approved }
-        return .pending
+        return PRReviewStatus(reviews: reviews)
     }
 
-    // MARK: - Build Status Badge
+    // MARK: - Check Badges
 
     @ViewBuilder
     private var buildStatusBadge: some View {
-        switch buildStatus {
-        case .passing:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(.green)
-                .help("Checks Passing")
-        case .failing:
-            Image(systemName: "xmark.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(.red)
-                .help("Checks Failing")
-        case .pending:
-            Image(systemName: "circle.dotted")
-                .font(.caption2)
-                .foregroundStyle(.orange)
-                .help("Checks Pending")
-        case .conflicting:
+        if metadata.isMergeable == false {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.caption2)
                 .foregroundStyle(.orange)
                 .help("Merge Conflict")
-        case .none:
-            EmptyView()
+        } else if let runs = metadata.checkRuns {
+            let passing = runs.filter(\.isPassing).count
+            let failing = runs.filter(\.isFailing).count
+            let pending = runs.filter { $0.status != .completed }.count
+            if passing == 0 && failing == 0 && pending == 0 {
+                EmptyView()
+            } else {
+                HStack(spacing: 3) {
+                    if passing > 0 {
+                        countBadge(passing, color: .green,
+                                   help: "\(passing) check\(passing == 1 ? "" : "s") passing")
+                    }
+                    if failing > 0 {
+                        countBadge(failing, color: .red,
+                                   help: "\(failing) check\(failing == 1 ? "" : "s") failing")
+                    }
+                    if pending > 0 && failing == 0 {
+                        countBadge(pending, color: .orange,
+                                   help: "\(pending) check\(pending == 1 ? "" : "s") pending")
+                    }
+                }
+            }
         }
     }
 
-    private enum BuildStatus {
-        case passing, failing, pending, conflicting
-    }
+    // MARK: - Shared Badge Helper
 
-    private var buildStatus: BuildStatus? {
-        if metadata.isMergeable == false { return .conflicting }
-        guard let checkRuns = metadata.checkRuns else { return nil }
-        if checkRuns.contains(where: { $0.conclusion == .failure }) { return .failing }
-        if checkRuns.contains(where: { $0.status == .inProgress || $0.status == .queued }) { return .pending }
-        if !checkRuns.isEmpty && checkRuns.allSatisfy({ $0.conclusion == .success }) { return .passing }
-        return checkRuns.isEmpty ? nil : .pending
+    private func countBadge(_ count: Int, color: Color, help: String) -> some View {
+        Text("\(count)")
+            .font(.caption2.bold())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(color, in: Capsule())
+            .help(help)
     }
 
     // MARK: - Timestamp

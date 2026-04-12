@@ -8,7 +8,13 @@ struct PullRequestsContentView: View {
 
     @Environment(WorkspaceModel.self) private var workspaceModel
     @State private var model: PullRequestsModel?
-    @State private var selectedPR: PRMetadata?
+    @State private var selectedPRNumber: Int?
+
+    // Always derived from the live model so the detail view sees enriched data as it arrives.
+    private var selectedPR: PRMetadata? {
+        guard let number = selectedPRNumber else { return nil }
+        return model?.prs?.first { $0.number == number }
+    }
 
     var body: some View {
         HSplitView {
@@ -20,20 +26,20 @@ struct PullRequestsContentView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    if let pr = selectedPR {
-                        Task { await model?.refresh(number: pr.number) }
+                    if let number = selectedPRNumber {
+                        Task { await model?.refresh(number: number) }
                     } else {
                         Task { await model?.load() }
                     }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help(selectedPR != nil ? "Refresh selected PR" : "Reload all PRs")
+                .help(selectedPRNumber != nil ? "Refresh selected PR" : "Reload all PRs")
                 .disabled(model == nil)
             }
         }
         .task(id: repository.id) {
-            selectedPR = nil
+            selectedPRNumber = nil
             guard let config = workspaceModel.prradarConfig(for: repository) else {
                 model = nil
                 return
@@ -74,12 +80,11 @@ struct PullRequestsContentView: View {
                 description: Text(message)
             )
         } else if let prs = model.prs, !prs.isEmpty {
-            List(prs, selection: $selectedPR) { pr in
-                PullRequestsRowView(
-                    metadata: pr,
-                    isFetching: model.fetchingPRNumbers.contains(pr.number)
-                )
-                .tag(pr)
+            List(prs, selection: $selectedPRNumber) { pr in
+                let isFetching = model.fetchingPRNumbers.contains(pr.number)
+                PullRequestsRowView(metadata: pr, isFetching: isFetching)
+                    .tag(pr.number)
+                    .id("\(pr.contentID)|\(isFetching)")
             }
             .listStyle(.sidebar)
             .accessibilityIdentifier("pullRequestList")
