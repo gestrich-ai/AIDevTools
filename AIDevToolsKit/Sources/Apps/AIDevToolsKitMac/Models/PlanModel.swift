@@ -150,8 +150,10 @@ final class PlanModel {
     }
 
     func getPlanDetails(planName: String, repository: RepositoryConfiguration) async throws -> String {
-        let proposedDir = try resolvedProposedDirectory(for: repository)
-        return try await GetPlanDetailsUseCase(proposedDirectory: proposedDir).run(planName: planName)
+        let directory = completedPlans.contains(where: { $0.name == planName })
+            ? resolvedCompletedDirectory(for: repository)
+            : resolvedProposedDirectory(for: repository)
+        return try await GetPlanDetailsUseCase(proposedDirectory: directory).run(planName: planName)
     }
 
     /// Toggles a phase checkbox in the plan markdown and returns the updated content.
