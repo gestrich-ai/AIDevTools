@@ -183,7 +183,10 @@ Remove the field everywhere it appears:
 - Delete the `ClaudePythonSDK` target definition entirely (unused legacy duplicate)
 - Keep lists alphabetically sorted per project convention
 
-## - [ ] Phase 7: Delete dead code
+## - [x] Phase 7: Delete dead code
+
+**Skills used**: none
+**Principles applied**: Verified Package.swift had no remaining references to `ClaudeAgentSDK` or `ClaudePythonSDK` before deleting. Confirmed `PRRadarLibrary/claude-agent/` was unused (no Swift code referenced it). `PRRadarLibrary` itself is now an empty directory.
 
 - Delete `AIDevToolsKit/Sources/SDKs/ClaudeAgentSDK/` directory
 - Delete `AIDevToolsKit/Sources/SDKs/ClaudePythonSDK/` directory
