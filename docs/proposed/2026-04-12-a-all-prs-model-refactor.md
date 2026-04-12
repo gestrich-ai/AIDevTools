@@ -98,7 +98,10 @@ factory so it lives with the type it produces.
   let models = PRModel.make(from: metadata, reusingExisting: currentPRModels, config: config)
   ```
 
-## - [ ] Phase 3: Rename and restructure `AllPRsModel`
+## - [x] Phase 3: Rename and restructure `AllPRsModel`
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Renamed `load()` → `loadCached()` and `syncAndDiscover(prNumber:)` → `refresh(number:)` for consistency with `refresh(filter:)`. Deleted `discoverAndMerge` and replaced with explicit `cachedPRs(filter:)` (acquisition), `applyMetadata(_:)` (reconciliation), and explicit `loadSummariesInBackground` calls at each site. Updated MARK sections to reflect the three layers. Updated call sites in `PRRadarContentView`.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

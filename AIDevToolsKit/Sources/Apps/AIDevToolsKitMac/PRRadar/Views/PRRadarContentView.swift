@@ -36,7 +36,7 @@ struct PRRadarContentView: View {
     private var showRefreshError: Binding<Bool> {
         Binding(
             get: { if let model = allPRsModel, case .failed = model.state { return true } else { return false } },
-            set: { if !$0 { Task { await allPRsModel?.load() } } }
+            set: { if !$0 { Task { await allPRsModel?.loadCached() } } }
         )
     }
 
@@ -135,7 +135,7 @@ struct PRRadarContentView: View {
             }
         }
         .alert("Refresh Failed", isPresented: showRefreshError) {
-            Button("OK") { Task { await allPRsModel?.load() } }
+            Button("OK") { Task { await allPRsModel?.loadCached() } }
         } message: {
             if let model = allPRsModel, case .failed(let error, _) = model.state {
                 Text(error)
@@ -154,7 +154,9 @@ struct PRRadarContentView: View {
                 allPRsModel = nil
                 return
             }
-            allPRsModel = AllPRsModel(config: config)
+            let model = AllPRsModel(config: config)
+            allPRsModel = model
+            await model.refresh(filter: buildFilter())
         }
         .onChange(of: selectedPR) { old, new in
             old?.cancelRefresh()
@@ -193,7 +195,10 @@ struct PRRadarContentView: View {
                 prViolationNavigationBar
                 Divider()
                 if filteredPRModels.isEmpty {
-                    if let model = allPRsModel, case .failed(let error, let prior) = model.state, prior == nil {
+                    if allPRsModel?.isLoading == true {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let model = allPRsModel, case .failed(let error, let prior) = model.state, prior == nil {
                         ContentUnavailableView(
                             "PR Radar Unavailable",
                             systemImage: "exclamationmark.triangle",
@@ -711,7 +716,7 @@ struct PRRadarContentView: View {
         Task {
             defer { isSearchingPR = false }
             do {
-                if let pr = try await model.syncAndDiscover(prNumber: number) {
+                if let pr = try await model.refresh(number: number) {
                     selectedPR = pr
                 }
             } catch {

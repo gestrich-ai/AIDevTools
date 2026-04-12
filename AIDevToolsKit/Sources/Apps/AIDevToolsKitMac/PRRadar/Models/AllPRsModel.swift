@@ -23,42 +23,32 @@ final class AllPRsModel {
 
     init(config: PRRadarRepoConfig) {
         self.config = config
-        Task { await load() }
+        Task { await loadCached() }
     }
 
-    // MARK: - PR Discovery
+    // MARK: - Cache Load
 
-    func load() async {
+    func loadCached() async {
         state = .loading
-        await discoverAndMerge(filter: config.makeFilter())
-    }
-
-    /// Reads PR metadata from the cache on a background thread, then updates state on the main actor.
-    @discardableResult
-    private func discoverAndMerge(filter: PRFilter? = nil) async -> [PRModel] {
-        let metadata = await CachedPRsUseCase(config: config).execute(filter: filter)
-        let prior = currentPRModels
-        let models = PRModel.make(from: metadata, reusingExisting: prior, config: config)
-        state = .ready(models)
+        let models = applyMetadata(await cachedPRs(filter: config.makeFilter()))
         loadSummariesInBackground(for: models)
-        return models
     }
 
-    // MARK: - Sync Single PR
-
-    func syncAndDiscover(prNumber: Int) async throws -> PRModel? {
+    func refresh(number: Int) async throws -> PRModel? {
         let useCase = SyncPRUseCase(config: config)
-        for try await progress in useCase.execute(prNumber: prNumber, force: true) {
+        for try await progress in useCase.execute(prNumber: number, force: true) {
             switch progress {
             case .failed(let error, _):
                 throw SyncError.failed(error)
             default: break
             }
         }
-        return await discoverAndMerge(filter: config.makeFilter()).first(where: { $0.metadata.number == prNumber })
+        let models = applyMetadata(await cachedPRs(filter: config.makeFilter()))
+        loadSummariesInBackground(for: models)
+        return models.first(where: { $0.metadata.number == number })
     }
 
-    // MARK: - Refresh from GitHub
+    // MARK: - GitHub Refresh
 
     func refresh(filter: PRFilter) async {
         let prior = currentPRModels
@@ -108,8 +98,7 @@ final class AllPRsModel {
             }
         }
 
-        let mergedModels = PRModel.make(from: metadata, reusingExisting: prior, config: config)
-        self.state = .ready(mergedModels)
+        let mergedModels = applyMetadata(metadata)
         loadSummariesInBackground(for: mergedModels)
 
         let prsToRefresh = filteredPRs(mergedModels, filter: filter)
@@ -186,6 +175,37 @@ final class AllPRsModel {
         analyzeAllState = .idle
     }
 
+    // MARK: - Acquisition
+
+    private func cachedPRs(filter: PRFilter? = nil) async -> [PRMetadata] {
+        await CachedPRsUseCase(config: config).execute(filter: filter)
+    }
+
+    // MARK: - Reconciliation
+
+    @discardableResult
+    private func applyMetadata(_ metadata: [PRMetadata]) -> [PRModel] {
+        let models = PRModel.make(from: metadata, reusingExisting: currentPRModels, config: config)
+        state = .ready(models)
+        return models
+    }
+
+    // MARK: - Enrichment
+
+    private func loadSummariesInBackground(for models: [PRModel]) {
+        logger.trace("Loading summaries for \(models.count) PRs", metadata: ["repo": "\(config.name)"])
+        Task {
+            await withTaskGroup(of: Void.self) { group in
+                for model in models {
+                    group.addTask {
+                        await model.loadSummary()
+                    }
+                }
+            }
+            logger.trace("Finished loading summaries", metadata: ["repo": "\(config.name)"])
+        }
+    }
+
     // MARK: - Filtering
 
     func filteredPRModels(filter: PRFilter) -> [PRModel] {
@@ -216,7 +236,7 @@ final class AllPRsModel {
         return result
     }
 
-    // MARK: - GitHub PR Service
+    // MARK: - Change Observation
 
     private func startObservingChanges(service: any GitHubPRServiceProtocol) {
         changesTask?.cancel()
@@ -267,20 +287,6 @@ final class AllPRsModel {
     private var analyzeAllLogs: String {
         if case .running(let logs, _, _) = analyzeAllState { return logs }
         return ""
-    }
-
-    private func loadSummariesInBackground(for models: [PRModel]) {
-        logger.trace("Loading summaries for \(models.count) PRs", metadata: ["repo": "\(config.name)"])
-        Task {
-            await withTaskGroup(of: Void.self) { group in
-                for model in models {
-                    group.addTask {
-                        await model.loadSummary()
-                    }
-                }
-            }
-            logger.trace("Finished loading summaries", metadata: ["repo": "\(config.name)"])
-        }
     }
 
     enum SyncError: LocalizedError {
