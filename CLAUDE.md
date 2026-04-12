@@ -17,4 +17,5 @@
 * ai-dev-tools-pr-radar-add-rule: When adding new PRRadar code review rules
 * ai-dev-tools-pr-radar-todo: When adding items to the PRRadar TODO list
 * ai-dev-tools-swift-testing: When writing or reviewing Swift test files
+* ai-dev-tools-ui-tests: When running UI tests, capturing app screenshots, writing new screenshot tests, extracting images from .xcresult bundles, or using the interactive test runner
 * swift-architecture: For any architecture or planning activities
