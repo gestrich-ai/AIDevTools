@@ -1,6 +1,9 @@
 import Foundation
 import GitHubService
+import Logging
 import PRRadarModelsService
+
+private let logger = Logger(label: "CommentService")
 
 public struct CommentService: Sendable {
     private let githubService: GitHubAPIService
@@ -92,7 +95,7 @@ public struct CommentService: Sendable {
                 }
                 successful += 1
             } catch {
-                print("  Failed to post comment on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
+                logger.error("postViolations: failed to post comment on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
                 failed += 1
             }
         }
@@ -119,7 +122,7 @@ public struct CommentService: Sendable {
                 try await githubService.editReviewComment(commentId: commentId, body: body)
                 successful += 1
             } catch {
-                print("  Failed to edit comment \(commentId) on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
+                logger.error("editViolations: failed to edit comment \(commentId) on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
                 failed += 1
             }
         }

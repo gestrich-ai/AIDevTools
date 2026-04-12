@@ -1,4 +1,3 @@
-import CredentialService
 import Foundation
 import Logging
 import PRRadarModelsService
@@ -91,6 +90,8 @@ public struct GitHubPRLoaderUseCase {
                     continuation.yield(.prFetchStarted(prNumber: pr.number))
                     do {
                         let enriched = try await enrichPR(pr, using: service, useCache: isUnchanged)
+                        // Swallowing intentionally: author cache is best-effort; a write failure
+                        // does not affect the PR data the caller receives.
                         try? await updateAuthorCache(for: enriched)
                         continuation.yield(.prUpdated(enriched))
                     } catch {

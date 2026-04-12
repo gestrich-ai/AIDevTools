@@ -142,9 +142,10 @@ On repo load, call `LoadAuthorsUseCase(config:).executeAll()` and hold the resul
 
 **3j. Delete `AuthorCacheService`** (`Sources/Services/PRRadarConfigService/AuthorCacheService.swift`)
 
-## - [ ] Phase 4: Enforce
+## - [x] Phase 4: Enforce
 
-**Skills to read**: `ai-dev-tools-enforce`
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-quality`, `ai-dev-tools-code-organization`
+**Principles applied**: Replaced `print()` calls with `logger.error()` in `CommentService` (build quality). Added intentional-swallow comments to all `try?` author-cache calls in `GitHubPRLoaderUseCase`, `PRAcquisitionService`, and `AllPRsModel` (code quality). Added `_ =` to unused `try?` results in `PRAcquisitionService` to suppress compiler warnings. Fixed pre-existing `@Sendable` closure warning in `PRAcquisitionService.diffNoIndex` call by wrapping in an explicit `@Sendable` closure. Removed unused `import CredentialService` from `GitHubPRLoaderUseCase`. Fixed alphabetical sort order of methods in `GitHubPRServiceProtocol` (`readAllCachedPRs` was at position 3, moved to correct position after `pullRequestByHeadBranch`; `updatePR`/`updatePRs` reordered). Removed redundant `?? ""` fallback in `AllPRsModel.availableAuthors` where the left side was already non-optional.
 
 Run `ai-dev-tools-enforce` on all Swift files modified across Phases 1–3.
 

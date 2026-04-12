@@ -34,6 +34,8 @@ final class AllPRsModel {
         loadSummariesInBackground(for: models)
         Task {
             if let gitHubConfig = try? config.makeGitHubRepoConfig() {
+                // Swallowing intentionally: author list is best-effort for the filter dropdown;
+                // a failure leaves the dropdown empty rather than blocking the PR list from loading.
                 loadedAuthors = (try? await LoadAuthorsUseCase(config: gitHubConfig).executeAll()) ?? []
             }
         }
@@ -242,7 +244,7 @@ final class AllPRsModel {
             let entry = authorsByLogin[login]
             result.append(AuthorOption(
                 login: login,
-                name: entry?.name ?? model.metadata.author.name ?? "",
+                name: entry?.name ?? model.metadata.author.name,
                 avatarURL: entry?.avatarURL
             ))
         }

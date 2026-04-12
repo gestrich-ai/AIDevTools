@@ -40,7 +40,9 @@ public struct PRAcquisitionService: Sendable {
         }
 
         let logins = collectCommentAuthorLogins(comments: comments)
-        try? await LoadAuthorsUseCase(config: config).execute(logins: logins)
+        // Swallowing intentionally: author cache population is best-effort; a failure here
+        // does not affect the comments returned to the caller.
+        _ = try? await LoadAuthorsUseCase(config: config).execute(logins: logins)
 
         if !comments.reviewComments.isEmpty {
             let resolvedIDs = try await gitHub.fetchResolvedReviewCommentIDs(number: prNumber)
@@ -88,7 +90,9 @@ public struct PRAcquisitionService: Sendable {
 
         var prLogins = collectCommentAuthorLogins(comments: comments)
         if let login = pullRequest.author?.login { prLogins.insert(login) }
-        try? await LoadAuthorsUseCase(config: config).execute(logins: prLogins)
+        // Swallowing intentionally: author cache population is best-effort; a failure here
+        // does not affect the acquisition result returned to the caller.
+        _ = try? await LoadAuthorsUseCase(config: config).execute(logins: prLogins)
 
         guard let fullCommitHash = pullRequest.headRefOid,
               let baseRefName = pullRequest.baseRefName else {
@@ -256,7 +260,9 @@ public struct PRAcquisitionService: Sendable {
             gitDiff: gitDiff,
             oldFiles: oldFiles,
             newFiles: newFiles,
-            rediff: gitOps.diffNoIndex
+            rediff: { @Sendable old, new, oldLabel, newLabel in
+                try await gitOps.diffNoIndex(oldText: old, newText: new, oldLabel: oldLabel, newLabel: newLabel)
+            }
         )
 
         let effectiveDiffJSON = try JSONEncoder.prettyPrinted.encode(result.effectiveDiff)

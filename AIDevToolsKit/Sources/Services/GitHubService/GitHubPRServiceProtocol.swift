@@ -5,7 +5,6 @@ import PRRadarModelsService
 public protocol GitHubPRServiceProtocol: Sendable {
     func branchHead(branch: String, ttl: TimeInterval) async throws -> BranchHead
     func changes() -> AsyncStream<Int>
-    func readAllCachedPRs() async -> [GitHubPullRequest]
     func checkRuns(number: Int, useCache: Bool) async throws -> [GitHubCheckRun]
     func closePullRequest(number: Int) async throws
     func comments(number: Int, useCache: Bool) async throws -> GitHubPullRequestComments
@@ -24,12 +23,13 @@ public protocol GitHubPRServiceProtocol: Sendable {
     func postIssueComment(prNumber: Int, body: String) async throws
     func pullRequest(number: Int, useCache: Bool) async throws -> GitHubPullRequest
     func pullRequestByHeadBranch(branch: String) async throws -> CreatedPullRequest?
+    func readAllCachedPRs() async -> [GitHubPullRequest]
     func readCachedIndex(key: String) async throws -> [Int]?
     func repository(useCache: Bool) async throws -> GitHubRepository
     func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview]
     func triggerWorkflowDispatch(workflowId: String, ref: String, inputs: [String: String]) async throws
-    func updatePRs(filter: PRFilter) async throws -> [GitHubPullRequest]
     func updatePR(number: Int) async throws
+    func updatePRs(filter: PRFilter) async throws -> [GitHubPullRequest]
     func updatePRs(numbers: [Int]) async throws
     func updateRepository() async throws
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws
