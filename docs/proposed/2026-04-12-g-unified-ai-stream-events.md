@@ -171,7 +171,10 @@ The `LiveTranscriptAccumulator` type does not need to change — the model manua
 
 Note: The `.prompt(text:)` case in `TaskProgress` remains unchanged — it carries the prompt text sent to Claude, not a stream event.
 
-## - [ ] Phase 5: Update CLI commands
+## - [x] Phase 5: Update CLI commands
+
+**Skills used**: none
+**Principles applied**: No code changes were required — all three CLI commands (`PRRadarRunCommand`, `PRRadarRunAllCommand`, `PRRadarAnalyzeCommand`) were already updated during earlier phases. Each already switches on `.streamEvent(let event)` inside `.taskEvent`, forwarding `.textDelta` to `printPRRadarAIOutput` and `.toolUse` to `printPRRadarAIToolUse` (guarded by `verbose`). Build confirmed clean.
 
 **Skills to read**: (none extra)
 
