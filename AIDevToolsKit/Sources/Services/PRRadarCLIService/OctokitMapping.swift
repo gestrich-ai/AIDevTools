@@ -42,7 +42,8 @@ extension OctoKit.User {
         GitHubAuthor(
             login: login ?? "",
             id: String(id),
-            name: name
+            name: name,
+            avatarURL: avatarURL
         )
     }
 }

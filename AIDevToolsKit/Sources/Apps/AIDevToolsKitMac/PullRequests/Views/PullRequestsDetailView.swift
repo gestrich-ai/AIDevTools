@@ -64,10 +64,13 @@ struct PullRequestsDetailView: View {
             }
 
             if !metadata.author.login.isEmpty {
-                let displayName = metadata.author.name.isEmpty ? metadata.author.login : metadata.author.name
-                Text("by \(displayName)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    GitHubAvatarView(author: metadata.author, size: 20)
+                    let displayName = metadata.author.name.isEmpty ? metadata.author.login : metadata.author.name
+                    Text(displayName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -108,8 +111,14 @@ struct PullRequestsDetailView: View {
             ForEach(reviews, id: \.id) { review in
                 HStack(spacing: 8) {
                     reviewStateIcon(review.state)
-                    Text(review.author?.login ?? "Unknown")
-                        .font(.body)
+                    if let author = review.author {
+                        GitHubAvatarView(author: author, size: 20)
+                        Text(author.name ?? author.login)
+                            .font(.body)
+                    } else {
+                        Text("Unknown")
+                            .font(.body)
+                    }
                     Spacer()
                     Text(review.state.displayName)
                         .font(.caption)
@@ -191,7 +200,7 @@ struct PullRequestsDetailView: View {
                 .font(.headline)
             ForEach(prComments, id: \.id) { comment in
                 commentRow(
-                    author: comment.author?.login ?? "Unknown",
+                    author: comment.author.map { $0.name.flatMap { $0.isEmpty ? nil : $0 } ?? $0.login } ?? "Unknown",
                     body: comment.body,
                     location: nil
                 )
@@ -202,7 +211,7 @@ struct PullRequestsDetailView: View {
                     return comment.path + line
                 }()
                 commentRow(
-                    author: comment.author?.login ?? "Unknown",
+                    author: comment.author.map { $0.name.flatMap { $0.isEmpty ? nil : $0 } ?? $0.login } ?? "Unknown",
                     body: comment.bodyWithoutMetadata,
                     location: location
                 )

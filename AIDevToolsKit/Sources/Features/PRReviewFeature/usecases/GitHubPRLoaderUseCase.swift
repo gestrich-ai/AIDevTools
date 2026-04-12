@@ -50,8 +50,9 @@ public struct GitHubPRLoaderUseCase: StreamingUseCase {
                 continuation.yield(.listFetchStarted)
 
                 let service: GitHubPRService
+                let authorCache: AuthorCacheService
                 do {
-                    service = try await makeService()
+                    (service, authorCache) = try await makeService()
                 } catch {
                     logger.error("execute(filter:): service setup failed: \(error)")
                     continuation.yield(.listFetchFailed(error.localizedDescription))
@@ -80,23 +81,30 @@ public struct GitHubPRLoaderUseCase: StreamingUseCase {
 
                 continuation.yield(.fetched(fetchedPRs))
 
+                var rateLimited = false
                 for pr in fetchedPRs {
-                    // Only skip if we already have enriched data for this PR in this session.
-                    // Disk cache never stores enrichment fields, so always enrich on first load.
-                    if let prior = cachedByNumber[pr.number],
-                       prior.updatedAt == pr.updatedAt,
-                       prior.reviews != nil {
-                        continue
-                    }
+                    if rateLimited { break }
+
+                    // If the PR hasn't changed since the last disk-cached version, read enrichment
+                    // from disk cache rather than hitting GitHub again. On first load (cache miss)
+                    // the service falls through to a live fetch automatically.
+                    let isUnchanged = cachedByNumber[pr.number].map { $0.updatedAt == pr.updatedAt } ?? false
 
                     continuation.yield(.prFetchStarted(prNumber: pr.number))
                     do {
-                        let enriched = try await enrichPR(pr, using: service)
+                        let enriched = try await enrichPR(pr, using: service, authorCache: authorCache, useCache: isUnchanged)
                         continuation.yield(.prUpdated(enriched))
                     } catch {
+                        let msg = error.localizedDescription
                         logger.error("execute(filter:): enrichment failed for PR #\(pr.number): \(error)")
-                        continuation.yield(.prFetchFailed(prNumber: pr.number, error: error.localizedDescription))
+                        if msg.lowercased().contains("rate limit") || msg.lowercased().contains("access forbidden") {
+                            rateLimited = true
+                        }
+                        continuation.yield(.prFetchFailed(prNumber: pr.number, error: msg))
                     }
+                }
+                if rateLimited {
+                    continuation.yield(.listFetchFailed("GitHub rate limit hit — enrichment stopped. Wait a minute then refresh."))
                 }
 
                 continuation.yield(.completed)
@@ -111,10 +119,10 @@ public struct GitHubPRLoaderUseCase: StreamingUseCase {
                 continuation.yield(.prFetchStarted(prNumber: prNumber))
 
                 do {
-                    let service = try await makeService()
+                    let (service, authorCache) = try await makeService()
                     let ghPR = try await service.pullRequest(number: prNumber, useCache: false)
                     let base = try ghPR.toPRMetadata()
-                    let enriched = try await enrichPR(base, using: service)
+                    let enriched = try await enrichPR(base, using: service, authorCache: authorCache, useCache: false)
                     continuation.yield(.prUpdated(enriched))
                 } catch {
                     logger.error("execute(prNumber:): failed for PR #\(prNumber): \(error)")
@@ -127,7 +135,7 @@ public struct GitHubPRLoaderUseCase: StreamingUseCase {
         }
     }
 
-    private func makeService() async throws -> GitHubPRService {
+    private func makeService() async throws -> (GitHubPRService, AuthorCacheService) {
         let cacheURL = try config.requireGitHubCacheURL()
         guard let account = config.githubAccount, !account.isEmpty else {
             throw CredentialError.notConfigured(account: config.name)
@@ -137,20 +145,47 @@ public struct GitHubPRLoaderUseCase: StreamingUseCase {
             githubAccount: account,
             explicitToken: config.explicitToken
         )
-        return GitHubPRService(rootURL: cacheURL, apiClient: gitHub)
+        return (GitHubPRService(rootURL: cacheURL, apiClient: gitHub), AuthorCacheService(rootURL: cacheURL))
     }
 
-    private func enrichPR(_ pr: PRMetadata, using service: GitHubPRService) async throws -> PRMetadata {
-        let comments = try await service.comments(number: pr.number, useCache: false)
-        let reviews = try await service.reviews(number: pr.number, useCache: false)
-        let checkRuns = try await service.checkRuns(number: pr.number, useCache: false)
-        let isMergeable = try await service.isMergeable(number: pr.number)
+    private func enrichPR(
+        _ pr: PRMetadata,
+        using service: GitHubPRService,
+        authorCache: AuthorCacheService,
+        useCache: Bool
+    ) async throws -> PRMetadata {
+        // service.comments() already fetches reviews internally (getPullRequestComments calls
+        // listReviews). Calling service.reviews() separately would duplicate that request.
+        let comments = try await service.comments(number: pr.number, useCache: useCache)
+        let checkRuns = try await service.checkRuns(number: pr.number, useCache: useCache)
+        // isMergeable has no disk cache — skip the live call when reading from cache to avoid
+        // an extra API call for PRs whose updatedAt hasn't changed.
+        let isMergeable: Bool? = useCache ? nil : (try await service.isMergeable(number: pr.number))
 
         var enriched = pr
         enriched.githubComments = comments
-        enriched.reviews = reviews
+        enriched.reviews = comments.reviews
         enriched.checkRuns = checkRuns
         enriched.isMergeable = isMergeable
+
+        // Populate per-repo author cache from data already fetched — no extra API calls.
+        updateAuthorCache(authorCache, from: enriched)
+
         return enriched
+    }
+
+    private func updateAuthorCache(_ cache: AuthorCacheService, from pr: PRMetadata) {
+        var authors: [(login: String, name: String?, avatarURL: String?)] = []
+        authors.append((pr.author.login, pr.author.name, pr.author.avatarURL))
+        if let reviews = pr.reviews {
+            for review in reviews {
+                if let author = review.author {
+                    authors.append((author.login, author.name, author.avatarURL))
+                }
+            }
+        }
+        for author in authors where !author.login.isEmpty {
+            try? cache.update(login: author.login, name: author.name ?? author.login, avatarURL: author.avatarURL)
+        }
     }
 }

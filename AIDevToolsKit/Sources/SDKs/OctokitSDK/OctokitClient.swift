@@ -29,6 +29,20 @@ public enum OctokitClientError: Error, Sendable, LocalizedError {
     }
 }
 
+// GitHub returns null for `commit_id` on certain review types (e.g. review submitted on
+// the PR overall). OctoKit's `Review.commitID` is non-optional, causing decode failures.
+// ReviewPayload mirrors Review but omits commitID, which is unused in our mapping.
+public struct ReviewPayload: Sendable {
+    public let id: Int
+    public let body: String
+    public let state: Review.State
+    public let submittedAt: Date?
+    public let authorLogin: String?
+    public let authorId: Int?
+    public let authorName: String?
+    public let authorAvatarURL: String?
+}
+
 // GitHub omits `patch` for renamed files, binary files, and files too large for diff
 // generation. OctoKit's `PullRequest.File.patch` is non-optional, causing decode failures.
 // Custom struct decodes optional `patch`; `toOctokitFile()` converts via JSON round-tripping
@@ -783,8 +797,45 @@ public struct OctokitClient: Sendable {
         owner: String,
         repository: String,
         number: Int
-    ) async throws -> [Review] {
-        try await getJSON(path: GitHubPath.pullRequestReviews(owner, repository, number: number))
+    ) async throws -> [ReviewPayload] {
+        struct RawReview: Decodable {
+            struct User: Decodable {
+                let login: String?
+                let id: Int?
+                let name: String?
+                let avatarURL: String?
+
+                enum CodingKeys: String, CodingKey {
+                    case login, id, name
+                    case avatarURL = "avatar_url"
+                }
+            }
+            let id: Int
+            let body: String
+            let state: Review.State
+            let submittedAt: Date?
+            let user: User
+
+            enum CodingKeys: String, CodingKey {
+                case id, body, state, user
+                case submittedAt = "submitted_at"
+            }
+        }
+        let rawList: [RawReview] = try await getJSON(
+            path: GitHubPath.pullRequestReviews(owner, repository, number: number)
+        )
+        return rawList.map { r in
+            ReviewPayload(
+                id: r.id,
+                body: r.body,
+                state: r.state,
+                submittedAt: r.submittedAt,
+                authorLogin: r.user.login,
+                authorId: r.user.id,
+                authorName: r.user.name,
+                authorAvatarURL: r.user.avatarURL
+            )
+        }
     }
 
     public func requestedReviewers(owner: String, repository: String, number: Int) async throws -> [String] {

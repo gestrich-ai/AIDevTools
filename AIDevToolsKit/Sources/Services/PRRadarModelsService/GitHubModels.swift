@@ -6,11 +6,13 @@ public struct GitHubAuthor: Codable, Sendable {
     public let login: String
     public let id: String?
     public let name: String?
+    public let avatarURL: String?
 
-    public init(login: String, id: String? = nil, name: String? = nil) {
+    public init(login: String, id: String? = nil, name: String? = nil, avatarURL: String? = nil) {
         self.login = login
         self.id = id
         self.name = name
+        self.avatarURL = avatarURL
     }
 }
 
@@ -263,7 +265,8 @@ public struct GitHubPullRequest: Codable, Sendable {
             body: body,
             author: PRMetadata.Author(
                 login: login,
-                name: author?.name ?? ""
+                name: author?.name ?? "",
+                avatarURL: author?.avatarURL
             ),
             state: enhancedState.rawValue,
             headRefName: headRefName,

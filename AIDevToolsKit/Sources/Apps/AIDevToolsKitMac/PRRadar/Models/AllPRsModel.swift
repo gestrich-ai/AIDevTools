@@ -218,15 +218,18 @@ final class AllPRsModel {
 
     var availableAuthors: [AuthorOption] {
         guard let models = currentPRModels else { return [] }
-        let prAuthors = models.map { AuthorOption(login: $0.metadata.author.login, name: $0.metadata.author.name) }
-        let cache = AuthorCacheService().load()
-        let cacheAuthors = cache.entries.values.map { AuthorOption(login: $0.login, name: $0.name) }
+        let cache = (try? config.requireGitHubCacheURL()).map { AuthorCacheService(rootURL: $0).load() }
         var seen = Set<String>()
         var result: [AuthorOption] = []
-        for author in prAuthors + cacheAuthors {
-            if !author.login.isEmpty && seen.insert(author.login).inserted {
-                result.append(author)
-            }
+        for model in models {
+            let login = model.metadata.author.login
+            guard !login.isEmpty, seen.insert(login).inserted else { continue }
+            let entry = cache?.entries[login]
+            result.append(AuthorOption(
+                login: login,
+                name: entry?.name ?? model.metadata.author.name ?? "",
+                avatarURL: entry?.avatarURL
+            ))
         }
         return result.sorted { $0.displayLabel.localizedCaseInsensitiveCompare($1.displayLabel) == .orderedAscending }
     }

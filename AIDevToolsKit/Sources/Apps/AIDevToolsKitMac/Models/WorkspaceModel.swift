@@ -67,7 +67,7 @@ final class WorkspaceModel {
     func load() {
         state = .loading
         do {
-            repositories = try loadRepositories.run()
+            repositories = try loadRepositories.run().sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             state = .loaded
         } catch {
             state = .error(error)

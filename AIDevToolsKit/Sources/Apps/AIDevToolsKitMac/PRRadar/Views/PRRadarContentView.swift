@@ -360,7 +360,12 @@ struct PRRadarContentView: View {
                     if !availableAuthors.isEmpty {
                         Divider()
                         ForEach(availableAuthors, id: \.login) { author in
-                            Button(author.displayLabel) { authorFilter = author.login }
+                            Button(action: { authorFilter = author.login }) {
+                                HStack {
+                                    GitHubAvatarView(login: author.login, name: author.name, avatarURL: author.avatarURL, size: 20)
+                                    Text(author.displayLabel)
+                                }
+                            }
                         }
                     }
                 }

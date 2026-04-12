@@ -50,13 +50,13 @@ public struct PRReviewStatus: Sendable {
 
     public init(reviews: [GitHubReview]) {
         approvedBy = Array(Set(
-            reviews.filter { $0.state == .approved }.compactMap { $0.author?.login }
+            reviews.filter { $0.state == .approved }.compactMap { $0.author.map { $0.name.flatMap { $0.isEmpty ? nil : $0 } ?? $0.login } }
         ))
         changesRequestedBy = Array(Set(
-            reviews.filter { $0.state == .changesRequested }.compactMap { $0.author?.login }
+            reviews.filter { $0.state == .changesRequested }.compactMap { $0.author.map { $0.name.flatMap { $0.isEmpty ? nil : $0 } ?? $0.login } }
         ))
         pendingReviewers = Array(Set(
-            reviews.filter { $0.state == .pending }.compactMap { $0.author?.login }
+            reviews.filter { $0.state == .pending }.compactMap { $0.author.map { $0.name.flatMap { $0.isEmpty ? nil : $0 } ?? $0.login } }
         ))
     }
 }

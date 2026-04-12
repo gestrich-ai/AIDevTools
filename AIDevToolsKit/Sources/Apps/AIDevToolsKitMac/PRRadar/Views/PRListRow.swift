@@ -57,9 +57,12 @@ struct PRListRow: View {
             }
 
             if !pr.author.login.isEmpty {
-                Text(pr.author.name.isEmpty ? pr.author.login : pr.author.name)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    GitHubAvatarView(author: pr.author, size: 14)
+                    Text(pr.author.name.isEmpty ? pr.author.login : pr.author.name)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 2)

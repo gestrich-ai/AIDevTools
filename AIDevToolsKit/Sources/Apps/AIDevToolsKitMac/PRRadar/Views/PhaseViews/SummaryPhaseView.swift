@@ -37,10 +37,10 @@ struct SummaryPhaseView: View {
 
             HStack(spacing: 16) {
                 if !metadata.author.login.isEmpty {
-                    Label(
-                        metadata.author.name.isEmpty ? metadata.author.login : metadata.author.name,
-                        systemImage: "person"
-                    )
+                    HStack(spacing: 6) {
+                        GitHubAvatarView(author: metadata.author, size: 18)
+                        Text(metadata.author.name.isEmpty ? metadata.author.login : metadata.author.name)
+                    }
                 }
 
                 if !metadata.headRefName.isEmpty {
@@ -103,17 +103,17 @@ struct SummaryPhaseView: View {
                         .foregroundStyle(.secondary)
                         .font(.subheadline)
                 } else {
-                    let approved = reviews.filter { $0.state == .approved }.compactMap { $0.author?.login }
-                    let changesRequested = reviews.filter { $0.state == .changesRequested }.compactMap { $0.author?.login }
-                    let pending = reviews.filter { $0.state == .pending }.compactMap { $0.author?.login }
+                    let approved = reviews.filter { $0.state == .approved }.compactMap { $0.author }
+                    let changesRequested = reviews.filter { $0.state == .changesRequested }.compactMap { $0.author }
+                    let pending = reviews.filter { $0.state == .pending }.compactMap { $0.author }
                     if !approved.isEmpty {
-                        reviewerRow(label: "Approved", logins: approved, color: .green, icon: "checkmark.circle.fill")
+                        reviewerRow(label: "Approved", authors: approved, color: .green, icon: "checkmark.circle.fill")
                     }
                     if !changesRequested.isEmpty {
-                        reviewerRow(label: "Changes requested", logins: changesRequested, color: .red, icon: "xmark.circle.fill")
+                        reviewerRow(label: "Changes requested", authors: changesRequested, color: .red, icon: "xmark.circle.fill")
                     }
                     if !pending.isEmpty {
-                        reviewerRow(label: "Pending review", logins: pending, color: .secondary, icon: "clock.fill")
+                        reviewerRow(label: "Pending review", authors: pending, color: .secondary, icon: "clock.fill")
                     }
                 }
             } else {
@@ -124,13 +124,22 @@ struct SummaryPhaseView: View {
         }
     }
 
-    private func reviewerRow(label: String, logins: [String], color: Color, icon: String) -> some View {
+    private func reviewerRow(label: String, authors: [GitHubAuthor], color: Color, icon: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .foregroundStyle(color)
                 .font(.caption)
-            Text("\(label): \(logins.map { "@\($0)" }.joined(separator: ", "))")
+            Text("\(label):")
                 .font(.subheadline)
+            HStack(spacing: 4) {
+                ForEach(authors, id: \.login) { author in
+                    HStack(spacing: 3) {
+                        GitHubAvatarView(author: author, size: 16)
+                        Text(author.name ?? author.login)
+                            .font(.subheadline)
+                    }
+                }
+            }
         }
     }
 

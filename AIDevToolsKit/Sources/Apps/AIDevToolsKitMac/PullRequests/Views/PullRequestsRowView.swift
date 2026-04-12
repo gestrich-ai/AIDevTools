@@ -54,9 +54,12 @@ struct PullRequestsRowView: View {
             }
 
             if !metadata.author.login.isEmpty {
-                Text(metadata.author.name.isEmpty ? metadata.author.login : metadata.author.name)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    GitHubAvatarView(author: metadata.author, size: 14)
+                    Text(metadata.author.name.isEmpty ? metadata.author.login : metadata.author.name)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 2)

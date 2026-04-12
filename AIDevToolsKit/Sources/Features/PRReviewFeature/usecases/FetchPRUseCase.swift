@@ -112,7 +112,7 @@ public struct FetchPRUseCase: StreamingUseCase {
                         historyProvider: historyProvider,
                         gitHubPRService: gitHubPRService
                     )
-                    let authorCache = AuthorCacheService()
+                    let authorCache = AuthorCacheService(rootURL: cacheURL)
 
                     continuation.yield(.log(text: "Fetching PR #\(prNumber) from GitHub...\n"))
 

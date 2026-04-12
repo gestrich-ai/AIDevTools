@@ -79,9 +79,12 @@ struct ReviewDetailView: View {
                 Spacer()
 
                 if !pr.author.login.isEmpty {
-                    Text(pr.author.name.isEmpty ? pr.author.login : pr.author.name)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        GitHubAvatarView(author: pr.author, size: 22)
+                        Text(pr.author.name.isEmpty ? pr.author.login : pr.author.name)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .padding(.horizontal)

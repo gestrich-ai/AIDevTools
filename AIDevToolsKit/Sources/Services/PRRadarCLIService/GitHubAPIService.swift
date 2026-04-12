@@ -55,7 +55,12 @@ public struct GitHubAPIService: Sendable {
                 id: String(review.id),
                 body: review.body,
                 state: review.state.toGitHubReviewState,
-                author: review.user.toGitHubAuthor(),
+                author: GitHubAuthor(
+                    login: review.authorLogin ?? "",
+                    id: review.authorId.map(String.init),
+                    name: review.authorName,
+                    avatarURL: review.authorAvatarURL
+                ),
                 submittedAt: review.submittedAt.map { formatISO8601($0) }
             )
         }
@@ -304,7 +309,7 @@ public struct GitHubAPIService: Sendable {
             do {
                 let user = try await octokitClient.getUser(login: login)
                 let displayName = user.name ?? login
-                try cache.update(login: login, name: displayName)
+                try cache.update(login: login, name: displayName, avatarURL: user.avatarURL)
                 result[login] = displayName
             } catch {
                 result[login] = login
@@ -325,7 +330,12 @@ public struct GitHubAPIService: Sendable {
                 id: String(review.id),
                 body: review.body,
                 state: review.state.toGitHubReviewState,
-                author: review.user.toGitHubAuthor(),
+                author: GitHubAuthor(
+                    login: review.authorLogin ?? "",
+                    id: review.authorId.map(String.init),
+                    name: review.authorName,
+                    avatarURL: review.authorAvatarURL
+                ),
                 submittedAt: review.submittedAt.map { formatISO8601($0) }
             )
         }

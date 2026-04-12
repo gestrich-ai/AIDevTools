@@ -253,10 +253,12 @@ public struct PRMetadata: Sendable, Identifiable, Hashable {
     public struct Author: Sendable, Hashable {
         public let login: String
         public let name: String
+        public let avatarURL: String?
 
-        public init(login: String, name: String) {
+        public init(login: String, name: String, avatarURL: String? = nil) {
             self.login = login
             self.name = name
+            self.avatarURL = avatarURL
         }
     }
 }

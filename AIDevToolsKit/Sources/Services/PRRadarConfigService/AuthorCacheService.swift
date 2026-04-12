@@ -4,12 +4,8 @@ import PRRadarModelsService
 public final class AuthorCacheService: Sendable {
     private let fileURL: URL
 
-    public init() {
-        let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first!.appendingPathComponent("PRRadar")
-        self.fileURL = appSupport.appendingPathComponent("author-cache.json")
+    public init(rootURL: URL) {
+        self.fileURL = rootURL.appendingPathComponent("author-cache.json")
     }
 
     public func load() -> AuthorCache {
@@ -43,12 +39,13 @@ public final class AuthorCacheService: Sendable {
         return cache.entries[login]
     }
 
-    public func update(login: String, name: String) throws {
+    public func update(login: String, name: String, avatarURL: String? = nil) throws {
         var cache = load()
         let formatter = ISO8601DateFormatter()
         let entry = AuthorCacheEntry(
             login: login,
             name: name,
+            avatarURL: avatarURL,
             fetchedAt: formatter.string(from: Date())
         )
         cache.entries[login] = entry
