@@ -31,9 +31,9 @@ public struct MarkdownTaskSource: TaskSource {
         }
 
         guard let step else { return nil }
-        let task = PendingTask(id: step.id, instructions: step.description, skills: step.skills)
+        let task = PendingTask(id: step.id, displayName: step.description, instructions: step.description, skills: step.skills)
         guard let builder = instructionBuilder else { return task }
-        return PendingTask(id: task.id, instructions: builder(task), skills: task.skills)
+        return PendingTask(id: task.id, displayName: task.displayName, instructions: builder(task), skills: task.skills)
     }
 
     public func markComplete(_ task: PendingTask) async throws {

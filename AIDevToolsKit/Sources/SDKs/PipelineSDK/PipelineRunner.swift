@@ -69,7 +69,7 @@ public struct PipelineRunner: Sendable {
 
             let taskNode = AITask<String>(
                 id: task.id,
-                displayName: String(task.instructions.prefix(60)),
+                displayName: task.displayName,
                 instructions: task.instructions,
                 client: configuration.provider,
                 workingDirectory: context[PipelineContext.workingDirectoryKey] ?? configuration.workingDirectory,

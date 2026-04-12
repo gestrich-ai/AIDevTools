@@ -334,8 +334,8 @@ struct PipelineExecutionTests {
     @Test("nextOnly mode runs exactly one injected task")
     func nextOnlyMode() async throws {
         let tasks = [
-            PendingTask(id: "t1", instructions: "Task 1", skills: []),
-            PendingTask(id: "t2", instructions: "Task 2", skills: []),
+            PendingTask(id: "t1", displayName: "Task 1", instructions: "Task 1", skills: []),
+            PendingTask(id: "t2", displayName: "Task 2", instructions: "Task 2", skills: []),
         ]
         let source = FixedTaskSource(tasks: tasks)
         let nodes: [any PipelineNode] = [
@@ -360,8 +360,8 @@ struct PipelineExecutionTests {
     @Test("all mode runs all injected tasks")
     func allMode() async throws {
         let tasks = [
-            PendingTask(id: "t1", instructions: "Task 1", skills: []),
-            PendingTask(id: "t2", instructions: "Task 2", skills: []),
+            PendingTask(id: "t1", displayName: "Task 1", instructions: "Task 1", skills: []),
+            PendingTask(id: "t2", displayName: "Task 2", instructions: "Task 2", skills: []),
         ]
         let source = FixedTaskSource(tasks: tasks)
         let nodes: [any PipelineNode] = [

@@ -314,8 +314,8 @@ private struct ChainProjectDetailView: View {
     @ViewBuilder
     private var projectContentView: some View {
         if isExecuting || executionProgress != nil {
-            HSplitView {
-                // Left: task list + info
+            let hasExecutionOutput = model.executionChatModel.map { !$0.messages.isEmpty } ?? false
+            VSplitView {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 16) {
                         projectInfoSection
@@ -341,14 +341,12 @@ private struct ChainProjectDetailView: View {
                             .padding()
                     }
                 }
-                .frame(minWidth: 300, idealWidth: 420, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-                // Right: log output (wider)
-                if let execModel = model.executionChatModel {
+                if hasExecutionOutput, let execModel = model.executionChatModel {
                     ChatMessagesView()
                         .environment(execModel)
-                        .clipShape(RoundedRectangle(cornerRadius: 0))
-                        .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
+                        .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

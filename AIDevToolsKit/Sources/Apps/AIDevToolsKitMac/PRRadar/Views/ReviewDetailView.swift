@@ -35,13 +35,15 @@ struct ReviewDetailView: View {
 
                 Divider()
 
-                if let streamModel = prModel.prepareStreamModel ?? prModel.analyzeStreamModel {
-                    HSplitView {
-                        diffOutputView
-                            .frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
+                let streamModel = prModel.prepareStreamModel ?? prModel.analyzeStreamModel
+                let hasStreamOutput = streamModel.map { !$0.messages.isEmpty } ?? false
+                if hasStreamOutput, let streamModel {
+                    VSplitView {
+                        phaseOutputView
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         ChatMessagesView()
                             .environment(streamModel)
-                            .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
+                            .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {

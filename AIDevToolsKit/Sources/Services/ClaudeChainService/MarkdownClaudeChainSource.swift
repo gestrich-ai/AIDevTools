@@ -105,7 +105,7 @@ public actor MarkdownClaudeChainSource: ClaudeChainSource {
 
         let taskHash = generateTaskHash(step.description)
         let fullPrompt = buildTaskPrompt(taskDescription: step.description, specContent: spec.content)
-        return PendingTask(id: taskHash, instructions: fullPrompt, skills: step.skills)
+        return PendingTask(id: taskHash, displayName: step.description, instructions: fullPrompt, skills: step.skills)
     }
 
     private func nextPendingStep(from codeSteps: [CodeChangeStep]) async throws -> CodeChangeStep? {

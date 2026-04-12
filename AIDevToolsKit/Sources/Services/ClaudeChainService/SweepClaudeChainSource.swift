@@ -163,7 +163,7 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
                     headHashAtTaskStart = try await git.getHeadHash(workingDirectory: repoPath.path)
                     let specContent = try String(contentsOf: specURL, encoding: .utf8)
                     let scopeLabel = config.isDirectoryMode ? "Directory" : "File"
-                    return PendingTask(id: path, instructions: specContent + "\n\n\(scopeLabel): \(path)", skills: [])
+                    return PendingTask(id: path, displayName: path, instructions: specContent + "\n\n\(scopeLabel): \(path)", skills: [])
                 }
                 logger.info("[\(taskName)] Wrap-around: all files up to date, nothing to do")
             }
@@ -185,7 +185,7 @@ public actor SweepClaudeChainSource: ClaudeChainSource {
             headHashAtTaskStart = try await git.getHeadHash(workingDirectory: repoPath.path)
             let specContent = try String(contentsOf: specURL, encoding: .utf8)
             let scopeLabel = config.isDirectoryMode ? "Directory" : "File"
-            return PendingTask(id: path, instructions: specContent + "\n\n\(scopeLabel): \(path)", skills: [])
+            return PendingTask(id: path, displayName: path, instructions: specContent + "\n\n\(scopeLabel): \(path)", skills: [])
         }
 
         logger.info("[\(taskName)] All candidate paths exhausted, batch complete")
