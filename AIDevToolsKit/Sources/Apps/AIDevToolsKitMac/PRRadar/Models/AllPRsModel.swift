@@ -41,8 +41,9 @@ final class AllPRsModel {
     private func discoverAndMerge(filter: PRFilter? = nil) async -> [PRModel] {
         let metadata = await DiscoverPRsUseCase(config: config).execute(filter: filter)
         let prior = currentPRModels
-        let models = await buildPRModels(from: metadata, reusingExisting: prior)
+        let models = buildPRModels(from: metadata, reusingExisting: prior)
         state = .ready(models)
+        loadSummariesInBackground(for: models)
         return models
     }
 
@@ -103,8 +104,9 @@ final class AllPRsModel {
             return
         }
 
-        let mergedModels = await buildPRModels(from: metadata, reusingExisting: prior)
+        let mergedModels = buildPRModels(from: metadata, reusingExisting: prior)
         self.state = .ready(mergedModels)
+        loadSummariesInBackground(for: mergedModels)
 
         let prsToRefresh = filteredPRs(mergedModels, filter: filter)
         let total = prsToRefresh.count
@@ -254,21 +256,32 @@ final class AllPRsModel {
     /// - Parameters:
     ///   - metadata: The discovered PR metadata to build models from.
     ///   - prior: Existing models whose instances should be reused when IDs match.
-    private func buildPRModels(from metadata: [PRMetadata], reusingExisting prior: [PRModel]? = nil) async -> [PRModel] {
+    private func buildPRModels(from metadata: [PRMetadata], reusingExisting prior: [PRModel]? = nil) -> [PRModel] {
         let existingByID = Dictionary(uniqueKeysWithValues: (prior ?? []).map { ($0.id, $0) })
         var models: [PRModel] = []
         for meta in metadata {
             if let existing = existingByID[meta.id] {
                 existing.updateMetadata(meta)
-                await existing.loadSummary()
                 models.append(existing)
             } else {
-                let model = PRModel(metadata: meta, config: config)
-                await model.loadSummary()
-                models.append(model)
+                models.append(PRModel(metadata: meta, config: config))
             }
         }
         return models
+    }
+
+    private func loadSummariesInBackground(for models: [PRModel]) {
+        logger.trace("Loading summaries for \(models.count) PRs", metadata: ["repo": "\(config.name)"])
+        Task {
+            await withTaskGroup(of: Void.self) { group in
+                for model in models {
+                    group.addTask {
+                        await model.loadSummary()
+                    }
+                }
+            }
+            logger.trace("Finished loading summaries", metadata: ["repo": "\(config.name)"])
+        }
     }
 
     enum SyncError: LocalizedError {
