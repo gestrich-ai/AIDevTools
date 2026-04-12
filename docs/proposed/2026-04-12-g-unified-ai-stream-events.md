@@ -125,7 +125,10 @@ These are public types used across Features and Apps — changing them causes co
 - All previous `.prepareOutput: break` and `.prepareToolUse: break` cases become `.prepareStreamEvent: break`
 - No other changes needed (CLI pipeline intentionally ignores streaming content)
 
-## - [ ] Phase 4: Update PRModel to consume raw stream events
+## - [x] Phase 4: Update PRModel to consume raw stream events
+
+**Skills used**: none
+**Principles applied**: No code changes were required — `PRModel.swift` was already updated during Phase 2's implementation. The `.prepareStreamEvent(let event)` handler in `runPrepare` and the `.streamEvent(let event)` handler in `runAnalyze`/`handleTaskEvent` were both wired up correctly. Build confirmed clean.
 
 **Skills to read**: (none extra)
 
