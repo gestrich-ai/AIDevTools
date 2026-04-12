@@ -46,8 +46,9 @@ final class PlanModel {
         }
     }
 
-    private(set) var state: State = .idle
+    private(set) var completedPlans: [MarkdownPlanEntry] = []
     private(set) var plans: [MarkdownPlanEntry] = []
+    private(set) var state: State = .idle
     let pipelineModel = PipelineModel()
     private(set) var executionCompleteCount: Int = 0
     private(set) var phaseCompleteCount: Int = 0
@@ -117,23 +118,29 @@ final class PlanModel {
         }
         currentRepository = repo
         plans = []
+        completedPlans = []
         let prior: State = {
             if case .loadingPlans(let inner) = state { return inner }
             return state
         }()
         state = .loadingPlans(prior: prior)
         let proposedDir = resolvedProposedDirectory(for: repo)
-        let loaded = await LoadPlansUseCase(proposedDirectory: proposedDir).run()
+        let completedDir = resolvedCompletedDirectory(for: repo)
+        async let proposedTask = LoadPlansUseCase(proposedDirectory: proposedDir).run()
+        async let completedTask = LoadPlansUseCase(proposedDirectory: completedDir).run()
+        let (proposed, completed) = await (proposedTask, completedTask)
         guard self.currentRepository?.id == repo.id else {
             state = prior
             return
         }
-        self.plans = loaded
+        self.plans = proposed
+        self.completedPlans = completed
         state = prior
     }
 
     func deletePlan(_ plan: MarkdownPlanEntry) throws {
         try deletePlanUseCase.run(planURL: plan.planURL)
+        completedPlans.removeAll { $0.id == plan.id }
         plans.removeAll { $0.id == plan.id }
     }
 
@@ -305,6 +312,11 @@ final class PlanModel {
             repoPath: repoPath.path,
             basedOn: "HEAD"
         )
+    }
+
+    private func resolvedCompletedDirectory(for repo: RepositoryConfiguration) -> URL {
+        let settings = repo.planner ?? PlanRepoSettings()
+        return settings.resolvedCompletedDirectory(repoPath: repo.path)
     }
 
     private func resolvedProposedDirectory(for repo: RepositoryConfiguration) -> URL {

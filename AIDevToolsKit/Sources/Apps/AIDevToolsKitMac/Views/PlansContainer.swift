@@ -14,7 +14,7 @@ struct PlansContainer: View {
 
     private var selectedPlan: MarkdownPlanEntry? {
         guard let name = selectedPlanName else { return nil }
-        return planModel.plans.first(where: { $0.name == name })
+        return (planModel.plans + planModel.completedPlans).first(where: { $0.name == name })
     }
 
     var body: some View {
@@ -74,20 +74,42 @@ struct PlansContainer: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
-                ForEach(planModel.plans) { plan in
-                    PlanListRow(plan: plan)
-                        .tag(plan.name)
-                        .contextMenu {
-                            Button("Copy Path", systemImage: "doc.on.doc") {
-                                copyToClipboard(plan.relativePath(to: repository.path))
+                Section("Proposed") {
+                    ForEach(planModel.plans.reversed()) { plan in
+                        PlanListRow(plan: plan)
+                            .tag(plan.name)
+                            .contextMenu {
+                                Button("Copy Path", systemImage: "doc.on.doc") {
+                                    copyToClipboard(plan.relativePath(to: repository.path))
+                                }
+                                Button(role: .destructive) {
+                                    if selectedPlanName == plan.name { selectedPlanName = nil }
+                                    try? planModel.deletePlan(plan)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
-                            Button(role: .destructive) {
-                                if selectedPlanName == plan.name { selectedPlanName = nil }
-                                try? planModel.deletePlan(plan)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                    }
+                }
+
+                if !planModel.completedPlans.isEmpty {
+                    Section("Completed") {
+                        ForEach(planModel.completedPlans.reversed()) { plan in
+                            PlanListRow(plan: plan)
+                                .tag(plan.name)
+                                .contextMenu {
+                                    Button("Copy Path", systemImage: "doc.on.doc") {
+                                        copyToClipboard(plan.relativePath(to: repository.path))
+                                    }
+                                    Button(role: .destructive) {
+                                        if selectedPlanName == plan.name { selectedPlanName = nil }
+                                        try? planModel.deletePlan(plan)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                         }
+                    }
                 }
             }
             .listStyle(.sidebar)
