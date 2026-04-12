@@ -1,5 +1,5 @@
 import Foundation
-import ClaudeAgentSDK
+import AIOutputSDK
 import PRRadarModelsService
 
 // MARK: - Result Model
@@ -23,21 +23,21 @@ public struct FocusGenerationResult: Sendable {
 
 /// Generates focus areas (reviewable units of code) from diff hunks.
 ///
-/// For method-level focus areas, calls Claude Haiku via the Claude Agent script to
+/// For method-level focus areas, calls Claude Haiku via AIClient to
 /// identify individual methods/functions in each hunk. For file-level focus areas,
 /// groups all hunks per file without an AI call.
 public struct FocusGeneratorService: Sendable {
     public static let defaultModel = "claude-haiku-4-5-20251001"
 
-    private let agentClient: ClaudeAgentClient
+    private let aiClient: any AIClient
     private let model: String
 
-    public init(agentClient: ClaudeAgentClient, model: String = FocusGeneratorService.defaultModel) {
-        self.agentClient = agentClient
+    public init(aiClient: any AIClient, model: String = FocusGeneratorService.defaultModel) {
+        self.aiClient = aiClient
         self.model = model
     }
 
-    /// Generate focus areas for a single hunk via the Claude Agent.
+    /// Generate focus areas for a single hunk via AIClient.
     public func generateFocusAreasForHunk(
         _ hunk: Hunk,
         hunkIndex: Int,
@@ -52,62 +52,62 @@ public struct FocusGeneratorService: Sendable {
             .replacingOccurrences(of: "{hunk_index}", with: String(hunkIndex))
             .replacingOccurrences(of: "{hunk_content}", with: annotatedContent)
 
-        let request = ClaudeAgentRequest(
-            prompt: prompt,
-            model: model,
-            outputSchema: Self.focusGenerationSchema
-        )
+        let options = AIClientOptions(model: model)
 
         let startedAt = ISO8601DateFormatter().string(from: Date())
-        var outputEntries: [OutputEntry] = []
-        var result: ClaudeAgentResult?
+        let accumulator = EventAccumulator()
 
-        for try await event in agentClient.stream(request) {
-            switch event {
-            case .text(let content):
-                onAIText?(content)
-                outputEntries.append(OutputEntry(type: .text, content: content))
-            case .toolUse(let name):
-                onAIToolUse?(name)
-                outputEntries.append(OutputEntry(type: .toolUse, label: name))
-            case .result(let agentResult):
-                result = agentResult
-                if let outputData = agentResult.outputData,
-                   let json = String(data: outputData, encoding: .utf8) {
-                    outputEntries.append(OutputEntry(type: .result, content: json))
+        let result = try await aiClient.runStructured(
+            MethodsResponse.self,
+            prompt: prompt,
+            jsonSchema: Self.focusGenerationSchemaString,
+            options: options,
+            onOutput: { text in
+                onAIText?(text)
+                accumulator.append(OutputEntry(type: .text, content: text))
+            },
+            onStreamEvent: { event in
+                switch event {
+                case .toolUse(let name, _):
+                    onAIToolUse?(name)
+                    accumulator.append(OutputEntry(type: .toolUse, label: name))
+                case .metrics(let duration, let cost, _):
+                    accumulator.setMetrics(
+                        cost: cost ?? 0.0,
+                        durationMs: duration.map { Int($0 * 1000) } ?? 0
+                    )
+                default:
+                    break
                 }
             }
-        }
+        )
 
-        if let transcriptDir, let result {
+        if let transcriptDir {
+            var entries = accumulator.entries
+            entries.append(OutputEntry(type: .result, content: result.rawOutput))
             let output = EvaluationOutput(
                 identifier: "hunk-\(hunkIndex)",
                 filePath: hunk.filePath,
                 rule: nil,
                 source: .ai(model: model, prompt: prompt),
                 startedAt: startedAt,
-                durationMs: result.durationMs,
-                costUsd: result.costUsd,
-                entries: outputEntries
+                durationMs: accumulator.durationMs,
+                costUsd: accumulator.costUsd,
+                entries: entries
             )
             try? EvaluationOutputWriter.write(output, to: transcriptDir)
         }
 
-        guard let result else {
-            throw ClaudeAgentError.noResult
-        }
-
-        guard let output = result.outputAsDictionary(),
-              let methods = output["methods"] as? [[String: Any]],
-              !methods.isEmpty else {
-            return (fallbackFocusArea(hunk: hunk, hunkIndex: hunkIndex, annotatedContent: annotatedContent), result.costUsd)
+        let methods = result.value.methods
+        guard !methods.isEmpty else {
+            return (fallbackFocusArea(hunk: hunk, hunkIndex: hunkIndex, annotatedContent: annotatedContent), accumulator.costUsd)
         }
 
         var focusAreas: [FocusArea] = []
         for method in methods {
-            let methodName = method["method_name"] as? String ?? "hunk \(hunkIndex)"
-            let startLine = method["start_line"] as? Int ?? hunk.newStart
-            let endLine = method["end_line"] as? Int ?? (hunk.newStart + hunk.newLength - 1)
+            let methodName = method.methodName ?? "hunk \(hunkIndex)"
+            let startLine = method.startLine ?? hunk.newStart
+            let endLine = method.endLine ?? (hunk.newStart + hunk.newLength - 1)
 
             let safePath = hunk.filePath.replacingOccurrences(of: "/", with: "-")
                 .replacingOccurrences(of: "\\", with: "-")
@@ -126,7 +126,7 @@ public struct FocusGeneratorService: Sendable {
             ))
         }
 
-        return (focusAreas, result.costUsd)
+        return (focusAreas, accumulator.costUsd)
     }
 
     /// Generate file-level focus areas by grouping hunks per file.
@@ -279,6 +279,12 @@ public struct FocusGeneratorService: Sendable {
         "required": ["methods"],
     ]
 
+    private static let focusGenerationSchemaString: String = {
+        guard let data = try? JSONSerialization.data(withJSONObject: focusGenerationSchema),
+              let str = String(data: data, encoding: .utf8) else { return "{}" }
+        return str
+    }()
+
     private func fallbackFocusArea(hunk: Hunk, hunkIndex: Int, annotatedContent: String) -> [FocusArea] {
         let safePath = hunk.filePath.replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: "\\", with: "-")
@@ -302,5 +308,23 @@ public struct FocusGeneratorService: Sendable {
         sanitized = sanitized.filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "." }
         let trimmed = String(sanitized.prefix(50))
         return trimmed.isEmpty ? "unknown" : trimmed
+    }
+}
+
+// MARK: - Private types
+
+private struct MethodsResponse: Decodable, Sendable {
+    let methods: [MethodItem]
+
+    struct MethodItem: Decodable, Sendable {
+        let endLine: Int?
+        let methodName: String?
+        let startLine: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case endLine = "end_line"
+            case methodName = "method_name"
+            case startLine = "start_line"
+        }
     }
 }

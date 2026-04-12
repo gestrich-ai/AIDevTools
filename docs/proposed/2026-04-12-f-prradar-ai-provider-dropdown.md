@@ -70,7 +70,10 @@ On change → `registry.client(named: selectedProviderName)` → passed to `Chat
 
 ## Phases
 
-## - [ ] Phase 1: Migrate AnalysisService and FocusGeneratorService to AIClient
+## - [x] Phase 1: Migrate AnalysisService and FocusGeneratorService to AIClient
+
+**Skills used**: `swift-architecture`
+**Principles applied**: Used `runStructured<T>()` over `run()` for provider-agnostic structured JSON output. Created `Decodable` response types (`ViolationsResponse`, `MethodsResponse`) and a thread-safe `EventAccumulator` class (following the `Accumulator` pattern in `AIRunSession.swift`) for mutable state capture in `@Sendable` closures. Converted static `[String: Any]` schemas to pre-computed JSON strings. Fixed call sites in `AnalyzeSingleTaskUseCase` and `PrepareUseCase` to use `ClaudeProvider()` directly so Phase 1 compiles cleanly; Phase 2 will promote the client to a proper init parameter.
 
 **Skills to read**: `swift-architecture`
 

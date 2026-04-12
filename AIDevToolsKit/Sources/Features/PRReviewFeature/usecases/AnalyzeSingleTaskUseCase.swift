@@ -1,7 +1,5 @@
-import CLISDK
-import ClaudeAgentSDK
+import ClaudeCLISDK
 import CredentialService
-import EnvironmentSDK
 import Foundation
 import GitHubService
 import PRRadarCLIService
@@ -68,20 +66,7 @@ public struct AnalyzeSingleTaskUseCase: StreamingUseCase {
                         result = outcome
                         try EvaluationOutputWriter.write(output, to: evalsDir)
                     } else {
-                        guard let githubAccount = config.githubAccount else {
-                            throw CredentialError.notConfigured(account: config.name)
-                        }
-                        let resolver = CredentialResolver.createPlatform(githubAccount: githubAccount)
-                        guard let anthropicKey = resolver.getAnthropicKey() else {
-                            throw ClaudeAgentError.missingAPIKey
-                        }
-                        let agentEnv = ClaudeAgentEnvironment.build(anthropicAPIKey: anthropicKey)
-                        let agentClient = ClaudeAgentClient(
-                            pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath),
-                            cliClient: CLIClient(),
-                            environment: agentEnv
-                        )
-                        let analysisService = AnalysisService(agentClient: agentClient)
+                        let analysisService = AnalysisService(aiClient: ClaudeProvider())
 
                         result = try await analysisService.analyzeTask(
                             task,

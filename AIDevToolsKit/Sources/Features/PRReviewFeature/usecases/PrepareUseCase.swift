@@ -1,7 +1,5 @@
-import CLISDK
-import ClaudeAgentSDK
+import ClaudeCLISDK
 import CredentialService
-import EnvironmentSDK
 import Foundation
 import GitHubService
 import PRRadarCLIService
@@ -88,13 +86,7 @@ public struct PrepareUseCase: StreamingUseCase {
                     } else {
                         continuation.yield(.log(text: "Generating focus areas...\n"))
 
-                        let resolver = CredentialResolver.createPlatform(githubAccount: githubAccount)
-                        guard let anthropicKey = resolver.getAnthropicKey() else {
-                            throw ClaudeAgentError.missingAPIKey
-                        }
-                        let agentEnv = ClaudeAgentEnvironment.build(anthropicAPIKey: anthropicKey)
-                        let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), environment: agentEnv)
-                        let focusGenerator = FocusGeneratorService(agentClient: agentClient)
+                        let focusGenerator = FocusGeneratorService(aiClient: ClaudeProvider())
 
                         let focusResults = try await focusGenerator.generateAllFocusAreas(
                             hunks: prDiff.toGitDiff().hunks,

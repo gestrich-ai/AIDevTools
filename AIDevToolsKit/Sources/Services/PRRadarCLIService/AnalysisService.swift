@@ -1,10 +1,10 @@
 import Foundation
-import ClaudeAgentSDK
+import AIOutputSDK
 import PRRadarConfigService
 import PRRadarModelsService
 
 public struct AnalysisService: Sendable {
-    private let agentClient: ClaudeAgentClient
+    private let aiClient: any AIClient
 
     private static let defaultModel = "claude-sonnet-4-20250514"
 
@@ -105,11 +105,17 @@ public struct AnalysisService: Sendable {
         "required": ["violations"],
     ]
 
-    public init(agentClient: ClaudeAgentClient) {
-        self.agentClient = agentClient
+    private static let evaluationOutputSchemaString: String = {
+        guard let data = try? JSONSerialization.data(withJSONObject: evaluationOutputSchema),
+              let str = String(data: data, encoding: .utf8) else { return "{}" }
+        return str
+    }()
+
+    public init(aiClient: any AIClient) {
+        self.aiClient = aiClient
     }
 
-    /// Analyze a single task using Claude via the Claude Agent.
+    /// Analyze a single task using Claude via AIClient.
     public func analyzeTask(
         _ task: RuleRequest,
         repoPath: String,
@@ -134,85 +140,76 @@ public struct AnalysisService: Sendable {
 
         onPrompt?(prompt, task)
 
-        let request = ClaudeAgentRequest(
-            prompt: prompt,
+        let options = AIClientOptions(
+            dangerouslySkipPermissions: true,
             model: model,
-            tools: ["Read", "Grep", "Glob"],
-            cwd: repoPath,
-            outputSchema: Self.evaluationOutputSchema
+            workingDirectory: repoPath
         )
 
         let startedAt = ISO8601DateFormatter().string(from: Date())
-        var outputEntries: [OutputEntry] = []
-        var agentResult: ClaudeAgentResult?
+        let accumulator = EventAccumulator()
 
-        for try await event in agentClient.stream(request) {
-            switch event {
-            case .text(let content):
-                onAIText?(content, task)
-                outputEntries.append(OutputEntry(type: .text, content: content))
-            case .toolUse(let name):
-                onAIToolUse?(name, task)
-                outputEntries.append(OutputEntry(type: .toolUse, label: name))
-            case .result(let result):
-                agentResult = result
-                if let outputData = result.outputData,
-                   let json = String(data: outputData, encoding: .utf8) {
-                    outputEntries.append(OutputEntry(type: .result, content: json))
+        let result = try await aiClient.runStructured(
+            ViolationsResponse.self,
+            prompt: prompt,
+            jsonSchema: Self.evaluationOutputSchemaString,
+            options: options,
+            onOutput: { text in
+                onAIText?(text, task)
+                accumulator.append(OutputEntry(type: .text, content: text))
+            },
+            onStreamEvent: { event in
+                switch event {
+                case .toolUse(let name, _):
+                    onAIToolUse?(name, task)
+                    accumulator.append(OutputEntry(type: .toolUse, label: name))
+                case .metrics(let duration, let cost, _):
+                    accumulator.setMetrics(
+                        cost: cost ?? 0.0,
+                        durationMs: duration.map { Int($0 * 1000) } ?? 0
+                    )
+                default:
+                    break
                 }
             }
-        }
+        )
 
-        if let transcriptDir, let agentResult {
+        if let transcriptDir {
+            var entries = accumulator.entries
+            entries.append(OutputEntry(type: .result, content: result.rawOutput))
             let output = EvaluationOutput(
                 identifier: task.taskId,
                 filePath: task.focusArea.filePath,
                 rule: task.rule,
                 source: .ai(model: model, prompt: prompt),
                 startedAt: startedAt,
-                durationMs: agentResult.durationMs,
-                costUsd: agentResult.costUsd,
-                entries: outputEntries
+                durationMs: accumulator.durationMs,
+                costUsd: accumulator.costUsd,
+                entries: entries
             )
             try? EvaluationOutputWriter.write(output, to: transcriptDir)
         }
 
-        guard let agentResult else {
-            throw ClaudeAgentError.noResult
+        let violations = result.value.violations.map { v in
+            let aiFilePath = v.filePath
+            let filePath = (aiFilePath?.isEmpty == false) ? aiFilePath! : task.focusArea.filePath
+            let lineNumber = v.lineNumber ?? task.focusArea.startLine
+            return Violation(
+                score: v.score ?? 1,
+                comment: v.comment ?? "Evaluation completed",
+                filePath: filePath,
+                lineNumber: lineNumber
+            )
         }
 
-        let ruleResult: RuleResult
-        if let dict = agentResult.outputAsDictionary(),
-           let violationsArray = dict["violations"] as? [[String: Any]] {
-            let violations = violationsArray.map { v in
-                let aiFilePath = v["file_path"] as? String
-                let filePath = (aiFilePath?.isEmpty == false) ? aiFilePath! : task.focusArea.filePath
-                let lineNumber = v["line_number"] as? Int ?? task.focusArea.startLine
-                return Violation(
-                    score: v["score"] as? Int ?? 1,
-                    comment: v["comment"] as? String ?? "Evaluation completed",
-                    filePath: filePath,
-                    lineNumber: lineNumber
-                )
-            }
-            ruleResult = RuleResult(
-                taskId: task.taskId,
-                ruleName: task.rule.name,
-                filePath: task.focusArea.filePath,
-                analysisMethod: .ai(model: model, costUsd: agentResult.costUsd),
-                durationMs: agentResult.durationMs,
-                violations: violations
-            )
-        } else {
-            ruleResult = RuleResult(
-                taskId: task.taskId,
-                ruleName: task.rule.name,
-                filePath: task.focusArea.filePath,
-                analysisMethod: .ai(model: model, costUsd: agentResult.costUsd),
-                durationMs: agentResult.durationMs,
-                violations: []
-            )
-        }
+        let ruleResult = RuleResult(
+            taskId: task.taskId,
+            ruleName: task.rule.name,
+            filePath: task.focusArea.filePath,
+            analysisMethod: .ai(model: model, costUsd: accumulator.costUsd),
+            durationMs: accumulator.durationMs,
+            violations: violations
+        )
 
         return .success(ruleResult)
     }
@@ -325,5 +322,63 @@ public struct AnalysisService: Sendable {
         }
 
         return results
+    }
+}
+
+// MARK: - Private types
+
+private struct ViolationsResponse: Decodable, Sendable {
+    let violations: [ViolationItem]
+
+    struct ViolationItem: Decodable, Sendable {
+        let comment: String?
+        let filePath: String?
+        let lineNumber: Int?
+        let score: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case comment
+            case filePath = "file_path"
+            case lineNumber = "line_number"
+            case score
+        }
+    }
+}
+
+final class EventAccumulator: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _costUsd: Double = 0.0
+    private var _durationMs: Int = 0
+    private var _entries: [OutputEntry] = []
+
+    func append(_ entry: OutputEntry) {
+        lock.lock()
+        defer { lock.unlock() }
+        _entries.append(entry)
+    }
+
+    func setMetrics(cost: Double, durationMs: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        _costUsd = cost
+        _durationMs = durationMs
+    }
+
+    var costUsd: Double {
+        lock.lock()
+        defer { lock.unlock() }
+        return _costUsd
+    }
+
+    var durationMs: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return _durationMs
+    }
+
+    var entries: [OutputEntry] {
+        lock.lock()
+        defer { lock.unlock() }
+        return _entries
     }
 }

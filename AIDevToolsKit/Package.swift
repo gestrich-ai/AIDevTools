@@ -190,6 +190,7 @@ var targets: [Target] = [
         dependencies: [
             .product(name: "CLISDK", package: "SwiftCLI"),
             "ClaudeAgentSDK",
+            "ClaudeCLISDK",
             "CredentialService",
             "EnvironmentSDK",
             "GitHubService",
