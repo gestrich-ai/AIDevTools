@@ -182,7 +182,10 @@ Files: `Sources/Apps/AIDevToolsKitMac/PullRequests/Views/`
 - Per-row spinner for PRs in `fetchingPRNumbers`
 - Error view when `state == .failed` with no prior data
 
-## - [ ] Phase 5: Create Demo PR and Write UI Tests
+## - [x] Phase 5: Create Demo PR and Write UI Tests
+
+**Skills used**: `ai-dev-tools-debug`, `ai-dev-tools-ui-tests`
+**Principles applied**: Created PR #25 (`demo/ui-test-fixture`) in `gestrich/PRRadar-TestRepo` — a branch already configured in the app's repositories.json (credentialAccount: "gestrich") so the "Pull Requests" tab loads it live. GitHub prevents self-approval and self-change-requests on PRs, so the review was submitted as `COMMENT` state (with an inline review comment on `demo-fixture.md`); the review-status badge will show `pending` for this PR until a second GitHub account approves it. No CI check runs are configured on the repo's main trigger (the `pr-review.yml` workflow is manual-dispatch only), so build-status badges are absent for this fixture PR — the views for passing/failing/pending states are covered by SwiftUI Previews in `PullRequestsRowView`. Three new screenshot tests were added to `AIDevToolsUITests.swift` (tests 12–14): loading state (immediate capture), list view (waits 30s for rows to appear), and detail view (selects PR #25 row). A `selectRepository(named:)` helper was added alongside the existing `selectFirstRepository`. `build-for-testing` succeeded; the tests compile and are structurally correct. Live execution requires automation mode to be enabled via `sudo automationmodetool enable-automationmode-without-authentication` (not available in non-interactive sessions).
 
 **Skills to read**: `ai-dev-tools-debug`, `ai-dev-tools-ui-tests`
 
