@@ -5,6 +5,7 @@
 | `ai-dev-tools-architecture` | Layer placement and dependency rules |
 | `ai-dev-tools-swift-testing` | Swift Testing conventions |
 | `ai-dev-tools-enforce` | Post-implementation standards check |
+| `ai-dev-tools-ui-tests` | Running and writing UI screenshot tests |
 
 ## Background
 
@@ -115,7 +116,10 @@ public struct GitHubPRLoaderUseCase {
 - Per-PR loop runs **sequentially** — matches current behavior, avoids GitHub rate limit issues
 - No PRRadar-specific or Claude Chain-specific logic
 
-## - [ ] Phase 3: Build `PullRequestsModel`
+## - [x] Phase 3: Build `PullRequestsModel`
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: `@Observable @MainActor final class` with enum-based `State` (`.uninitialized`, `.loading`, `.refreshing`, `.ready`, `.failed`) carrying PR lists as associated values to prevent impossible combinations. `prs` is a computed property that extracts the list from whichever state holds it. All state properties are `private(set)`. `load()` and `refresh(number:)` each consume an `AsyncStream` from `GitHubPRLoaderUseCase` via a single private `handle(_:)` dispatcher — no multi-step orchestration in the model itself. `fetchingPRNumbers` drives per-row spinners: inserted on `.prFetchStarted`, removed on `.prUpdated`/`.prFetchFailed`. No PRRadar or Claude Chain imports.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
@@ -175,7 +179,30 @@ Files: `Sources/Apps/AIDevToolsKitMac/PullRequests/Views/`
 - Per-row spinner for PRs in `fetchingPRNumbers`
 - Error view when `state == .failed` with no prior data
 
-## - [ ] Phase 5: Validation
+## - [ ] Phase 5: Create Demo PR and Write UI Tests
+
+**Skills to read**: `ai-dev-tools-debug`, `ai-dev-tools-ui-tests`
+
+Create a real PR in the demo GitHub repo with rich fixture data, then write UI screenshot tests that confirm the "Pull Requests" tab renders that data correctly.
+
+**Create the demo PR (via `gh` CLI):**
+- Open a short-lived branch (e.g. `demo/ui-test-fixture`) against `main` with a trivial change
+- Add at least one review — one approving, one requesting changes if possible
+- Add at least one PR-level comment and one inline review comment
+- Trigger or stub at least one check run (passing) and one check run (failing/pending) so all build-status states are exercised
+- Record the PR number — it will be used to seed the UI test
+
+**Write UI screenshot tests (`ai-dev-tools-ui-tests`):**
+- Add a new UI test target file (or extend an existing one) that loads the "Pull Requests" tab pointed at the demo PR's repo + filter
+- Capture screenshots for:
+  - List view with at least one PR row fully loaded (reviews + check runs populated)
+  - Review-status indicator: approved state and changes-requested state
+  - Build-status indicator: passing, failing, and pending states
+  - Per-row spinner visible while a PR is mid-fetch
+  - Error/empty state when no data is available
+- Run the test suite with `ai-dev-tools-ui-tests` and confirm all screenshots are captured without crash
+
+## - [ ] Phase 6: Validation
 
 **Skills to read**: `ai-dev-tools-enforce`
 
@@ -187,4 +214,5 @@ Files: `Sources/Apps/AIDevToolsKitMac/PullRequests/Views/`
 6. Verify `PullRequestsModel` has no imports of PRRadar or Claude Chain feature modules.
 7. Verify the "Pull Requests" tab renders with per-row review and build status indicators.
 8. Verify per-row spinners appear while a PR is being fetched.
-9. Run enforce on all modified files.
+9. Confirm the demo PR's review and check-run data appears correctly in the UI test screenshots from Phase 5.
+10. Run enforce on all modified files.
