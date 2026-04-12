@@ -7,7 +7,6 @@ var products: [Product] = [
     .library(name: "AIOutputSDK", targets: ["AIOutputSDK"]),
     .library(name: "AnthropicSDK", targets: ["AnthropicSDK"]),
     .library(name: "AppIPCSDK", targets: ["AppIPCSDK"]),
-    .library(name: "ClaudeAgentSDK", targets: ["ClaudeAgentSDK"]),
     .library(name: "ChatFeature", targets: ["ChatFeature"]),
     .library(name: "ChatService", targets: ["ChatService"]),
     .library(name: "ClaudeChainCLI", targets: ["ClaudeChainCLI"]),
@@ -15,7 +14,6 @@ var products: [Product] = [
     .library(name: "ClaudeChainSDK", targets: ["ClaudeChainSDK"]),
     .library(name: "ClaudeChainFeature", targets: ["ClaudeChainFeature"]),
     .library(name: "ClaudeCLISDK", targets: ["ClaudeCLISDK"]),
-    .library(name: "ClaudePythonSDK", targets: ["ClaudePythonSDK"]),
     .library(name: "CodexCLISDK", targets: ["CodexCLISDK"]),
     .library(name: "ConcurrencySDK", targets: ["ConcurrencySDK"]),
     .library(name: "CredentialFeature", targets: ["CredentialFeature"]),
@@ -188,8 +186,8 @@ var targets: [Target] = [
     .target(
         name: "PRReviewFeature",
         dependencies: [
+            "AIOutputSDK",
             .product(name: "CLISDK", package: "SwiftCLI"),
-            "ClaudeAgentSDK",
             "ClaudeCLISDK",
             "CredentialService",
             "EnvironmentSDK",
@@ -328,8 +326,8 @@ var targets: [Target] = [
     .target(
         name: "PRRadarCLIService",
         dependencies: [
+            "AIOutputSDK",
             .product(name: "CLISDK", package: "SwiftCLI"),
-            "ClaudeAgentSDK",
             "CredentialService",
             "DataPathsService",
             "EnvironmentSDK",
@@ -410,15 +408,6 @@ var targets: [Target] = [
         path: "Sources/SDKs/AppIPCSDK"
     ),
     .target(
-        name: "ClaudeAgentSDK",
-        dependencies: [
-            .product(name: "CLISDK", package: "SwiftCLI"),
-            "ConcurrencySDK",
-            "EnvironmentSDK",
-        ],
-        path: "Sources/SDKs/ClaudeAgentSDK"
-    ),
-    .target(
         name: "ClaudeCLISDK",
         dependencies: [
             .product(name: "CLISDK", package: "SwiftCLI"),
@@ -428,15 +417,6 @@ var targets: [Target] = [
             "SkillScannerSDK",
         ],
         path: "Sources/SDKs/ClaudeCLISDK"
-    ),
-    .target(
-        name: "ClaudePythonSDK",
-        dependencies: [
-            .product(name: "CLISDK", package: "SwiftCLI"),
-            "ConcurrencySDK",
-            "EnvironmentSDK",
-        ],
-        path: "Sources/SDKs/ClaudePythonSDK"
     ),
     .target(
         name: "CodexCLISDK",
@@ -637,11 +617,6 @@ var targets: [Target] = [
         path: "Tests/SDKs/ClaudeCLISDKTests"
     ),
     .testTarget(
-        name: "ClaudePythonSDKTests",
-        dependencies: ["ClaudePythonSDK"],
-        path: "Tests/SDKs/ClaudePythonSDKTests"
-    ),
-    .testTarget(
         name: "CredentialFeatureTests",
         dependencies: ["CredentialFeature", "CredentialService", "KeychainSDK"],
         path: "Tests/Features/CredentialFeatureTests"
@@ -721,7 +696,6 @@ var targets: [Target] = [
     .testTarget(
         name: "PRRadarModelsServiceTests",
         dependencies: [
-            "ClaudeAgentSDK",
             "EnvironmentSDK",
             "GitHubService",
             "KeychainSDK",

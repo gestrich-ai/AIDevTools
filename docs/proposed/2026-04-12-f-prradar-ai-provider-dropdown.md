@@ -168,7 +168,10 @@ Remove the field everywhere it appears:
 - `SettingsView`: remove the `agentScriptPath:` argument passed to `updatePRRadarSettings`
 - `RepositoriesSettingsView`: remove the "Agent Script Path" detail row
 
-## - [ ] Phase 6: Update Package.swift
+## - [x] Phase 6: Update Package.swift
+
+**Skills used**: none
+**Principles applied**: Removed `ClaudeAgentSDK` and `ClaudePythonSDK` from products, target definitions, and all dependent target lists. Added `AIOutputSDK` to `PRReviewFeature` and `PRRadarCLIService` dependencies. Removed the `ClaudePythonSDKTests` test target and the `PRRadarModelsServiceTests/ClaudeAgentMessageTests.swift` test file (which tested the now-removed SDK). Lists kept alphabetically sorted per project convention.
 
 - `PRReviewFeature` target:
   - Remove `ClaudeAgentSDK` dependency
