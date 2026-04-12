@@ -4,6 +4,15 @@ import PRRadarConfigService
 import PRRadarModelsService
 import PRReviewFeature
 
+private struct PRListOutput: Encodable {
+    let author: String
+    let baseBranch: String
+    let branch: String
+    let number: Int
+    let state: String
+    let title: String
+}
+
 struct PRRadarRefreshCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "refresh",
@@ -54,17 +63,19 @@ struct PRRadarRefreshCommand: AsyncParsableCommand {
         }
 
         if json {
-            let encoded = finalPRs.map { pr in
-                [
-                    "number": pr.number,
-                    "title": pr.title,
-                    "author": pr.author.login,
-                    "state": pr.state,
-                    "branch": pr.headRefName,
-                    "baseBranch": pr.baseRefName as Any,
-                ] as [String: Any]
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let items = finalPRs.map { pr in
+                PRListOutput(
+                    author: pr.author.login,
+                    baseBranch: pr.baseRefName,
+                    branch: pr.headRefName,
+                    number: pr.number,
+                    state: pr.state,
+                    title: pr.title
+                )
             }
-            let data = try JSONSerialization.data(withJSONObject: encoded, options: [.prettyPrinted, .sortedKeys])
+            let data = try encoder.encode(items)
             print(String(data: data, encoding: .utf8) ?? "")
         }
     }

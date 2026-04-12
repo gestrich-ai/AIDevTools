@@ -32,7 +32,7 @@ struct PRRadarStatusCommand: AsyncParsableCommand {
 
         var statuses: [DisplayStatus] = []
         for phase in PRRadarPhase.allCases {
-            let phaseStatus = detail.phaseStatuses[phase]!
+            guard let phaseStatus = detail.phaseStatuses[phase] else { continue }
             let statusText: String
             if !phaseStatus.exists {
                 statusText = "not started"
@@ -77,7 +77,7 @@ struct PRRadarStatusCommand: AsyncParsableCommand {
                 }
             }
             let data = try JSONSerialization.data(withJSONObject: jsonOutput, options: [.prettyPrinted, .sortedKeys])
-            print(String(data: data, encoding: .utf8)!)
+            if let output = String(data: data, encoding: .utf8) { print(output) }
         } else {
             let branchSuffix = detail.baseRefName.map { " → \($0)" } ?? ""
             if let commitHash = detail.commitHash {

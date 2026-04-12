@@ -171,7 +171,10 @@ If `metadata.reviews` or `metadata.checkRuns` is `nil` (cache not yet enriched),
 
 For the list output (if `PRRadarRefreshCommand` prints a summary table), add short review/check columns alongside existing state columns so both are visible at a glance.
 
-## - [ ] Phase 5: Validation + Enforce
+## - [x] Phase 5: Validation + Enforce
+
+**Skills used**: `ai-dev-tools-enforce`
+**Principles applied**: `swift build` clean, no new warnings. Pre-existing `SkillScannerTests` failures confirmed unchanged from `main`. `FetchPRsUseCase` still present and compiles; `AllPRsModel` no longer references it. Enforce fixes: replaced force unwrap `phaseStatuses[phase]!` with `guard let ... else { continue }` in `PRRadarStatusCommand`; replaced force unwrap on `String(data:encoding:)!` with safe unwrap; replaced `[String: Any]` JSON serialization in `PRRadarRefreshCommand` with typed `PRListOutput: Encodable` struct (properties alphabetically ordered per project convention).
 
 **Skills to read**: `ai-dev-tools-enforce`
 
