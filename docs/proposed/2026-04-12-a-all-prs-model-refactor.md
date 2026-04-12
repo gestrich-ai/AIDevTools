@@ -61,7 +61,10 @@ indication of where they get it from. Apply the cached/fetch convention, and dro
   - "List" is redundant; "Fetch" already implies network
   - Update all references across the codebase (use case file, `AllPRsModel`, any tests)
 
-## - [ ] Phase 2: Extract `PRModel.make` static factory
+## - [x] Phase 2: Extract `PRModel.make` static factory
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Moved `buildPRModels` from `AllPRsModel` into `PRModel` as a static factory `make(from:reusingExisting:config:)`, adding the required `config` parameter. Both call sites in `AllPRsModel` updated; original method removed. Factory sits in its own `// MARK: - Factory` section adjacent to `init`.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

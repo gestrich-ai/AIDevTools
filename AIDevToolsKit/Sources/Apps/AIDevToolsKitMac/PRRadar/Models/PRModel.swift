@@ -81,6 +81,25 @@ final class PRModel: Identifiable, Hashable {
         self.config = config
     }
 
+    // MARK: - Factory
+
+    /// Builds a `PRModel` array from metadata, reusing existing instances by ID so that
+    /// SwiftUI `List` selection bindings remain valid after list updates.
+    static func make(
+        from metadata: [PRMetadata],
+        reusingExisting prior: [PRModel]? = nil,
+        config: PRRadarRepoConfig
+    ) -> [PRModel] {
+        let existingByID = Dictionary(uniqueKeysWithValues: (prior ?? []).map { ($0.id, $0) })
+        return metadata.map { meta in
+            if let existing = existingByID[meta.id] {
+                existing.updateMetadata(meta)
+                return existing
+            }
+            return PRModel(metadata: meta, config: config)
+        }
+    }
+
     // MARK: - Summary Loading (lightweight, for list badges)
 
     func loadSummary() async {

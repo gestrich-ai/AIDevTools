@@ -38,7 +38,7 @@ final class AllPRsModel {
     private func discoverAndMerge(filter: PRFilter? = nil) async -> [PRModel] {
         let metadata = await CachedPRsUseCase(config: config).execute(filter: filter)
         let prior = currentPRModels
-        let models = buildPRModels(from: metadata, reusingExisting: prior)
+        let models = PRModel.make(from: metadata, reusingExisting: prior, config: config)
         state = .ready(models)
         loadSummariesInBackground(for: models)
         return models
@@ -108,7 +108,7 @@ final class AllPRsModel {
             }
         }
 
-        let mergedModels = buildPRModels(from: metadata, reusingExisting: prior)
+        let mergedModels = PRModel.make(from: metadata, reusingExisting: prior, config: config)
         self.state = .ready(mergedModels)
         loadSummariesInBackground(for: mergedModels)
 
@@ -267,26 +267,6 @@ final class AllPRsModel {
     private var analyzeAllLogs: String {
         if case .running(let logs, _, _) = analyzeAllState { return logs }
         return ""
-    }
-
-    /// Builds a `PRModel` array from metadata, reusing existing instances by ID so that
-    /// SwiftUI `List` selection bindings remain valid after list updates.
-    ///
-    /// - Parameters:
-    ///   - metadata: The discovered PR metadata to build models from.
-    ///   - prior: Existing models whose instances should be reused when IDs match.
-    private func buildPRModels(from metadata: [PRMetadata], reusingExisting prior: [PRModel]? = nil) -> [PRModel] {
-        let existingByID = Dictionary(uniqueKeysWithValues: (prior ?? []).map { ($0.id, $0) })
-        var models: [PRModel] = []
-        for meta in metadata {
-            if let existing = existingByID[meta.id] {
-                existing.updateMetadata(meta)
-                models.append(existing)
-            } else {
-                models.append(PRModel(metadata: meta, config: config))
-            }
-        }
-        return models
     }
 
     private func loadSummariesInBackground(for models: [PRModel]) {
