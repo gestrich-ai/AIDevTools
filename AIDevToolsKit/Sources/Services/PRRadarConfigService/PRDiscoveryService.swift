@@ -73,6 +73,26 @@ public enum PRDiscoveryService {
         return await loadComments(gitHubCacheURL: cacheURL, prNumber: prNumber)
     }
 
+    /// Load PR reviews from the shared GitHub cache directory. Performs disk I/O on a background thread.
+    public static func loadReviews(config: PRRadarRepoConfig, prNumber: Int) async -> [GitHubReview]? {
+        guard let cacheURL = config.gitHubCacheURL else { return nil }
+        return await Task.detached(priority: .userInitiated) {
+            let url = cacheURL.appendingPathComponent("\(prNumber)/gh-reviews.json")
+            guard let data = FileManager.default.contents(atPath: url.path(percentEncoded: false)) else { return nil }
+            return try? JSONDecoder().decode([GitHubReview].self, from: data)
+        }.value
+    }
+
+    /// Load PR check runs from the shared GitHub cache directory. Performs disk I/O on a background thread.
+    public static func loadCheckRuns(config: PRRadarRepoConfig, prNumber: Int) async -> [GitHubCheckRun]? {
+        guard let cacheURL = config.gitHubCacheURL else { return nil }
+        return await Task.detached(priority: .userInitiated) {
+            let url = cacheURL.appendingPathComponent("\(prNumber)/gh-checks.json")
+            guard let data = FileManager.default.contents(atPath: url.path(percentEncoded: false)) else { return nil }
+            return try? JSONDecoder().decode([GitHubCheckRun].self, from: data)
+        }.value
+    }
+
     // MARK: - Sync helpers (for use inside Task.detached blocks)
 
     static func loadGitHubPRSync(gitHubCacheURL: URL, prNumber: Int) -> GitHubPullRequest? {

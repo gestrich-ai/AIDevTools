@@ -152,7 +152,10 @@ Add a section in the PR detail that shows:
 
 If `reviews == nil` or `checkRuns == nil`, show a "Loading..." placeholder (cleared once `AllPRsModel` emits an update for that PR).
 
-## - [ ] Phase 4: Add Check Run & Review Info to PRRadar CLI
+## - [x] Phase 4: Add Check Run & Review Info to PRRadar CLI
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Added `loadReviews(config:prNumber:)` and `loadCheckRuns(config:prNumber:)` to `PRDiscoveryService` (matching the existing `loadComments` pattern — reads from cache files `gh-reviews.json` / `gh-checks.json`). Updated `PRRadarStatusCommand` to load both concurrently alongside the pipeline detail, then print a reviews section and check runs section after the phase table. When either is `nil` (not yet enriched), prints `(not loaded — run prradar refresh-pr <number>)`. JSON output includes `reviews` and `checkRuns` arrays when present.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
