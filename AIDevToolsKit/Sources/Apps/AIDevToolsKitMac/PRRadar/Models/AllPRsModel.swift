@@ -31,12 +31,14 @@ final class AllPRsModel {
     func loadCached() async {
         state = .loading
         let models = applyMetadata(await cachedPRs(filter: config.makeFilter()))
+        logger.info("loadCached: loaded \(models.count) models", metadata: ["repo": "\(config.name)"])
         loadSummariesInBackground(for: models)
         Task {
             if let gitHubConfig = try? config.makeGitHubRepoConfig() {
                 // Swallowing intentionally: author list is best-effort for the filter dropdown;
                 // a failure leaves the dropdown empty rather than blocking the PR list from loading.
                 loadedAuthors = (try? await LoadAuthorsUseCase(config: gitHubConfig).executeAll()) ?? []
+                logger.info("loadCached: loadedAuthors count = \(loadedAuthors.count)", metadata: ["repo": "\(config.name)"])
             }
         }
     }
@@ -92,7 +94,10 @@ final class AllPRsModel {
         var fetchedTotal = 0
         var enrichedCount = 0
 
-        for await event in useCase.execute(filter: filter) {
+        // Strip authorLogin before fetching: all PR authors must be loaded into the model so
+        // the author dropdown stays fully populated regardless of the active display filter.
+        let fetchFilter = filter.withoutAuthorLogin()
+        for await event in useCase.execute(filter: fetchFilter) {
             switch event {
             case .listLoadStarted:
                 break
@@ -130,6 +135,7 @@ final class AllPRsModel {
                     model.updateMetadata(metadata)
                     Task { await model.loadSummary() }
                 }
+                addAuthorIfNeeded(metadata.author)
 
             case .prFetchFailed(let prNumber, let error):
                 fetchingPRNumbers.remove(prNumber)
@@ -139,6 +145,10 @@ final class AllPRsModel {
 
             case .completed:
                 refreshAllState = .completed(logs: refreshAllLogs + "\nRefresh complete.\n")
+                // Swallowing intentionally: author list is best-effort; a failure leaves the
+                // dropdown with whatever was loaded at startup rather than crashing.
+                loadedAuthors = (try? await LoadAuthorsUseCase(config: gitHubConfig).executeAll()) ?? loadedAuthors
+                logger.info("refresh: reloaded loadedAuthors count = \(loadedAuthors.count)", metadata: ["repo": "\(config.name)"])
             }
         }
     }
@@ -207,6 +217,7 @@ final class AllPRsModel {
     private func applyMetadata(_ metadata: [PRMetadata]) -> [PRModel] {
         let models = PRModel.make(from: metadata, reusingExisting: currentPRModels, config: config)
         state = .ready(models)
+        logger.info("applyMetadata: state=ready(\(models.count))", metadata: ["repo": "\(config.name)"])
         return models
     }
 
@@ -234,21 +245,9 @@ final class AllPRsModel {
     }
 
     var availableAuthors: [AuthorOption] {
-        guard let models = currentPRModels else { return [] }
-        let authorsByLogin = Dictionary(uniqueKeysWithValues: loadedAuthors.map { ($0.login, $0) })
-        var seen = Set<String>()
-        var result: [AuthorOption] = []
-        for model in models {
-            let login = model.metadata.author.login
-            guard !login.isEmpty, seen.insert(login).inserted else { continue }
-            let entry = authorsByLogin[login]
-            result.append(AuthorOption(
-                login: login,
-                name: entry?.name ?? model.metadata.author.name,
-                avatarURL: entry?.avatarURL
-            ))
-        }
-        return result.sorted { $0.displayLabel.localizedCaseInsensitiveCompare($1.displayLabel) == .orderedAscending }
+        loadedAuthors
+            .map { AuthorOption(login: $0.login, name: $0.name, avatarURL: $0.avatarURL) }
+            .sorted { $0.displayLabel.localizedCaseInsensitiveCompare($1.displayLabel) == .orderedAscending }
     }
 
     func filteredPRs(_ models: [PRModel], filter: PRFilter = PRFilter()) -> [PRModel] {
@@ -276,6 +275,12 @@ final class AllPRsModel {
         case .refreshing(let models): return models.isEmpty
         default: return false
         }
+    }
+
+    private func addAuthorIfNeeded(_ author: PRMetadata.Author) {
+        guard !author.login.isEmpty,
+              !loadedAuthors.contains(where: { $0.login == author.login }) else { return }
+        loadedAuthors.append(AuthorCacheEntry(login: author.login, name: author.name, avatarURL: author.avatarURL))
     }
 
     private var refreshAllLogs: String {

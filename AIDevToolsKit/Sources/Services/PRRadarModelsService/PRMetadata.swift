@@ -60,6 +60,12 @@ public struct PRFilter: Sendable {
         return true
     }
 
+    public func withoutAuthorLogin() -> PRFilter {
+        var copy = self
+        copy.authorLogin = nil
+        return copy
+    }
+
     private static let fractionalDateFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
