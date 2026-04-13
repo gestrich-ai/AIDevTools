@@ -111,7 +111,20 @@ final class ClaudeChainModel {
                 state = .error(error)
                 return
             }
-            let listChainsUseCase = ListChainsUseCase(client: activeClient, repoPath: repoPath, prService: prService)
+            let config: GitHubRepoConfig
+            do {
+                config = try await makeOrGetGitHubRepoConfig(repoPath: repoPath)
+            } catch {
+                state = .error(error)
+                return
+            }
+            let listChainsUseCase = ListChainsUseCase(
+                client: activeClient,
+                repoPath: repoPath,
+                prService: prService,
+                dataPathsService: dataPathsService,
+                repoSlug: config.repoSlug
+            )
             do {
                 for try await result in listChainsUseCase.stream() {
                     lastLoadedProjects = result.projects

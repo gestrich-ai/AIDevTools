@@ -126,6 +126,7 @@ public struct PRRadarRepoConfig: Sendable {
             cacheURL: cacheURL,
             name: name,
             repoPath: repoPath,
+            repoSlug: cacheURL.lastPathComponent,
             token: explicitToken
         )
     }

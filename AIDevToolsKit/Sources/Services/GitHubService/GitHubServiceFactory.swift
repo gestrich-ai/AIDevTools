@@ -55,7 +55,7 @@ public struct GitHubServiceFactory: Sendable {
         let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
         let cacheURL = try dataPathsService.path(for: .github(repoSlug: normalizedSlug))
         let repoName = gitHub.repoSlug.components(separatedBy: "/").last ?? gitHub.repoSlug
-        return GitHubRepoConfig(account: githubAccount, cacheURL: cacheURL, name: repoName, repoPath: repoPath, token: nil)
+        return GitHubRepoConfig(account: githubAccount, cacheURL: cacheURL, name: repoName, repoPath: repoPath, repoSlug: normalizedSlug, token: nil)
     }
 
     public static func createPRService(

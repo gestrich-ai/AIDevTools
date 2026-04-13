@@ -540,7 +540,7 @@ var targets: [Target] = [
     ),
     .target(
         name: "ClaudeChainFeature",
-        dependencies: ["AIOutputSDK", "ClaudeChainSDK", "ClaudeChainService", "CredentialService", "GitHubService", "GitSDK", "OctokitSDK", "PipelineSDK", "PipelineService", "PRRadarCLIService", "PRRadarModelsService", "SweepFeature", "UseCaseSDK"],
+        dependencies: ["AIOutputSDK", "ClaudeChainSDK", "ClaudeChainService", "CredentialService", "DataPathsService", "GitHubService", "GitSDK", "OctokitSDK", "PipelineSDK", "PipelineService", "PRRadarCLIService", "PRRadarModelsService", "SweepFeature", "UseCaseSDK"],
         path: "Sources/Features/ClaudeChainFeature"
     ),
 

@@ -177,7 +177,10 @@ No other changes to `ClaudeChainModel` — the existing `for try await detail in
 2. Pass `config` to `GetChainDetailUseCase(gitHubPRService: prService, config: config)`
 3. Keep calling `.run()` — `StatusCommand` doesn't need streaming since it's a synchronous CLI output command
 
-## - [ ] Phase 4: Add Claude Chain Project Cache (Per-Project, Commit-Hash Invalidation)
+## - [x] Phase 4: Add Claude Chain Project Cache (Per-Project, Commit-Hash Invalidation)
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-configuration-architecture`
+**Principles applied**: Added `claudeChainProject(repoSlug:projectName:)` to `ServicePath` following alphabetical ordering convention. Added `repoSlug: String` to `GitHubRepoConfig` (exposed from `normalizedSlug` in `GitHubServiceFactory.makeRepoConfig`; derived from `cacheURL.lastPathComponent` in `PRRadarConfig.makeGitHubRepoConfig`). Created `ChainProjectCache` in `ClaudeChainService` with `Descriptor` (explicit public init required since synthesized memberwise init is internal across modules). Extended `GitHubChainProjectSource` with optional `DataPathsService` + `repoSlug`; threads `commitSHA` from `loadChainTreeEntries` to `fetchChainProject` for cache-hit comparison before blob download. Rewrote `ListChainsUseCase` to: (1) cold-open scan from disk using `ChainProjectCache`, yield immediately; (2) remote refresh via `GitHubChainProjectSource` with cache wiring. Updated `ClaudeChainModel.loadChains` to fetch `GitHubRepoConfig` and pass `repoSlug` + `dataPathsService` to `ListChainsUseCase`. Added `DataPathsService` to `ClaudeChainFeature` Package.swift dependencies.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-configuration-architecture`
 
