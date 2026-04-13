@@ -6,6 +6,7 @@ import RepositorySDK
 import SwiftUI
 
 struct PlanDetailView: View {
+    @Environment(ExecutionPanelModel.self) private var panelModel
     @Environment(PlanModel.self) var planModel
     let plan: MarkdownPlanEntry
     let repository: RepositoryConfiguration
@@ -34,24 +35,14 @@ struct PlanDetailView: View {
                 errorBanner(error)
             }
 
-            let hasExecutionOutput = executionChatModel.map { !$0.messages.isEmpty } ?? false
-            if hasExecutionOutput, let executionModel = executionChatModel {
-                VSplitView {
-                    planContentView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    ChatMessagesView()
-                        .environment(executionModel)
-                        .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
-                }
-            } else {
-                planContentView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            planContentView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(plan.name)
         .task(id: plan.id) {
             executionChatModel = nil
+            panelModel.clearOutput()
             activePlanModel.stopWatching()
             await loadPlan()
         }
@@ -421,6 +412,7 @@ struct PlanDetailView: View {
             workingDirectory: repository.path.path()
         )
         executionChatModel = executionModel
+        panelModel.showOutput(with: executionModel)
         activePlanModel.stopWatching()
 
         planModel.pipelineModel.onEvent = { @MainActor [weak executionModel] event in

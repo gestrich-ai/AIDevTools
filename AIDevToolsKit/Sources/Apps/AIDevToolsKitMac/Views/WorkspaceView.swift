@@ -9,7 +9,7 @@ struct WorkspaceView: View {
 
     let evalProviderRegistry: EvalProviderRegistry
 
-    @State private var chatSidePanelVisible = false
+    @State private var executionPanelModel = ExecutionPanelModel()
     @AppStorage(ExperimentalSettings.architecturePlannerKey) private var isArchitecturePlannerEnabled = false
     @AppStorage("selectedRepositoryID") private var storedRepoID: String = ""
     @AppStorage("selectedWorkspaceTab") private var selectedTab: String = "claudeChain"
@@ -39,18 +39,11 @@ struct WorkspaceView: View {
                 )
             }
         }
-        .inspector(isPresented: $chatSidePanelVisible) {
-            GlobalChatSidePanelView(
+        .inspector(isPresented: Bindable(executionPanelModel).isVisible) {
+            RightExecutionPanelView(
                 workingDirectory: model.selectedRepository?.path.path(percentEncoded: false) ?? ""
             )
-        }
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button(action: { chatSidePanelVisible.toggle() }) {
-                    Image(systemName: "sidebar.trailing")
-                }
-                .help("Toggle Chat")
-            }
+            .environment(executionPanelModel)
         }
         .task {
             deepLinkWatcher.start()
@@ -112,5 +105,16 @@ struct WorkspaceView: View {
                 .tag("worktrees")
                 .id("worktrees")
         }
+        .toolbar {
+            if selectedTab == "claudeChain" || selectedTab == "plans" {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: { executionPanelModel.isVisible.toggle() }) {
+                        Image(systemName: "sidebar.trailing")
+                    }
+                    .help("Toggle Panel")
+                }
+            }
+        }
+        .environment(executionPanelModel)
     }
 }

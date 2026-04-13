@@ -13,6 +13,7 @@ struct PRRadarContentView: View {
     let isActive: Bool
     let repository: RepositoryConfiguration
 
+    @Environment(ExecutionPanelModel.self) private var executionPanelModel
     @Environment(ProviderModel.self) private var providerModel
     @Environment(WorkspaceModel.self) private var workspaceModel
     @State private var allPRsModel: AllPRsModel?
@@ -128,18 +129,10 @@ struct PRRadarContentView: View {
                     deleteConfirmationPopover
                 }
 
-                if let model = allPRsModel {
-                    Picker("", selection: Bindable(model).selectedProviderName) {
-                        ForEach(providerModel.providerRegistry.providers, id: \.name) { provider in
-                            Text(provider.displayName).tag(provider.name)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 120)
-                    .accessibilityIdentifier("providerPicker")
-                    .help("Select AI provider")
+                Button(action: { executionPanelModel.isVisible.toggle() }) {
+                    Image(systemName: "sidebar.trailing")
                 }
+                .help("Toggle Panel")
             }
             }
         }

@@ -33,8 +33,11 @@ struct ContextualChatPanel: View {
                     .frame(maxHeight: .infinity)
                 Divider()
                 messageInputView
+            } else {
+                Spacer()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: context.chatContextIdentifier) {
             if selectedProviderName.isEmpty {
                 selectedProviderName = providerModel.providerRegistry.defaultClient?.name ?? ""
@@ -65,7 +68,14 @@ struct ContextualChatPanel: View {
 
             Spacer()
 
-            Picker("", selection: $selectedProviderName) {
+            Picker("", selection: Binding(
+                get: {
+                    selectedProviderName.isEmpty
+                        ? (providerModel.providerRegistry.defaultClient?.name ?? "")
+                        : selectedProviderName
+                },
+                set: { selectedProviderName = $0 }
+            )) {
                 ForEach(providerModel.providerRegistry.providers, id: \.name) { provider in
                     Text(provider.displayName).tag(provider.name)
                 }

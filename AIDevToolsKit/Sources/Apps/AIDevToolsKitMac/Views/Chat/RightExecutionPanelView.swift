@@ -1,6 +1,13 @@
+import AIOutputSDK
+import AppKit
+import DataPathsService
+import MCPService
+import ProviderRegistryService
 import SwiftUI
 
-struct GlobalChatSidePanelView: View {
+struct RightExecutionPanelView: View {
+    @Environment(ExecutionPanelModel.self) private var panelModel
+
     @State private var chatContext: GlobalChatContext
 
     init(workingDirectory: String) {
@@ -8,12 +15,53 @@ struct GlobalChatSidePanelView: View {
     }
 
     var body: some View {
-        ContextualChatPanel(context: chatContext)
+        VStack(spacing: 0) {
+            segmentPicker
+            Divider()
+            panelContent
+        }
+    }
+
+    private var segmentPicker: some View {
+        Picker("", selection: Bindable(panelModel).selectedSegment) {
+            Text("Chat").tag(ExecutionPanelModel.Segment.chat)
+            Text("Output").tag(ExecutionPanelModel.Segment.output)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var panelContent: some View {
+        switch panelModel.selectedSegment {
+        case .chat:
+            ContextualChatPanel(context: chatContext)
+        case .output:
+            outputContent
+        }
+    }
+
+    @ViewBuilder
+    private var outputContent: some View {
+        if let outputModel = panelModel.executionChatModel {
+            ChatMessagesView()
+                .environment(outputModel)
+        } else {
+            Text("Run a task to see output here.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
     }
 }
 
+// MARK: - Chat Context
+
 @MainActor
-private final class GlobalChatContext: ViewChatContext {
+final class GlobalChatContext: ViewChatContext {
 
     let chatContextIdentifier = "global"
     let chatWorkingDirectory: String

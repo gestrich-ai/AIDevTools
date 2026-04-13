@@ -5,6 +5,7 @@ import SwiftUI
 
 struct ReviewDetailView: View {
 
+    @Environment(ExecutionPanelModel.self) private var panelModel
     @Environment(PRModel.self) private var prModel
     @Environment(\.allPRsModel) private var allPRsModel
     @State private var selectedNavPhase: NavigationPhase = .summary
@@ -35,21 +36,8 @@ struct ReviewDetailView: View {
 
                 Divider()
 
-                let streamModel = prModel.prepareStreamModel ?? prModel.analyzeStreamModel
-                let hasStreamOutput = streamModel.map { !$0.messages.isEmpty } ?? false
-                if hasStreamOutput, let streamModel {
-                    VSplitView {
-                        phaseOutputView
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        ChatMessagesView()
-                            .environment(streamModel)
-                            .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
-                    }
+                phaseOutputView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    phaseOutputView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
             case .report:
                 PhaseInputView(
                     prModel: prModel,
@@ -71,6 +59,16 @@ struct ReviewDetailView: View {
         .onChange(of: prModel.pendingViolationNavigation) { _, newValue in
             if newValue != nil {
                 selectedNavPhase = .diff
+            }
+        }
+        .onChange(of: prModel.prepareStreamModel.map { ObjectIdentifier($0) }) { _, _ in
+            if let chatModel = prModel.prepareStreamModel {
+                panelModel.showOutput(with: chatModel)
+            }
+        }
+        .onChange(of: prModel.analyzeStreamModel.map { ObjectIdentifier($0) }) { _, _ in
+            if let chatModel = prModel.analyzeStreamModel {
+                panelModel.showOutput(with: chatModel)
             }
         }
     }

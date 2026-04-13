@@ -186,6 +186,7 @@ private struct ChainProjectRow: View {
 
 private struct ChainProjectDetailView: View {
     @Environment(ClaudeChainModel.self) var model
+    @Environment(ExecutionPanelModel.self) private var panelModel
 
     let project: ChainProject
     let repository: RepositoryConfiguration
@@ -233,8 +234,14 @@ private struct ChainProjectDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: project.name) {
+            panelModel.clearOutput()
             model.clearExecutionOutput()
             model.loadChainDetail(project: project)
+        }
+        .onChange(of: model.executionChatModel.map { ObjectIdentifier($0) }) { _, _ in
+            if let chatModel = model.executionChatModel {
+                panelModel.showOutput(with: chatModel)
+            }
         }
     }
 
@@ -311,66 +318,32 @@ private struct ChainProjectDetailView: View {
 
     // MARK: - Content
 
-    @ViewBuilder
     private var projectContentView: some View {
-        if isExecuting || executionProgress != nil {
-            let hasExecutionOutput = model.executionChatModel.map { !$0.messages.isEmpty } ?? false
-            VSplitView {
-                VStack(alignment: .leading, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        projectInfoSection
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
+                projectInfoSection
 
-                        if let error = chainDetailError {
-                            enrichmentErrorBanner(error)
-                        }
-                        if let result = completedResult {
-                            completionBanner(result)
-                        }
-                        if let error = errorState {
-                            errorBanner(error)
-                        }
-                    }
+                if let error = chainDetailError {
+                    enrichmentErrorBanner(error)
+                }
+                if let result = completedResult {
+                    completionBanner(result)
+                }
+                if let error = errorState {
+                    errorBanner(error)
+                }
+            }
+            .padding()
+
+            taskListSection
+
+            if let progress = executionProgress {
+                Divider()
+                phaseProgressSection(progress)
                     .padding()
-
-                    taskListSection
-
-                    Divider()
-
-                    if let progress = executionProgress {
-                        phaseProgressSection(progress)
-                            .padding()
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-                if hasExecutionOutput, let execModel = model.executionChatModel {
-                    ChatMessagesView()
-                        .environment(execModel)
-                        .frame(minHeight: 150, idealHeight: 300, maxHeight: .infinity)
-                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 16) {
-                    projectInfoSection
-
-                    if let error = chainDetailError {
-                        enrichmentErrorBanner(error)
-                    }
-                    if let result = completedResult {
-                        completionBanner(result)
-                    }
-                    if let error = errorState {
-                        errorBanner(error)
-                    }
-                }
-                .padding()
-
-                taskListSection
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     // MARK: - Project Info
