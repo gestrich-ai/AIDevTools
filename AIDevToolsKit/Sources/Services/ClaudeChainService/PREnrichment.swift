@@ -1,15 +1,14 @@
 import Foundation
-import GitHubService
 import PRRadarModelsService
 
 public struct EnrichedPR: Sendable {
-    public let pr: PRRadarModelsService.GitHubPullRequest
+    public let pr: PRMetadata
     public let isDraft: Bool
     public let reviewStatus: PRReviewStatus
     public let buildStatus: PRBuildStatus
 
     public init(
-        pr: PRRadarModelsService.GitHubPullRequest,
+        pr: PRMetadata,
         reviewStatus: PRReviewStatus,
         buildStatus: PRBuildStatus
     ) {
@@ -23,7 +22,6 @@ public struct EnrichedPR: Sendable {
 
     public var ageDays: Int {
         let dateString = pr.mergedAt ?? pr.createdAt
-        guard let dateString else { return 0 }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = formatter.date(from: dateString) {
@@ -79,9 +77,8 @@ public enum PRBuildStatus: Sendable {
 }
 
 extension ChainProject {
-    public func taskHash(for pr: PRRadarModelsService.GitHubPullRequest) -> String? {
-        guard let headRefName = pr.headRefName else { return nil }
-        if let branchInfo = BranchInfo.fromBranchName(headRefName) {
+    public func taskHash(for pr: PRMetadata) -> String? {
+        if let branchInfo = BranchInfo.fromBranchName(pr.headRefName) {
             return branchInfo.taskHash
         }
         guard let body = pr.body,

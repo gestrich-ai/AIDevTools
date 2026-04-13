@@ -1,8 +1,11 @@
 import ClaudeChainService
 import Foundation
 import GitHubService
+import Logging
 import PRRadarModelsService
 import UseCaseSDK
+
+private let logger = Logger(label: "GetChainDetailUseCase")
 
 public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
 
@@ -14,15 +17,17 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
         }
     }
 
+    private let config: GitHubRepoConfig
     private let gitHubPRService: any GitHubPRServiceProtocol
 
-    public init(gitHubPRService: any GitHubPRServiceProtocol) {
+    public init(gitHubPRService: any GitHubPRServiceProtocol, config: GitHubRepoConfig) {
+        self.config = config
         self.gitHubPRService = gitHubPRService
     }
 
     // MARK: - Cache-first then network stream
 
-    /// Yields cached data immediately (if available), then yields fresh data from the network.
+    /// Yields cached data immediately (if available), then yields progressively enriched data from the network.
     public func stream(options: Options) -> AsyncThrowingStream<ChainProjectDetail, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -30,14 +35,25 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
                     continuation.yield(cached)
                 }
                 do {
-                    let detail = try await run(options: options)
-                    continuation.yield(detail)
-                    continuation.finish()
+                    try await streamLive(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
         }
+    }
+
+    // MARK: - UseCase conformance
+
+    public func run(options: Options) async throws -> ChainProjectDetail {
+        var lastDetail: ChainProjectDetail?
+        for try await detail in stream(options: options) {
+            lastDetail = detail
+        }
+        guard let detail = lastDetail else {
+            throw GetChainDetailError(project: options.project.name)
+        }
+        return detail
     }
 
     // MARK: - Cache-first load (no network)
@@ -50,15 +66,14 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
 
         var enrichedPRsByHash: [String: EnrichedPR] = [:]
         for number in prNumbers {
-            guard let pr = try? await gitHubPRService.pullRequest(number: number, useCache: true) else { continue }
-            let reviews = (try? await gitHubPRService.reviews(number: number, useCache: true)) ?? []
-            let checkRuns = (try? await gitHubPRService.checkRuns(number: number, useCache: true)) ?? []
+            guard let pr = try? await gitHubPRService.pullRequest(number: number, useCache: true),
+                  let metadata = try? pr.toPRMetadata() else { continue }
             let enrichedPR = EnrichedPR(
-                pr: pr,
-                reviewStatus: PRReviewStatus(reviews: reviews),
-                buildStatus: PRBuildStatus.from(checkRuns: checkRuns, isMergeable: nil)
+                pr: metadata,
+                reviewStatus: PRReviewStatus(approvedBy: [], pendingReviewers: []),
+                buildStatus: .unknown
             )
-            if let hash = project.taskHash(for: pr) {
+            if let hash = project.taskHash(for: metadata) {
                 enrichedPRsByHash[hash] = enrichedPR
             }
         }
@@ -69,66 +84,84 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
         return ChainProjectDetail(project: project, enrichedTasks: enrichedTasks)
     }
 
-    // MARK: - Full network fetch
+    // MARK: - Live streaming via GitHubPRLoaderUseCase
 
-    public func run(options: Options) async throws -> ChainProjectDetail {
+    private func streamLive(
+        options: Options,
+        continuation: AsyncThrowingStream<ChainProjectDetail, Error>.Continuation
+    ) async throws {
         let project = options.project
-        let branchPrefix = project.branchPrefix
-        let allOpen = try await gitHubPRService.listPullRequests(limit: 500, filter: PRFilter(state: .open))
-        let openPRs = allOpen.filter { ($0.headRefName ?? "").hasPrefix(branchPrefix) }
-        let allClosed = try await gitHubPRService.listPullRequests(limit: 500, filter: PRFilter(state: .merged))
-        let mergedPRs = allClosed.filter { ($0.headRefName ?? "").hasPrefix(branchPrefix) }
+        let loader = GitHubPRLoaderUseCase(config: config)
+        let filter = PRFilter(headRefNamePrefix: project.branchPrefix, state: .open)
 
-        typealias FetchedPRData = (
-            pr: PRRadarModelsService.GitHubPullRequest,
-            reviews: [GitHubReview],
-            checkRuns: [GitHubCheckRun],
-            isMergeable: Bool?
-        )
+        var openEnrichedByHash: [String: EnrichedPR] = [:]
+        var fetchedOpenPRNumbers: [Int] = []
 
-        var enrichedPRsByHash: [String: EnrichedPR] = [:]
-
-        // Fetch full data for open PRs
-        var prDataByNumber: [Int: FetchedPRData] = [:]
-        try await withThrowingTaskGroup(of: FetchedPRData.self) { group in
-            for number in openPRs.map({ $0.number }) {
-                group.addTask {
-                    // Sequential awaits used instead of async let due to a Swift 6.1+ compiler bug
-                    // where async let inside withThrowingTaskGroup.addTask causes a runtime crash
-                    // ("freed pointer was not the last allocation") in libswift_Concurrency.
-                    // Track fix at: https://github.com/swiftlang/swift/issues/75501
-                    // Restore the async let version below once the fix ships in a stable toolchain:
-                    //
-                    // async let pr = gitHubPRService.pullRequest(number: number, useCache: true)
-                    // async let reviews = gitHubPRService.reviews(number: number, useCache: false)
-                    // async let checkRuns = gitHubPRService.checkRuns(number: number, useCache: false)
-                    // async let isMergeable = gitHubPRService.isMergeable(number: number)
-                    // return (try await pr, try await reviews, try await checkRuns, try await isMergeable)
-                    let pr = try await gitHubPRService.pullRequest(number: number, useCache: true)
-                    let reviews = try await gitHubPRService.reviews(number: number, useCache: false)
-                    let checkRuns = try await gitHubPRService.checkRuns(number: number, useCache: false)
-                    let isMergeable = try await gitHubPRService.isMergeable(number: number)
-                    return (pr, reviews, checkRuns, isMergeable)
+        for await event in loader.execute(filter: filter) {
+            switch event {
+            case .listLoadStarted, .listFetchStarted, .prFetchStarted:
+                break
+            case .cached(let prs):
+                guard !prs.isEmpty else { break }
+                for metadata in prs {
+                    let enrichedPR = EnrichedPR(
+                        pr: metadata,
+                        reviewStatus: PRReviewStatus(reviews: metadata.reviews ?? []),
+                        buildStatus: PRBuildStatus.from(checkRuns: metadata.checkRuns ?? [], isMergeable: metadata.isMergeable)
+                    )
+                    if let hash = project.taskHash(for: metadata) {
+                        openEnrichedByHash[hash] = enrichedPR
+                    }
                 }
-            }
-            for try await data in group {
-                prDataByNumber[data.pr.number] = data
+                let cachedTasks = project.tasks.map { task in
+                    EnrichedChainTask(task: task, enrichedPR: openEnrichedByHash[generateTaskHash(task.description)])
+                }
+                continuation.yield(ChainProjectDetail(project: project, enrichedTasks: cachedTasks))
+            case .fetched(let prs):
+                fetchedOpenPRNumbers = prs.map { $0.number }
+                var newPRsByHash: [String: EnrichedPR] = [:]
+                for metadata in prs {
+                    let enrichedPR = EnrichedPR(
+                        pr: metadata,
+                        reviewStatus: PRReviewStatus(approvedBy: [], pendingReviewers: []),
+                        buildStatus: .unknown
+                    )
+                    if let hash = project.taskHash(for: metadata) {
+                        newPRsByHash[hash] = enrichedPR
+                    }
+                }
+                openEnrichedByHash = newPRsByHash
+                let fetchedTasks = project.tasks.map { task in
+                    EnrichedChainTask(task: task, enrichedPR: openEnrichedByHash[generateTaskHash(task.description)])
+                }
+                continuation.yield(ChainProjectDetail(project: project, enrichedTasks: fetchedTasks))
+            case .prUpdated(let metadata):
+                let enrichedPR = EnrichedPR(
+                    pr: metadata,
+                    reviewStatus: PRReviewStatus(reviews: metadata.reviews ?? []),
+                    buildStatus: PRBuildStatus.from(checkRuns: metadata.checkRuns ?? [], isMergeable: metadata.isMergeable)
+                )
+                if let hash = project.taskHash(for: metadata) {
+                    openEnrichedByHash[hash] = enrichedPR
+                }
+                let updatedTasks = project.tasks.map { task in
+                    EnrichedChainTask(task: task, enrichedPR: openEnrichedByHash[generateTaskHash(task.description)])
+                }
+                continuation.yield(ChainProjectDetail(project: project, enrichedTasks: updatedTasks))
+            case .prFetchFailed(let prNumber, let error):
+                logger.error("streamLive: enrichment failed for PR #\(prNumber): \(error)")
+            case .listFetchFailed(let error):
+                logger.error("streamLive: list fetch failed: \(error)")
+            case .completed:
+                break
             }
         }
 
-        for (_, data) in prDataByNumber {
-            let enrichedPR = EnrichedPR(
-                pr: data.pr,
-                reviewStatus: PRReviewStatus(reviews: data.reviews),
-                buildStatus: PRBuildStatus.from(checkRuns: data.checkRuns, isMergeable: data.isMergeable)
-            )
-            if let hash = project.taskHash(for: data.pr) {
-                enrichedPRsByHash[hash] = enrichedPR
-            }
-        }
+        // Fetch merged PRs using the existing list approach — no enrichment needed
+        let allMerged = try await gitHubPRService.listPullRequests(limit: 500, filter: PRFilter(state: .merged))
+        let mergedPRs = allMerged.filter { ($0.headRefName ?? "").hasPrefix(project.branchPrefix) }
 
-        // Fetch merged PR metadata for tasks not already matched to an open PR
-        let matchedHashes = Set(enrichedPRsByHash.keys)
+        let matchedHashes = Set(openEnrichedByHash.keys)
         let mergedPRsToFetch = mergedPRs.filter { pr in
             guard let headRefName = pr.headRefName else { return false }
             if let branchInfo = BranchInfo.fromBranchName(headRefName) {
@@ -137,6 +170,7 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
             // Sweep branches use timestamps, not hashes — always fetch and let register() match via PR body
             return true
         }
+
         var mergedPRDataByNumber: [Int: PRRadarModelsService.GitHubPullRequest] = [:]
         try await withThrowingTaskGroup(of: PRRadarModelsService.GitHubPullRequest.self) { group in
             for number in mergedPRsToFetch.map({ $0.number }) {
@@ -149,25 +183,33 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
             }
         }
 
+        var mergedEnrichedByHash = openEnrichedByHash
         for (_, pr) in mergedPRDataByNumber {
+            guard let metadata = try? pr.toPRMetadata() else { continue }
             let enrichedPR = EnrichedPR(
-                pr: pr,
+                pr: metadata,
                 reviewStatus: PRReviewStatus(approvedBy: [], pendingReviewers: []),
                 buildStatus: .unknown
             )
-            if let hash = project.taskHash(for: pr) {
-                enrichedPRsByHash[hash] = enrichedPR
+            if let hash = project.taskHash(for: metadata) {
+                mergedEnrichedByHash[hash] = enrichedPR
             }
         }
 
-        let enrichedTasks = project.tasks.map { task in
-            EnrichedChainTask(task: task, enrichedPR: enrichedPRsByHash[generateTaskHash(task.description)])
+        let finalEnrichedTasks = project.tasks.map { task in
+            EnrichedChainTask(task: task, enrichedPR: mergedEnrichedByHash[generateTaskHash(task.description)])
         }
 
         // Save PR number index so the next launch can load from cache instantly
-        let allPRNumbers = (openPRs + mergedPRs).map { $0.number }
+        let allPRNumbers = fetchedOpenPRNumbers + mergedPRs.map { $0.number }
         try? await gitHubPRService.writeCachedIndex(allPRNumbers, key: project.cacheIndexKey)
 
-        return ChainProjectDetail(project: project, enrichedTasks: enrichedTasks)
+        continuation.yield(ChainProjectDetail(project: project, enrichedTasks: finalEnrichedTasks))
+        continuation.finish()
     }
+}
+
+private struct GetChainDetailError: Error, LocalizedError {
+    let project: String
+    var errorDescription: String? { "No data available for chain project '\(project)'" }
 }

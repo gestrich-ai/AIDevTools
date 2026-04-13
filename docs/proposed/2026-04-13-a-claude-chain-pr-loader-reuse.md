@@ -66,7 +66,10 @@ If chain projects will use GitHub labels as an alternative filtering mechanism, 
 
 Do not add this if no callsite needs it yet — defer until a concrete chain project requires label filtering. If added, keep `labels` alphabetically ordered in `PRFilter`'s property list.
 
-## - [ ] Phase 2: Migrate `GetChainDetailUseCase` to use `GitHubPRLoaderUseCase`
+## - [x] Phase 2: Migrate `GetChainDetailUseCase` to use `GitHubPRLoaderUseCase`
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Added `config: GitHubRepoConfig` to `GetChainDetailUseCase.init`. Replaced the bespoke `stream()` call to `run()` with a new `streamLive(options:continuation:)` that drives `GitHubPRLoaderUseCase.execute(filter:)` with `headRefNamePrefix` scoped to the project's branch prefix. Handled `.cached`, `.fetched`, and `.prUpdated` events to yield `ChainProjectDetail` progressively. Removed bespoke `reviews(number:useCache:)` and `checkRuns(number:useCache:)` calls from both `loadCached()` and the old `run()` path. Added `isDraft: Bool` to `PRMetadata` and mapped it in `toPRMetadata()`. Switched `EnrichedPR.pr` from `GitHubPullRequest` to `PRMetadata` — updated `ageDays` for non-optional `createdAt`, updated `ChainProject.taskHash(for:)` for non-optional `headRefName`. Updated `ClaudeChainModel` and `StatusCommand` call sites (minimal wiring for build correctness; full wiring is Phase 3). Added `explicitToken` parameter to `GitHubServiceFactory.makeRepoConfig` for `StatusCommand`'s token-override path.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

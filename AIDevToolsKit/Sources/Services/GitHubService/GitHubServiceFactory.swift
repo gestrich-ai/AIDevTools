@@ -48,9 +48,10 @@ public struct GitHubServiceFactory: Sendable {
     public static func makeRepoConfig(
         repoPath: String,
         githubAccount: String,
+        explicitToken: String? = nil,
         dataPathsService: DataPathsService
     ) async throws -> GitHubRepoConfig {
-        let gitHub = try await createGitHubAPI(repoPath: repoPath, githubAccount: githubAccount)
+        let gitHub = try await createGitHubAPI(repoPath: repoPath, githubAccount: githubAccount, explicitToken: explicitToken)
         let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
         let cacheURL = try dataPathsService.path(for: .github(repoSlug: normalizedSlug))
         let repoName = gitHub.repoSlug.components(separatedBy: "/").last ?? gitHub.repoSlug

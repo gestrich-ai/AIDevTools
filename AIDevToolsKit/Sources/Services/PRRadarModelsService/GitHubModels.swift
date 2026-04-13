@@ -275,7 +275,8 @@ public struct GitHubPullRequest: Codable, Sendable {
             updatedAt: updatedAt,
             mergedAt: mergedAt,
             closedAt: closedAt,
-            url: url
+            url: url,
+            isDraft: isDraft
         )
     }
 }

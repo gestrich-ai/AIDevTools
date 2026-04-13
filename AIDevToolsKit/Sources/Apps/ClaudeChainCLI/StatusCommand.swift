@@ -61,7 +61,14 @@ public struct StatusCommand: AsyncParsableCommand {
             return
         }
 
-        let detailUseCase = GetChainDetailUseCase(gitHubPRService: prService)
+        let resolvedAccount = githubAccount ?? (try? SecureSettingsService().listCredentialAccounts())?.first ?? "default"
+        let repoConfig = try await GitHubServiceFactory.makeRepoConfig(
+            repoPath: repoURL.path,
+            githubAccount: resolvedAccount,
+            explicitToken: githubToken,
+            dataPathsService: dataPathsService
+        )
+        let detailUseCase = GetChainDetailUseCase(gitHubPRService: prService, config: repoConfig)
 
         if let projectName = project {
             let matched = try findProject(named: projectName, in: result.projects)

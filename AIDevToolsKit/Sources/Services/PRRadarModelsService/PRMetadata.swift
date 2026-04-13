@@ -200,6 +200,7 @@ public struct PRMetadata: Sendable, Identifiable, Hashable {
     public var githubComments: GitHubPullRequestComments?
     public var reviews: [GitHubReview]?
     public var checkRuns: [GitHubCheckRun]?
+    public let isDraft: Bool
     public var isMergeable: Bool?
 
     public init(
@@ -218,6 +219,7 @@ public struct PRMetadata: Sendable, Identifiable, Hashable {
         githubComments: GitHubPullRequestComments? = nil,
         reviews: [GitHubReview]? = nil,
         checkRuns: [GitHubCheckRun]? = nil,
+        isDraft: Bool = false,
         isMergeable: Bool? = nil
     ) {
         self.number = number
@@ -235,6 +237,7 @@ public struct PRMetadata: Sendable, Identifiable, Hashable {
         self.githubComments = githubComments
         self.reviews = reviews
         self.checkRuns = checkRuns
+        self.isDraft = isDraft
         self.isMergeable = isMergeable
     }
 

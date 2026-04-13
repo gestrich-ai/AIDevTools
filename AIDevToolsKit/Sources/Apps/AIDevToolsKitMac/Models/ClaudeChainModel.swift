@@ -66,6 +66,7 @@ final class ClaudeChainModel {
     private var currentCredentialAccount: String?
     private var currentRepoPath: URL?
     private var gitHubPRService: (any GitHubPRServiceProtocol)?
+    private var gitHubRepoConfig: GitHubRepoConfig?
     private let dataPathsService: DataPathsService
     private let gitClientFactory: @Sendable (String?) -> GitClient
     private let providerRegistry: ProviderRegistry
@@ -97,6 +98,7 @@ final class ClaudeChainModel {
             chainDetailLoading = []
             fetchWarnings = []
             gitHubPRService = nil
+            gitHubRepoConfig = nil
         }
         currentRepoPath = repoPath
         currentCredentialAccount = credentialAccount
@@ -141,7 +143,8 @@ final class ClaudeChainModel {
             do {
                 guard let repoPath = currentRepoPath else { return }
                 let service = try await makeOrGetGitHubPRService(repoPath: repoPath)
-                let useCase = GetChainDetailUseCase(gitHubPRService: service)
+                let config = try await makeOrGetGitHubRepoConfig(repoPath: repoPath)
+                let useCase = GetChainDetailUseCase(gitHubPRService: service, config: config)
                 for try await detail in useCase.stream(options: .init(project: project)) {
                     chainDetails[projectName] = detail
                 }
@@ -348,6 +351,20 @@ final class ClaudeChainModel {
         )
         gitHubPRService = service
         return service
+    }
+
+    private func makeOrGetGitHubRepoConfig(repoPath: URL) async throws -> GitHubRepoConfig {
+        if let config = gitHubRepoConfig { return config }
+        guard let account = currentCredentialAccount, !account.isEmpty else {
+            throw CredentialError.notConfigured(account: "")
+        }
+        let config = try await GitHubServiceFactory.makeRepoConfig(
+            repoPath: repoPath.path,
+            githubAccount: account,
+            dataPathsService: dataPathsService
+        )
+        gitHubRepoConfig = config
+        return config
     }
 
     private func rebuildClient() {
