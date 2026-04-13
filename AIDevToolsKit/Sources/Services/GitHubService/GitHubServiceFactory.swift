@@ -45,6 +45,18 @@ public struct GitHubServiceFactory: Sendable {
         return createGitOps(gitHubToken: token)
     }
 
+    public static func makeRepoConfig(
+        repoPath: String,
+        githubAccount: String,
+        dataPathsService: DataPathsService
+    ) async throws -> GitHubRepoConfig {
+        let gitHub = try await createGitHubAPI(repoPath: repoPath, githubAccount: githubAccount)
+        let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
+        let cacheURL = try dataPathsService.path(for: .github(repoSlug: normalizedSlug))
+        let repoName = gitHub.repoSlug.components(separatedBy: "/").last ?? gitHub.repoSlug
+        return GitHubRepoConfig(account: githubAccount, cacheURL: cacheURL, name: repoName, repoPath: repoPath, token: nil)
+    }
+
     public static func createPRService(
         repoPath: String,
         githubAccount: String,

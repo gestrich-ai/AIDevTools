@@ -35,7 +35,10 @@ The Claude Chain view (Chains tab) is slow on first open — 5+ seconds before a
 
 ## Phases
 
-## - [ ] Phase 1: Add `GitHubServiceFactory.makeRepoConfig` factory (and optional `PRFilter.labels`)
+## - [x] Phase 1: Add `GitHubServiceFactory.makeRepoConfig` factory (and optional `PRFilter.labels`)
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
+**Principles applied**: Added `makeRepoConfig` following the same pattern as `createPRService` — calls `createGitHubAPI`, computes `normalizedSlug` for the cache URL, derives `repoName` from `repoSlug`. Passed `token: nil` per spec (token resolved later by `GitHubPRLoaderUseCase` via account). Deferred `PRFilter.labels` — no callsite needs it yet.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
 
