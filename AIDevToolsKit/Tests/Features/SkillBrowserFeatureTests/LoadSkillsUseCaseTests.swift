@@ -3,6 +3,7 @@ import Testing
 @testable import RepositorySDK
 @testable import SkillBrowserFeature
 
+@Suite("LoadSkillsUseCase")
 struct LoadSkillsUseCaseTests {
     private func makeTempRepo(skillFiles: [String]) throws -> URL {
         let repoDir = FileManager.default.temporaryDirectory
@@ -22,7 +23,7 @@ struct LoadSkillsUseCaseTests {
         try? FileManager.default.removeItem(at: url)
     }
 
-    @Test func loadSkillsMapsToSkillType() async throws {
+    @Test("maps loaded files to skill type") func loadSkillsMapsToSkillType() async throws {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["deploy.md", "test.md"])
         defer { cleanup(repoDir) }
@@ -39,7 +40,7 @@ struct LoadSkillsUseCaseTests {
         #expect(skills[0].path.pathExtension == "md")
     }
 
-    @Test func loadSkillsReturnsEmptyForRepoWithoutSkills() async throws {
+    @Test("returns empty when repo has no skills directory") func loadSkillsReturnsEmptyForRepoWithoutSkills() async throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)

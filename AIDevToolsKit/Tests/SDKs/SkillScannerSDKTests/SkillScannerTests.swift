@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import SkillScannerSDK
 
+@Suite("SkillScanner")
 struct SkillScannerTests {
     private func makeTempRepo(skillFiles: [String], directory: String = ".claude/skills") throws -> URL {
         let repoDir = FileManager.default.temporaryDirectory
@@ -19,7 +20,7 @@ struct SkillScannerTests {
         try? FileManager.default.removeItem(at: url)
     }
 
-    @Test func scanFindsMarkdownFiles() throws {
+    @Test("finds markdown files in skills directory") func scanFindsMarkdownFiles() throws {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["commit.md", "review.md"])
         defer { cleanup(repoDir) }
@@ -34,7 +35,7 @@ struct SkillScannerTests {
         #expect(skills[1].name == "review")
     }
 
-    @Test func scanIgnoresNonMarkdownFiles() throws {
+    @Test("ignores non-markdown files") func scanIgnoresNonMarkdownFiles() throws {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["skill.md", "readme.txt", "data.json"])
         defer { cleanup(repoDir) }
@@ -48,7 +49,7 @@ struct SkillScannerTests {
         #expect(skills[0].name == "skill")
     }
 
-    @Test func scanReturnsEmptyWhenNoSkillsDirectory() throws {
+    @Test("returns empty when no skills directory exists") func scanReturnsEmptyWhenNoSkillsDirectory() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -63,7 +64,7 @@ struct SkillScannerTests {
         #expect(skills.isEmpty)
     }
 
-    @Test func scanReturnsSortedByName() throws {
+    @Test("returns skills sorted alphabetically by name") func scanReturnsSortedByName() throws {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["zebra.md", "alpha.md", "middle.md"])
         defer { cleanup(repoDir) }
@@ -76,7 +77,7 @@ struct SkillScannerTests {
         #expect(skills.map(\.name) == ["alpha", "middle", "zebra"])
     }
 
-    @Test func scanFindsSubdirectories() throws {
+    @Test("finds skills packaged as subdirectories") func scanFindsSubdirectories() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -98,7 +99,7 @@ struct SkillScannerTests {
         #expect(skills[0].path.standardizedFileURL == subdir.standardizedFileURL)
     }
 
-    @Test func scanFindsReferenceFilesInSubdirectory() throws {
+    @Test("includes reference files found alongside SKILL.md in a subdirectory") func scanFindsReferenceFilesInSubdirectory() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -123,7 +124,7 @@ struct SkillScannerTests {
         #expect(skills[0].referenceFiles[1].name == "guide")
     }
 
-    @Test func scanFindsSkillsInAgentsDirectory() throws {
+    @Test("finds skills in .agents/skills directory") func scanFindsSkillsInAgentsDirectory() throws {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["deploy.md"], directory: ".agents/skills")
         defer { cleanup(repoDir) }
@@ -137,7 +138,7 @@ struct SkillScannerTests {
         #expect(skills[0].name == "deploy")
     }
 
-    @Test func agentsSkillsPreferredOverClaudeSkills() throws {
+    @Test(".agents/skills takes precedence over .claude/skills for same-named skills") func agentsSkillsPreferredOverClaudeSkills() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -161,7 +162,7 @@ struct SkillScannerTests {
         #expect(shared.path.path.contains(".agents/skills"))
     }
 
-    @Test func standaloneMarkdownHasNoReferenceFiles() throws {
+    @Test("standalone markdown file has no reference files") func standaloneMarkdownHasNoReferenceFiles() throws {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["commit.md"])
         defer { cleanup(repoDir) }
@@ -177,7 +178,7 @@ struct SkillScannerTests {
 
     // MARK: - Commands Directory Scanning
 
-    @Test func scanFindsCommandsInClaudeCommandsDirectory() throws {
+    @Test("finds commands in .claude/commands directory") func scanFindsCommandsInClaudeCommandsDirectory() throws {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["deploy.md"], directory: ".claude/commands")
         defer { cleanup(repoDir) }
@@ -191,7 +192,7 @@ struct SkillScannerTests {
         #expect(skills[0].name == "deploy")
     }
 
-    @Test func scanFindsCommandsInAgentsCommandsDirectory() throws {
+    @Test("finds commands in .agents/commands directory") func scanFindsCommandsInAgentsCommandsDirectory() throws {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["deploy.md"], directory: ".agents/commands")
         defer { cleanup(repoDir) }
@@ -205,7 +206,7 @@ struct SkillScannerTests {
         #expect(skills[0].name == "deploy")
     }
 
-    @Test func scanFindsNestedCommandsWithPathNames() throws {
+    @Test("names nested commands using subdirectory path prefix") func scanFindsNestedCommandsWithPathNames() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -226,7 +227,7 @@ struct SkillScannerTests {
         #expect(skills.map(\.name) == ["commit", "deploy/production", "deploy/staging"])
     }
 
-    @Test func skillsOverrideCommandsWithSameName() throws {
+    @Test("skills directory takes precedence over commands directory for same-named entries") func skillsOverrideCommandsWithSameName() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -250,7 +251,7 @@ struct SkillScannerTests {
         #expect(deploy.path.path.contains(".claude/skills"))
     }
 
-    @Test func globalCommandsAreDiscovered() throws {
+    @Test("discovers commands in global commands directory") func globalCommandsAreDiscovered() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -270,7 +271,7 @@ struct SkillScannerTests {
         #expect(skills[0].name == "global-cmd")
     }
 
-    @Test func localCommandsOverrideGlobalCommands() throws {
+    @Test("local commands take precedence over global commands with same name") func localCommandsOverrideGlobalCommands() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -295,7 +296,7 @@ struct SkillScannerTests {
         #expect(deploy.path.path.contains(".claude/commands"))
     }
 
-    @Test func agentsCommandsPreferredOverClaudeCommands() throws {
+    @Test(".agents/commands takes precedence over .claude/commands for same-named commands") func agentsCommandsPreferredOverClaudeCommands() throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -319,7 +320,7 @@ struct SkillScannerTests {
         #expect(shared.path.path.contains(".agents/commands"))
     }
 
-    @Test func commandsIgnoresNonMarkdownFiles() throws {
+    @Test("ignores non-markdown files in commands directory") func commandsIgnoresNonMarkdownFiles() throws {
         // Arrange
         let repoDir = try makeTempRepo(
             skillFiles: ["deploy.md", "readme.txt", "config.json"],

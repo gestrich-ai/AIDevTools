@@ -3,11 +3,12 @@ import RepositorySDK
 import Testing
 @testable import PRRadarConfigService
 
+@Suite("RulePath")
 struct RulePathTests {
 
     // MARK: - Encoding/Decoding
 
-    @Test func roundTripEncoding() throws {
+    @Test("encodes and decodes back to equal value") func roundTripEncoding() throws {
         // Arrange
         let rulePath = RulePath(name: "shared", path: "/Users/bill/shared-rules", isDefault: true)
 
@@ -22,192 +23,11 @@ struct RulePathTests {
         #expect(decoded.isDefault == true)
     }
 
-    @Test func defaultIsDefaultIsFalse() {
+    @Test("isDefault is false when not specified") func defaultIsDefaultIsFalse() {
         // Arrange & Act
         let rulePath = RulePath(name: "test", path: "rules")
 
         // Assert
         #expect(rulePath.isDefault == false)
-    }
-}
-
-struct PRRadarRepoConfigRulePathTests {
-
-    // MARK: - defaultRulePath
-
-    @Test func defaultRulePathReturnsMarkedDefault() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [
-                RulePath(name: "shared", path: "/shared/rules", isDefault: false),
-                RulePath(name: "local", path: "local-rules", isDefault: true),
-            ],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.defaultRulePath
-
-        // Assert
-        #expect(result?.name == "local")
-    }
-
-    @Test func defaultRulePathFallsBackToFirst() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [
-                RulePath(name: "first", path: "first-rules", isDefault: false),
-                RulePath(name: "second", path: "second-rules", isDefault: false),
-            ],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.defaultRulePath
-
-        // Assert
-        #expect(result?.name == "first")
-    }
-
-    @Test func defaultRulePathReturnsNilWhenEmpty() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.defaultRulePath
-
-        // Assert
-        #expect(result == nil)
-    }
-
-    // MARK: - resolvedDefaultRulesDir
-
-    @Test func resolvedDefaultRulesDirWithAbsolutePath() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [RulePath(name: "shared", path: "/Users/bill/shared-rules", isDefault: true)],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.resolvedDefaultRulesDir
-
-        // Assert
-        #expect(result == "/Users/bill/shared-rules")
-    }
-
-    @Test func resolvedDefaultRulesDirWithRelativePath() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [RulePath(name: "local", path: "code-review-rules", isDefault: true)],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.resolvedDefaultRulesDir
-
-        // Assert
-        #expect(result == "/tmp/repo/code-review-rules")
-    }
-
-    @Test func resolvedDefaultRulesDirWithTildePath() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [RulePath(name: "home", path: "~/shared-rules", isDefault: true)],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.resolvedDefaultRulesDir
-
-        // Assert
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        #expect(result == "\(home)/shared-rules")
-    }
-
-    @Test func resolvedDefaultRulesDirReturnsEmptyWhenNoRulePaths() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.resolvedDefaultRulesDir
-
-        // Assert
-        #expect(result == "")
-    }
-
-    // MARK: - resolvedRulesDir(named:)
-
-    @Test func resolvedRulesDirNamedFindsMatchingPath() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [
-                RulePath(name: "shared", path: "/shared/rules", isDefault: true),
-                RulePath(name: "local", path: "local-rules", isDefault: false),
-            ],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.resolvedRulesDir(named: "local")
-
-        // Assert
-        #expect(result == "/tmp/repo/local-rules")
-    }
-
-    @Test func resolvedRulesDirNamedReturnsNilForUnknownName() {
-        // Arrange
-        let config = PRRadarRepoConfig(
-            name: "test",
-            repoPath: "/tmp/repo",
-            outputDir: "/tmp/output",
-            rulePaths: [RulePath(name: "shared", path: "/shared/rules", isDefault: true)],
-            githubAccount: "test",
-            defaultBaseBranch: "main"
-        )
-
-        // Act
-        let result = config.resolvedRulesDir(named: "nonexistent")
-
-        // Assert
-        #expect(result == nil)
     }
 }

@@ -1,16 +1,9 @@
-/// Domain model representing a ClaudeChain project
 import Foundation
 
-/// Domain model representing a ClaudeChain project with its paths and metadata
 public struct Project {
     public let name: String
     public let basePath: String
 
-    /// Initialize a Project
-    ///
-    /// - Parameters:
-    ///   - name: Project name
-    ///   - basePath: Base path for the project directory
     public init(name: String, basePath: String) {
         self.name = name
         self.basePath = basePath
@@ -20,24 +13,11 @@ public struct Project {
         self.name = name
         self.basePath = "claude-chain/\(name)"
     }
-    
-    /// Path to configuration.yml file
-    public var configPath: String {
-        return "\(basePath)/configuration.yml"
-    }
-    
-    /// Path to spec.md file
-    public var specPath: String {
-        return "\(basePath)/spec.md"
-    }
-    
-    /// Path to pr-template.md file
-    public var prTemplatePath: String {
-        return "\(basePath)/pr-template.md"
-    }
 
-    /// Path to review.md file
+    public var configPath: String { "\(basePath)/configuration.yml" }
+    public var prTemplatePath: String { "\(basePath)/pr-template.md" }
     public var reviewPath: String { "\(basePath)/review.md" }
+    public var specPath: String { "\(basePath)/spec.md" }
 
     /// Path to metadata JSON file in claudechain-metadata branch
     public var metadataFilePath: String {

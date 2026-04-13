@@ -106,7 +106,13 @@ final class ClaudeChainModel {
         state = .loadingChains
         Task {
             // Derive repoSlug from git config — no credentials required.
-            let rawSlug = PRDiscoveryService.repoSlug(fromRepoPath: repoPath.path) ?? ""
+            let rawSlug: String
+            if let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoPath.path) {
+                rawSlug = slug
+            } else {
+                logger.warning("loadChains: cannot determine repo slug for \(repoPath.path); project cache will be skipped")
+                rawSlug = ""
+            }
             let repoSlug = rawSlug.replacingOccurrences(of: "/", with: "-")
 
             // GitHub service is optional: used for network refresh only.

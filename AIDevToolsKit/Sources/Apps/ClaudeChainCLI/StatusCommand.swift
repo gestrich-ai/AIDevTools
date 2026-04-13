@@ -61,10 +61,9 @@ public struct StatusCommand: AsyncParsableCommand {
             return
         }
 
-        let resolvedAccount = githubAccount ?? (try? SecureSettingsService().listCredentialAccounts())?.first ?? "default"
         let repoConfig = try await GitHubServiceFactory.makeRepoConfig(
             repoPath: repoURL.path,
-            githubAccount: resolvedAccount,
+            githubAccount: githubAccount ?? "",
             explicitToken: githubToken,
             dataPathsService: dataPathsService
         )

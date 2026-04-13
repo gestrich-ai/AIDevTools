@@ -151,8 +151,10 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
                 continuation.yield(ChainProjectDetail(project: project, enrichedTasks: updatedTasks))
             case .prFetchFailed(let prNumber, let error):
                 logger.error("streamLive: enrichment failed for PR #\(prNumber): \(error)")
-            case .listFetchFailed(let error):
-                logger.error("streamLive: list fetch failed: \(error)")
+            case .listFetchFailed(let message):
+                logger.error("streamLive: list fetch failed: \(message)")
+                continuation.finish(throwing: GitHubPRServiceError.listFetchFailed(message))
+                return
             case .completed:
                 break
             }

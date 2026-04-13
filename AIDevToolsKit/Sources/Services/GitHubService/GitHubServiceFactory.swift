@@ -54,6 +54,7 @@ public struct GitHubServiceFactory: Sendable {
         let gitHub = try await createGitHubAPI(repoPath: repoPath, githubAccount: githubAccount, explicitToken: explicitToken)
         let normalizedSlug = gitHub.repoSlug.replacingOccurrences(of: "/", with: "-")
         let cacheURL = try dataPathsService.path(for: .github(repoSlug: normalizedSlug))
+        // Split "owner/repo" → take "repo"; fallback to full slug if format is unexpected.
         let repoName = gitHub.repoSlug.components(separatedBy: "/").last ?? gitHub.repoSlug
         return GitHubRepoConfig(account: githubAccount, cacheURL: cacheURL, name: repoName, repoPath: repoPath, repoSlug: normalizedSlug, token: nil)
     }

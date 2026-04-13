@@ -46,15 +46,9 @@ public struct PRReviewStatus: Sendable {
     }
 
     public init(reviews: [GitHubReview]) {
-        approvedBy = Array(Set(
-            reviews.filter { $0.state == .approved }.compactMap { $0.author.map { $0.name.flatMap { $0.isEmpty ? nil : $0 } ?? $0.login } }
-        ))
-        changesRequestedBy = Array(Set(
-            reviews.filter { $0.state == .changesRequested }.compactMap { $0.author.map { $0.name.flatMap { $0.isEmpty ? nil : $0 } ?? $0.login } }
-        ))
-        pendingReviewers = Array(Set(
-            reviews.filter { $0.state == .pending }.compactMap { $0.author.map { $0.name.flatMap { $0.isEmpty ? nil : $0 } ?? $0.login } }
-        ))
+        approvedBy = Array(Set(reviews.filter { $0.state == .approved }.compactMap { $0.author?.displayName }))
+        changesRequestedBy = Array(Set(reviews.filter { $0.state == .changesRequested }.compactMap { $0.author?.displayName }))
+        pendingReviewers = Array(Set(reviews.filter { $0.state == .pending }.compactMap { $0.author?.displayName }))
     }
 }
 
@@ -73,6 +67,11 @@ public enum PRBuildStatus: Sendable {
         if !pending.isEmpty { return .pending(checks: pending) }
         return checkRuns.isEmpty ? .unknown : .passing
     }
+}
+
+private extension GitHubAuthor {
+    /// Prefers non-empty name over login for human-readable display.
+    var displayName: String { (name.flatMap { $0.isEmpty ? nil : $0 }) ?? login }
 }
 
 extension ChainProject {
