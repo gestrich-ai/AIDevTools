@@ -74,19 +74,16 @@ struct WorkflowServiceTests {
     }
 
     @Test("GitHubAPIError message names the project")
-    func triggerErrorMessageNamesProject() {
+    func triggerErrorMessageNamesProject() throws {
         let service = WorkflowService(githubService: FailingGitHubPRService())
-        do {
+        let error = try #require(throws: GitHubAPIError.self) {
             try service.triggerClaudeChainWorkflow(
                 projectName: "my-refactor",
                 baseBranch: "main",
                 checkoutRef: "main"
             )
-        } catch let error as GitHubAPIError {
-            #expect(error.message.contains("my-refactor"))
-        } catch {
-            Issue.record("Expected GitHubAPIError, got \(type(of: error))")
         }
+        #expect(error.message.contains("my-refactor"))
     }
 }
 
