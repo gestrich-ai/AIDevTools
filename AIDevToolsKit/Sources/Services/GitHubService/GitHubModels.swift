@@ -318,23 +318,6 @@ public struct GitHubReviewComment: Codable, Sendable, Identifiable {
     public let isResolved: Bool
     public let isOutdated: Bool
 
-    public var metadata: CommentMetadata? {
-        CommentMetadata.parse(from: body)
-    }
-
-    public var bodyWithoutMetadata: String {
-        CommentMetadata.stripMetadata(from: body)
-    }
-
-    public var metadataLine: Int? {
-        metadata?.fileInfo?.line
-    }
-
-    public var metadataBlobSHA: String? {
-        guard let sha = metadata?.fileInfo?.blobSHA, !sha.isEmpty else { return nil }
-        return sha
-    }
-
     public init(
         id: String,
         body: String,
@@ -421,10 +404,6 @@ public struct GitHubPullRequestComments: Codable, Sendable {
 }
 
 extension GitHubPullRequestComments {
-    /// Enriches review comments with thread resolution status.
-    ///
-    /// - Parameter resolvedCommentIDs: Set of review comment IDs whose threads are resolved
-    /// - Returns: A copy with `isResolved` set on matching review comments
     public func withReviewThreadResolution(resolvedCommentIDs: Set<String>) -> GitHubPullRequestComments {
         guard !resolvedCommentIDs.isEmpty else { return self }
         return GitHubPullRequestComments(

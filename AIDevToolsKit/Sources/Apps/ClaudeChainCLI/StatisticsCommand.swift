@@ -4,7 +4,6 @@ import ClaudeChainSDK
 import ClaudeChainService
 import Foundation
 import GitHubService
-import PRRadarCLIService
 
 public struct StatisticsCommand: ParsableCommand {
     public static let configuration = CommandConfiguration(

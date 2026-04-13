@@ -3,7 +3,6 @@ import ClaudeChainService
 import Foundation
 import GitHubService
 import GitSDK
-import PRRadarCLIService
 
 public struct SetupCommand: ParsableCommand {
     public static let configuration = CommandConfiguration(

@@ -286,7 +286,6 @@ var targets: [Target] = [
             "GitSDK",
             .product(name: "Logging", package: "swift-log"),
             "OctokitSDK",
-            "PRRadarModelsService",
             "RepositorySDK",
         ],
         path: "Sources/Services/GitHubService"
@@ -356,6 +355,7 @@ var targets: [Target] = [
         name: "PRRadarModelsService",
         dependencies: [
             .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
+            "GitHubService",
         ],
         path: "Sources/Services/PRRadarModelsService"
     ),
@@ -508,7 +508,6 @@ var targets: [Target] = [
             "DataPathsService",
             "GitHubService",
             "GitSDK",
-            "PRRadarCLIService",
             "ProviderRegistryService",
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ],
@@ -531,8 +530,6 @@ var targets: [Target] = [
             "OctokitSDK",
             "PipelineSDK",
             "PipelineService",
-            "PRRadarCLIService",
-            "PRRadarModelsService",
             "SweepService",
             .product(name: "Yams", package: "Yams"),
         ],
@@ -540,7 +537,7 @@ var targets: [Target] = [
     ),
     .target(
         name: "ClaudeChainFeature",
-        dependencies: ["AIOutputSDK", "ClaudeChainSDK", "ClaudeChainService", "CredentialService", "DataPathsService", "GitHubService", "GitSDK", "OctokitSDK", "PipelineSDK", "PipelineService", "PRRadarCLIService", "PRRadarModelsService", "SweepFeature", "UseCaseSDK"],
+        dependencies: ["AIOutputSDK", "ClaudeChainSDK", "ClaudeChainService", "CredentialService", "DataPathsService", "GitHubService", "GitSDK", "OctokitSDK", "PipelineSDK", "PipelineService", "SweepFeature", "UseCaseSDK"],
         path: "Sources/Features/ClaudeChainFeature"
     ),
 
@@ -597,7 +594,6 @@ var targets: [Target] = [
             "GitHubService",
             "OctokitSDK",
             "PipelineService",
-            "PRRadarModelsService",
         ],
         path: "Tests/Features/ClaudeChainFeatureTests"
     ),

@@ -7,7 +7,6 @@ import GitSDK
 import Logging
 import OctokitSDK
 import PipelineSDK
-import PRRadarCLIService
 import UseCaseSDK
 
 public struct FinalizeStagedTaskUseCase: UseCase {

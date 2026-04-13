@@ -3,7 +3,6 @@ import DataPathsService
 import Foundation
 import GitHubService
 import OctokitSDK
-import PRRadarModelsService
 
 public struct GitHubChainProjectSource: ChainProjectSource {
 

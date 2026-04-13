@@ -7,7 +7,6 @@ import GitSDK
 import Logging
 import PipelineSDK
 import PipelineService
-import PRRadarCLIService
 import UseCaseSDK
 
 public struct RunSpecChainTaskUseCase: UseCase {

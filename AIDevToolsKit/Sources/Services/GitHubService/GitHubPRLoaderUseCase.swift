@@ -1,6 +1,5 @@
 import Foundation
 import Logging
-import PRRadarModelsService
 
 private let logger = Logger(label: "GitHubPRLoaderUseCase")
 

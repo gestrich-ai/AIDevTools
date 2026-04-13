@@ -7,7 +7,6 @@ import CredentialService
 import DataPathsService
 import Foundation
 import GitHubService
-import PRRadarCLIService
 
 public struct StatusCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(

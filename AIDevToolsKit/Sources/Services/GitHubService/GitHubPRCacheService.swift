@@ -1,6 +1,5 @@
 import Foundation
 import OctokitSDK
-import PRRadarModelsService
 
 actor GitHubPRCacheService {
     private let rootURL: URL

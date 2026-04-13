@@ -5,7 +5,6 @@ import GitSDK
 import Logging
 import PipelineSDK
 import PipelineService
-import PRRadarCLIService
 
 /// Pipeline step that generates an AI summary and posts the full PR comment.
 ///

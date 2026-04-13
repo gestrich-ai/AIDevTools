@@ -2,7 +2,6 @@ import Foundation
 import Logging
 @preconcurrency import OctoKit
 import OctokitSDK
-import PRRadarModelsService
 
 private let logger = Logger(label: "GitHubAPIService")
 

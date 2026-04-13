@@ -1,5 +1,5 @@
 import Foundation
-import PRRadarModelsService
+import GitHubService
 
 public struct EnrichedPR: Sendable {
     public let pr: PRMetadata

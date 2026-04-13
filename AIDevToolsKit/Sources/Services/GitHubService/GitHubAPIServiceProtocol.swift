@@ -1,5 +1,4 @@
 import OctokitSDK
-import PRRadarModelsService
 
 public protocol GitHubAPIServiceProtocol: Sendable {
     func addAssignees(prNumber: Int, assignees: [String]) async throws

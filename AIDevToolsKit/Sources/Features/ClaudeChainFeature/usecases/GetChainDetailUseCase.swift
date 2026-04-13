@@ -2,7 +2,6 @@ import ClaudeChainService
 import Foundation
 import GitHubService
 import Logging
-import PRRadarModelsService
 import UseCaseSDK
 
 private let logger = Logger(label: "GetChainDetailUseCase")
@@ -174,8 +173,8 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
             return true
         }
 
-        var mergedPRDataByNumber: [Int: PRRadarModelsService.GitHubPullRequest] = [:]
-        try await withThrowingTaskGroup(of: PRRadarModelsService.GitHubPullRequest.self) { group in
+        var mergedPRDataByNumber: [Int: GitHubService.GitHubPullRequest] = [:]
+        try await withThrowingTaskGroup(of: GitHubService.GitHubPullRequest.self) { group in
             for number in mergedPRsToFetch.map({ $0.number }) {
                 group.addTask {
                     try await gitHubPRService.pullRequest(number: number, useCache: true)

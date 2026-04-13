@@ -7,7 +7,6 @@ import Foundation
 import GitHubService
 import GitSDK
 import OctokitSDK
-import PRRadarCLIService
 
 public struct FinalizeCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(

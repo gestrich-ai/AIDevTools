@@ -1,6 +1,5 @@
 import Foundation
 import OctokitSDK
-import PRRadarModelsService
 
 public protocol GitHubPRServiceProtocol: Sendable {
     func branchHead(branch: String, ttl: TimeInterval) async throws -> BranchHead

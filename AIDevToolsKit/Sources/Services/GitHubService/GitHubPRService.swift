@@ -1,7 +1,6 @@
 import Foundation
 import Logging
 import OctokitSDK
-import PRRadarModelsService
 
 public struct GitHubPRService: GitHubPRServiceProtocol {
     private let cache: GitHubPRCacheService
