@@ -148,7 +148,10 @@ EnrichedPR(
 
 No re-read of `GitHubPullRequest` from the disk cache is needed.
 
-## - [ ] Phase 3: Wire `ClaudeChainModel` to provide `GitHubRepoConfig`
+## - [x] Phase 3: Wire `ClaudeChainModel` to provide `GitHubRepoConfig`
+
+**Skills used**: `ai-dev-tools-composition-root`
+**Principles applied**: Phase 2 had already laid the full wiring — `gitHubRepoConfig: GitHubRepoConfig?` cached alongside `gitHubPRService`, reset when `currentRepoPath` changes, `makeOrGetGitHubRepoConfig` follows the same factory-cache pattern as `makeOrGetGitHubPRService`, `loadChainDetail` passes both `service` and `config` to `GetChainDetailUseCase`, and `StatusCommand` resolves account/token then creates config via `GitHubServiceFactory.makeRepoConfig`. Build verified clean.
 
 **Skills to read**: `ai-dev-tools-composition-root`
 
