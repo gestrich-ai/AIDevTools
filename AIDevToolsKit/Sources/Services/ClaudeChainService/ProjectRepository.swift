@@ -87,11 +87,11 @@ public struct ProjectRepository {
     /// - Parameter baseBranch: Branch to fetch from
     /// - Returns: Parsed ProjectConfiguration or default configuration if not found
     /// - Throws: GitHubAPIError if GitHub API fails, ConfigurationError if configuration is invalid
-    public func loadConfiguration(project: Project, baseBranch: String = "main") throws -> ProjectConfiguration {
+    public func loadConfiguration(project: Project, baseBranch: String = "main") async throws -> ProjectConfiguration {
         guard let gitHubOperations else {
             throw GitHubAPIError("No GitHub operations configured for remote access")
         }
-        let configContent = try gitHubOperations.getFileFromBranch(
+        let configContent = try await gitHubOperations.getFileFromBranch(
             repo: repo,
             branch: baseBranch,
             filePath: project.configPath
@@ -113,11 +113,11 @@ public struct ProjectRepository {
     /// - Parameter baseBranch: Branch to fetch from
     /// - Returns: Parsed ProjectConfiguration or nil if file doesn't exist
     /// - Throws: GitHubAPIError if GitHub API fails, ConfigurationError if configuration is invalid
-    public func loadConfigurationIfExists(project: Project, baseBranch: String = "main") throws -> ProjectConfiguration? {
+    public func loadConfigurationIfExists(project: Project, baseBranch: String = "main") async throws -> ProjectConfiguration? {
         guard let gitHubOperations else {
             throw GitHubAPIError("No GitHub operations configured for remote access")
         }
-        let configContent = try gitHubOperations.getFileFromBranch(
+        let configContent = try await gitHubOperations.getFileFromBranch(
             repo: repo,
             branch: baseBranch,
             filePath: project.configPath
@@ -136,11 +136,11 @@ public struct ProjectRepository {
     /// - Parameter baseBranch: Branch to fetch from
     /// - Returns: Parsed SpecContent or nil if not found
     /// - Throws: GitHubAPIError if GitHub API fails
-    public func loadSpec(project: Project, baseBranch: String = "main") throws -> SpecContent? {
+    public func loadSpec(project: Project, baseBranch: String = "main") async throws -> SpecContent? {
         guard let gitHubOperations else {
             throw GitHubAPIError("No GitHub operations configured for remote access")
         }
-        let specContent = try gitHubOperations.getFileFromBranch(
+        let specContent = try await gitHubOperations.getFileFromBranch(
             repo: repo,
             branch: baseBranch,
             filePath: project.specPath
@@ -165,16 +165,16 @@ public struct ProjectRepository {
     /// - Parameter projectName: Name of the project
     /// - Parameter baseBranch: Branch to fetch from
     /// - Returns: Tuple of (Project, ProjectConfiguration, SpecContent) or nil if spec not found
-    public func loadProjectFull(projectName: String, baseBranch: String = "main") throws -> (Project, ProjectConfiguration, SpecContent)? {
+    public func loadProjectFull(projectName: String, baseBranch: String = "main") async throws -> (Project, ProjectConfiguration, SpecContent)? {
         let project = Project(name: projectName, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\(projectName)")
 
         // Spec is required for a valid project
-        guard let spec = try loadSpec(project: project, baseBranch: baseBranch) else {
+        guard let spec = try await loadSpec(project: project, baseBranch: baseBranch) else {
             return nil
         }
 
         // Config is optional - uses defaults if not found
-        let config = try loadConfiguration(project: project, baseBranch: baseBranch)
+        let config = try await loadConfiguration(project: project, baseBranch: baseBranch)
 
         return (project, config, spec)
     }

@@ -5,7 +5,7 @@ import ClaudeChainService
 import Foundation
 import GitHubService
 
-public struct StatisticsCommand: ParsableCommand {
+public struct StatisticsCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "statistics",
         abstract: "Generate statistics and reports"
@@ -43,7 +43,7 @@ public struct StatisticsCommand: ParsableCommand {
     
     public init() {}
     
-    public func run() throws {
+    public func run() async throws {
         print("=== ClaudeChain Statistics Collection ===")
         
         let gh = GitHubActions()
@@ -101,7 +101,7 @@ public struct StatisticsCommand: ParsableCommand {
             print()
             
             // Collect all statistics
-            let report = statisticsService.collectAllStatistics(
+            let report = await statisticsService.collectAllStatistics(
                 projects: projects,
                 daysBack: daysBackValue,
                 showAssigneeStats: showAssigneeStats

@@ -34,7 +34,7 @@ public struct StatisticsService {
         daysBack: Int = Constants.defaultStatsDaysBack,
         label: String = Constants.defaultPRLabel,
         showAssigneeStats: Bool = false
-    ) -> StatisticsReport {
+    ) async -> StatisticsReport {
         /**
          * Collect statistics for provided projects and team members.
          *
@@ -68,7 +68,7 @@ public struct StatisticsService {
         
         for (projectName, specBranch) in projects {
             do {
-                let config = try loadProjectConfig(projectName: projectName, baseBranch: specBranch)
+                let config = try await loadProjectConfig(projectName: projectName, baseBranch: specBranch)
                 allAssignees = allAssignees.union(Set(config.assignees))
                 projectConfigs.append((config, specBranch))
             } catch {
@@ -79,10 +79,10 @@ public struct StatisticsService {
 
         logger.info("Processing \(projectConfigs.count) project(s)...")
         logger.info("Tracking \(allAssignees.count) unique assignee(s)")
-        
+
         // Collect project statistics
         for (config, specBranch) in projectConfigs {
-            if let projectStats = collectProjectStats(
+            if let projectStats = await collectProjectStats(
                 projectName: config.project.name,
                 baseBranch: specBranch,
                 label: label,
@@ -126,7 +126,7 @@ public struct StatisticsService {
         project: Project? = nil,
         stalePrDays: Int = Constants.defaultStalePRDays,
         daysBack: Int = Constants.defaultStatsDaysBack
-    ) -> ProjectStats? {
+    ) async -> ProjectStats? {
         /**
          * Collect statistics for a single project
          *
@@ -148,7 +148,7 @@ public struct StatisticsService {
         
         // Fetch and parse spec.md using repository
         do {
-            guard let spec = try projectRepository.loadSpec(project: proj, baseBranch: baseBranch) else {
+            guard let spec = try await projectRepository.loadSpec(project: proj, baseBranch: baseBranch) else {
                 logger.warning("Spec file not found in branch '\(baseBranch)', skipping project")
                 return nil
             }
@@ -402,7 +402,7 @@ public struct StatisticsService {
     
     // MARK: - Private helper methods
     
-    private func loadProjectConfig(projectName: String, baseBranch: String) throws -> ProjectConfiguration {
+    private func loadProjectConfig(projectName: String, baseBranch: String) async throws -> ProjectConfiguration {
         /**
          * Load project configuration using repository
          *
@@ -414,7 +414,7 @@ public struct StatisticsService {
          *     ProjectConfiguration domain model, or throws if config couldn't be loaded
          */
         let project = Project(name: projectName, basePath: "\(ClaudeChainConstants.projectDirectoryPrefix)/\(projectName)")
-        return try projectRepository.loadConfiguration(project: project, baseBranch: baseBranch)
+        return try await projectRepository.loadConfiguration(project: project, baseBranch: baseBranch)
     }
     
     // MARK: - Static utility methods

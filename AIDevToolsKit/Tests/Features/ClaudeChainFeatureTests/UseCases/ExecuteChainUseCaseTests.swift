@@ -76,7 +76,7 @@ struct ExecuteSpecChainUseCaseSpecTests {
 // MARK: - Test Doubles
 
 private class MockGitHubOperations: GitHubOperationsProtocol {
-    func getFileFromBranch(repo: String, branch: String, filePath: String) throws -> String? {
+    func getFileFromBranch(repo: String, branch: String, filePath: String) async throws -> String? {
         return nil
     }
 }

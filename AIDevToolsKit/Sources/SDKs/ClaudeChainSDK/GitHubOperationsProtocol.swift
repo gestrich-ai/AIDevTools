@@ -9,5 +9,5 @@ public protocol GitHubOperationsProtocol {
     /// - Parameter filePath: Path to file within repository
     /// - Returns: File content as string, or nil if file not found
     /// - Throws: GitHubAPIError if API call fails for reasons other than file not found
-    func getFileFromBranch(repo: String, branch: String, filePath: String) throws -> String?
+    func getFileFromBranch(repo: String, branch: String, filePath: String) async throws -> String?
 }

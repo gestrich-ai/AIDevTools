@@ -22,24 +22,16 @@ public struct GitHubOperations: GitHubOperationsProtocol {
     /// - Parameter filePath: Path to file within repository
     /// - Returns: File content as string, or nil if file not found
     /// - Throws: GitHubAPIError if API call fails for reasons other than file not found
-    public func getFileFromBranch(repo: String, branch: String, filePath: String) throws -> String? {
-        var fileResult: String?
-        var fetchError: Error?
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            do {
-                fileResult = try await githubService.fileContent(path: filePath, ref: branch)
-            } catch let e {
-                let desc = e.localizedDescription
-                if !desc.contains("404") && !desc.lowercased().contains("not found") {
-                    fetchError = e
-                }
+    public func getFileFromBranch(repo: String, branch: String, filePath: String) async throws -> String? {
+        do {
+            return try await githubService.fileContent(path: filePath, ref: branch)
+        } catch {
+            let desc = error.localizedDescription
+            if desc.contains("404") || desc.lowercased().contains("not found") {
+                return nil
             }
-            semaphore.signal()
+            throw error
         }
-        semaphore.wait()
-        if let fetchError { throw fetchError }
-        return fileResult
     }
 
     // MARK: - Instance methods (async, service-backed)

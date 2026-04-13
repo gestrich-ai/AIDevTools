@@ -24,7 +24,7 @@ final class ProjectRepositoryTests: XCTestCase {
 
     // MARK: - Load Configuration Tests
 
-    func testLoadConfigurationSuccess() throws {
+    func testLoadConfigurationSuccess() async throws {
         // Should load and parse configuration successfully
 
         // Arrange
@@ -44,7 +44,7 @@ baseBranch: develop
         }
 
         // Act
-        let config = try repo.loadConfiguration(project: project, baseBranch: "main")
+        let config = try await repo.loadConfiguration(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(config)
@@ -53,7 +53,7 @@ baseBranch: develop
         XCTAssertEqual(config.baseBranch, "develop")
     }
 
-    func testLoadConfigurationReturnsDefaultWhenFileNotFound() throws {
+    func testLoadConfigurationReturnsDefaultWhenFileNotFound() async throws {
         // Should return default config when configuration file doesn't exist
 
         // Arrange
@@ -69,7 +69,7 @@ baseBranch: develop
         }
 
         // Act
-        let config = try repo.loadConfiguration(project: project, baseBranch: "main")
+        let config = try await repo.loadConfiguration(project: project, baseBranch: "main")
 
         // Assert - returns default config, not nil
         XCTAssertNotNil(config)
@@ -78,7 +78,7 @@ baseBranch: develop
         XCTAssertNil(config.baseBranch)
     }
 
-    func testLoadConfigurationWithCustomBranch() throws {
+    func testLoadConfigurationWithCustomBranch() async throws {
         // Should load configuration from custom branch
 
         // Arrange
@@ -95,14 +95,14 @@ baseBranch: develop
         }
 
         // Act
-        let config = try repo.loadConfiguration(project: project, baseBranch: "develop")
+        let config = try await repo.loadConfiguration(project: project, baseBranch: "develop")
 
         // Assert
         XCTAssertNotNil(config)
         XCTAssertEqual(config.assignees, ["bob"])
     }
 
-    func testLoadConfigurationWithCustomProjectBasePath() throws {
+    func testLoadConfigurationWithCustomProjectBasePath() async throws {
         // Should use custom project base path
 
         // Arrange
@@ -119,14 +119,14 @@ baseBranch: develop
         }
 
         // Act
-        let config = try repo.loadConfiguration(project: project, baseBranch: "main")
+        let config = try await repo.loadConfiguration(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(config)
         XCTAssertEqual(config.assignees, ["alice"])
     }
 
-    func testLoadConfigurationHandlesEmptyConfig() throws {
+    func testLoadConfigurationHandlesEmptyConfig() async throws {
         // Should handle configuration without assignee
 
         // Arrange
@@ -140,7 +140,7 @@ baseBranch: develop
         }
 
         // Act
-        let config = try repo.loadConfiguration(project: project, baseBranch: "main")
+        let config = try await repo.loadConfiguration(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(config)
@@ -150,7 +150,7 @@ baseBranch: develop
 
     // MARK: - Load Configuration If Exists Tests
 
-    func testLoadConfigurationIfExistsReturnsConfigWhenFound() throws {
+    func testLoadConfigurationIfExistsReturnsConfigWhenFound() async throws {
         // Should return parsed config when file exists
 
         // Arrange
@@ -164,14 +164,14 @@ baseBranch: develop
         }
 
         // Act
-        let config = try repo.loadConfigurationIfExists(project: project, baseBranch: "main")
+        let config = try await repo.loadConfigurationIfExists(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(config)
         XCTAssertEqual(config?.assignees, ["alice"])
     }
 
-    func testLoadConfigurationIfExistsReturnsNilWhenNotFound() throws {
+    func testLoadConfigurationIfExistsReturnsNilWhenNotFound() async throws {
         // Should return nil when file doesn't exist
 
         // Arrange
@@ -184,7 +184,7 @@ baseBranch: develop
         }
 
         // Act
-        let config = try repo.loadConfigurationIfExists(project: project, baseBranch: "main")
+        let config = try await repo.loadConfigurationIfExists(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNil(config)
@@ -192,7 +192,7 @@ baseBranch: develop
 
     // MARK: - Load Spec Tests
 
-    func testLoadSpecSuccess() throws {
+    func testLoadSpecSuccess() async throws {
         // Should load and parse spec.md successfully
 
         // Arrange
@@ -214,7 +214,7 @@ baseBranch: develop
         }
 
         // Act
-        let spec = try repo.loadSpec(project: project, baseBranch: "main")
+        let spec = try await repo.loadSpec(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(spec)
@@ -223,7 +223,7 @@ baseBranch: develop
         XCTAssertEqual(spec?.completedTasks, 1)
     }
 
-    func testLoadSpecReturnsNilWhenFileNotFound() throws {
+    func testLoadSpecReturnsNilWhenFileNotFound() async throws {
         // Should return nil when spec file doesn't exist
 
         // Arrange
@@ -239,13 +239,13 @@ baseBranch: develop
         }
 
         // Act
-        let spec = try repo.loadSpec(project: project, baseBranch: "main")
+        let spec = try await repo.loadSpec(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNil(spec)
     }
 
-    func testLoadSpecWithCustomBranch() throws {
+    func testLoadSpecWithCustomBranch() async throws {
         // Should load spec from custom branch
 
         // Arrange
@@ -262,14 +262,14 @@ baseBranch: develop
         }
 
         // Act
-        let spec = try repo.loadSpec(project: project, baseBranch: "feature-branch")
+        let spec = try await repo.loadSpec(project: project, baseBranch: "feature-branch")
 
         // Assert
         XCTAssertNotNil(spec)
         XCTAssertEqual(spec?.totalTasks, 1)
     }
 
-    func testLoadSpecWithCustomProjectBasePath() throws {
+    func testLoadSpecWithCustomProjectBasePath() async throws {
         // Should use custom project base path
 
         // Arrange
@@ -286,14 +286,14 @@ baseBranch: develop
         }
 
         // Act
-        let spec = try repo.loadSpec(project: project, baseBranch: "main")
+        let spec = try await repo.loadSpec(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(spec)
         XCTAssertEqual(spec?.totalTasks, 1)
     }
 
-    func testLoadSpecWithEmptyContent() throws {
+    func testLoadSpecWithEmptyContent() async throws {
         // Should return nil for empty spec content (treated as not found)
 
         // Arrange
@@ -307,14 +307,14 @@ baseBranch: develop
         }
 
         // Act
-        let spec = try repo.loadSpec(project: project, baseBranch: "main")
+        let spec = try await repo.loadSpec(project: project, baseBranch: "main")
 
         // Assert
         // Empty string is treated as falsy, so returns nil
         XCTAssertNil(spec)
     }
 
-    func testLoadSpecWithNoTasks() throws {
+    func testLoadSpecWithNoTasks() async throws {
         // Should handle spec with no task items
 
         // Arrange
@@ -335,7 +335,7 @@ More text here.
         }
 
         // Act
-        let spec = try repo.loadSpec(project: project, baseBranch: "main")
+        let spec = try await repo.loadSpec(project: project, baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(spec)
@@ -344,7 +344,7 @@ More text here.
 
     // MARK: - Load Project Full Tests
 
-    func testLoadProjectFullSuccess() throws {
+    func testLoadProjectFullSuccess() async throws {
         // Should load complete project data successfully
 
         // Arrange
@@ -362,7 +362,7 @@ More text here.
         }
 
         // Act
-        let result = try repo.loadProjectFull(projectName: "my-project", baseBranch: "main")
+        let result = try await repo.loadProjectFull(projectName: "my-project", baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(result)
@@ -374,7 +374,7 @@ More text here.
         XCTAssertEqual(spec.completedTasks, 1)
     }
 
-    func testLoadProjectFullUsesDefaultConfigWhenConfigMissing() throws {
+    func testLoadProjectFullUsesDefaultConfigWhenConfigMissing() async throws {
         // Should use default config when configuration file is missing
 
         // Arrange
@@ -390,7 +390,7 @@ More text here.
         }
 
         // Act
-        let result = try repo.loadProjectFull(projectName: "my-project", baseBranch: "main")
+        let result = try await repo.loadProjectFull(projectName: "my-project", baseBranch: "main")
 
         // Assert - returns project with default config
         XCTAssertNotNil(result)
@@ -402,7 +402,7 @@ More text here.
         XCTAssertEqual(spec.totalTasks, 2)
     }
 
-    func testLoadProjectFullReturnsNilWhenSpecMissing() throws {
+    func testLoadProjectFullReturnsNilWhenSpecMissing() async throws {
         // Should return nil when spec file is missing
 
         // Arrange
@@ -418,13 +418,13 @@ More text here.
         }
 
         // Act
-        let result = try repo.loadProjectFull(projectName: "my-project", baseBranch: "main")
+        let result = try await repo.loadProjectFull(projectName: "my-project", baseBranch: "main")
 
         // Assert
         XCTAssertNil(result)
     }
 
-    func testLoadProjectFullWithCustomBranch() throws {
+    func testLoadProjectFullWithCustomBranch() async throws {
         // Should load from custom branch
 
         // Arrange
@@ -442,7 +442,7 @@ More text here.
         }
 
         // Act
-        let result = try repo.loadProjectFull(projectName: "my-project", baseBranch: "develop")
+        let result = try await repo.loadProjectFull(projectName: "my-project", baseBranch: "develop")
 
         // Assert
         XCTAssertNotNil(result)
@@ -452,7 +452,7 @@ More text here.
         XCTAssertEqual(spec.totalTasks, 1)
     }
 
-    func testLoadProjectFullCreatesProjectWithCorrectName() throws {
+    func testLoadProjectFullCreatesProjectWithCorrectName() async throws {
         // Should create Project object with correct name
 
         // Arrange
@@ -469,7 +469,7 @@ More text here.
         }
 
         // Act
-        let result = try repo.loadProjectFull(projectName: "custom-project-name", baseBranch: "main")
+        let result = try await repo.loadProjectFull(projectName: "custom-project-name", baseBranch: "main")
 
         // Assert
         XCTAssertNotNil(result)
@@ -480,7 +480,7 @@ More text here.
 
     // MARK: - Local Filesystem Tests
 
-    func testLoadLocalConfigurationSuccess() throws {
+    func testLoadLocalConfigurationSuccess() async throws {
         // Should load and parse configuration from local filesystem
 
         // Arrange
@@ -510,7 +510,7 @@ allowedTools: Read,Write,Edit
         XCTAssertEqual(config.allowedTools, "Read,Write,Edit")
     }
 
-    func testLoadLocalConfigurationReturnsDefaultWhenFileNotFound() throws {
+    func testLoadLocalConfigurationReturnsDefaultWhenFileNotFound() async throws {
         // Should return default config when configuration file doesn't exist
 
         // Arrange
@@ -533,7 +533,7 @@ allowedTools: Read,Write,Edit
         XCTAssertNil(config.allowedTools)
     }
 
-    func testLoadLocalSpecSuccess() throws {
+    func testLoadLocalSpecSuccess() async throws {
         // Should load and parse spec.md from local filesystem
 
         // Arrange
@@ -563,7 +563,7 @@ allowedTools: Read,Write,Edit
         XCTAssertEqual(spec?.completedTasks, 1)
     }
 
-    func testLoadLocalSpecReturnsNilWhenFileNotFound() throws {
+    func testLoadLocalSpecReturnsNilWhenFileNotFound() async throws {
         // Should return nil when spec file doesn't exist
 
         // Arrange
@@ -584,7 +584,7 @@ allowedTools: Read,Write,Edit
 
     // MARK: - loadLocalReview Tests
 
-    func testLoadLocalReviewReturnsContentWhenFileExists() throws {
+    func testLoadLocalReviewReturnsContentWhenFileExists() async throws {
         // Arrange
         let tempDir = createTempDirectory()
         let projectDir = tempDir.appendingPathComponent("claude-chain/my-project")
@@ -604,7 +604,7 @@ allowedTools: Read,Write,Edit
         XCTAssertEqual(result, reviewContent)
     }
 
-    func testLoadLocalReviewReturnsNilWhenFileIsMissing() throws {
+    func testLoadLocalReviewReturnsNilWhenFileIsMissing() async throws {
         // Arrange
         let tempDir = createTempDirectory()
         let projectDir = tempDir.appendingPathComponent("claude-chain/my-project")
@@ -620,7 +620,7 @@ allowedTools: Read,Write,Edit
         XCTAssertNil(result)
     }
 
-    func testLoadLocalReviewReturnsNilWhenFileIsEmpty() throws {
+    func testLoadLocalReviewReturnsNilWhenFileIsEmpty() async throws {
         // Arrange
         let tempDir = createTempDirectory()
         let projectDir = tempDir.appendingPathComponent("claude-chain/my-project")
@@ -641,7 +641,7 @@ allowedTools: Read,Write,Edit
 
     // MARK: - Integration Tests
 
-    func testFullWorkflowWithRealisticData() throws {
+    func testFullWorkflowWithRealisticData() async throws {
         // Should handle complete workflow with realistic project data
 
         // Arrange
@@ -685,7 +685,7 @@ Ensure backward compatibility with existing sessions.
         }
 
         // Act
-        let result = try repo.loadProjectFull(projectName: "auth-refactor", baseBranch: "main")
+        let result = try await repo.loadProjectFull(projectName: "auth-refactor", baseBranch: "main")
 
         // Assert - Verify complete structure
         XCTAssertNotNil(result)
@@ -722,7 +722,7 @@ Ensure backward compatibility with existing sessions.
 class MockGitHubOperations: GitHubOperationsProtocol {
     var mockGetFileFromBranch: ((String, String, String) throws -> String?)?
 
-    func getFileFromBranch(repo: String, branch: String, filePath: String) throws -> String? {
+    func getFileFromBranch(repo: String, branch: String, filePath: String) async throws -> String? {
         if let mock = mockGetFileFromBranch {
             return try mock(repo, branch, filePath)
         }
