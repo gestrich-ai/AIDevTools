@@ -85,11 +85,6 @@ struct WorkspaceView: View {
                 .tag("plans")
                 .id("plans")
 
-            PullRequestsContentView(isActive: selectedTab == "pullRequests", repository: repo)
-                .tabItem { Label("Pull Requests", systemImage: "arrow.triangle.pull") }
-                .tag("pullRequests")
-                .id("pullRequests")
-
             PRRadarContentView(isActive: selectedTab == "prradar", repository: repo)
                 .tabItem { Label("PR Radar", systemImage: "eye") }
                 .tag("prradar")
