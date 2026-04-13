@@ -1,5 +1,6 @@
 /// Data models for ClaudeChain operations
 import Foundation
+import GitHubService
 
 // MARK: - ActionResult
 
@@ -205,10 +206,9 @@ public struct TaskWithPR: Equatable {
     /// Get the PR state if available.
     ///
     /// - Returns: PRState enum value or nil if no PR
-    /// - Throws: ConfigurationError if PR state is invalid
     public var prState: PRState? {
         guard let pr = pr else { return nil }
-        return try? PRState.fromString(pr.state)
+        return PRState.fromCLIString(pr.state)
     }
 }
 

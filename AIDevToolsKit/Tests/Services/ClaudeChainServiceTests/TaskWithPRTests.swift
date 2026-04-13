@@ -4,53 +4,7 @@ import Foundation
 @testable import ClaudeChainService
 
 class TaskWithPRTests: XCTestCase {
-    
-    // MARK: - PRState Tests
-    
-    func testOpenStateValue() throws {
-        // Should have correct value for OPEN state
-        XCTAssertEqual(PRState.open.rawValue, "open")
-    }
-    
-    func testClosedStateValue() throws {
-        // Should have correct value for CLOSED state
-        XCTAssertEqual(PRState.closed.rawValue, "closed")
-    }
-    
-    func testMergedStateValue() throws {
-        // Should have correct value for MERGED state
-        XCTAssertEqual(PRState.merged.rawValue, "merged")
-    }
-    
-    func testFromStringOpen() throws {
-        // Should parse 'open' string to OPEN state
-        XCTAssertEqual(try PRState.fromString("open"), PRState.open)
-        XCTAssertEqual(try PRState.fromString("OPEN"), PRState.open)
-    }
-    
-    func testFromStringClosed() throws {
-        // Should parse 'closed' string to CLOSED state
-        XCTAssertEqual(try PRState.fromString("closed"), PRState.closed)
-        XCTAssertEqual(try PRState.fromString("CLOSED"), PRState.closed)
-    }
-    
-    func testFromStringMerged() throws {
-        // Should parse 'merged' string to MERGED state
-        XCTAssertEqual(try PRState.fromString("merged"), PRState.merged)
-        XCTAssertEqual(try PRState.fromString("MERGED"), PRState.merged)
-    }
-    
-    func testFromStringInvalidRaisesError() throws {
-        // Should raise error for invalid state string
-        XCTAssertThrowsError(try PRState.fromString("invalid")) { error in
-            if let configError = error as? ConfigurationError {
-                XCTAssertTrue(configError.message.contains("Invalid PR state"))
-            } else {
-                XCTFail("Expected ConfigurationError, got \(type(of: error))")
-            }
-        }
-    }
-    
+
     // MARK: - TaskStatus Tests
     
     func testPendingStatusValue() throws {
