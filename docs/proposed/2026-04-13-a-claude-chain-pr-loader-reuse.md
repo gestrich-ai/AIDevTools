@@ -314,7 +314,10 @@ Replace the existing two-step `stream()` with:
 
 **`StatusCommand` does not need this** — synchronous CLI tool where cold-start latency is acceptable.
 
-## - [ ] Phase 5: Enforce + Fix Architecture
+## - [x] Phase 5: Enforce + Fix Architecture
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-code-quality`, `ai-dev-tools-architecture`, `ai-dev-tools-build-quality`
+**Principles applied**: Added `ServicePath.claudeChainService(repoSlug:)` to eliminate raw string path construction in `ListChainsUseCase.coldOpen()`. Changed `EnrichedPR.isDraft` from a redundant stored `let` to a computed `var` delegating to `pr.isDraft`. Added intentional-swallow comments to all `try?` sites in `GetChainDetailUseCase`, `GitHubChainProjectSource`, and `ChainProjectCache` where silencing was deliberate but undocumented. No layer violations, no force unwraps, no dead code found.
 
 **Skills to read**: `ai-dev-tools-enforce`
 

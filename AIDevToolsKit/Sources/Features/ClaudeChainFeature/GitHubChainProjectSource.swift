@@ -143,6 +143,7 @@ public struct GitHubChainProjectSource: ChainProjectSource {
 
     private func fetchBlobContent(entry: GitTreeEntry?, path: String, ref: String) async -> String? {
         guard let entry = entry else { return nil }
+        // Swallowing intentionally: a failed blob fetch returns nil; callers handle nil with an isGitHubOnly project.
         return try? await gitHubPRService.fileBlob(blobSHA: entry.sha, path: path, ref: ref)
     }
 

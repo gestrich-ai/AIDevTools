@@ -2,6 +2,7 @@ public enum ServicePath {
     case anthropicSessions
     case architecturePlanner
     case claudeChainProject(repoSlug: String, projectName: String)
+    case claudeChainService(repoSlug: String)
     case evalsOutput(String)
     case github(repoSlug: String)
     case prradarOutput(String)
@@ -16,6 +17,8 @@ public enum ServicePath {
             return "services/architecture-planner"
         case .claudeChainProject(let repoSlug, let projectName):
             return "services/claude-chain-service/\(repoSlug)/\(projectName)"
+        case .claudeChainService(let repoSlug):
+            return "services/claude-chain-service/\(repoSlug)"
         case .evalsOutput(let repoName):
             return "services/evals/\(repoName)"
         case .github(let repoSlug):

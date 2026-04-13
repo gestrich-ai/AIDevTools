@@ -66,6 +66,7 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
 
         var enrichedPRsByHash: [String: EnrichedPR] = [:]
         for number in prNumbers {
+            // Swallowing intentionally: cache reads are best-effort; missing or malformed PRs are skipped.
             guard let pr = try? await gitHubPRService.pullRequest(number: number, useCache: true),
                   let metadata = try? pr.toPRMetadata() else { continue }
             let enrichedPR = EnrichedPR(
@@ -185,6 +186,7 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
 
         var mergedEnrichedByHash = openEnrichedByHash
         for (_, pr) in mergedPRDataByNumber {
+            // Swallowing intentionally: merged PRs missing required fields are skipped and won't appear in the task list.
             guard let metadata = try? pr.toPRMetadata() else { continue }
             let enrichedPR = EnrichedPR(
                 pr: metadata,
@@ -200,7 +202,8 @@ public struct GetChainDetailUseCase: UseCase, StreamingUseCase {
             EnrichedChainTask(task: task, enrichedPR: mergedEnrichedByHash[generateTaskHash(task.description)])
         }
 
-        // Save PR number index so the next launch can load from cache instantly
+        // Save PR number index so the next launch can load from cache instantly.
+        // Swallowing intentionally: cache writes are best-effort; a failure here doesn't affect correctness.
         let allPRNumbers = fetchedOpenPRNumbers + mergedPRs.map { $0.number }
         try? await gitHubPRService.writeCachedIndex(allPRNumbers, key: project.cacheIndexKey)
 

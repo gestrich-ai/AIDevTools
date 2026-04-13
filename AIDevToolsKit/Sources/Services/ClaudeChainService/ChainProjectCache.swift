@@ -20,6 +20,7 @@ public struct ChainProjectCache: Sendable {
         let url = descriptorURL()
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         let data = try Data(contentsOf: url)
+        // Swallowing intentionally: malformed JSON is treated as absent — forces re-download on next refresh.
         return try? JSONDecoder().decode(Descriptor.self, from: data)
     }
 

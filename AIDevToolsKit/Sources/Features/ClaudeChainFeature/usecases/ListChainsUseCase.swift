@@ -59,10 +59,7 @@ public struct ListChainsUseCase {
     // MARK: - Private
 
     private func coldOpen() -> ChainListResult? {
-        let repoDir = dataPathsService.rootPath
-            .appendingPathComponent("services")
-            .appendingPathComponent("claude-chain-service")
-            .appendingPathComponent(repoSlug)
+        guard let repoDir = try? dataPathsService.path(for: .claudeChainService(repoSlug: repoSlug)) else { return nil }
 
         guard let subdirs = try? FileManager.default.contentsOfDirectory(
             at: repoDir,

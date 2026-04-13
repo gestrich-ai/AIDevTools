@@ -3,7 +3,7 @@ import PRRadarModelsService
 
 public struct EnrichedPR: Sendable {
     public let pr: PRMetadata
-    public let isDraft: Bool
+    public var isDraft: Bool { pr.isDraft }
     public let reviewStatus: PRReviewStatus
     public let buildStatus: PRBuildStatus
 
@@ -13,7 +13,6 @@ public struct EnrichedPR: Sendable {
         buildStatus: PRBuildStatus
     ) {
         self.pr = pr
-        self.isDraft = pr.isDraft
         self.reviewStatus = reviewStatus
         self.buildStatus = buildStatus
     }
