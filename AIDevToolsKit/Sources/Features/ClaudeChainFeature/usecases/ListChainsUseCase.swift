@@ -7,14 +7,14 @@ import GitHubService
 public struct ListChainsUseCase {
     private let client: any AIClient
     private let dataPathsService: DataPathsService
-    private let prService: any GitHubPRServiceProtocol
+    private let prService: (any GitHubPRServiceProtocol)?
     private let repoPath: URL
     private let repoSlug: String
 
     public init(
         client: any AIClient,
         repoPath: URL,
-        prService: any GitHubPRServiceProtocol,
+        prService: (any GitHubPRServiceProtocol)?,
         dataPathsService: DataPathsService,
         repoSlug: String
     ) {
@@ -33,6 +33,13 @@ public struct ListChainsUseCase {
                 // means no stale results are shown before the fresh fetch completes.
                 if let cached = coldOpen(), !cached.projects.isEmpty {
                     continuation.yield(cached)
+                }
+
+                guard let prService else {
+                    // No credentials available — cold open only, no network refresh.
+                    continuation.yield(coldOpen() ?? ChainListResult(projects: []))
+                    continuation.finish()
+                    return
                 }
 
                 let remoteSource = GitHubChainProjectSource(

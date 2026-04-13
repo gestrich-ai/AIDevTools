@@ -9,6 +9,7 @@ import GitSDK
 import Logging
 import PipelineService
 import PRRadarCLIService
+import PRRadarConfigService
 import ProviderRegistryService
 import SweepFeature
 
@@ -104,26 +105,20 @@ final class ClaudeChainModel {
         currentCredentialAccount = credentialAccount
         state = .loadingChains
         Task {
-            let prService: any GitHubPRServiceProtocol
-            do {
-                prService = try await makeOrGetGitHubPRService(repoPath: repoPath)
-            } catch {
-                state = .error(error)
-                return
-            }
-            let config: GitHubRepoConfig
-            do {
-                config = try await makeOrGetGitHubRepoConfig(repoPath: repoPath)
-            } catch {
-                state = .error(error)
-                return
-            }
+            // Derive repoSlug from git config — no credentials required.
+            let rawSlug = PRDiscoveryService.repoSlug(fromRepoPath: repoPath.path) ?? ""
+            let repoSlug = rawSlug.replacingOccurrences(of: "/", with: "-")
+
+            // GitHub service is optional: used for network refresh only.
+            // Cold open from the service cache works without credentials.
+            let optionalPRService = try? await makeOrGetGitHubPRService(repoPath: repoPath)
+
             let listChainsUseCase = ListChainsUseCase(
                 client: activeClient,
                 repoPath: repoPath,
-                prService: prService,
+                prService: optionalPRService,
                 dataPathsService: dataPathsService,
-                repoSlug: config.repoSlug
+                repoSlug: repoSlug
             )
             do {
                 for try await result in listChainsUseCase.stream() {

@@ -26,7 +26,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 2)
@@ -41,7 +41,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 1)
@@ -57,7 +57,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.isEmpty)
@@ -70,7 +70,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.map(\.name) == ["alpha", "middle", "zebra"])
@@ -90,7 +90,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 1)
@@ -114,7 +114,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 1)
@@ -130,7 +130,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 1)
@@ -152,7 +152,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 2)
@@ -168,7 +168,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 1)
@@ -184,7 +184,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 1)
@@ -198,7 +198,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 1)
@@ -219,7 +219,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 3)
@@ -241,7 +241,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 2)
@@ -310,7 +310,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 2)
@@ -329,7 +329,7 @@ struct SkillScannerTests {
         let scanner = SkillScanner()
 
         // Act
-        let skills = try scanner.scanSkills(at: repoDir)
+        let skills = try scanner.scanSkills(at: repoDir, globalCommandsDirectory: nil)
 
         // Assert
         #expect(skills.count == 1)

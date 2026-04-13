@@ -26,7 +26,7 @@ struct LoadSkillsUseCaseTests {
         // Arrange
         let repoDir = try makeTempRepo(skillFiles: ["deploy.md", "test.md"])
         defer { cleanup(repoDir) }
-        let useCase = LoadSkillsUseCase()
+        let useCase = LoadSkillsUseCase(globalCommandsDirectory: nil)
         let config = RepositoryConfiguration(path: repoDir)
 
         // Act
@@ -45,7 +45,7 @@ struct LoadSkillsUseCaseTests {
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: repoDir, withIntermediateDirectories: true)
         defer { cleanup(repoDir) }
-        let useCase = LoadSkillsUseCase()
+        let useCase = LoadSkillsUseCase(globalCommandsDirectory: nil)
         let config = RepositoryConfiguration(path: repoDir)
 
         // Act

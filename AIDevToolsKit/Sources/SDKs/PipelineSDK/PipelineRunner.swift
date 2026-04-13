@@ -40,6 +40,9 @@ public struct PipelineRunner: Sendable {
             }
 
             onProgress(.nodeCompleted(id: node.id, displayName: node.displayName))
+            // Yield between nodes so tasks that were spawned from onProgress
+            // (e.g. pipeline.stop()) get a chance to run before the next node starts.
+            await Task.yield()
 
             if let injectedSource = context[PipelineContext.injectedTaskSourceKey] {
                 context[PipelineContext.injectedTaskSourceKey] = nil

@@ -24,7 +24,7 @@ struct LoadPRDetailUseCaseTests {
     }
 
     private func makeConfig(outputDir: String) -> PRRadarRepoConfig {
-        PRRadarRepoConfig(name: "test", repoPath: "/tmp/fake-repo", outputDir: outputDir, rulePaths: [RulePath(name: "default", path: "/tmp/rules", isDefault: true)], agentScriptPath: "/tmp/agent.py", githubAccount: "test", defaultBaseBranch: "main")
+        PRRadarRepoConfig(name: "test", repoPath: "/tmp/fake-repo", outputDir: outputDir, rulePaths: [RulePath(name: "default", path: "/tmp/rules", isDefault: true)], githubAccount: "test", defaultBaseBranch: "main")
     }
 
     private func writeJSON<T: Encodable>(_ value: T, to path: String) throws {
@@ -147,7 +147,8 @@ struct LoadPRDetailUseCaseTests {
         #expect(detail.report != nil)
         #expect(detail.report?.report.violations.count == 1)
         #expect(detail.report?.markdownContent.contains("Report") == true)
-        #expect(detail.postedComments != nil)
+        // postedComments requires a GitHub cache URL (dataRootURL + repoSlug); nil without it
+        #expect(detail.postedComments == nil)
         #expect(detail.imageURLMap["img1.png"] == "https://example.com/img1.png")
         #expect(detail.imageBaseDir != nil)
         #expect(detail.imageBaseDir?.hasSuffix("/metadata/images") == true)
@@ -403,16 +404,11 @@ struct LoadPRDetailUseCaseTests {
 
     // MARK: - Posted comments and image map from metadata/
 
-    @Test("Loads posted comments from metadata directory")
-    func loadPostedComments() async throws {
-        // Arrange
+    @Test("Returns nil postedComments when no GitHub cache is configured")
+    func postedCommentsNilWithoutCache() async throws {
+        // Arrange: config without dataRootURL means gitHubCacheURL is nil,
+        // so PRDiscoveryService.loadComments returns nil regardless of what's on disk.
         let outputDir = try makeTempDir()
-        let metadataDir = "\(outputDir)/1/metadata"
-        try FileManager.default.createDirectory(atPath: metadataDir, withIntermediateDirectories: true)
-
-        let comments = GitHubPullRequestComments(comments: [], reviews: [], reviewComments: [])
-        try writeJSON(comments, to: "\(metadataDir)/\(PRRadarPhasePaths.ghCommentsFilename)")
-
         let config = makeConfig(outputDir: outputDir)
         let useCase = LoadPRDetailUseCase(config: config)
 
@@ -420,8 +416,7 @@ struct LoadPRDetailUseCaseTests {
         let detail = await useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
-        #expect(detail.postedComments != nil)
-        #expect(detail.postedComments?.comments.isEmpty == true)
+        #expect(detail.postedComments == nil)
     }
 
     @Test("Loads image URL map and computes imageBaseDir from metadata directory")

@@ -10,7 +10,6 @@ struct MakeFilterTests {
         name: "test",
         repoPath: "/tmp/repo",
         outputDir: "/tmp/output",
-        agentScriptPath: "/tmp/agent.py",
         githubAccount: "owner/repo",
         defaultBaseBranch: "main"
     )

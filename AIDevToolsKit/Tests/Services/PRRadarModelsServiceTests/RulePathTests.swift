@@ -45,7 +45,6 @@ struct PRRadarRepoConfigRulePathTests {
                 RulePath(name: "shared", path: "/shared/rules", isDefault: false),
                 RulePath(name: "local", path: "local-rules", isDefault: true),
             ],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )
@@ -67,7 +66,6 @@ struct PRRadarRepoConfigRulePathTests {
                 RulePath(name: "first", path: "first-rules", isDefault: false),
                 RulePath(name: "second", path: "second-rules", isDefault: false),
             ],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )
@@ -86,7 +84,6 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )
@@ -107,7 +104,6 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "shared", path: "/Users/bill/shared-rules", isDefault: true)],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )
@@ -126,7 +122,6 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "local", path: "code-review-rules", isDefault: true)],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )
@@ -145,7 +140,6 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "home", path: "~/shared-rules", isDefault: true)],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )
@@ -165,7 +159,6 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )
@@ -189,7 +182,6 @@ struct PRRadarRepoConfigRulePathTests {
                 RulePath(name: "shared", path: "/shared/rules", isDefault: true),
                 RulePath(name: "local", path: "local-rules", isDefault: false),
             ],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )
@@ -208,7 +200,6 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "shared", path: "/shared/rules", isDefault: true)],
-            agentScriptPath: "/tmp/agent.py",
             githubAccount: "test",
             defaultBaseBranch: "main"
         )

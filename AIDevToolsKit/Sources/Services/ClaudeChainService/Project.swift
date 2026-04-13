@@ -49,9 +49,8 @@ public struct Project {
     /// - Parameter configPath: Path like 'claude-chain/my-project/configuration.yml'
     /// - Returns: Project instance
     public static func fromConfigPath(_ configPath: String) -> Project {
-        let url = URL(fileURLWithPath: configPath)
-        let basePath = url.deletingLastPathComponent().path
-        let projectName = URL(fileURLWithPath: basePath).lastPathComponent
+        let basePath = (configPath as NSString).deletingLastPathComponent
+        let projectName = (basePath as NSString).lastPathComponent
         return Project(name: projectName, basePath: basePath)
     }
 

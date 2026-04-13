@@ -66,7 +66,9 @@ public struct SkillScanner: Sendable {
             }
         }
 
-        return skills.sorted { $0.name < $1.name }
+        var seen: Set<String> = []
+        let deduplicated = skills.filter { seen.insert($0.name).inserted }
+        return deduplicated.sorted { $0.name < $1.name }
     }
 
     public func filterSkills(_ skills: [SkillInfo], query: String) -> [SkillInfo] {

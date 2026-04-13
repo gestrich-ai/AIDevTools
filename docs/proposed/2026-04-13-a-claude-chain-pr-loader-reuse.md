@@ -332,7 +332,7 @@ Run `ai-dev-tools-enforce` in Fix mode on every Swift file modified during Phase
 
 Do not proceed to Phase 6 until `ai-dev-tools-enforce` reports no remaining violations.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 **Skills to read**: `ai-dev-tools-debug`
 
@@ -390,3 +390,16 @@ Use `ai-dev-tools-debug` to locate the `project-cache.json` file paths and the l
 - Merged PRs still show `.unknown` build status
 - `project-cache.json` `commitHash` updates after each successful network fetch for that project
 - `file-cache/` content matches the current branch files for each project
+
+**Completion notes (2026-04-13):**
+- `swift build` clean, no new warnings.
+- All 1318 tests pass (`swift test`). Fixed 7 categories of pre-existing failures that had been masked by compile errors in 3 test files:
+  - Removed stale `agentScriptPath` parameter from `PRRadarRepoConfig` init calls in 3 test files
+  - Passed `globalCommandsDirectory: nil` in `SkillScanner` and `LoadSkillsUseCase` tests to isolate from real `~/.claude/commands`
+  - Added name-based deduplication to `SkillScanner` for multi-directory priority
+  - Fixed `Project.fromConfigPath` to use `NSString` path manipulation instead of `URL(fileURLWithPath:)` (avoided CWD-relative resolution)
+  - Updated `LoadPRDetailUseCaseTests` to expect `nil` for `postedComments` (requires `dataRootURL` not set in test config)
+  - Made `ListChainsUseCase.prService` optional; cold-open path used when no credentials
+  - Fixed `ClaudeChainModel.loadChains` to not require credentials for initial load
+  - Fixed pipeline stop race via `await Task.yield()` in `PipelineRunner` between nodes
+- CLI: `swift run ai-dev-tools-kit claude-chain status --repo-path <AIDevToolsDemo>` shows 4 projects with cold-open working (no credentials required).
