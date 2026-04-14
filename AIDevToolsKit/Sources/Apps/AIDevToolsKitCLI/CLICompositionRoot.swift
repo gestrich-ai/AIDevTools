@@ -1,6 +1,6 @@
-import CredentialFeature
 import CredentialService
 import EnvironmentSDK
+import Foundation
 import GitSDK
 import Logging
 import LoggingSDK
@@ -26,7 +26,18 @@ struct CLICompositionRoot {
     }
 
     static func create(githubProfileId: String?, anthropicProfileId: String? = nil, githubToken: String? = nil, printGitOutput: Bool = true) throws -> CLICompositionRoot {
-        let resolver = resolveGitHubCredentials(githubProfileId: githubProfileId, anthropicProfileId: anthropicProfileId, githubToken: githubToken)
+        let secureSettings = SecureSettingsService()
+        let resolver: CredentialResolver
+        if let githubToken {
+            resolver = CredentialResolver.withExplicitToken(githubToken)
+        } else {
+            // Swallowing intentionally: profile enumeration failure is non-fatal — fall back to nil.
+            let profileId = githubProfileId ?? (try? secureSettings.listGitHubProfileIds())?.first
+            resolver = CredentialResolver(secureSettings: secureSettings, githubProfileId: profileId, anthropicProfileId: anthropicProfileId)
+        }
+        if case .token(let token) = resolver.getGitHubAuth() {
+            setenv("GH_TOKEN", token, 1)
+        }
         let shared = try SharedCompositionRoot.create(credentialResolver: resolver)
         return CLICompositionRoot(shared: shared, printGitOutput: printGitOutput)
     }

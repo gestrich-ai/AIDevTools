@@ -248,9 +248,10 @@ CLICompositionRoot.create(githubProfileId: String?, anthropicProfileId: String?)
 
 ---
 
-## - [ ] Phase 7: Composition Root Wiring
+## - [x] Phase 7: Composition Root Wiring
 
-**Skills to read**: `ai-dev-tools-composition-root`
+**Skills used**: `ai-dev-tools-composition-root`
+**Principles applied**: `SharedCompositionRoot` and Mac `CompositionRoot` were already updated in earlier phases to use profile IDs. The remaining work was removing the `resolveGitHubCredentials` helper calls from both `CLICompositionRoot.swift` files and inlining the `CredentialResolver` construction directly — preserving the `setenv("GH_TOKEN", ...)` call for subprocess inheritance. `import CredentialFeature` removed from both CLI composition roots (no longer needed). `import Foundation` added where `setenv` was newly introduced.
 
 Update all three composition roots to use the new profile-based resolver.
 
