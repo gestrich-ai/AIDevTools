@@ -183,7 +183,10 @@ Remove old use cases: `ListCredentialStatusesUseCase`, `SaveCredentialsUseCase`,
 
 ---
 
-## - [ ] Phase 5: Mac App UI
+## - [x] Phase 5: Mac App UI
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
+**Principles applied**: `CredentialManagementView` restructured into a two-section sidebar (GitHub Profiles / Anthropic Profiles) using `List` with `Section` headers; `SelectedProfile` enum drives the detail pane. `GitHubCredentialEditSheet` uses a dropdown `Picker` (not segmented control) to select auth type, showing only the relevant fields. `AnthropicCredentialEditSheet` is a minimal separate sheet. `CredentialModel` bridge (`credentialAccounts`) and old combined `saveCredentials`/`removeCredentials` methods removed; typed `saveGitHubProfile`, `removeGitHubProfile`, `saveAnthropicProfile`, `removeAnthropicProfile` added instead. `ConfigurationEditSheet` gains a separate Anthropic Profile picker. `RepositoriesSettingsView` detail view shows both profile IDs. `CredentialStatus.swift` and `GitHubAuthStatus` deleted — no longer referenced.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
 

@@ -5,116 +5,46 @@ import SwiftUI
 struct CredentialManagementView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(CredentialModel.self) private var credentialModel
-    @State private var selectedAccount: String?
-    @State private var editingAccount: EditableCredential?
+    @State private var selectedProfile: SelectedProfile?
+    @State private var editingGitHubProfile: EditableGitHubProfile?
+    @State private var editingAnthropicProfile: EditableAnthropicProfile?
     @State private var isAddingNew = false
     @State private var currentError: Error?
-    @State private var accountToDelete: String?
+    @State private var profileToDelete: SelectedProfile?
 
     var body: some View {
         HSplitView {
-            VStack(spacing: 0) {
-                if credentialModel.credentialAccounts.isEmpty {
-                    ContentUnavailableView(
-                        "No Accounts",
-                        systemImage: "key",
-                        description: Text("Click + to add a credential account.")
-                    )
-                } else {
-                    List(selection: $selectedAccount) {
-                        ForEach(credentialModel.credentialAccounts, id: \.account) { status in
-                            Text(status.account)
-                                .tag(status.account)
-                        }
-                    }
-                    .onChange(of: selectedAccount) { _, newValue in
-                        if newValue == nil, let firstAccount = credentialModel.credentialAccounts.first {
-                            selectedAccount = firstAccount.account
-                        }
-                    }
-                }
+            sidebarView
+                .frame(minWidth: 180, idealWidth: 200, maxWidth: 250)
 
-                Divider()
-
-                HStack(spacing: 6) {
-                    Button {
-                        isAddingNew = true
-                        editingAccount = EditableCredential()
-                    } label: {
-                        Image(systemName: "plus")
-                            .frame(width: 14, height: 14)
-                    }
-                    .accessibilityIdentifier("addCredentialButton")
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
-                    Button {
-                        if let account = selectedAccount {
-                            accountToDelete = account
-                        }
-                    } label: {
-                        Image(systemName: "minus")
-                            .frame(width: 14, height: 14)
-                    }
-                    .accessibilityIdentifier("deleteCredentialButton")
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(selectedAccount == nil)
-
-                    Spacer()
-                }
-                .padding(6)
-            }
-            .frame(minWidth: 180, idealWidth: 200, maxWidth: 250)
-
-            Group {
-                if let selectedAccount,
-                   let status = credentialModel.credentialAccounts.first(where: { $0.account == selectedAccount }) {
-                    AccountDetailView(
-                        status: status,
-                        onEdit: {
-                            isAddingNew = false
-                            editingAccount = EditableCredential(
-                                accountName: status.account,
-                                authMode: status.gitHubAuth == .app ? .app : .token
-                            )
-                        }
-                    )
-                } else {
-                    ContentUnavailableView(
-                        "Select an Account",
-                        systemImage: "key",
-                        description: Text("Choose a credential account from the list.")
-                    )
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            detailView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            if selectedAccount == nil, let firstAccount = credentialModel.credentialAccounts.first {
-                selectedAccount = firstAccount.account
-            }
-        }
         .alert("Credential Error", isPresented: isErrorPresented, presenting: currentError) { _ in
             Button("OK") { currentError = nil }
         } message: { error in
             Text(error.localizedDescription)
         }
-        .sheet(item: $editingAccount) { credential in
-            CredentialEditSheet(
-                credential: credential,
-                isNew: isAddingNew
-            ) { updated in
+        .sheet(item: $editingGitHubProfile) { profile in
+            GitHubCredentialEditSheet(profile: profile, isNew: isAddingNew) { updated in
                 do {
-                    try credentialModel.saveCredentials(
-                        account: updated.accountName,
-                        gitHubAuth: updated.buildGitHubAuth(),
-                        anthropicKey: updated.anthropicKey.isEmpty ? nil : updated.anthropicKey
-                    )
-                    appModel.applyCredentialChange(.anthropicAPIKey)
-                    appModel.applyCredentialChange(.githubToken)
-                    NotificationCenter.default.post(name: .credentialsDidChange, object: nil)
+                    guard let auth = updated.buildGitHubAuth() else { return }
+                    try credentialModel.saveGitHubProfile(id: updated.profileName, auth: auth)
+                    notifyCredentialChange(.githubToken)
+                } catch {
+                    currentError = error
+                }
+                isAddingNew = false
+            } onCancel: {
+                isAddingNew = false
+            }
+        }
+        .sheet(item: $editingAnthropicProfile) { profile in
+            AnthropicCredentialEditSheet(profile: profile, isNew: isAddingNew) { updated in
+                do {
+                    try credentialModel.saveAnthropicProfile(id: updated.profileName, apiKey: updated.apiKey)
+                    notifyCredentialChange(.anthropicAPIKey)
                 } catch {
                     currentError = error
                 }
@@ -124,31 +54,131 @@ struct CredentialManagementView: View {
             }
         }
         .confirmationDialog(
-            "Delete Credential Account",
+            "Delete Profile",
             isPresented: Binding(
-                get: { accountToDelete != nil },
-                set: { if !$0 { accountToDelete = nil } }
+                get: { profileToDelete != nil },
+                set: { if !$0 { profileToDelete = nil } }
             ),
-            presenting: accountToDelete
-        ) { account in
+            presenting: profileToDelete
+        ) { profile in
             Button("Delete", role: .destructive) {
-                do {
-                    try credentialModel.removeCredentials(account: account)
-                    selectedAccount = nil
-                    appModel.applyCredentialChange(.anthropicAPIKey)
-                    appModel.applyCredentialChange(.githubToken)
-                    NotificationCenter.default.post(name: .credentialsDidChange, object: nil)
-                } catch {
-                    currentError = error
-                }
-                accountToDelete = nil
+                deleteProfile(profile)
+                profileToDelete = nil
             }
             Button("Cancel", role: .cancel) {
-                accountToDelete = nil
+                profileToDelete = nil
             }
-        } message: { account in
-            Text("Are you sure you want to delete the credential account '\(account)'? This will remove all stored tokens from the Keychain.")
+        } message: { profile in
+            switch profile {
+            case .gitHub(let id):
+                Text("Delete GitHub profile '\(id)'? This will remove the stored credential from Keychain.")
+            case .anthropic(let id):
+                Text("Delete Anthropic profile '\(id)'? This will remove the API key from Keychain.")
+            }
         }
+    }
+
+    private var sidebarView: some View {
+        VStack(spacing: 0) {
+            List(selection: $selectedProfile) {
+                Section("GitHub Profiles") {
+                    if credentialModel.gitHubProfiles.isEmpty {
+                        Text("No profiles")
+                            .foregroundStyle(.tertiary)
+                            .tag(Optional<SelectedProfile>.none)
+                    } else {
+                        ForEach(credentialModel.gitHubProfiles) { profile in
+                            Text(profile.id)
+                                .tag(SelectedProfile.gitHub(profile.id))
+                        }
+                    }
+                }
+
+                Section("Anthropic Profiles") {
+                    if credentialModel.anthropicProfiles.isEmpty {
+                        Text("No profiles")
+                            .foregroundStyle(.tertiary)
+                            .tag(Optional<SelectedProfile>.none)
+                    } else {
+                        ForEach(credentialModel.anthropicProfiles) { profile in
+                            Text(profile.id)
+                                .tag(SelectedProfile.anthropic(profile.id))
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            HStack(spacing: 6) {
+                Menu {
+                    Button("GitHub Profile") {
+                        isAddingNew = true
+                        editingGitHubProfile = EditableGitHubProfile()
+                    }
+                    Button("Anthropic Profile") {
+                        isAddingNew = true
+                        editingAnthropicProfile = EditableAnthropicProfile()
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 14, height: 14)
+                }
+                .menuStyle(.borderlessButton)
+                .frame(width: 26, height: 22)
+                .accessibilityIdentifier("addCredentialButton")
+
+                Button {
+                    if let profile = selectedProfile {
+                        profileToDelete = profile
+                    }
+                } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 14, height: 14)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("deleteCredentialButton")
+                .disabled(selectedProfile == nil)
+
+                Spacer()
+            }
+            .padding(6)
+        }
+    }
+
+    @ViewBuilder
+    private var detailView: some View {
+        switch selectedProfile {
+        case .gitHub(let id):
+            if let profile = credentialModel.gitHubProfiles.first(where: { $0.id == id }) {
+                GitHubProfileDetailView(profile: profile) {
+                    isAddingNew = false
+                    editingGitHubProfile = EditableGitHubProfile(from: profile)
+                }
+            } else {
+                noSelectionView
+            }
+        case .anthropic(let id):
+            if let profile = credentialModel.anthropicProfiles.first(where: { $0.id == id }) {
+                AnthropicProfileDetailView(profile: profile) {
+                    isAddingNew = false
+                    editingAnthropicProfile = EditableAnthropicProfile(from: profile)
+                }
+            } else {
+                noSelectionView
+            }
+        case nil:
+            noSelectionView
+        }
+    }
+
+    private var noSelectionView: some View {
+        ContentUnavailableView(
+            "Select a Profile",
+            systemImage: "key",
+            description: Text("Choose a credential profile from the list.")
+        )
     }
 
     private var isErrorPresented: Binding<Bool> {
@@ -157,24 +187,63 @@ struct CredentialManagementView: View {
             set: { if !$0 { currentError = nil } }
         )
     }
+
+    private func deleteProfile(_ profile: SelectedProfile) {
+        switch profile {
+        case .gitHub(let id):
+            credentialModel.removeGitHubProfile(id: id)
+            notifyCredentialChange(.githubToken)
+        case .anthropic(let id):
+            credentialModel.removeAnthropicProfile(id: id)
+            notifyCredentialChange(.anthropicAPIKey)
+        }
+        selectedProfile = nil
+    }
+
+    private func notifyCredentialChange(_ type: CredentialType) {
+        appModel.applyCredentialChange(type)
+        NotificationCenter.default.post(name: .credentialsDidChange, object: nil)
+    }
 }
 
-// MARK: - Supporting Types
+// MARK: - Selection Type
+
+enum SelectedProfile: Hashable {
+    case anthropic(String)
+    case gitHub(String)
+}
+
+// MARK: - Editable Types
 
 enum GitHubAuthMode: String, CaseIterable {
     case app = "GitHub App"
     case token = "Personal Access Token"
 }
 
-struct EditableCredential: Identifiable {
+struct EditableGitHubProfile: Identifiable {
     let id = UUID()
-    var accountName: String = ""
-    var anthropicKey: String = ""
     var appId: String = ""
     var authMode: GitHubAuthMode = .token
     var githubToken: String = ""
     var installationId: String = ""
     var privateKeyPEM: String = ""
+    var profileName: String = ""
+
+    init() {}
+
+    init(from profile: GitHubCredentialProfile) {
+        profileName = profile.id
+        switch profile.auth {
+        case .token(let t):
+            authMode = .token
+            githubToken = t
+        case .app(let aId, let iId, let pem):
+            authMode = .app
+            appId = aId
+            installationId = iId
+            privateKeyPEM = pem
+        }
+    }
 
     func buildGitHubAuth() -> GitHubAuth? {
         switch authMode {
@@ -187,60 +256,88 @@ struct EditableCredential: Identifiable {
         }
     }
 
-    var hasGitHubCredential: Bool {
-        switch authMode {
-        case .token: !githubToken.isEmpty
-        case .app: !appId.isEmpty || !installationId.isEmpty || !privateKeyPEM.isEmpty
-        }
+    var canSave: Bool {
+        !profileName.isEmpty && buildGitHubAuth() != nil
     }
 }
 
-// MARK: - Account Detail View
+struct EditableAnthropicProfile: Identifiable {
+    let id = UUID()
+    var apiKey: String = ""
+    var profileName: String = ""
 
-private struct AccountDetailView: View {
-    let status: CredentialStatus
+    init() {}
+
+    init(from profile: AnthropicCredentialProfile) {
+        profileName = profile.id
+        apiKey = profile.apiKey
+    }
+
+    var canSave: Bool {
+        !profileName.isEmpty && !apiKey.isEmpty
+    }
+}
+
+// MARK: - Detail Views
+
+private struct GitHubProfileDetailView: View {
+    let profile: GitHubCredentialProfile
     let onEdit: () -> Void
 
     var body: some View {
         Form {
             Section {
-                LabeledContent("Account") {
-                    Text(status.account)
+                LabeledContent("Name") {
+                    Text(profile.id)
                         .foregroundStyle(.secondary)
                 }
-
-                LabeledContent("GitHub Auth") {
+                LabeledContent("Auth Type") {
                     HStack {
-                        switch status.gitHubAuth {
-                        case .none:
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.red)
-                            Text("Not Set")
-                                .foregroundStyle(.secondary)
-                        case .token:
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Personal Access Token")
-                                .foregroundStyle(.secondary)
-                        case .app:
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("GitHub App")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                LabeledContent("Anthropic Key") {
-                    HStack {
-                        Image(systemName: status.hasAnthropicKey ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundStyle(status.hasAnthropicKey ? .green : .red)
-                        Text(status.hasAnthropicKey ? "Stored" : "Not Set")
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text(authTypeLabel)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
+            Section {
+                Button("Edit") {
+                    onEdit()
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 
+    private var authTypeLabel: String {
+        switch profile.auth {
+        case .token: "Personal Access Token"
+        case .app: "GitHub App"
+        }
+    }
+}
+
+private struct AnthropicProfileDetailView: View {
+    let profile: AnthropicCredentialProfile
+    let onEdit: () -> Void
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Name") {
+                    Text(profile.id)
+                        .foregroundStyle(.secondary)
+                }
+                LabeledContent("API Key") {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Stored")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             Section {
                 Button("Edit") {
                     onEdit()
@@ -252,74 +349,59 @@ private struct AccountDetailView: View {
     }
 }
 
-// MARK: - Edit Sheet
+// MARK: - Edit Sheets
 
-private struct CredentialEditSheet: View {
-    @State var credential: EditableCredential
+private struct GitHubCredentialEditSheet: View {
+    @State var profile: EditableGitHubProfile
     let isNew: Bool
-    let onSave: (EditableCredential) -> Void
+    let onSave: (EditableGitHubProfile) -> Void
     let onCancel: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(isNew ? "Add Credential Account" : "Edit Credential Account")
+            Text(isNew ? "Add GitHub Profile" : "Edit GitHub Profile")
                 .font(.title2)
                 .bold()
 
-            LabeledContent("Account Name") {
-                TextField("e.g. work, personal", text: $credential.accountName)
+            LabeledContent("Profile Name") {
+                TextField("e.g. work, personal", text: $profile.profileName)
                     .textFieldStyle(.roundedBorder)
             }
 
             Divider()
 
-            Picker("GitHub Auth", selection: $credential.authMode) {
-                ForEach(GitHubAuthMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
+            LabeledContent("Auth Type") {
+                Picker("", selection: $profile.authMode) {
+                    ForEach(GitHubAuthMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
 
-            switch credential.authMode {
+            switch profile.authMode {
             case .token:
                 LabeledContent("Token") {
-                    SecureField("ghp_...", text: $credential.githubToken)
+                    SecureField("ghp_...", text: $profile.githubToken)
                         .textFieldStyle(.roundedBorder)
                 }
             case .app:
                 LabeledContent("App ID") {
-                    TextField("123456", text: $credential.appId)
+                    TextField("123456", text: $profile.appId)
                         .textFieldStyle(.roundedBorder)
                 }
                 LabeledContent("Installation ID") {
-                    TextField("12345678", text: $credential.installationId)
+                    TextField("12345678", text: $profile.installationId)
                         .textFieldStyle(.roundedBorder)
                 }
                 LabeledContent("Private Key PEM") {
-                    TextEditor(text: $credential.privateKeyPEM)
+                    TextEditor(text: $profile.privateKeyPEM)
                         .font(.system(.body, design: .monospaced))
                         .frame(height: 100)
                         .border(Color.secondary.opacity(0.3))
                 }
-            }
-
-            if !isNew {
-                Text("Leave blank to keep existing credentials.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            LabeledContent("Anthropic Key") {
-                SecureField("sk-ant-...", text: $credential.anthropicKey)
-                    .textFieldStyle(.roundedBorder)
-            }
-            if !isNew {
-                Text("Leave blank to keep the existing key.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             HStack {
@@ -330,14 +412,59 @@ private struct CredentialEditSheet: View {
                 }
                 .keyboardShortcut(.cancelAction)
                 Button("Save") {
-                    onSave(credential)
+                    onSave(profile)
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(credential.accountName.isEmpty || (isNew && !credential.hasGitHubCredential && credential.anthropicKey.isEmpty))
+                .disabled(!profile.canSave)
             }
         }
         .padding()
-        .frame(width: 500)
+        .frame(width: 480)
+    }
+}
+
+private struct AnthropicCredentialEditSheet: View {
+    @State var profile: EditableAnthropicProfile
+    let isNew: Bool
+    let onSave: (EditableAnthropicProfile) -> Void
+    let onCancel: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(isNew ? "Add Anthropic Profile" : "Edit Anthropic Profile")
+                .font(.title2)
+                .bold()
+
+            LabeledContent("Profile Name") {
+                TextField("e.g. default", text: $profile.profileName)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            Divider()
+
+            LabeledContent("API Key") {
+                SecureField("sk-ant-...", text: $profile.apiKey)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    onCancel()
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+                Button("Save") {
+                    onSave(profile)
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!profile.canSave)
+            }
+        }
+        .padding()
+        .frame(width: 400)
     }
 }

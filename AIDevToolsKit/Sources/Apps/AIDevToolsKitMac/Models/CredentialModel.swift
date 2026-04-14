@@ -23,22 +23,6 @@ final class CredentialModel {
         return gh
     }
 
-    // Bridge for views that still use the combined account concept.
-    var credentialAccounts: [CredentialStatus] {
-        let ghIds = Set(gitHubProfiles.map(\.id))
-        let anthropicIds = Set(anthropicProfiles.map(\.id))
-        return ghIds.union(anthropicIds).sorted().map { id in
-            let gitHubAuth: GitHubAuthStatus
-            switch gitHubProfiles.first(where: { $0.id == id })?.auth {
-            case .app: gitHubAuth = .app
-            case .token: gitHubAuth = .token
-            case nil: gitHubAuth = .none
-            }
-            let hasAnthropicKey = anthropicProfiles.contains(where: { $0.id == id })
-            return CredentialStatus(account: id, gitHubAuth: gitHubAuth, hasAnthropicKey: hasAnthropicKey)
-        }
-    }
-
     init(
         listAnthropicProfilesUseCase: ListAnthropicProfilesUseCase,
         listGitHubProfilesUseCase: ListGitHubProfilesUseCase,
@@ -68,19 +52,23 @@ final class CredentialModel {
         )
     }
 
-    func saveCredentials(account: String, gitHubAuth: GitHubAuth?, anthropicKey: String?) throws {
-        if let gitHubAuth {
-            try saveGitHubProfileUseCase.execute(profile: GitHubCredentialProfile(id: account, auth: gitHubAuth))
-        }
-        if let anthropicKey, !anthropicKey.isEmpty {
-            try saveAnthropicProfileUseCase.execute(profile: AnthropicCredentialProfile(id: account, apiKey: anthropicKey))
-        }
+    func saveGitHubProfile(id: String, auth: GitHubAuth) throws {
+        try saveGitHubProfileUseCase.execute(profile: GitHubCredentialProfile(id: id, auth: auth))
         reload()
     }
 
-    func removeCredentials(account: String) throws {
-        removeGitHubProfileUseCase.execute(id: account)
-        removeAnthropicProfileUseCase.execute(id: account)
+    func removeGitHubProfile(id: String) {
+        removeGitHubProfileUseCase.execute(id: id)
+        reload()
+    }
+
+    func saveAnthropicProfile(id: String, apiKey: String) throws {
+        try saveAnthropicProfileUseCase.execute(profile: AnthropicCredentialProfile(id: id, apiKey: apiKey))
+        reload()
+    }
+
+    func removeAnthropicProfile(id: String) {
+        removeAnthropicProfileUseCase.execute(id: id)
         reload()
     }
 

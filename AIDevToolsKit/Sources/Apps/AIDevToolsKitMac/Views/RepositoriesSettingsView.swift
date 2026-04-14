@@ -132,6 +132,7 @@ private struct ConfigurationDetailView: View {
                 detailRow("Name", value: config.name)
                 detailRow("Repo Path", value: config.path.path(percentEncoded: false))
                 detailRow("Description", value: config.description)
+                detailRow("Anthropic Profile", value: config.anthropicCredentialProfileId)
                 detailRow("GitHub Profile", value: config.githubCredentialProfileId)
             }
 
