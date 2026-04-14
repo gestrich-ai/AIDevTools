@@ -25,8 +25,8 @@ public struct FetchReviewCommentsUseCase: UseCase {
         cachedOnly: Bool
     ) async throws -> [ReviewComment] {
         if !cachedOnly {
-            guard let githubAccount = config.githubAccount else {
-                throw CredentialError.notConfigured(account: config.name)
+            guard let githubAccount = config.githubCredentialProfileId else {
+                throw CredentialError.notConfigured(profileId: nil)
             }
             let cacheURL = try config.requireGitHubCacheURL()
             let gitHub = try await GitHubServiceFactory.createGitHubAPI(repoPath: config.repoPath, githubAccount: githubAccount, explicitToken: config.explicitToken)

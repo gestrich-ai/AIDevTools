@@ -18,7 +18,7 @@ struct PRRadarRepoConfigRulePathTests {
                 RulePath(name: "shared", path: "/shared/rules", isDefault: false),
                 RulePath(name: "local", path: "local-rules", isDefault: true),
             ],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 
@@ -39,7 +39,7 @@ struct PRRadarRepoConfigRulePathTests {
                 RulePath(name: "first", path: "first-rules", isDefault: false),
                 RulePath(name: "second", path: "second-rules", isDefault: false),
             ],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 
@@ -57,7 +57,7 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 
@@ -77,7 +77,7 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "shared", path: "/Users/bill/shared-rules", isDefault: true)],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 
@@ -95,7 +95,7 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "local", path: "code-review-rules", isDefault: true)],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 
@@ -113,7 +113,7 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "home", path: "~/shared-rules", isDefault: true)],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 
@@ -132,7 +132,7 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 
@@ -155,7 +155,7 @@ struct PRRadarRepoConfigRulePathTests {
                 RulePath(name: "shared", path: "/shared/rules", isDefault: true),
                 RulePath(name: "local", path: "local-rules", isDefault: false),
             ],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 
@@ -173,7 +173,7 @@ struct PRRadarRepoConfigRulePathTests {
             repoPath: "/tmp/repo",
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "shared", path: "/shared/rules", isDefault: true)],
-            githubAccount: "test",
+            githubCredentialProfileId: "test",
             defaultBaseBranch: "main"
         )
 

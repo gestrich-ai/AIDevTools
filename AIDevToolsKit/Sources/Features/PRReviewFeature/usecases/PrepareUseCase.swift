@@ -27,8 +27,8 @@ public struct PrepareUseCase: StreamingUseCase {
 
             Task {
                 do {
-                    guard let githubAccount = config.githubAccount else {
-                        throw CredentialError.notConfigured(account: config.name)
+                    guard let githubAccount = config.githubCredentialProfileId else {
+                        throw CredentialError.notConfigured(profileId: config.githubCredentialProfileId)
                     }
                     let resolvedCommit: String?
                     if let hash = commitHash {

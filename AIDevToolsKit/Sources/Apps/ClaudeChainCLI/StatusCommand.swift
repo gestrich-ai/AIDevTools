@@ -42,7 +42,7 @@ public struct StatusCommand: AsyncParsableCommand {
         let dataRoot = ResolveDataPathUseCase().resolve().path
         let dataPathsService = try DataPathsService(rootPath: dataRoot)
 
-        let resolver = resolveGitHubCredentials(githubAccount: githubAccount, githubToken: githubToken)
+        let resolver = resolveGitHubCredentials(githubProfileId: githubAccount, githubToken: githubToken)
         let prService = try await GitHubServiceFactory.createPRService(
             repoPath: repoURL.path,
             resolver: resolver,

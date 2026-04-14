@@ -34,8 +34,9 @@ public struct PrepareCommand: AsyncParsableCommand {
             // Falls back to GH_TOKEN env var for GitHub Actions compatibility.
             let githubCredentialProfileId = env["GITHUB_CREDENTIAL_ACCOUNT"] ?? "default"
             let credentialResolver = CredentialResolver(
-                settingsService: SecureSettingsService(),
-                githubAccount: githubCredentialProfileId
+                secureSettings: SecureSettingsService(),
+                githubProfileId: githubCredentialProfileId,
+                anthropicProfileId: nil
             )
             if case .token(let token) = credentialResolver.getGitHubAuth() {
                 setenv("GH_TOKEN", token, 1)

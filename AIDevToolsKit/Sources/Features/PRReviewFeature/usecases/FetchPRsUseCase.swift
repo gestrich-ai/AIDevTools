@@ -26,8 +26,8 @@ public struct FetchPRsUseCase: StreamingUseCase {
             Task {
                 do {
                     let cacheURL = try config.requireGitHubCacheURL()
-                    guard let account = config.githubAccount, !account.isEmpty else {
-                        throw CredentialError.notConfigured(account: config.name)
+                    guard let account = config.githubCredentialProfileId, !account.isEmpty else {
+                        throw CredentialError.notConfigured(profileId: nil)
                     }
                     let gitHub = try await GitHubServiceFactory.createGitHubAPI(repoPath: config.repoPath, githubAccount: account, explicitToken: config.explicitToken)
 

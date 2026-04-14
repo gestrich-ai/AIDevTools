@@ -170,7 +170,7 @@ struct MCPCommand: AsyncParsableCommand {
 
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         do {
-            let resolver = resolveGitHubCredentials(githubAccount: nil, githubToken: nil)
+            let resolver = resolveGitHubCredentials(githubProfileId: nil, githubToken: nil)
             let dataPathsService = try DataPathsService.fromCLI(dataPath: nil)
             let prService = try await GitHubServiceFactory.createPRService(
                 repoPath: cwd.path,

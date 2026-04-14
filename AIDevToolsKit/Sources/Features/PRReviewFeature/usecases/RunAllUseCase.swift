@@ -28,8 +28,8 @@ public struct RunAllUseCase: StreamingUseCase {
 
             Task {
                 do {
-                    guard let githubAccount = config.githubAccount else {
-                        throw CredentialError.notConfigured(account: config.name)
+                    guard let githubAccount = config.githubCredentialProfileId else {
+                        throw CredentialError.notConfigured(profileId: nil)
                     }
                     let gitHub = try await GitHubServiceFactory.createGitHubAPI(repoPath: config.repoPath, githubAccount: githubAccount, explicitToken: config.explicitToken)
 

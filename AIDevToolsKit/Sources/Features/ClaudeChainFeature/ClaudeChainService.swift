@@ -163,7 +163,7 @@ public struct ClaudeChainService {
 
     private func resolveGitHubEnvironment(account: String?) -> [String: String]? {
         guard let account else { return nil }
-        let resolver = CredentialResolver(settingsService: SecureSettingsService(), githubAccount: account)
+        let resolver = CredentialResolver(secureSettings: SecureSettingsService(), githubProfileId: account, anthropicProfileId: nil)
         guard case .token(let token) = resolver.getGitHubAuth() else { return nil }
         var env = ProcessInfo.processInfo.environment
         env["GH_TOKEN"] = token

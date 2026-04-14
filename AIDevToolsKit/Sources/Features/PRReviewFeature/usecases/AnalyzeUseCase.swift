@@ -274,7 +274,7 @@ public struct AnalyzeUseCase: StreamingUseCase {
                 durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
                 totalCost = freshResults.compactMap(\.costUsd).reduce(0, +)
             } catch {
-                if let branch = branchToRestore, let account = config.githubAccount {
+                if let branch = branchToRestore, let account = config.githubCredentialProfileId {
                     // Swallowing intentionally: branch restoration is best-effort cleanup;
                     // the original error is re-thrown regardless.
                     let gitOps = try? await GitHubServiceFactory.createGitOps(githubAccount: account, explicitToken: config.explicitToken)
@@ -283,7 +283,7 @@ public struct AnalyzeUseCase: StreamingUseCase {
                 throw error
             }
 
-            if let branch = branchToRestore, let account = config.githubAccount {
+            if let branch = branchToRestore, let account = config.githubCredentialProfileId {
                 // Swallowing intentionally: branch restoration after a successful run is
                 // best-effort; a failure here should not abort the completed evaluation.
                 let gitOps = try? await GitHubServiceFactory.createGitOps(githubAccount: account, explicitToken: config.explicitToken)
@@ -308,8 +308,8 @@ public struct AnalyzeUseCase: StreamingUseCase {
             return nil
         }
 
-        guard let githubAccount = config.githubAccount else {
-            throw CredentialError.notConfigured(account: config.name)
+        guard let githubAccount = config.githubCredentialProfileId else {
+            throw CredentialError.notConfigured(profileId: config.githubCredentialProfileId)
         }
         let gitOps = try await GitHubServiceFactory.createGitOps(githubAccount: githubAccount, explicitToken: config.explicitToken)
         let originalBranch = try? await gitOps.getCurrentBranch(path: config.repoPath)

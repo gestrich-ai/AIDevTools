@@ -8,29 +8,33 @@ public struct CredentialResolver: Sendable {
     public static let gitHubAppPrivateKeyKey = "GITHUB_APP_PRIVATE_KEY"
     public static let githubTokenKey = "GITHUB_TOKEN"
 
-    private let account: String
+    private let anthropicProfileId: String?
     private let dotEnv: [String: String]
     private let explicitToken: String?
+    private let githubProfileId: String?
     private let processEnvironment: [String: String]
     private let settingsService: SecureSettingsService?
 
     public init(
-        settingsService: SecureSettingsService,
-        githubAccount: String,
+        secureSettings: SecureSettingsService,
+        githubProfileId: String?,
+        anthropicProfileId: String?,
         processEnvironment: [String: String] = ProcessInfo.processInfo.environment,
-        dotEnv: [String: String]? = nil
+        dotEnv: [String: String] = [:]
     ) {
-        self.account = githubAccount
-        self.dotEnv = dotEnv ?? DotEnvironmentLoader().loadDotEnv()
+        self.anthropicProfileId = anthropicProfileId
+        self.dotEnv = dotEnv
         self.explicitToken = nil
+        self.githubProfileId = githubProfileId
         self.processEnvironment = processEnvironment
-        self.settingsService = settingsService
+        self.settingsService = secureSettings
     }
 
     private init(explicitToken: String) {
-        self.account = ""
+        self.anthropicProfileId = nil
         self.dotEnv = [:]
         self.explicitToken = explicitToken
+        self.githubProfileId = nil
         self.processEnvironment = [:]
         self.settingsService = nil
     }
@@ -43,20 +47,20 @@ public struct CredentialResolver: Sendable {
         if let token = explicitToken {
             return .token(token)
         }
-        if let auth = resolveGitHubAppAuth() {
+        if let auth = resolveGitHubAppAuthFromEnv() {
             return auth
         }
-        // Named env key (process env first, then dotEnv)
-        let namedTokenKey = "\(Self.githubTokenKey)_\(account)"
-        if let token = processEnvironment[namedTokenKey] ?? dotEnv[namedTokenKey] {
-            return .token(token)
+        if let profileId = githubProfileId {
+            let namedTokenKey = "\(Self.githubTokenKey)_\(profileId)"
+            if let token = processEnvironment[namedTokenKey] ?? dotEnv[namedTokenKey] {
+                return .token(token)
+            }
         }
-        // Keychain
-        if let service = settingsService,
-           let token = try? service.loadCredential(account: account, type: SecureSettingsService.gitHubTokenType) {
-            return .token(token)
+        if let profileId = githubProfileId,
+           let service = settingsService,
+           let profile = service.loadGitHubProfile(id: profileId) {
+            return profile.auth
         }
-        // Unnamed env keys
         if let token = processEnvironment[Self.githubTokenKey] ?? dotEnv[Self.githubTokenKey] {
             return .token(token)
         }
@@ -68,7 +72,7 @@ public struct CredentialResolver: Sendable {
 
     public func requireGitHubAuth() throws -> GitHubAuth {
         guard let auth = getGitHubAuth() else {
-            throw CredentialError.notConfigured(account: account)
+            throw CredentialError.notConfigured(profileId: githubProfileId)
         }
         return auth
     }
@@ -80,40 +84,31 @@ public struct CredentialResolver: Sendable {
     }
 
     public func getAnthropicKey() -> String? {
-        resolveValue(envKey: Self.anthropicAPIKeyKey, keychainType: SecureSettingsService.anthropicKeyType)
-    }
-
-    private func resolveGitHubAppAuth() -> GitHubAuth? {
-        // Named env keys first
-        let namedAppIdKey = "\(Self.gitHubAppIdKey)_\(account)"
-        let namedInstallationIdKey = "\(Self.gitHubAppInstallationIdKey)_\(account)"
-        let namedPrivateKeyKey = "\(Self.gitHubAppPrivateKeyKey)_\(account)"
-        if let appId = processEnvironment[namedAppIdKey] ?? dotEnv[namedAppIdKey],
-           let installationId = processEnvironment[namedInstallationIdKey] ?? dotEnv[namedInstallationIdKey],
-           let privateKey = processEnvironment[namedPrivateKeyKey] ?? dotEnv[namedPrivateKeyKey] {
-            return .app(appId: appId, installationId: installationId, privateKeyPEM: privateKey)
-        }
-        // Keychain
-        if let service = settingsService,
-           let appId = try? service.loadCredential(account: account, type: SecureSettingsService.gitHubAppIdType),
-           let installationId = try? service.loadCredential(account: account, type: SecureSettingsService.gitHubAppInstallationIdType),
-           let privateKey = try? service.loadCredential(account: account, type: SecureSettingsService.gitHubAppPrivateKeyType) {
-            return .app(appId: appId, installationId: installationId, privateKeyPEM: privateKey)
-        }
-        // Unnamed env keys
-        if let appId = processEnvironment[Self.gitHubAppIdKey] ?? dotEnv[Self.gitHubAppIdKey],
-           let installationId = processEnvironment[Self.gitHubAppInstallationIdKey] ?? dotEnv[Self.gitHubAppInstallationIdKey],
-           let privateKey = processEnvironment[Self.gitHubAppPrivateKeyKey] ?? dotEnv[Self.gitHubAppPrivateKeyKey] {
-            return .app(appId: appId, installationId: installationId, privateKeyPEM: privateKey)
+        if let v = processEnvironment[Self.anthropicAPIKeyKey] { return v }
+        if let v = dotEnv[Self.anthropicAPIKeyKey] { return v }
+        if let profileId = anthropicProfileId,
+           let service = settingsService,
+           let profile = service.loadAnthropicProfile(id: profileId) {
+            return profile.apiKey
         }
         return nil
     }
 
-    private func resolveValue(envKey: String, keychainType: String) -> String? {
-        if let v = processEnvironment[envKey] { return v }
-        if let v = dotEnv[envKey] { return v }
-        if let service = settingsService {
-            return try? service.loadCredential(account: account, type: keychainType)
+    private func resolveGitHubAppAuthFromEnv() -> GitHubAuth? {
+        if let profileId = githubProfileId {
+            let namedAppIdKey = "\(Self.gitHubAppIdKey)_\(profileId)"
+            let namedInstallationIdKey = "\(Self.gitHubAppInstallationIdKey)_\(profileId)"
+            let namedPrivateKeyKey = "\(Self.gitHubAppPrivateKeyKey)_\(profileId)"
+            if let appId = processEnvironment[namedAppIdKey] ?? dotEnv[namedAppIdKey],
+               let installationId = processEnvironment[namedInstallationIdKey] ?? dotEnv[namedInstallationIdKey],
+               let privateKey = processEnvironment[namedPrivateKeyKey] ?? dotEnv[namedPrivateKeyKey] {
+                return .app(appId: appId, installationId: installationId, privateKeyPEM: privateKey)
+            }
+        }
+        if let appId = processEnvironment[Self.gitHubAppIdKey] ?? dotEnv[Self.gitHubAppIdKey],
+           let installationId = processEnvironment[Self.gitHubAppInstallationIdKey] ?? dotEnv[Self.gitHubAppInstallationIdKey],
+           let privateKey = processEnvironment[Self.gitHubAppPrivateKeyKey] ?? dotEnv[Self.gitHubAppPrivateKeyKey] {
+            return .app(appId: appId, installationId: installationId, privateKeyPEM: privateKey)
         }
         return nil
     }

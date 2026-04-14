@@ -55,7 +55,7 @@ struct SweepRunCommand: AsyncParsableCommand {
             repoURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         }
 
-        let root = try CLICompositionRoot.create(githubAccount: githubAccount, githubToken: githubToken, printGitOutput: false)
+        let root = try CLICompositionRoot.create(githubProfileId: githubAccount, githubToken: githubToken, printGitOutput: false)
         let registry = root.providerRegistry
         guard let client = provider.flatMap({ registry.client(named: $0) }) ?? registry.defaultClient else {
             print("Error: No AI provider available. Configure an API key or install Claude CLI.")

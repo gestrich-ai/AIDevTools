@@ -9,7 +9,7 @@ import Foundation
 /// When `githubToken` is provided it is used directly with no keychain or env fallback.
 @discardableResult
 public func resolveGitHubCredentials(
-    githubAccount: String?,
+    githubProfileId: String?,
     githubToken: String? = nil
 ) -> CredentialResolver {
     let resolver: CredentialResolver
@@ -17,9 +17,9 @@ public func resolveGitHubCredentials(
         resolver = CredentialResolver.withExplicitToken(githubToken)
     } else {
         let service = SecureSettingsService()
-        // Swallowing intentionally: credential account enumeration failure is non-fatal — fall back to "default".
-        let account = githubAccount ?? (try? service.listGitHubProfileIds())?.first ?? "default"
-        resolver = CredentialResolver(settingsService: service, githubAccount: account)
+        // Swallowing intentionally: credential profile enumeration failure is non-fatal — fall back to nil.
+        let profileId = githubProfileId ?? (try? service.listGitHubProfileIds())?.first
+        resolver = CredentialResolver(secureSettings: service, githubProfileId: profileId, anthropicProfileId: nil)
     }
     if case .token(let token) = resolver.getGitHubAuth() {
         setenv("GH_TOKEN", token, 1)

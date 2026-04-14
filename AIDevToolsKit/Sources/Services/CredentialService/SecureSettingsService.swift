@@ -2,12 +2,6 @@ import Foundation
 import KeychainSDK
 
 public final class SecureSettingsService: Sendable {
-    public static let anthropicKeyType = "anthropic-api-key"
-    public static let gitHubAppIdType = "github-app-id"
-    public static let gitHubAppInstallationIdType = "github-app-installation-id"
-    public static let gitHubAppPrivateKeyType = "github-app-private-key"
-    public static let gitHubTokenType = "github-token"
-
     private let keychain: KeychainStoring
 
     public init() {
@@ -101,14 +95,6 @@ public final class SecureSettingsService: Sendable {
         return profileIds.sorted()
     }
 
-    // MARK: - Internal
-
-    // Bridge used by CredentialResolver (Phase 3 will remove this).
-    // Maps old account+type pairs to the new profile key format.
-    func loadCredential(account: String, type: String) throws -> String {
-        try keychain.string(forKey: profileKey(account: account, type: type))
-    }
-
     // MARK: - Key Helpers
 
     private func githubProfileKey(_ profileId: String, _ suffix: String) -> String {
@@ -119,20 +105,5 @@ public final class SecureSettingsService: Sendable {
         "anthropic-profiles/\(profileId)/api-key"
     }
 
-    private func profileKey(account: String, type: String) -> String {
-        switch type {
-        case Self.anthropicKeyType:
-            return anthropicProfileKey(account)
-        case Self.gitHubTokenType:
-            return githubProfileKey(account, "token")
-        case Self.gitHubAppIdType:
-            return githubProfileKey(account, "app-id")
-        case Self.gitHubAppInstallationIdType:
-            return githubProfileKey(account, "installation-id")
-        case Self.gitHubAppPrivateKeyType:
-            return githubProfileKey(account, "private-key")
-        default:
-            return "\(account)/\(type)"
-        }
-    }
+
 }

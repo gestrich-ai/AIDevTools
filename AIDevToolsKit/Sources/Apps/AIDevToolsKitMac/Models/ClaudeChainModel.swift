@@ -356,7 +356,7 @@ final class ClaudeChainModel {
     private func makeOrGetGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
         if let service = gitHubPRService { return service }
         guard let account = currentGithubProfileId, !account.isEmpty else {
-            throw CredentialError.notConfigured(account: "")
+            throw CredentialError.notConfigured(profileId: currentGithubProfileId)
         }
         let service = try await GitHubServiceFactory.createPRService(
             repoPath: repoPath.path,
@@ -370,7 +370,7 @@ final class ClaudeChainModel {
     private func makeOrGetGitHubRepoConfig(repoPath: URL) async throws -> GitHubRepoConfig {
         if let config = gitHubRepoConfig { return config }
         guard let account = currentGithubProfileId, !account.isEmpty else {
-            throw CredentialError.notConfigured(account: "")
+            throw CredentialError.notConfigured(profileId: currentGithubProfileId)
         }
         let config = try await GitHubServiceFactory.makeRepoConfig(
             repoPath: repoPath.path,

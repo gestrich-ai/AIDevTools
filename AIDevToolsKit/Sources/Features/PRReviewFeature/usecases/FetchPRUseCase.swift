@@ -67,8 +67,8 @@ public struct FetchPRUseCase: StreamingUseCase {
                 do {
                     try Task.checkCancellation()
 
-                    guard let githubAccount = config.githubAccount else {
-                        throw CredentialError.notConfigured(account: config.name)
+                    guard let githubAccount = config.githubCredentialProfileId else {
+                        throw CredentialError.notConfigured(profileId: config.githubCredentialProfileId)
                     }
                     let gitHub = try await GitHubServiceFactory.createGitHubAPI(repoPath: config.repoPath, githubAccount: githubAccount, explicitToken: config.explicitToken)
                     let gitOps = try await GitHubServiceFactory.createGitOps(githubAccount: githubAccount, explicitToken: config.explicitToken)

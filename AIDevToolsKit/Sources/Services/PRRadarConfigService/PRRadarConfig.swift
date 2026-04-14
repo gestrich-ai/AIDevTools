@@ -11,7 +11,7 @@ public struct PRRadarRepoConfig: Sendable {
     public let repoPath: String
     public let outputDir: String
     public let rulePaths: [RulePath]
-    public let githubAccount: String?
+    public let githubCredentialProfileId: String?
     public let diffSource: DiffSource
     public let defaultBaseBranch: String
     public let dataRootURL: URL?
@@ -23,7 +23,7 @@ public struct PRRadarRepoConfig: Sendable {
         repoPath: String,
         outputDir: String,
         rulePaths: [RulePath] = [],
-        githubAccount: String?,
+        githubCredentialProfileId: String?,
         diffSource: DiffSource = .git,
         defaultBaseBranch: String,
         dataRootURL: URL? = nil,
@@ -34,7 +34,7 @@ public struct PRRadarRepoConfig: Sendable {
         self.repoPath = repoPath
         self.outputDir = outputDir
         self.rulePaths = rulePaths
-        self.githubAccount = githubAccount
+        self.githubCredentialProfileId = githubCredentialProfileId
         self.diffSource = diffSource
         self.defaultBaseBranch = defaultBaseBranch
         self.dataRootURL = dataRootURL
@@ -54,7 +54,7 @@ public struct PRRadarRepoConfig: Sendable {
             repoPath: info.path.path(percentEncoded: false),
             outputDir: outputDir,
             rulePaths: settings.rulePaths,
-            githubAccount: info.githubCredentialProfileId,
+            githubCredentialProfileId: info.githubCredentialProfileId,
             diffSource: settings.diffSource,
             defaultBaseBranch: info.pullRequest?.baseBranch ?? PullRequestConfig.defaultBaseBranch,
             dataRootURL: dataRootURL,
@@ -118,11 +118,11 @@ public struct PRRadarRepoConfig: Sendable {
 
     public func makeGitHubRepoConfig() throws -> GitHubRepoConfig {
         let cacheURL = try requireGitHubCacheURL()
-        guard let account = githubAccount, !account.isEmpty else {
+        guard let profileId = githubCredentialProfileId, !profileId.isEmpty else {
             throw PRRadarRepoConfigError.noGitHubAccount(repoName: name)
         }
         return GitHubRepoConfig(
-            account: account,
+            account: profileId,
             cacheURL: cacheURL,
             name: name,
             repoPath: repoPath,

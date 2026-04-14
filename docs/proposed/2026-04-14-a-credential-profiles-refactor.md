@@ -123,7 +123,10 @@ Update `EnvironmentKeychainStore` (non-macOS fallback) to map the new key patter
 
 ---
 
-## - [ ] Phase 3: Credential Resolver
+## - [x] Phase 3: Credential Resolver
+
+**Skills used**: `ai-dev-tools-composition-root`, `ai-dev-tools-architecture`
+**Principles applied**: `CredentialResolver` init updated to `secureSettings:githubProfileId:anthropicProfileId:` — two independent profile IDs replace the single `account: String`. Keychain lookups now go through `SecureSettingsService.loadGitHubProfile(id:)` and `loadAnthropicProfile(id:)` directly; the Phase 2 bridge method `loadCredential(account:type:)` removed. `CredentialError.notConfigured` updated to carry `profileId: String?`. `PRRadarRepoConfig.githubAccount` renamed to `githubCredentialProfileId` and all callers updated. `resolveGitHubCredentials` parameter renamed from `githubAccount:` to `githubProfileId:` throughout both CLICompositionRoots and callers. `PRRadarConfigService.CredentialResolver` updated to use `githubProfileId` with the new profile key format. All tests updated.
 
 **Skills to read**: `ai-dev-tools-composition-root`, `ai-dev-tools-architecture`
 

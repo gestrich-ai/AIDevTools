@@ -16,9 +16,14 @@ public struct SharedCompositionRoot {
 
     public static func create() throws -> SharedCompositionRoot {
         let secureSettings = SecureSettingsService()
-        // Swallowing intentionally: credential account enumeration failure is non-fatal — fall back to "default".
-        let account = (try? secureSettings.listGitHubProfileIds())?.first ?? "default"
-        let credentialResolver = CredentialResolver(settingsService: secureSettings, githubAccount: account)
+        // Swallowing intentionally: credential profile enumeration failure is non-fatal — fall back to nil.
+        let githubProfileId = (try? secureSettings.listGitHubProfileIds())?.first
+        let anthropicProfileId = (try? secureSettings.listAnthropicProfileIds())?.first
+        let credentialResolver = CredentialResolver(
+            secureSettings: secureSettings,
+            githubProfileId: githubProfileId,
+            anthropicProfileId: anthropicProfileId
+        )
         return try create(credentialResolver: credentialResolver)
     }
 

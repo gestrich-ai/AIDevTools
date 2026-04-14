@@ -12,8 +12,9 @@ struct CredentialResolverTests {
         try service.saveAnthropicProfile(AnthropicCredentialProfile(id: "testaccount", apiKey: "keychain-key"))
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "testaccount",
+            secureSettings: service,
+            githubProfileId: "testaccount",
+            anthropicProfileId: "testaccount",
             processEnvironment: ["ANTHROPIC_API_KEY": "env-key"],
             dotEnv: [:]
         )
@@ -28,8 +29,9 @@ struct CredentialResolverTests {
         try service.saveAnthropicProfile(AnthropicCredentialProfile(id: "testaccount", apiKey: "keychain-key"))
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "testaccount",
+            secureSettings: service,
+            githubProfileId: "testaccount",
+            anthropicProfileId: "testaccount",
             processEnvironment: [:],
             dotEnv: ["ANTHROPIC_API_KEY": "dotenv-key"]
         )
@@ -44,8 +46,9 @@ struct CredentialResolverTests {
         try service.saveAnthropicProfile(AnthropicCredentialProfile(id: "testaccount", apiKey: "keychain-key"))
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "testaccount",
+            secureSettings: service,
+            githubProfileId: "testaccount",
+            anthropicProfileId: "testaccount",
             processEnvironment: [:],
             dotEnv: [:]
         )
@@ -59,8 +62,9 @@ struct CredentialResolverTests {
         let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "testaccount",
+            secureSettings: service,
+            githubProfileId: "testaccount",
+            anthropicProfileId: "testaccount",
             processEnvironment: [:],
             dotEnv: [:]
         )
@@ -75,8 +79,9 @@ struct CredentialResolverTests {
         let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "testaccount",
+            secureSettings: service,
+            githubProfileId: "testaccount",
+            anthropicProfileId: nil,
             processEnvironment: ["GITHUB_TOKEN": "ghp_envtoken"],
             dotEnv: [:]
         )
@@ -95,8 +100,9 @@ struct CredentialResolverTests {
         let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "testaccount",
+            secureSettings: service,
+            githubProfileId: "testaccount",
+            anthropicProfileId: nil,
             processEnvironment: [
                 "GITHUB_APP_ID": "111",
                 "GITHUB_APP_INSTALLATION_ID": "222",
@@ -121,8 +127,9 @@ struct CredentialResolverTests {
         let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "testaccount",
+            secureSettings: service,
+            githubProfileId: "testaccount",
+            anthropicProfileId: nil,
             processEnvironment: [
                 "GITHUB_APP_ID": "111",
                 "GITHUB_APP_INSTALLATION_ID": "222",
@@ -139,14 +146,15 @@ struct CredentialResolverTests {
         }
     }
 
-    @Test("named env key GITHUB_TOKEN_<account> takes priority over unnamed GITHUB_TOKEN")
+    @Test("named env key GITHUB_TOKEN_<profileId> takes priority over unnamed GITHUB_TOKEN")
     func namedEnvKeyTakesPriorityOverUnnamed() {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "gestrich",
+            secureSettings: service,
+            githubProfileId: "gestrich",
+            anthropicProfileId: nil,
             processEnvironment: [:],
             dotEnv: [
                 "GITHUB_TOKEN_gestrich": "named-token",
@@ -168,8 +176,9 @@ struct CredentialResolverTests {
         let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "gestrich",
+            secureSettings: service,
+            githubProfileId: "gestrich",
+            anthropicProfileId: nil,
             processEnvironment: [:],
             dotEnv: ["GITHUB_TOKEN": "fallback-token"]
         )
@@ -200,8 +209,9 @@ struct CredentialResolverTests {
         let service = SecureSettingsService(keychain: keychain)
 
         let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "gestrich",
+            secureSettings: service,
+            githubProfileId: "gestrich",
+            anthropicProfileId: nil,
             processEnvironment: [:],
             dotEnv: [:]
         )

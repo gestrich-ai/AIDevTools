@@ -24,7 +24,7 @@ struct LoadPRDetailUseCaseTests {
     }
 
     private func makeConfig(outputDir: String) -> PRRadarRepoConfig {
-        PRRadarRepoConfig(name: "test", repoPath: "/tmp/fake-repo", outputDir: outputDir, rulePaths: [RulePath(name: "default", path: "/tmp/rules", isDefault: true)], githubAccount: "test", defaultBaseBranch: "main")
+        PRRadarRepoConfig(name: "test", repoPath: "/tmp/fake-repo", outputDir: outputDir, rulePaths: [RulePath(name: "default", path: "/tmp/rules", isDefault: true)], githubCredentialProfileId: "test", defaultBaseBranch: "main")
     }
 
     private func writeJSON<T: Encodable>(_ value: T, to path: String) throws {

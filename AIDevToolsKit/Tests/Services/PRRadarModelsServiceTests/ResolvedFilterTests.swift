@@ -10,7 +10,7 @@ struct MakeFilterTests {
         name: "test",
         repoPath: "/tmp/repo",
         outputDir: "/tmp/output",
-        githubAccount: "owner/repo",
+        githubCredentialProfileId: "owner/repo",
         defaultBaseBranch: "main"
     )
 

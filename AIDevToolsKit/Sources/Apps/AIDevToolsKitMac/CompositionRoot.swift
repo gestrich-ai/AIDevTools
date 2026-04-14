@@ -19,11 +19,12 @@ struct CompositionRoot {
         let shared = try SharedCompositionRoot.create()
         let settingsModel = SettingsModel()
 
-        let gitClientFactory: @Sendable (String?) -> GitClient = { account in
-            guard let account else { return GitClient() }
+        let gitClientFactory: @Sendable (String?) -> GitClient = { profileId in
+            guard let profileId else { return GitClient() }
             let resolver = CredentialResolver(
-                settingsService: SecureSettingsService(),
-                githubAccount: account
+                secureSettings: SecureSettingsService(),
+                githubProfileId: profileId,
+                anthropicProfileId: nil
             )
             guard case .token(let token) = resolver.getGitHubAuth() else { return GitClient() }
             setenv("GH_TOKEN", token, 1)
@@ -36,8 +37,14 @@ struct CompositionRoot {
 
         let providerModel = ProviderModel(registrySource: {
             let secureSettings = SecureSettingsService()
-            let account = (try? secureSettings.listGitHubProfileIds())?.first ?? "default"
-            let resolver = CredentialResolver(settingsService: secureSettings, githubAccount: account)
+            // Swallowing intentionally: credential profile enumeration failure is non-fatal — fall back to nil.
+            let githubProfileId = (try? secureSettings.listGitHubProfileIds())?.first
+            let anthropicProfileId = (try? secureSettings.listAnthropicProfileIds())?.first
+            let resolver = CredentialResolver(
+                secureSettings: secureSettings,
+                githubProfileId: githubProfileId,
+                anthropicProfileId: anthropicProfileId
+            )
             return SharedCompositionRoot.buildProviderRegistry(
                 anthropicAPIKey: resolver.getAnthropicKey(),
                 sessionsDirectory: sessionsDirectory,

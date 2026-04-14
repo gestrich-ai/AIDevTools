@@ -219,8 +219,9 @@ public struct PlanService: UseCase {
         var environment: [String: String]?
         if let githubCredentialProfileId = options.repository?.githubCredentialProfileId {
             let resolver = CredentialResolver(
-                settingsService: SecureSettingsService(),
-                githubAccount: githubCredentialProfileId
+                secureSettings: SecureSettingsService(),
+                githubProfileId: githubCredentialProfileId,
+                anthropicProfileId: nil
             )
             if case .token(let token) = resolver.getGitHubAuth() {
                 var env = ProcessInfo.processInfo.environment

@@ -86,7 +86,7 @@ func resolvePRRadarConfig(repoName: String?, diffSource: DiffSource? = nil, gith
             repoPath: config.repoPath,
             outputDir: config.outputDir,
             rulePaths: config.rulePaths,
-            githubAccount: config.githubAccount,
+            githubCredentialProfileId: config.githubCredentialProfileId,
             diffSource: diffSource,
             defaultBaseBranch: config.defaultBaseBranch,
             dataRootURL: config.dataRootURL,

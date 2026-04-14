@@ -111,7 +111,7 @@ public struct GitHubServiceFactory: Sendable {
 
     public static func resolveToken(githubAccount: String, explicitToken: String? = nil) async throws -> String {
         if let explicitToken { return explicitToken }
-        let resolver = CredentialResolver(settingsService: SecureSettingsService(), githubAccount: githubAccount)
+        let resolver = CredentialResolver(secureSettings: SecureSettingsService(), githubProfileId: githubAccount, anthropicProfileId: nil)
         guard let auth = resolver.getGitHubAuth() else {
             throw GitHubServiceError.missingToken
         }
