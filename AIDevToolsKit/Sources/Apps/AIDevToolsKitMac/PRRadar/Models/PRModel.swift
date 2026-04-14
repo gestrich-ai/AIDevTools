@@ -986,7 +986,8 @@ final class PRModel: Identifiable, Hashable {
                     appendLog(text, to: .report)
                 case .prepareStreamEvent: break
                 case .taskEvent: break
-                case .completed:
+                case .completed(let output):
+                    report = output
                     completePhase(.report)
                 case .failed(let error, let logs):
                     failPhase(.report, error: error, logs: logs)

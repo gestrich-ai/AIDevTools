@@ -176,7 +176,10 @@ Remove the standalone `reloadDetail()` call in `runFilteredAnalysis`. The `compl
 
 **Do not add orchestration logic here.** Setting `_savedAnalysis` and updating `analysisState` from the payload is appropriate model work. Adding calls to other use cases, spawning Tasks, or triggering further phase transitions from inside this handler is not — that belongs in `runAnalysis`.
 
-## - [ ] Phase 4: Fix report phase handler
+## - [x] Phase 4: Fix report phase handler
+
+**Skills used**: `ai-dev-tools-code-quality`
+**Principles applied**: Captured `ReportPhaseOutput` from `.completed(let output)` and assigned it directly to `report`, removing the implicit reload via `completePhase`. No other state updates needed — `analysisState` is owned by Phase 3.
 
 **Skills to read**: `ai-dev-tools-code-quality`
 
