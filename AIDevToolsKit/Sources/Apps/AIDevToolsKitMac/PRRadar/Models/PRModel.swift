@@ -25,6 +25,10 @@ final class PRModel: Identifiable, Hashable {
     private(set) var detail: PRDetail?
     private(set) var resolvedDiff: ResolvedDiff?
     private var inProgressAnalysis: PRReviewResult?
+    private var _savedAnalysis: PRReviewResult?
+    private(set) var preparation: PrepareOutput?
+    private(set) var report: ReportPhaseOutput?
+    private(set) var syncSnapshot: SyncSnapshot?
     private(set) var comments: CommentPhaseOutput?
 
     private(set) var commentPostingState: CommentPostingState = .idle
@@ -52,9 +56,7 @@ final class PRModel: Identifiable, Hashable {
 
     // MARK: - Forwarding Properties
 
-    var syncSnapshot: SyncSnapshot? { detail?.syncSnapshot }
-    var preparation: PrepareOutput? { detail?.preparation }
-    var analysis: PRReviewResult? { inProgressAnalysis ?? detail?.analysis }
+    var analysis: PRReviewResult? { inProgressAnalysis ?? _savedAnalysis }
 
     func ruleGroups(forFile filePath: String) -> [RuleGroup] {
         RuleGroup.fromTasks((preparation?.tasks ?? []).filter { $0.focusArea.filePath == filePath })
@@ -73,7 +75,6 @@ final class PRModel: Identifiable, Hashable {
             return task.focusArea
         }
     }
-    var report: ReportPhaseOutput? { detail?.report }
     var imageURLMap: [String: String] { detail?.imageURLMap ?? [:] }
     var imageBaseDir: String? { detail?.imageBaseDir }
     var savedOutputs: [PRRadarPhase: [EvaluationOutput]] { detail?.savedOutputs ?? [:] }
@@ -253,6 +254,10 @@ final class PRModel: Identifiable, Hashable {
         detail = nil
         resolvedDiff = nil
         inProgressAnalysis = nil
+        _savedAnalysis = nil
+        preparation = nil
+        report = nil
+        syncSnapshot = nil
         comments = nil
         reviewComments = []
         analysisState = .loading
@@ -308,6 +313,11 @@ final class PRModel: Identifiable, Hashable {
                 phaseStates[phase] = .failed(error: status.missingItems.first ?? "Incomplete", logs: "")
             }
         }
+
+        if case .running = phaseStates[.diff] {} else { syncSnapshot = newDetail.syncSnapshot }
+        if case .running = phaseStates[.prepare] {} else { preparation = newDetail.preparation }
+        if case .running = phaseStates[.analyze] {} else { _savedAnalysis = newDetail.analysis }
+        if case .running = phaseStates[.report] {} else { report = newDetail.report }
 
         if let taskEvals = newDetail.taskEvaluations {
             let outputMap = Dictionary(
@@ -456,6 +466,10 @@ final class PRModel: Identifiable, Hashable {
 
     func switchToCommit(_ commitHash: String) {
         inProgressAnalysis = nil
+        _savedAnalysis = nil
+        preparation = nil
+        report = nil
+        syncSnapshot = nil
         comments = nil
         phaseStates = [:]
         reloadDetail(commitHash: commitHash)
@@ -769,8 +783,8 @@ final class PRModel: Identifiable, Hashable {
                 case .completed:
                     prepareAccumulator = nil
                     prepareStreamModel?.finalizeCurrentStreamingMessage()
+                    await reloadDetailAsync()
                     logger.info("Prepare phase completed", metadata: ["tasks": "\(preparation?.tasks.count ?? 0)"])
-                    reloadDetail()
                     completePhase(.prepare)
                 case .failed(let error, let logs):
                     prepareAccumulator = nil
