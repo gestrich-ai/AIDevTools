@@ -17,4 +17,8 @@ public struct RulePath: Codable, Sendable, Identifiable, Hashable {
         self.path = path
         self.isDefault = isDefault
     }
+
+    public static func makeNew(existingCount: Int, isDefault: Bool) -> RulePath {
+        RulePath(name: "rules-\(existingCount + 1)", path: "", isDefault: isDefault)
+    }
 }

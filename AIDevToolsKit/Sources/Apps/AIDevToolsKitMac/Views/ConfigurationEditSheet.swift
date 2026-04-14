@@ -20,7 +20,7 @@ struct ConfigurationEditSheet: View {
     @State private var prBranchNamingText: String
     @State private var prTemplateText: String
     @State private var prNotesText: String
-    @State private var prradarRulePathsText: String
+    @State private var prradarRulePaths: [RulePath]
     @State private var prradarDiffSource: DiffSource
     let isNew: Bool
     let onSave: (RepositoryConfiguration, String?, String?, String?) -> Void
@@ -61,9 +61,8 @@ struct ConfigurationEditSheet: View {
         _prBranchNamingText = State(initialValue: config.pullRequest?.branchNamingConvention ?? PullRequestConfig.defaultBranchNamingConvention)
         _prTemplateText = State(initialValue: config.pullRequest?.template ?? "")
         _prNotesText = State(initialValue: config.pullRequest?.notes ?? "")
-        let settings = prradarSettings
-        _prradarRulePathsText = State(initialValue: (settings?.rulePaths ?? []).map { "\($0.name):\($0.path)" }.joined(separator: "\n"))
-        _prradarDiffSource = State(initialValue: settings?.diffSource ?? .git)
+        _prradarRulePaths = State(initialValue: prradarSettings?.rulePaths ?? [])
+        _prradarDiffSource = State(initialValue: prradarSettings?.diffSource ?? .git)
     }
 
     var body: some View {
@@ -131,9 +130,7 @@ struct ConfigurationEditSheet: View {
                 }
 
                 Section("PR Radar") {
-                    LabeledContent("Rule Paths") {
-                        multilineField(text: $prradarRulePathsText, placeholder: "name:path — one per line, e.g. default:code-review-rules")
-                    }
+                    rulePathsSection
                     LabeledContent("Diff Source") {
                         Picker("", selection: $prradarDiffSource) {
                             ForEach(DiffSource.allCases, id: \.self) { source in
@@ -221,9 +218,8 @@ struct ConfigurationEditSheet: View {
         onSave(updated, cases, completed, proposed)
 
         if let onSavePRRadarSettings {
-            let rulePaths = parsePRRadarRulePaths(prradarRulePathsText)
             let settings = PRRadarRepoSettings(
-                rulePaths: rulePaths,
+                rulePaths: prradarRulePaths,
                 diffSource: prradarDiffSource
             )
             onSavePRRadarSettings(settings)
@@ -238,18 +234,62 @@ struct ConfigurationEditSheet: View {
             .filter { !$0.isEmpty }
     }
 
-    private func parsePRRadarRulePaths(_ text: String) -> [RulePath] {
-        text.split(separator: "\n")
-            .compactMap { line -> RulePath? in
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                guard !trimmed.isEmpty else { return nil }
-                let parts = trimmed.split(separator: ":", maxSplits: 1).map(String.init)
-                if parts.count == 2 {
-                    return RulePath(name: parts[0], path: parts[1])
-                } else {
-                    return RulePath(name: trimmed, path: trimmed)
+    private var rulePathsSection: some View {
+        LabeledContent("Rule Paths") {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach($prradarRulePaths) { $rulePath in
+                    HStack(spacing: 6) {
+                        TextField("Name", text: $rulePath.name)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 90)
+
+                        TextField("Path", text: $rulePath.path)
+                            .textFieldStyle(.roundedBorder)
+
+                        Button {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.allowsMultipleSelection = false
+                            if panel.runModal() == .OK, let url = panel.url {
+                                rulePath.path = url.path
+                            }
+                        } label: {
+                            Image(systemName: "folder")
+                        }
+                        .buttonStyle(.borderless)
+
+                        Toggle("Default", isOn: Binding(
+                            get: { rulePath.isDefault },
+                            set: { newValue in
+                                if newValue {
+                                    for i in prradarRulePaths.indices {
+                                        prradarRulePaths[i].isDefault = prradarRulePaths[i].id == rulePath.id
+                                    }
+                                } else {
+                                    rulePath.isDefault = false
+                                }
+                            }
+                        ))
+                        .toggleStyle(.checkbox)
+
+                        Button(role: .destructive) {
+                            prradarRulePaths.removeAll { $0.id == rulePath.id }
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
+
+                Button {
+                    prradarRulePaths.append(RulePath.makeNew(existingCount: prradarRulePaths.count, isDefault: prradarRulePaths.isEmpty))
+                } label: {
+                    Label("Add Rule Path", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
             }
+        }
     }
 
     private func multilineField(text: Binding<String>, placeholder: String) -> some View {

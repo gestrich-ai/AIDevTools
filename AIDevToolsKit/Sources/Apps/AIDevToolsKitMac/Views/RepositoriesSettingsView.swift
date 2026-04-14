@@ -160,7 +160,13 @@ private struct ConfigurationDetailView: View {
 
             if let prradar = config.prradar {
                 Section("PR Radar") {
-                    detailRow("Rule Paths", value: prradar.rulePaths.map { "\($0.name):\($0.path)" }.joined(separator: ", "))
+                    if prradar.rulePaths.isEmpty {
+                        detailRow("Rule Paths", value: nil)
+                    } else {
+                        ForEach(prradar.rulePaths) { rulePath in
+                            detailRow(rulePath.name, value: rulePath.path)
+                        }
+                    }
                     detailRow("Diff Source", value: prradar.diffSource.displayName)
                 }
             }

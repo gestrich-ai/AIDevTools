@@ -3,7 +3,7 @@ import Foundation
 public enum PathUtilities {
     /// Expands `~` in the path.
     public static func expandTilde(_ path: String) -> String {
-        NSString(string: path).expandingTildeInPath
+        NSString(string: path.trimmingCharacters(in: .whitespaces)).expandingTildeInPath
     }
 
     /// Expands `~`, then resolves relative paths against `basePath`.
