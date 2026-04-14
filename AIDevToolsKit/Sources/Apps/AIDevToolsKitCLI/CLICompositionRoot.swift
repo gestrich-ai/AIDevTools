@@ -25,8 +25,8 @@ struct CLICompositionRoot {
         return CLICompositionRoot(shared: shared)
     }
 
-    static func create(githubProfileId: String?, githubToken: String? = nil, printGitOutput: Bool = true) throws -> CLICompositionRoot {
-        let resolver = resolveGitHubCredentials(githubProfileId: githubProfileId, githubToken: githubToken)
+    static func create(githubProfileId: String?, anthropicProfileId: String? = nil, githubToken: String? = nil, printGitOutput: Bool = true) throws -> CLICompositionRoot {
+        let resolver = resolveGitHubCredentials(githubProfileId: githubProfileId, anthropicProfileId: anthropicProfileId, githubToken: githubToken)
         let shared = try SharedCompositionRoot.create(credentialResolver: resolver)
         return CLICompositionRoot(shared: shared, printGitOutput: printGitOutput)
     }

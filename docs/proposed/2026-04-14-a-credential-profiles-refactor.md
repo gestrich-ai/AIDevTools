@@ -219,9 +219,10 @@ Rewrite the credential management views to show separate GitHub and Anthropic pr
 
 ---
 
-## - [ ] Phase 6: CLI Commands
+## - [x] Phase 6: CLI Commands
 
-**Skills to read**: `ai-dev-tools-composition-root`
+**Skills used**: `ai-dev-tools-composition-root`
+**Principles applied**: `CredentialsCommand` restructured into two typed subcommand trees (`credentials github …` and `credentials anthropic …`), each with `add/list/remove/show`. `CLICompositionRoot.create` in both CLI targets gains an `anthropicProfileId` parameter (default `nil`) so callers can thread Anthropic profiles through; existing callers requiring no change thanks to the default. `CLICredentialSetup.resolveGitHubCredentials` updated to accept and pass through `anthropicProfileId` to `CredentialResolver`.
 
 Rewrite `CredentialsCommand.swift` in `Sources/Apps/AIDevToolsKitCLI/` to use subcommands per profile type.
 

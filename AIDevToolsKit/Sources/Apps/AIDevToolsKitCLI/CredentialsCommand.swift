@@ -8,185 +8,277 @@ struct CredentialsCommand: AsyncParsableCommand {
         commandName: "credentials",
         abstract: "Manage credential profiles in the macOS Keychain",
         subcommands: [
-            AddCredentialCommand.self,
-            ListCredentialsCommand.self,
-            RemoveCredentialCommand.self,
-            ShowCredentialCommand.self,
-        ],
-        defaultSubcommand: ListCredentialsCommand.self
+            AnthropicCommand.self,
+            GitHubCommand.self,
+        ]
     )
 
-    struct AddCredentialCommand: AsyncParsableCommand {
+    struct AnthropicCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "add",
-            abstract: "Add or update a credential profile"
+            commandName: "anthropic",
+            abstract: "Manage Anthropic credential profiles",
+            subcommands: [
+                AddCommand.self,
+                ListCommand.self,
+                RemoveCommand.self,
+                ShowCommand.self,
+            ],
+            defaultSubcommand: ListCommand.self
         )
 
-        @Argument(help: "Credential profile name")
-        var profileId: String
+        struct AddCommand: AsyncParsableCommand {
+            static let configuration = CommandConfiguration(
+                commandName: "add",
+                abstract: "Add or update an Anthropic credential profile"
+            )
 
-        @Option(name: .long, help: "GitHub personal access token")
-        var githubToken: String?
+            @Argument(help: "Profile name")
+            var profileId: String
 
-        @Option(name: .long, help: "Anthropic API key")
-        var anthropicKey: String?
+            @Option(name: .long, help: "Anthropic API key")
+            var apiKey: String
 
-        @Option(name: .long, help: "GitHub App ID (use with --installation-id and --private-key-path)")
-        var appId: String?
-
-        @Option(name: .long, help: "GitHub App installation ID")
-        var installationId: String?
-
-        @Option(name: .long, help: "Path to GitHub App private key PEM file")
-        var privateKeyPath: String?
-
-        func run() async throws {
-            let gitHubAuth = try resolveGitHubAuth()
-
-            guard gitHubAuth != nil || anthropicKey != nil else {
-                throw ValidationError("No credentials provided. Use --github-token or --app-id/--installation-id/--private-key-path, and optionally --anthropic-key.")
-            }
-
-            let service = SecureSettingsService()
-            if let gitHubAuth {
-                try SaveGitHubProfileUseCase(settingsService: service).execute(
-                    profile: GitHubCredentialProfile(id: profileId, auth: gitHubAuth)
-                )
-            }
-            if let anthropicKey {
+            func run() async throws {
+                let service = SecureSettingsService()
                 try SaveAnthropicProfileUseCase(settingsService: service).execute(
-                    profile: AnthropicCredentialProfile(id: profileId, apiKey: anthropicKey)
+                    profile: AnthropicCredentialProfile(id: profileId, apiKey: apiKey)
                 )
+                print("Saved Anthropic API key for profile '\(profileId)'.")
             }
-
-            var parts: [String] = []
-            switch gitHubAuth {
-            case .token: parts.append("GitHub token")
-            case .app: parts.append("GitHub App credentials")
-            case nil: break
-            }
-            if anthropicKey != nil { parts.append("Anthropic API key") }
-            print("Saved \(parts.joined(separator: " and ")) for profile '\(profileId)'.")
         }
 
-        private func resolveGitHubAuth() throws -> GitHubAuth? {
-            let hasToken = githubToken != nil
-            let hasAppFields = appId != nil || installationId != nil || privateKeyPath != nil
+        struct ListCommand: AsyncParsableCommand {
+            static let configuration = CommandConfiguration(
+                commandName: "list",
+                abstract: "List Anthropic credential profiles"
+            )
 
-            if hasToken && hasAppFields {
-                throw ValidationError("Cannot use --github-token together with --app-id/--installation-id/--private-key-path. Choose one authentication method.")
+            func run() async throws {
+                let service = SecureSettingsService()
+                let profiles = try ListAnthropicProfilesUseCase(settingsService: service).execute()
+
+                if profiles.isEmpty {
+                    print("No Anthropic credential profiles found.")
+                    print("Use 'credentials anthropic add <profile> --api-key <key>' to create one.")
+                    return
+                }
+
+                print("Anthropic credential profiles:\n")
+                for profile in profiles.sorted(by: { $0.id < $1.id }) {
+                    print("  \(profile.id)")
+                }
+            }
+        }
+
+        struct RemoveCommand: AsyncParsableCommand {
+            static let configuration = CommandConfiguration(
+                commandName: "remove",
+                abstract: "Remove an Anthropic credential profile"
+            )
+
+            @Argument(help: "Profile name")
+            var profileId: String
+
+            func run() async throws {
+                let service = SecureSettingsService()
+                let ids = try ListAnthropicProfilesUseCase(settingsService: service).execute().map(\.id)
+
+                guard ids.contains(profileId) else {
+                    throw ValidationError("Anthropic credential profile '\(profileId)' not found.")
+                }
+
+                RemoveAnthropicProfileUseCase(settingsService: service).execute(id: profileId)
+                print("Anthropic credential profile '\(profileId)' removed.")
+            }
+        }
+
+        struct ShowCommand: AsyncParsableCommand {
+            static let configuration = CommandConfiguration(
+                commandName: "show",
+                abstract: "Show masked credentials for an Anthropic profile"
+            )
+
+            @Argument(help: "Profile name")
+            var profileId: String
+
+            func run() async throws {
+                let service = SecureSettingsService()
+                guard let profile = service.loadAnthropicProfile(id: profileId) else {
+                    throw ValidationError("Anthropic credential profile '\(profileId)' not found.")
+                }
+
+                print("Anthropic profile: \(profile.id)\n")
+                print("  API key: \(masked(profile.apiKey))")
             }
 
-            if hasToken {
-                return .token(githubToken!)
+            private func masked(_ value: String) -> String {
+                guard value.count > 8 else { return "****" }
+                return "\(value.prefix(4))...\(value.suffix(4))"
             }
-
-            if hasAppFields {
-                guard let appId else {
-                    throw ValidationError("--app-id is required for GitHub App authentication.")
-                }
-                guard let installationId else {
-                    throw ValidationError("--installation-id is required for GitHub App authentication.")
-                }
-                guard let privateKeyPath else {
-                    throw ValidationError("--private-key-path is required for GitHub App authentication.")
-                }
-                let url = URL(fileURLWithPath: (privateKeyPath as NSString).expandingTildeInPath)
-                let pem = try String(contentsOf: url, encoding: .utf8)
-                return .app(appId: appId, installationId: installationId, privateKeyPEM: pem)
-            }
-
-            return nil
         }
     }
 
-    struct ListCredentialsCommand: AsyncParsableCommand {
+    struct GitHubCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "list",
-            abstract: "List credential profiles stored in the Keychain"
+            commandName: "github",
+            abstract: "Manage GitHub credential profiles",
+            subcommands: [
+                AddCommand.self,
+                ListCommand.self,
+                RemoveCommand.self,
+                ShowCommand.self,
+            ],
+            defaultSubcommand: ListCommand.self
         )
 
-        func run() async throws {
-            let service = SecureSettingsService()
-            let githubIds = try ListGitHubProfilesUseCase(settingsService: service).execute().map(\.id)
-            let anthropicIds = try ListAnthropicProfilesUseCase(settingsService: service).execute().map(\.id)
-            let allIds = Set(githubIds + anthropicIds).sorted()
+        struct AddCommand: AsyncParsableCommand {
+            static let configuration = CommandConfiguration(
+                commandName: "add",
+                abstract: "Add or update a GitHub credential profile"
+            )
 
-            if allIds.isEmpty {
-                print("No credential profiles found.")
-                print("Use 'ai-dev-tools-kit credentials add <profile>' to create one.")
-                return
+            @Argument(help: "Profile name")
+            var profileId: String
+
+            @Option(name: .long, help: "Personal access token")
+            var token: String?
+
+            @Option(name: .long, help: "GitHub App ID")
+            var appId: String?
+
+            @Option(name: .long, help: "GitHub App installation ID")
+            var installationId: String?
+
+            @Option(name: .long, help: "Path to GitHub App private key PEM file")
+            var privateKeyPath: String?
+
+            func run() async throws {
+                let auth = try resolveAuth()
+                let service = SecureSettingsService()
+                try SaveGitHubProfileUseCase(settingsService: service).execute(
+                    profile: GitHubCredentialProfile(id: profileId, auth: auth)
+                )
+                switch auth {
+                case .token:
+                    print("Saved GitHub token profile '\(profileId)'.")
+                case .app:
+                    print("Saved GitHub App profile '\(profileId)'.")
+                }
             }
 
-            print("Credential profiles:\n")
-            for id in allIds {
-                print("  \(id)")
+            private func resolveAuth() throws -> GitHubAuth {
+                let hasToken = token != nil
+                let hasAppFields = appId != nil || installationId != nil || privateKeyPath != nil
+
+                if hasToken && hasAppFields {
+                    throw ValidationError("Cannot use --token together with --app-id/--installation-id/--private-key-path. Choose one authentication method.")
+                }
+
+                if let token {
+                    return .token(token)
+                }
+
+                if hasAppFields {
+                    guard let appId else {
+                        throw ValidationError("--app-id is required for GitHub App authentication.")
+                    }
+                    guard let installationId else {
+                        throw ValidationError("--installation-id is required for GitHub App authentication.")
+                    }
+                    guard let privateKeyPath else {
+                        throw ValidationError("--private-key-path is required for GitHub App authentication.")
+                    }
+                    let url = URL(fileURLWithPath: (privateKeyPath as NSString).expandingTildeInPath)
+                    let pem = try String(contentsOf: url, encoding: .utf8)
+                    return .app(appId: appId, installationId: installationId, privateKeyPEM: pem)
+                }
+
+                throw ValidationError("Provide --token for a personal access token, or --app-id/--installation-id/--private-key-path for a GitHub App.")
             }
         }
-    }
 
-    struct RemoveCredentialCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "remove",
-            abstract: "Remove a credential profile from the Keychain"
-        )
+        struct ListCommand: AsyncParsableCommand {
+            static let configuration = CommandConfiguration(
+                commandName: "list",
+                abstract: "List GitHub credential profiles"
+            )
 
-        @Argument(help: "Credential profile name to remove")
-        var profileId: String
+            func run() async throws {
+                let service = SecureSettingsService()
+                let profiles = try ListGitHubProfilesUseCase(settingsService: service).execute()
 
-        func run() async throws {
-            let service = SecureSettingsService()
-            let githubIds = try ListGitHubProfilesUseCase(settingsService: service).execute().map(\.id)
-            let anthropicIds = try ListAnthropicProfilesUseCase(settingsService: service).execute().map(\.id)
-            let allIds = Set(githubIds + anthropicIds)
+                if profiles.isEmpty {
+                    print("No GitHub credential profiles found.")
+                    print("Use 'credentials github add <profile> --token <token>' to create one.")
+                    return
+                }
 
-            guard allIds.contains(profileId) else {
-                throw ValidationError("Credential profile '\(profileId)' not found.")
+                print("GitHub credential profiles:\n")
+                for profile in profiles.sorted(by: { $0.id < $1.id }) {
+                    switch profile.auth {
+                    case .token:
+                        print("  \(profile.id)  (token)")
+                    case .app(let appId, _, _):
+                        print("  \(profile.id)  (app: \(appId))")
+                    }
+                }
             }
-
-            RemoveGitHubProfileUseCase(settingsService: service).execute(id: profileId)
-            RemoveAnthropicProfileUseCase(settingsService: service).execute(id: profileId)
-            print("Credential profile '\(profileId)' removed.")
-        }
-    }
-
-    struct ShowCredentialCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "show",
-            abstract: "Show masked credential status for a profile"
-        )
-
-        @Argument(help: "Credential profile name")
-        var profileId: String
-
-        func run() async throws {
-            let service = SecureSettingsService()
-            let githubIds = try ListGitHubProfilesUseCase(settingsService: service).execute().map(\.id)
-            let anthropicIds = try ListAnthropicProfilesUseCase(settingsService: service).execute().map(\.id)
-            let allIds = Set(githubIds + anthropicIds)
-
-            guard allIds.contains(profileId) else {
-                throw ValidationError("Credential profile '\(profileId)' not found.")
-            }
-
-            print("Profile: \(profileId)\n")
-
-            switch service.loadGitHubProfile(id: profileId)?.auth {
-            case .token(let token):
-                print("  GitHub auth:       Token (\(masked(token)))")
-            case .app(let appId, _, _):
-                print("  GitHub auth:       App (ID: \(masked(appId)))")
-            case nil:
-                print("  GitHub auth:       not set")
-            }
-
-            let anthropicMasked = service.loadAnthropicProfile(id: profileId).map { masked($0.apiKey) } ?? "not set"
-            print("  Anthropic API key: \(anthropicMasked)")
         }
 
-        private func masked(_ value: String) -> String {
-            guard value.count > 8 else { return "****" }
-            return "\(value.prefix(4))...\(value.suffix(4))"
+        struct RemoveCommand: AsyncParsableCommand {
+            static let configuration = CommandConfiguration(
+                commandName: "remove",
+                abstract: "Remove a GitHub credential profile"
+            )
+
+            @Argument(help: "Profile name")
+            var profileId: String
+
+            func run() async throws {
+                let service = SecureSettingsService()
+                let ids = try ListGitHubProfilesUseCase(settingsService: service).execute().map(\.id)
+
+                guard ids.contains(profileId) else {
+                    throw ValidationError("GitHub credential profile '\(profileId)' not found.")
+                }
+
+                RemoveGitHubProfileUseCase(settingsService: service).execute(id: profileId)
+                print("GitHub credential profile '\(profileId)' removed.")
+            }
+        }
+
+        struct ShowCommand: AsyncParsableCommand {
+            static let configuration = CommandConfiguration(
+                commandName: "show",
+                abstract: "Show masked credentials for a GitHub profile"
+            )
+
+            @Argument(help: "Profile name")
+            var profileId: String
+
+            func run() async throws {
+                let service = SecureSettingsService()
+                guard let profile = service.loadGitHubProfile(id: profileId) else {
+                    throw ValidationError("GitHub credential profile '\(profileId)' not found.")
+                }
+
+                print("GitHub profile: \(profile.id)\n")
+                switch profile.auth {
+                case .token(let token):
+                    print("  Auth type: token")
+                    print("  Token:     \(masked(token))")
+                case .app(let appId, let installationId, let pem):
+                    print("  Auth type:       app")
+                    print("  App ID:          \(masked(appId))")
+                    print("  Installation ID: \(masked(installationId))")
+                    print("  Private key:     \(masked(pem))")
+                }
+            }
+
+            private func masked(_ value: String) -> String {
+                guard value.count > 8 else { return "****" }
+                return "\(value.prefix(4))...\(value.suffix(4))"
+            }
         }
     }
 }

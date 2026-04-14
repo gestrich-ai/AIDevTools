@@ -10,6 +10,7 @@ import Foundation
 @discardableResult
 public func resolveGitHubCredentials(
     githubProfileId: String?,
+    anthropicProfileId: String? = nil,
     githubToken: String? = nil
 ) -> CredentialResolver {
     let resolver: CredentialResolver
@@ -19,7 +20,7 @@ public func resolveGitHubCredentials(
         let service = SecureSettingsService()
         // Swallowing intentionally: credential profile enumeration failure is non-fatal — fall back to nil.
         let profileId = githubProfileId ?? (try? service.listGitHubProfileIds())?.first
-        resolver = CredentialResolver(secureSettings: service, githubProfileId: profileId, anthropicProfileId: nil)
+        resolver = CredentialResolver(secureSettings: service, githubProfileId: profileId, anthropicProfileId: anthropicProfileId)
     }
     if case .token(let token) = resolver.getGitHubAuth() {
         setenv("GH_TOKEN", token, 1)
