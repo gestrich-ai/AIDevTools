@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import RepositorySDK
 
+@Suite("RepositoryStore")
 struct RepositoryStoreTests {
     private func makeTempStore() throws -> (RepositoryStore, URL) {
         let tempDir = FileManager.default.temporaryDirectory
@@ -13,7 +14,8 @@ struct RepositoryStoreTests {
         try? FileManager.default.removeItem(at: url)
     }
 
-    @Test func loadAllReturnsEmptyWhenNoFile() throws {
+    @Test("loadAll returns empty array when no file exists")
+    func loadAllReturnsEmptyWhenNoFile() throws {
         // Arrange
         let (store, tempDir) = try makeTempStore()
         defer { cleanup(tempDir) }
@@ -25,7 +27,8 @@ struct RepositoryStoreTests {
         #expect(result.isEmpty)
     }
 
-    @Test func saveAndLoadRoundTrip() throws {
+    @Test("save and load preserves all repository fields")
+    func saveAndLoadRoundTrip() throws {
         // Arrange
         let (store, tempDir) = try makeTempStore()
         defer { cleanup(tempDir) }
@@ -35,8 +38,8 @@ struct RepositoryStoreTests {
                 path: URL(filePath: "/tmp/repo2"),
                 name: "Custom Name",
                 description: "A test repo",
-                verification: Verification(commands: ["swift build"]),
-                pullRequest: PullRequestConfig(baseBranch: "main", branchNamingConvention: "feature/<name>")
+                pullRequest: PullRequestConfig(baseBranch: "main", branchNamingConvention: "feature/<name>"),
+                verification: Verification(commands: ["swift build"])
             ),
         ]
 
@@ -53,7 +56,8 @@ struct RepositoryStoreTests {
         #expect(loaded[1].verification?.commands == ["swift build"])
     }
 
-    @Test func addAppendsRepository() throws {
+    @Test("add appends a repository to the existing list")
+    func addAppendsRepository() throws {
         // Arrange
         let (store, tempDir) = try makeTempStore()
         defer { cleanup(tempDir) }
@@ -71,7 +75,8 @@ struct RepositoryStoreTests {
         #expect(loaded[1].id == second.id)
     }
 
-    @Test func updateModifiesExistingRepository() throws {
+    @Test("update modifies an existing repository by ID")
+    func updateModifiesExistingRepository() throws {
         // Arrange
         let (store, tempDir) = try makeTempStore()
         defer { cleanup(tempDir) }
@@ -91,7 +96,8 @@ struct RepositoryStoreTests {
         #expect(loaded[0].description == "Updated description")
     }
 
-    @Test func removeDeletesById() throws {
+    @Test("remove deletes a repository by ID")
+    func removeDeletesById() throws {
         // Arrange
         let (store, tempDir) = try makeTempStore()
         defer { cleanup(tempDir) }
@@ -108,7 +114,8 @@ struct RepositoryStoreTests {
         #expect(loaded[0].id == second.id)
     }
 
-    @Test func findByID() throws {
+    @Test("find(byID:) returns the matching repository or nil")
+    func findByID() throws {
         // Arrange
         let (store, tempDir) = try makeTempStore()
         defer { cleanup(tempDir) }
@@ -125,7 +132,8 @@ struct RepositoryStoreTests {
         #expect(notFound == nil)
     }
 
-    @Test func findByPath() throws {
+    @Test("find(byPath:) returns the matching repository or nil")
+    func findByPath() throws {
         // Arrange
         let (store, tempDir) = try makeTempStore()
         defer { cleanup(tempDir) }

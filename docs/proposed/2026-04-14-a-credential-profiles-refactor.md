@@ -270,7 +270,10 @@ Update all three composition roots to use the new profile-based resolver.
 
 ---
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
+
+**Skills used**: `ai-dev-tools-swift-testing`, `ai-dev-tools-enforce`
+**Principles applied**: Updated both `EnvironmentKeychainStoreTests` files to use the new 3-component key format (`github-profiles/<id>/token` etc.) instead of the old 2-component format. Fixed `RepositoryStoreTests` argument ordering to match the alphabetical `RepositoryConfiguration` init. Fixed `ClaudeChainModelTests` stale `credentialAccount:` label to `githubCredentialProfileId:`. Resolved pre-existing test compilation errors in `TaskWithPRTests` (ambiguous `GitHubPullRequest`, missing `PRState`) and `WorkflowServiceTests` (ambiguous `GitHubPullRequest`). Added `@Suite` and descriptive `@Test("...")` labels to `SecureSettingsServiceTests` and `CredentialResolverTests`. Enforce migrated `TaskWithPRTests` fully to Swift Testing and added `@Suite` to `RepositoryStoreTests`.
 
 **Skills to read**: `ai-dev-tools-swift-testing`, `ai-dev-tools-enforce`
 

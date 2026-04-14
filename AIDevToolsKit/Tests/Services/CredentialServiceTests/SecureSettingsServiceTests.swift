@@ -4,8 +4,10 @@ import Testing
 
 @testable import CredentialService
 
+@Suite("SecureSettingsService")
 struct SecureSettingsServiceTests {
-    @Test func saveAndLoadGitHubToken() throws {
+    @Test("saves and loads a GitHub token profile")
+    func saveAndLoadGitHubToken() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -19,7 +21,8 @@ struct SecureSettingsServiceTests {
         #expect(token == "ghp_abc123")
     }
 
-    @Test func saveAndLoadGitHubApp() throws {
+    @Test("saves and loads a GitHub App profile")
+    func saveAndLoadGitHubApp() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -38,7 +41,8 @@ struct SecureSettingsServiceTests {
         #expect(privateKey == "PEM_DATA")
     }
 
-    @Test func saveTokenClearsAppCredentials() throws {
+    @Test("saving a token profile clears existing app credentials")
+    func saveTokenClearsAppCredentials() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -56,7 +60,8 @@ struct SecureSettingsServiceTests {
         #expect(token == "ghp_new")
     }
 
-    @Test func saveAppClearsTokenCredentials() throws {
+    @Test("saving an app profile clears existing token credentials")
+    func saveAppClearsTokenCredentials() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -74,7 +79,8 @@ struct SecureSettingsServiceTests {
         #expect(appId == "111")
     }
 
-    @Test func saveAndLoadAnthropicProfile() throws {
+    @Test("saves and loads an Anthropic profile")
+    func saveAndLoadAnthropicProfile() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -83,7 +89,8 @@ struct SecureSettingsServiceTests {
         #expect(profile?.apiKey == "sk-ant-abc")
     }
 
-    @Test func removeGitHubProfileClearsAllKeys() throws {
+    @Test("removeGitHubProfile clears all keys for that profile")
+    func removeGitHubProfileClearsAllKeys() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -93,7 +100,8 @@ struct SecureSettingsServiceTests {
         #expect(service.loadGitHubProfile(id: "testaccount") == nil)
     }
 
-    @Test func removeAnthropicProfileClearsKey() throws {
+    @Test("removeAnthropicProfile clears the api-key for that profile")
+    func removeAnthropicProfileClearsKey() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -103,7 +111,8 @@ struct SecureSettingsServiceTests {
         #expect(service.loadAnthropicProfile(id: "testaccount") == nil)
     }
 
-    @Test func listGitHubProfileIds() throws {
+    @Test("listGitHubProfileIds enumerates saved GitHub profiles")
+    func listGitHubProfileIds() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -115,7 +124,8 @@ struct SecureSettingsServiceTests {
         #expect(ids == ["alice"])
     }
 
-    @Test func listAnthropicProfileIds() throws {
+    @Test("listAnthropicProfileIds enumerates saved Anthropic profiles")
+    func listAnthropicProfileIds() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
 
@@ -126,7 +136,8 @@ struct SecureSettingsServiceTests {
         #expect(ids == ["alice"])
     }
 
-    @Test func loadGitHubProfileReturnsNilWhenEmpty() {
+    @Test("loadGitHubProfile returns nil for a nonexistent profile")
+    func loadGitHubProfileReturnsNilWhenEmpty() {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
         #expect(service.loadGitHubProfile(id: "nonexistent") == nil)

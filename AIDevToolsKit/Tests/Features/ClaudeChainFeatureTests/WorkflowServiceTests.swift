@@ -89,7 +89,7 @@ struct WorkflowServiceTests {
 
 // MARK: - Test doubles
 
-private final class FailingGitHubPRService: GitHubPRServiceProtocol {
+private struct FailingGitHubPRService: GitHubPRServiceProtocol {
     private struct Unimplemented: Error {}
 
     func triggerWorkflowDispatch(workflowId: String, ref: String, inputs: [String: String]) async throws {
@@ -110,21 +110,21 @@ private final class FailingGitHubPRService: GitHubPRServiceProtocol {
     func isMergeable(number: Int) async throws -> Bool? { throw Unimplemented() }
     func listBranches(ttl: Foundation.TimeInterval) async throws -> [String] { throw Unimplemented() }
     func listDirectoryNames(path: String, ref: String) async throws -> [String] { throw Unimplemented() }
-    func listPullRequests(limit: Int, filter: PRFilter) async throws -> [GitHubPullRequest] { throw Unimplemented() }
+    func listPullRequests(limit: Int, filter: PRFilter) async throws -> [GitHubService.GitHubPullRequest] { throw Unimplemented() }
     func listWorkflowRuns(workflow: String, branch: String?, limit: Int, ttl: Foundation.TimeInterval) async throws -> [OctokitSDK.WorkflowRun] { throw Unimplemented() }
     func mergePullRequest(number: Int, mergeMethod: String) async throws { throw Unimplemented() }
     func postIssueComment(prNumber: Int, body: String) async throws { throw Unimplemented() }
-    func pullRequest(number: Int, useCache: Bool) async throws -> GitHubPullRequest { throw Unimplemented() }
+    func pullRequest(number: Int, useCache: Bool) async throws -> GitHubService.GitHubPullRequest { throw Unimplemented() }
     func pullRequestByHeadBranch(branch: String) async throws -> CreatedPullRequest? { throw Unimplemented() }
-    func readAllCachedPRs() async -> [GitHubPullRequest] { [] }
+    func readAllCachedPRs() async -> [GitHubService.GitHubPullRequest] { [] }
     func readCachedIndex(key: String) async throws -> [Int]? { throw Unimplemented() }
     func repository(useCache: Bool) async throws -> GitHubRepository { throw Unimplemented() }
     func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview] { throw Unimplemented() }
-    func updatePRs(filter: PRFilter) async throws -> [GitHubPullRequest] { throw Unimplemented() }
+    func updatePRs(filter: PRFilter) async throws -> [GitHubService.GitHubPullRequest] { throw Unimplemented() }
     func updatePR(number: Int) async throws { throw Unimplemented() }
     func updatePRs(numbers: [Int]) async throws { throw Unimplemented() }
     func updateRepository() async throws { throw Unimplemented() }
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws { throw Unimplemented() }
     func writeCachedIndex(_ numbers: [Int], key: String) async throws { throw Unimplemented() }
-    func writePR(_ pr: GitHubPullRequest, number: Int) async throws { throw Unimplemented() }
+    func writePR(_ pr: GitHubService.GitHubPullRequest, number: Int) async throws { throw Unimplemented() }
 }

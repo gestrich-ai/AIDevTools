@@ -4,6 +4,7 @@ import Testing
 
 @testable import CredentialService
 
+@Suite("CredentialResolver")
 struct CredentialResolverTests {
     @Test("env var wins over keychain for Anthropic key")
     func envVarWinsOverKeychain() throws {

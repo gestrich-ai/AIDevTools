@@ -83,8 +83,7 @@ struct ClaudeChainModelTests {
 
     @Test("loadChains transitions to loaded with empty projects when no cache and no credentials")
     @MainActor func loadChainsTransitionsToLoaded() async throws {
-        // Arrange: local spec files are no longer the source for loadChains after Phase 4.
-        // Cold open reads from the service cache (populated on first network refresh).
+        // Arrange: cold open reads from the service cache (populated on first network refresh).
         // Without credentials or a populated cache, the result is an empty project list.
         let repoPath = try createTempRepoWithChain(
             projectName: "my-chain",
@@ -124,7 +123,7 @@ struct ClaudeChainModelTests {
         let model = try makeModel()
 
         // Act
-        model.loadChains(for: tempDir, credentialAccount: nil)
+        model.loadChains(for: tempDir, githubCredentialProfileId: nil)
         try await Task.sleep(for: .milliseconds(100))
 
         // Assert
@@ -137,8 +136,7 @@ struct ClaudeChainModelTests {
 
     @Test("loadChains discovers multiple chain projects")
     @MainActor func loadChainsMultipleProjects() async throws {
-        // Arrange: local spec files in the repo are not the source after Phase 4.
-        // Without credentials or a populated service cache, cold open returns empty.
+        // Arrange: without credentials or a populated service cache, cold open returns empty.
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         let chainDir = tempDir.appendingPathComponent("claude-chain")
@@ -167,7 +165,7 @@ struct ClaudeChainModelTests {
         let model = try makeModel()
 
         // Act
-        model.loadChains(for: tempDir, credentialAccount: nil)
+        model.loadChains(for: tempDir, githubCredentialProfileId: nil)
         try await Task.sleep(for: .milliseconds(100))
 
         // Assert: state is .loaded (graceful fallback when no credentials)
