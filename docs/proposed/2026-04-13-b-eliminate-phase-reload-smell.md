@@ -223,7 +223,10 @@ case .completed(let snapshot):
 
 Note: `baseRefName` and `availableCommits` are also currently read from `PRDetail` (populated by `LoadPRDetailUseCase`). These are not in `SyncSnapshot`. Check whether any view depends on them being updated immediately after the diff phase, or whether the on-launch `applyDetail` path is sufficient. If they're needed at runtime, they belong in `SyncSnapshot`, not in a supplemental reload.
 
-## - [ ] Phase 6: Remove reloadDetail() from completePhase
+## - [x] Phase 6: Remove reloadDetail() from completePhase
+
+**Skills used**: `ai-dev-tools-code-quality`
+**Principles applied**: Verified all callers of `completePhase` (runPrepare, runAnalyze, runFilteredAnalysis, runReport) already apply their output directly to stored properties before calling it. Removed the now-dead `reloadDetail()` call from `completePhase`. Audited remaining `reloadDetail()` call sites — `resetPhase`, `switchToCommit`, `resetAfterDataDeletion`, `loadDetail`, and `runSingleAnalysis` — all are legitimate disk-restore or post-user-action uses and were left intact.
 
 **Skills to read**: `ai-dev-tools-code-quality`
 

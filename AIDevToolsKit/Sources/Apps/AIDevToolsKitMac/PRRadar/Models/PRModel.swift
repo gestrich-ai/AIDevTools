@@ -742,7 +742,6 @@ final class PRModel: Identifiable, Hashable {
 
     private func completePhase(_ phase: PRRadarPhase) {
         let logs = runningLogs(for: phase)
-        reloadDetail()
         phaseStates[phase] = .completed(logs: logs)
     }
 
