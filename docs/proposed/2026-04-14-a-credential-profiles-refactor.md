@@ -157,7 +157,10 @@ Update `PRRadarRepoConfig` to carry `githubCredentialProfileId: String?` instead
 
 ---
 
-## - [ ] Phase 4: Feature Use Cases
+## - [x] Phase 4: Feature Use Cases
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Eight new typed use cases created in `CredentialFeature` — four for GitHub profiles (`List`, `Save`, `Remove`, `Load`) and four for Anthropic profiles. All are `struct` conforming to `UseCase` with a single `execute` method. Old use cases (`SaveCredentialsUseCase`, `RemoveCredentialsUseCase`, `ListCredentialStatusesUseCase`, `LoadCredentialStatusUseCase`, `ListCredentialAccountsUseCase`) and the `CredentialStatusLoader` helper removed. `CredentialModel` rewritten to use new use cases internally; `credentialAccounts: [CredentialStatus]` kept as a computed bridge so the existing Mac views compile unchanged until Phase 5 rewrites them. `CredentialsCommand` updated to use new use cases. `CredentialStatus`/`GitHubAuthStatus` retained as presentation types until Phase 5 removes the views that depend on them.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

@@ -6,7 +6,7 @@ import Foundation
 struct CredentialsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "credentials",
-        abstract: "Manage credential accounts in the macOS Keychain",
+        abstract: "Manage credential profiles in the macOS Keychain",
         subcommands: [
             AddCredentialCommand.self,
             ListCredentialsCommand.self,
@@ -19,11 +19,11 @@ struct CredentialsCommand: AsyncParsableCommand {
     struct AddCredentialCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "add",
-            abstract: "Add or update a credential account"
+            abstract: "Add or update a credential profile"
         )
 
-        @Argument(help: "Credential account name")
-        var account: String
+        @Argument(help: "Credential profile name")
+        var profileId: String
 
         @Option(name: .long, help: "GitHub personal access token")
         var githubToken: String?
@@ -47,8 +47,17 @@ struct CredentialsCommand: AsyncParsableCommand {
                 throw ValidationError("No credentials provided. Use --github-token or --app-id/--installation-id/--private-key-path, and optionally --anthropic-key.")
             }
 
-            let useCase = SaveCredentialsUseCase(settingsService: SecureSettingsService())
-            try useCase.execute(account: account, gitHubAuth: gitHubAuth, anthropicKey: anthropicKey)
+            let service = SecureSettingsService()
+            if let gitHubAuth {
+                try SaveGitHubProfileUseCase(settingsService: service).execute(
+                    profile: GitHubCredentialProfile(id: profileId, auth: gitHubAuth)
+                )
+            }
+            if let anthropicKey {
+                try SaveAnthropicProfileUseCase(settingsService: service).execute(
+                    profile: AnthropicCredentialProfile(id: profileId, apiKey: anthropicKey)
+                )
+            }
 
             var parts: [String] = []
             switch gitHubAuth {
@@ -57,7 +66,7 @@ struct CredentialsCommand: AsyncParsableCommand {
             case nil: break
             }
             if anthropicKey != nil { parts.append("Anthropic API key") }
-            print("Saved \(parts.joined(separator: " and ")) for account '\(account)'.")
+            print("Saved \(parts.joined(separator: " and ")) for profile '\(profileId)'.")
         }
 
         private func resolveGitHubAuth() throws -> GitHubAuth? {
@@ -94,22 +103,24 @@ struct CredentialsCommand: AsyncParsableCommand {
     struct ListCredentialsCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "list",
-            abstract: "List credential accounts stored in the Keychain"
+            abstract: "List credential profiles stored in the Keychain"
         )
 
         func run() async throws {
-            let useCase = ListCredentialAccountsUseCase(settingsService: SecureSettingsService())
-            let accounts = try useCase.execute()
+            let service = SecureSettingsService()
+            let githubIds = try ListGitHubProfilesUseCase(settingsService: service).execute().map(\.id)
+            let anthropicIds = try ListAnthropicProfilesUseCase(settingsService: service).execute().map(\.id)
+            let allIds = Set(githubIds + anthropicIds).sorted()
 
-            if accounts.isEmpty {
-                print("No credential accounts found.")
-                print("Use 'ai-dev-tools-kit credentials add <account>' to create one.")
+            if allIds.isEmpty {
+                print("No credential profiles found.")
+                print("Use 'ai-dev-tools-kit credentials add <profile>' to create one.")
                 return
             }
 
-            print("Credential accounts:\n")
-            for account in accounts {
-                print("  \(account)")
+            print("Credential profiles:\n")
+            for id in allIds {
+                print("  \(id)")
             }
         }
     }
@@ -117,48 +128,50 @@ struct CredentialsCommand: AsyncParsableCommand {
     struct RemoveCredentialCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "remove",
-            abstract: "Remove a credential account from the Keychain"
+            abstract: "Remove a credential profile from the Keychain"
         )
 
-        @Argument(help: "Credential account name to remove")
-        var account: String
+        @Argument(help: "Credential profile name to remove")
+        var profileId: String
 
         func run() async throws {
-            let settingsService = SecureSettingsService()
-            let listUseCase = ListCredentialAccountsUseCase(settingsService: settingsService)
-            let accounts = try listUseCase.execute()
+            let service = SecureSettingsService()
+            let githubIds = try ListGitHubProfilesUseCase(settingsService: service).execute().map(\.id)
+            let anthropicIds = try ListAnthropicProfilesUseCase(settingsService: service).execute().map(\.id)
+            let allIds = Set(githubIds + anthropicIds)
 
-            guard accounts.contains(account) else {
-                throw ValidationError("Credential account '\(account)' not found.")
+            guard allIds.contains(profileId) else {
+                throw ValidationError("Credential profile '\(profileId)' not found.")
             }
 
-            let removeUseCase = RemoveCredentialsUseCase(settingsService: settingsService)
-            try removeUseCase.execute(account: account)
-            print("Credential account '\(account)' removed.")
+            RemoveGitHubProfileUseCase(settingsService: service).execute(id: profileId)
+            RemoveAnthropicProfileUseCase(settingsService: service).execute(id: profileId)
+            print("Credential profile '\(profileId)' removed.")
         }
     }
 
     struct ShowCredentialCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "show",
-            abstract: "Show masked credential status for an account"
+            abstract: "Show masked credential status for a profile"
         )
 
-        @Argument(help: "Credential account name")
-        var account: String
+        @Argument(help: "Credential profile name")
+        var profileId: String
 
         func run() async throws {
-            let settingsService = SecureSettingsService()
-            let listUseCase = ListCredentialAccountsUseCase(settingsService: settingsService)
-            let accounts = try listUseCase.execute()
+            let service = SecureSettingsService()
+            let githubIds = try ListGitHubProfilesUseCase(settingsService: service).execute().map(\.id)
+            let anthropicIds = try ListAnthropicProfilesUseCase(settingsService: service).execute().map(\.id)
+            let allIds = Set(githubIds + anthropicIds)
 
-            guard accounts.contains(account) else {
-                throw ValidationError("Credential account '\(account)' not found.")
+            guard allIds.contains(profileId) else {
+                throw ValidationError("Credential profile '\(profileId)' not found.")
             }
 
-            print("Account: \(account)\n")
+            print("Profile: \(profileId)\n")
 
-            switch settingsService.loadGitHubProfile(id: account)?.auth {
+            switch service.loadGitHubProfile(id: profileId)?.auth {
             case .token(let token):
                 print("  GitHub auth:       Token (\(masked(token)))")
             case .app(let appId, _, _):
@@ -167,18 +180,13 @@ struct CredentialsCommand: AsyncParsableCommand {
                 print("  GitHub auth:       not set")
             }
 
-            let anthropicMasked = settingsService.loadAnthropicProfile(id: account).map { masked($0.apiKey) } ?? "not set"
+            let anthropicMasked = service.loadAnthropicProfile(id: profileId).map { masked($0.apiKey) } ?? "not set"
             print("  Anthropic API key: \(anthropicMasked)")
         }
 
         private func masked(_ value: String) -> String {
             guard value.count > 8 else { return "****" }
             return "\(value.prefix(4))...\(value.suffix(4))"
-        }
-
-        private func maskedLoad(_ load: () throws -> String) -> String {
-            guard let value = try? load() else { return "not set" }
-            return masked(value)
         }
     }
 }

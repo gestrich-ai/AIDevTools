@@ -26,135 +26,174 @@ private final class MockKeychainStore: KeychainStoring, @unchecked Sendable {
     }
 }
 
-@Suite("SaveCredentialsUseCase")
-struct SaveCredentialsUseCaseTests {
-    @Test func savesGitHubTokenAndReturnsStatuses() throws {
+@Suite("SaveGitHubProfileUseCase")
+struct SaveGitHubProfileUseCaseTests {
+    @Test func savesTokenProfile() throws {
         let service = SecureSettingsService(keychain: MockKeychainStore())
-        let useCase = SaveCredentialsUseCase(settingsService: service)
+        let useCase = SaveGitHubProfileUseCase(settingsService: service)
 
-        let statuses = try useCase.execute(
-            account: "testaccount",
-            gitHubAuth: .token("gh-token-123"),
-            anthropicKey: nil
-        )
+        try useCase.execute(profile: GitHubCredentialProfile(id: "work", auth: .token("gh-token-123")))
 
-        #expect(statuses.count == 1)
-        #expect(statuses[0].account == "testaccount")
-        #expect(statuses[0].gitHubAuth == .token)
-        #expect(statuses[0].hasAnthropicKey == false)
+        let loaded = service.loadGitHubProfile(id: "work")
+        guard case .token(let token) = loaded?.auth else {
+            Issue.record("Expected token auth")
+            return
+        }
+        #expect(token == "gh-token-123")
     }
 
-    @Test func savesAnthropicKeyAndReturnsStatuses() throws {
+    @Test func savesAppProfile() throws {
         let service = SecureSettingsService(keychain: MockKeychainStore())
-        let useCase = SaveCredentialsUseCase(settingsService: service)
+        let useCase = SaveGitHubProfileUseCase(settingsService: service)
 
-        let statuses = try useCase.execute(
-            account: "testaccount",
-            gitHubAuth: nil,
-            anthropicKey: "sk-ant-123"
-        )
+        try useCase.execute(profile: GitHubCredentialProfile(id: "work", auth: .app(appId: "123", installationId: "456", privateKeyPEM: "pem")))
 
-        #expect(statuses.count == 1)
-        #expect(statuses[0].hasAnthropicKey == true)
-        #expect(statuses[0].gitHubAuth == .none)
-    }
-
-    @Test func savesBothCredentials() throws {
-        let service = SecureSettingsService(keychain: MockKeychainStore())
-        let useCase = SaveCredentialsUseCase(settingsService: service)
-
-        let statuses = try useCase.execute(
-            account: "testaccount",
-            gitHubAuth: .token("gh-token"),
-            anthropicKey: "sk-ant-123"
-        )
-
-        #expect(statuses.count == 1)
-        #expect(statuses[0].gitHubAuth == .token)
-        #expect(statuses[0].hasAnthropicKey == true)
-    }
-
-    @Test func emptyAnthropicKeyIsNotSaved() throws {
-        let service = SecureSettingsService(keychain: MockKeychainStore())
-        let useCase = SaveCredentialsUseCase(settingsService: service)
-
-        let statuses = try useCase.execute(
-            account: "testaccount",
-            gitHubAuth: nil,
-            anthropicKey: ""
-        )
-
-        #expect(statuses.isEmpty)
+        let loaded = service.loadGitHubProfile(id: "work")
+        guard case .app(let appId, let installationId, let pem) = loaded?.auth else {
+            Issue.record("Expected app auth")
+            return
+        }
+        #expect(appId == "123")
+        #expect(installationId == "456")
+        #expect(pem == "pem")
     }
 }
 
-@Suite("RemoveCredentialsUseCase")
-struct RemoveCredentialsUseCaseTests {
-    @Test func removesAccountAndReturnsEmptyStatuses() throws {
+@Suite("ListGitHubProfilesUseCase")
+struct ListGitHubProfilesUseCaseTests {
+    @Test func listsProfilesAlphabetically() throws {
         let service = SecureSettingsService(keychain: MockKeychainStore())
-        let saveUseCase = SaveCredentialsUseCase(settingsService: service)
-        let removeUseCase = RemoveCredentialsUseCase(settingsService: service)
+        let saveUseCase = SaveGitHubProfileUseCase(settingsService: service)
+        let listUseCase = ListGitHubProfilesUseCase(settingsService: service)
 
-        try saveUseCase.execute(account: "testaccount", gitHubAuth: .token("tok"), anthropicKey: "key")
-        let statuses = try removeUseCase.execute(account: "testaccount")
+        try saveUseCase.execute(profile: GitHubCredentialProfile(id: "zebra", auth: .token("tok")))
+        try saveUseCase.execute(profile: GitHubCredentialProfile(id: "alpha", auth: .token("tok")))
 
-        #expect(statuses.isEmpty)
-    }
-
-    @Test func removesOnlySpecifiedAccount() throws {
-        let service = SecureSettingsService(keychain: MockKeychainStore())
-        let saveUseCase = SaveCredentialsUseCase(settingsService: service)
-        let removeUseCase = RemoveCredentialsUseCase(settingsService: service)
-
-        try saveUseCase.execute(account: "account1", gitHubAuth: .token("tok1"), anthropicKey: nil)
-        try saveUseCase.execute(account: "account2", gitHubAuth: .token("tok2"), anthropicKey: nil)
-        let statuses = try removeUseCase.execute(account: "account1")
-
-        #expect(statuses.count == 1)
-        #expect(statuses[0].account == "account2")
+        let profiles = try listUseCase.execute()
+        #expect(profiles.map(\.id) == ["alpha", "zebra"])
     }
 }
 
-@Suite("ListCredentialAccountsUseCase")
-struct ListCredentialAccountsUseCaseTests {
-    @Test func listsAccountsAlphabetically() throws {
+@Suite("RemoveGitHubProfileUseCase")
+struct RemoveGitHubProfileUseCaseTests {
+    @Test func removesProfile() throws {
         let service = SecureSettingsService(keychain: MockKeychainStore())
-        let saveUseCase = SaveCredentialsUseCase(settingsService: service)
-        let listUseCase = ListCredentialAccountsUseCase(settingsService: service)
+        let saveUseCase = SaveGitHubProfileUseCase(settingsService: service)
+        let removeUseCase = RemoveGitHubProfileUseCase(settingsService: service)
+        let listUseCase = ListGitHubProfilesUseCase(settingsService: service)
 
-        try saveUseCase.execute(account: "zebra", gitHubAuth: .token("tok"), anthropicKey: nil)
-        try saveUseCase.execute(account: "alpha", gitHubAuth: .token("tok"), anthropicKey: nil)
+        try saveUseCase.execute(profile: GitHubCredentialProfile(id: "work", auth: .token("tok")))
+        removeUseCase.execute(id: "work")
 
-        let accounts = try listUseCase.execute()
-        #expect(accounts == ["alpha", "zebra"])
+        let profiles = try listUseCase.execute()
+        #expect(profiles.isEmpty)
+    }
+
+    @Test func removesOnlySpecifiedProfile() throws {
+        let service = SecureSettingsService(keychain: MockKeychainStore())
+        let saveUseCase = SaveGitHubProfileUseCase(settingsService: service)
+        let removeUseCase = RemoveGitHubProfileUseCase(settingsService: service)
+        let listUseCase = ListGitHubProfilesUseCase(settingsService: service)
+
+        try saveUseCase.execute(profile: GitHubCredentialProfile(id: "profile1", auth: .token("tok1")))
+        try saveUseCase.execute(profile: GitHubCredentialProfile(id: "profile2", auth: .token("tok2")))
+        removeUseCase.execute(id: "profile1")
+
+        let profiles = try listUseCase.execute()
+        #expect(profiles.count == 1)
+        #expect(profiles[0].id == "profile2")
     }
 }
 
-@Suite("LoadCredentialStatusUseCase")
-struct LoadCredentialStatusUseCaseTests {
-    @Test func loadsStatusForAccount() throws {
+@Suite("LoadGitHubProfileUseCase")
+struct LoadGitHubProfileUseCaseTests {
+    @Test func loadsProfile() throws {
         let service = SecureSettingsService(keychain: MockKeychainStore())
-        let saveUseCase = SaveCredentialsUseCase(settingsService: service)
-        let loadUseCase = LoadCredentialStatusUseCase(settingsService: service)
+        let saveUseCase = SaveGitHubProfileUseCase(settingsService: service)
+        let loadUseCase = LoadGitHubProfileUseCase(settingsService: service)
 
-        try saveUseCase.execute(
-            account: "testaccount",
-            gitHubAuth: .app(appId: "123", installationId: "456", privateKeyPEM: "key"),
-            anthropicKey: "sk-ant"
-        )
+        try saveUseCase.execute(profile: GitHubCredentialProfile(id: "work", auth: .app(appId: "123", installationId: "456", privateKeyPEM: "pem")))
 
-        let status = loadUseCase.execute(account: "testaccount")
-        #expect(status.account == "testaccount")
-        #expect(status.gitHubAuth == .app)
-        #expect(status.hasAnthropicKey == true)
+        let profile = loadUseCase.execute(id: "work")
+        #expect(profile?.id == "work")
+        guard case .app(let appId, _, _) = profile?.auth else {
+            Issue.record("Expected app auth")
+            return
+        }
+        #expect(appId == "123")
     }
 
-    @Test func returnsNoneForMissingAccount() {
+    @Test func returnsNilForMissingProfile() {
         let service = SecureSettingsService(keychain: MockKeychainStore())
-        let loadUseCase = LoadCredentialStatusUseCase(settingsService: service)
+        let loadUseCase = LoadGitHubProfileUseCase(settingsService: service)
 
-        let status = loadUseCase.execute(account: "nonexistent")
-        #expect(status.gitHubAuth == .none)
-        #expect(status.hasAnthropicKey == false)
+        let profile = loadUseCase.execute(id: "nonexistent")
+        #expect(profile == nil)
+    }
+}
+
+@Suite("SaveAnthropicProfileUseCase")
+struct SaveAnthropicProfileUseCaseTests {
+    @Test func savesProfile() throws {
+        let service = SecureSettingsService(keychain: MockKeychainStore())
+        let useCase = SaveAnthropicProfileUseCase(settingsService: service)
+
+        try useCase.execute(profile: AnthropicCredentialProfile(id: "default", apiKey: "sk-ant-123"))
+
+        let loaded = service.loadAnthropicProfile(id: "default")
+        #expect(loaded?.apiKey == "sk-ant-123")
+    }
+}
+
+@Suite("ListAnthropicProfilesUseCase")
+struct ListAnthropicProfilesUseCaseTests {
+    @Test func listsProfilesAlphabetically() throws {
+        let service = SecureSettingsService(keychain: MockKeychainStore())
+        let saveUseCase = SaveAnthropicProfileUseCase(settingsService: service)
+        let listUseCase = ListAnthropicProfilesUseCase(settingsService: service)
+
+        try saveUseCase.execute(profile: AnthropicCredentialProfile(id: "zebra", apiKey: "key"))
+        try saveUseCase.execute(profile: AnthropicCredentialProfile(id: "alpha", apiKey: "key"))
+
+        let profiles = try listUseCase.execute()
+        #expect(profiles.map(\.id) == ["alpha", "zebra"])
+    }
+}
+
+@Suite("RemoveAnthropicProfileUseCase")
+struct RemoveAnthropicProfileUseCaseTests {
+    @Test func removesProfile() throws {
+        let service = SecureSettingsService(keychain: MockKeychainStore())
+        let saveUseCase = SaveAnthropicProfileUseCase(settingsService: service)
+        let removeUseCase = RemoveAnthropicProfileUseCase(settingsService: service)
+        let listUseCase = ListAnthropicProfilesUseCase(settingsService: service)
+
+        try saveUseCase.execute(profile: AnthropicCredentialProfile(id: "default", apiKey: "key"))
+        removeUseCase.execute(id: "default")
+
+        let profiles = try listUseCase.execute()
+        #expect(profiles.isEmpty)
+    }
+}
+
+@Suite("LoadAnthropicProfileUseCase")
+struct LoadAnthropicProfileUseCaseTests {
+    @Test func loadsProfile() throws {
+        let service = SecureSettingsService(keychain: MockKeychainStore())
+        let saveUseCase = SaveAnthropicProfileUseCase(settingsService: service)
+        let loadUseCase = LoadAnthropicProfileUseCase(settingsService: service)
+
+        try saveUseCase.execute(profile: AnthropicCredentialProfile(id: "default", apiKey: "sk-ant-123"))
+
+        let profile = loadUseCase.execute(id: "default")
+        #expect(profile?.apiKey == "sk-ant-123")
+    }
+
+    @Test func returnsNilForMissingProfile() {
+        let service = SecureSettingsService(keychain: MockKeychainStore())
+        let loadUseCase = LoadAnthropicProfileUseCase(settingsService: service)
+
+        let profile = loadUseCase.execute(id: "nonexistent")
+        #expect(profile == nil)
     }
 }
