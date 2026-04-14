@@ -100,7 +100,10 @@ private var analysisBadge: some View {
 
 After removing the badge call sites from `body`, the HStack should only contain: `stateIndicator`, `Spacer()`, `analysisBadge`, and the relative timestamp.
 
-## - [ ] Phase 3: Validation
+## - [x] Phase 3: Validation
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-swift-testing`
+**Principles applied**: `swift build` passes clean. All 1343 tests pass with `swift test`. Enforce analysis found only pre-existing violations (lines 80/137 in GitHubServiceFactory.swift, lines 52/80 in PRListRow.swift) — none introduced by Phases 1 or 2. The new `InstallationTokenCache` code uses intentionally different cache key namespaces (`"app/<id>"` vs `"<account>/<id>"`) matching the two different call sites' scoping needs. Mac app UI verification (steps 4–5) requires interactive launch and was not automated.
 
 **Skills to read**: `ai-dev-tools-enforce`, `ai-dev-tools-swift-testing`
 
