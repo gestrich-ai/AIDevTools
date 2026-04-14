@@ -780,11 +780,11 @@ final class PRModel: Identifiable, Hashable {
                         break
                     }
                 case .taskEvent: break
-                case .completed:
+                case .completed(let output):
                     prepareAccumulator = nil
                     prepareStreamModel?.finalizeCurrentStreamingMessage()
-                    await reloadDetailAsync()
-                    logger.info("Prepare phase completed", metadata: ["tasks": "\(preparation?.tasks.count ?? 0)"])
+                    preparation = output
+                    logger.info("Prepare phase completed", metadata: ["tasks": "\(output.tasks.count)"])
                     completePhase(.prepare)
                 case .failed(let error, let logs):
                     prepareAccumulator = nil

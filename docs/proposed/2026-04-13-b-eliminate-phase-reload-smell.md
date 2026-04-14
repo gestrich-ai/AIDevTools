@@ -129,7 +129,10 @@ if case .running = phaseStates[.diff] {} else { syncSnapshot = newDetail.syncSna
 
 No behavior changes yet — phase handlers still call `reloadDetail()` at this point.
 
-## - [ ] Phase 2: Fix prepare phase handler
+## - [x] Phase 2: Fix prepare phase handler
+
+**Skills used**: `ai-dev-tools-code-quality`
+**Principles applied**: Captured `PrepareOutput` from `.completed(let output)` and assigned it directly to `preparation`, removing the `await reloadDetailAsync()` disk round-trip. The payload is the source of truth; no reload needed.
 
 **Skills to read**: `ai-dev-tools-code-quality`
 
