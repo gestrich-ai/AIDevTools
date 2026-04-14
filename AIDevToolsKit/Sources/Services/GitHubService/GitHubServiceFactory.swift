@@ -6,7 +6,29 @@ import GitSDK
 import OctokitSDK
 import RepositorySDK
 
+private actor InstallationTokenCache {
+    private struct Entry {
+        let token: String
+        let expiry: Date
+    }
+    private var entries: [String: Entry] = [:]
+
+    func get(key: String) -> String? {
+        guard let entry = entries[key], entry.expiry > Date() else {
+            entries.removeValue(forKey: key)
+            return nil
+        }
+        return entry.token
+    }
+
+    func set(token: String, key: String) {
+        entries[key] = Entry(token: token, expiry: Date().addingTimeInterval(55 * 60))
+    }
+}
+
 public struct GitHubServiceFactory: Sendable {
+    private static let tokenCache = InstallationTokenCache()
+
     public static func createGitHubAPI(repoPath: String, githubAccount: String, explicitToken: String? = nil) async throws -> GitHubAPIService {
         let token = try await resolveToken(githubAccount: githubAccount, explicitToken: explicitToken)
         let gitOps = createGitOps(gitHubToken: token)
@@ -82,9 +104,16 @@ public struct GitHubServiceFactory: Sendable {
         case .token(let pat):
             token = pat
         case .app(let appId, let installationId, let privateKeyPEM):
-            token = try await GitHubAppTokenService().generateInstallationToken(
-                appId: appId, installationId: installationId, privateKeyPEM: privateKeyPEM
-            )
+            let cacheKey = "app/\(installationId)"
+            if let cached = await tokenCache.get(key: cacheKey) {
+                token = cached
+            } else {
+                let generated = try await GitHubAppTokenService().generateInstallationToken(
+                    appId: appId, installationId: installationId, privateKeyPEM: privateKeyPEM
+                )
+                await tokenCache.set(token: generated, key: cacheKey)
+                token = generated
+            }
         }
         let gitOps = createGitOps(gitHubToken: token)
         let remoteURL = try await gitOps.getRemoteURL(path: repoPath)
@@ -119,9 +148,13 @@ public struct GitHubServiceFactory: Sendable {
         case .token(let pat):
             return pat
         case .app(let appId, let installationId, let privateKeyPEM):
-            return try await GitHubAppTokenService().generateInstallationToken(
+            let cacheKey = "\(githubAccount)/\(installationId)"
+            if let cached = await tokenCache.get(key: cacheKey) { return cached }
+            let token = try await GitHubAppTokenService().generateInstallationToken(
                 appId: appId, installationId: installationId, privateKeyPEM: privateKeyPEM
             )
+            await tokenCache.set(token: token, key: cacheKey)
+            return token
         }
     }
 }

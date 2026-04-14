@@ -23,7 +23,10 @@ Two issues were reported in the AIDevTools MacApp PR Radar feature:
 
 ## Phases
 
-## - [ ] Phase 1: Cache GitHub App installation tokens in GitHubServiceFactory
+## - [x] Phase 1: Cache GitHub App installation tokens in GitHubServiceFactory
+
+**Skills used**: `ai-dev-tools-code-quality`
+**Principles applied**: Added a file-private `InstallationTokenCache` actor with a 55-minute TTL. Wired it into both token-generation call sites — `resolveToken` (keyed by `"\(githubAccount)/\(installationId)"`) and `createPRService(repoPath:resolver:dataPathsService:)` (keyed by `"app/\(installationId)"`). Used `await` on actor methods since `GitHubServiceFactory` is a `Sendable` struct with static methods.
 
 **Skills to read**: `ai-dev-tools-code-quality`
 
