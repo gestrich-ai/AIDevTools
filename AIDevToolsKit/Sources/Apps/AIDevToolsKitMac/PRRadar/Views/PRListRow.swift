@@ -24,6 +24,11 @@ struct PRListRow: View {
 
                 Spacer()
 
+                if prModel.isAnyPhaseRunning {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
+
                 analysisBadge
 
                 if let relative = relativeTimestamp {
@@ -48,7 +53,7 @@ struct PRListRow: View {
 
             if !pr.author.login.isEmpty {
                 HStack(spacing: 4) {
-                    GitHubAvatarView(author: pr.author, size: 14)
+                    GitHubAvatarView(author: pr.author, size: GitHubAvatarView.avatarSmall)
                     Text(allPRsModel?.authorDisplayName(for: pr.author) ?? (pr.author.name.isEmpty ? pr.author.login : pr.author.name))
                         .font(.caption2)
                         .foregroundStyle(.secondary)

@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import OctokitSDK
 
 private let logger = Logger(label: "LoadAuthorsUseCase")
 
@@ -34,6 +35,9 @@ public struct LoadAuthorsUseCase {
                     )
                     try await service.updateAuthor(login: login, name: entry.name, avatarURL: entry.avatarURL)
                     result[login] = entry
+                } catch OctokitClientError.notFound {
+                    // Cache the login as a fallback so we don't re-hit the API for this user on every refresh.
+                    try? await service.updateAuthor(login: login, name: login, avatarURL: nil)
                 } catch {
                     logger.warning("execute(logins:): failed to fetch user \(login): \(error)")
                 }

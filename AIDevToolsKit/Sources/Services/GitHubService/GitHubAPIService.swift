@@ -72,7 +72,7 @@ public struct GitHubAPIService: Sendable {
                 path: rc.path,
                 line: rc.line,
                 startLine: rc.startLine,
-                author: rc.userLogin.map { GitHubAuthor(login: $0, id: rc.userId.map(String.init)) },
+                author: rc.userLogin.map { GitHubAuthor(login: $0, id: rc.userId.map(String.init), avatarURL: rc.userAvatarURL) },
                 createdAt: rc.createdAt,
                 url: rc.htmlUrl,
                 inReplyToId: rc.inReplyToId.map(String.init),

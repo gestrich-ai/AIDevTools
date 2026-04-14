@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import OctokitSDK
 
 private let logger = Logger(label: "GitHubPRLoaderUseCase")
 
@@ -95,8 +96,9 @@ public struct GitHubPRLoaderUseCase {
                     .sorted { $0.number > $1.number }
 
                 var rateLimited = false
+                var accessForbidden = false
                 for pr in enrichmentTargets {
-                    if rateLimited { break }
+                    if rateLimited || accessForbidden { break }
 
                     // If the PR hasn't changed since the last disk-cached version, read enrichment
                     // from disk cache rather than hitting GitHub again. On first load (cache miss)
@@ -111,16 +113,19 @@ public struct GitHubPRLoaderUseCase {
                         try? await updateAuthorCache(for: enriched)
                         continuation.yield(.prUpdated(enriched))
                     } catch {
-                        let msg = error.localizedDescription
                         logger.error("execute(filter:): enrichment failed for PR #\(pr.number): \(error)")
-                        if msg.lowercased().contains("rate limit") || msg.lowercased().contains("access forbidden") {
+                        if let octokitError = error as? OctokitClientError, case .forbidden = octokitError {
+                            accessForbidden = true
+                        } else if error.localizedDescription.lowercased().contains("rate limit") {
                             rateLimited = true
                         }
-                        continuation.yield(.prFetchFailed(prNumber: pr.number, error: msg))
+                        continuation.yield(.prFetchFailed(prNumber: pr.number, error: error.localizedDescription))
                     }
                 }
                 if rateLimited {
                     continuation.yield(.listFetchFailed("GitHub rate limit hit — enrichment stopped. Wait a minute then refresh."))
+                } else if accessForbidden {
+                    continuation.yield(.listFetchFailed("GitHub access denied — some PRs could not be loaded. Check your permissions."))
                 }
 
                 continuation.yield(.completed)
@@ -179,11 +184,17 @@ public struct GitHubPRLoaderUseCase {
     ) async throws -> PRMetadata {
         // service.comments() already fetches reviews internally (getPullRequestComments calls
         // listReviews). Calling service.reviews() separately would duplicate that request.
-        let comments = try await service.comments(number: pr.number, useCache: useCache)
-        let checkRuns = try await service.checkRuns(number: pr.number, useCache: useCache)
+        let comments = try await withStep("comments", pr: pr.number) {
+            try await service.comments(number: pr.number, useCache: useCache)
+        }
+        let checkRuns = try await withStep("checkRuns", pr: pr.number) {
+            try await service.checkRuns(number: pr.number, useCache: useCache)
+        }
         // isMergeable has no disk cache — skip the live call when reading from cache to avoid
         // an extra API call for PRs whose updatedAt hasn't changed.
-        let isMergeable: Bool? = useCache ? nil : (try await service.isMergeable(number: pr.number))
+        let isMergeable: Bool? = try await useCache ? nil : withStep("isMergeable", pr: pr.number) {
+            try await service.isMergeable(number: pr.number)
+        }
 
         var enriched = pr
         enriched.githubComments = comments
@@ -192,5 +203,14 @@ public struct GitHubPRLoaderUseCase {
         enriched.isMergeable = isMergeable
 
         return enriched
+    }
+
+    private func withStep<T: Sendable>(_ step: String, pr: Int, _ body: () async throws -> T) async throws -> T {
+        do {
+            return try await body()
+        } catch {
+            logger.error("enrichPR(#\(pr)): step '\(step)' failed: \(error)")
+            throw error
+        }
     }
 }

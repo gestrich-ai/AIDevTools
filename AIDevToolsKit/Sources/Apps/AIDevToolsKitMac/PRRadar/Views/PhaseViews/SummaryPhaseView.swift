@@ -38,7 +38,7 @@ struct SummaryPhaseView: View {
             HStack(spacing: 16) {
                 if !metadata.author.login.isEmpty {
                     HStack(spacing: 6) {
-                        GitHubAvatarView(author: metadata.author, size: 18)
+                        GitHubAvatarView(author: metadata.author, size: GitHubAvatarView.avatarSmall)
                         Text(metadata.author.name.isEmpty ? metadata.author.login : metadata.author.name)
                     }
                 }
@@ -134,7 +134,7 @@ struct SummaryPhaseView: View {
             HStack(spacing: 4) {
                 ForEach(authors, id: \.login) { author in
                     HStack(spacing: 3) {
-                        GitHubAvatarView(author: author, size: 16)
+                        GitHubAvatarView(author: author, size: GitHubAvatarView.avatarSmall)
                         Text(author.name ?? author.login)
                             .font(.subheadline)
                     }

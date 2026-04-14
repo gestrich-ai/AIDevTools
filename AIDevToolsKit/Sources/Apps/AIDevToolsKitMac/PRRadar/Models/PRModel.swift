@@ -32,8 +32,8 @@ final class PRModel: Identifiable, Hashable {
     private(set) var comments: CommentPhaseOutput?
 
     private(set) var commentPostingState: CommentPostingState = .idle
+    private(set) var inlinePostError: String? = nil
     private(set) var submittingCommentIds: Set<String> = []
-    private(set) var submittedCommentIds: Set<String> = []
 
     private(set) var evaluations: [String: TaskEvaluation] = [:]
     private(set) var reviewComments: [ReviewComment] = []
@@ -206,8 +206,12 @@ final class PRModel: Identifiable, Hashable {
         return nil
     }
 
+    func isPendingForBadge(_ comment: ReviewComment) -> Bool {
+        comment.readyForPosting
+    }
+
     var pendingCommentCount: Int {
-        reviewComments.filter { $0.state == .new && !submittedCommentIds.contains($0.id) }.count
+        reviewComments.filter { isPendingForBadge($0) }.count
     }
 
     var hasPendingComments: Bool {
@@ -264,8 +268,8 @@ final class PRModel: Identifiable, Hashable {
         detailLoaded = false
         phaseStates = [:]
         commentPostingState = .idle
+        inlinePostError = nil
         submittingCommentIds = []
-        submittedCommentIds = []
         analyzeStreamModel = nil
         evaluations = [:]
         prepareAccumulator = nil
@@ -596,27 +600,26 @@ final class PRModel: Identifiable, Hashable {
             forRule: comment.ruleName, filePath: comment.filePath
         )
 
+        inlinePostError = nil
         submittingCommentIds.insert(reviewComment.id)
 
-        let useCase = PostSingleCommentUseCase(config: config)
-
         do {
-            let success = try await useCase.execute(
+            logger.info("submitSingleComment: posting", metadata: ["prNumber": "\(prNumber)", "rule": "\(comment.ruleName)", "file": "\(comment.filePath)"])
+            let updated = try await PostSingleCommentUseCase(config: config).execute(
                 comment: comment,
                 suppressedCount: suppressedCount,
                 commitSHA: commitSHA,
-                prNumber: prNumber
+                prNumber: prNumber,
+                commitHash: currentCommitHash
             )
-
-            submittingCommentIds.remove(reviewComment.id)
-            if success {
-                submittedCommentIds.insert(reviewComment.id)
-                await refreshReviewCommentsFromGitHub()
-            }
+            logger.info("submitSingleComment: confirmed posted", metadata: ["prNumber": "\(prNumber)", "rule": "\(comment.ruleName)"])
+            reviewComments = updated
         } catch {
-            submittingCommentIds.remove(reviewComment.id)
-            commentPostingState = .failed(error: error.localizedDescription, logs: "")
+            logger.error("submitSingleComment: failed", metadata: ["prNumber": "\(prNumber)", "error": "\(error)"])
+            inlinePostError = error.localizedDescription
         }
+
+        submittingCommentIds.remove(reviewComment.id)
     }
 
     // MARK: - Manual Comment Posting
@@ -624,35 +627,27 @@ final class PRModel: Identifiable, Hashable {
     func postManualComment(filePath: String, lineNumber: Int, body: String) async {
         guard let commitSHA = fullDiff?.commitHash else { return }
 
-        let useCase = PostManualCommentUseCase(config: config)
+        inlinePostError = nil
         do {
-            let success = try await useCase.execute(
+            logger.info("postManualComment: posting", metadata: ["prNumber": "\(prNumber)", "file": "\(filePath):\(lineNumber)"])
+            let updated = try await PostManualCommentUseCase(config: config).execute(
                 prNumber: prNumber,
                 filePath: filePath,
                 lineNumber: lineNumber,
                 body: body,
-                commitSHA: commitSHA
+                commitSHA: commitSHA,
+                commitHash: currentCommitHash
             )
-            guard success else { return }
-            await refreshReviewCommentsFromGitHub()
+            logger.info("postManualComment: done", metadata: ["prNumber": "\(prNumber)"])
+            reviewComments = updated
         } catch {
-            commentPostingState = .failed(error: error.localizedDescription, logs: "")
+            logger.error("postManualComment: failed", metadata: ["prNumber": "\(prNumber)", "error": "\(error)"])
+            inlinePostError = error.localizedDescription
         }
     }
 
-    private func refreshReviewCommentsFromGitHub() async {
-        let fetchUseCase = FetchReviewCommentsUseCase(config: config)
-        // Swallowing intentionally: this is a best-effort background refresh after
-        // a successful post. A failure leaves stale data but does not undo the post.
-        if let updated = try? await fetchUseCase.execute(
-            prNumber: prNumber,
-            minScore: 1,
-            commitHash: currentCommitHash,
-            cachedOnly: false
-        ) {
-            reviewComments = updated
-            submittedCommentIds = []
-        }
+    func clearInlinePostError() {
+        inlinePostError = nil
     }
 
     // MARK: - File Access

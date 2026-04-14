@@ -15,10 +15,6 @@ struct InlineCommentView: View {
         prModel.submittingCommentIds.contains(reviewComment.id)
     }
 
-    private var isSubmitted: Bool {
-        prModel.submittedCommentIds.contains(reviewComment.id)
-    }
-
     private var isSuppressed: Bool {
         reviewComment.isSuppressed
     }
@@ -80,11 +76,7 @@ struct InlineCommentView: View {
 
     @ViewBuilder
     private var submitButton: some View {
-        if isSubmitted {
-            Label("Submitted", systemImage: "checkmark.circle.fill")
-                .font(.caption)
-                .foregroundStyle(.green)
-        } else if isSubmitting {
+        if isSubmitting {
             HStack(spacing: 4) {
                 ProgressView()
                     .controlSize(.mini)

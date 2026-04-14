@@ -249,6 +249,14 @@ struct DiffPhaseView: View {
         )) {
             rulePickerSheet
         }
+        .alert("Comment Post Failed", isPresented: Binding(
+            get: { prModel.inlinePostError != nil },
+            set: { if !$0 { prModel.clearInlinePostError() } }
+        )) {
+            Button("OK") { prModel.clearInlinePostError() }
+        } message: {
+            Text(prModel.inlinePostError ?? "")
+        }
     }
 
     // MARK: - Tasks
@@ -410,11 +418,11 @@ struct DiffPhaseView: View {
         var counts: [String: Int] = [:]
         for (file, lineMap) in mapping.byFileAndLine {
             counts[file, default: 0] += lineMap.values.reduce(0) { total, comments in
-                total + comments.filter { $0.readyForPosting }.count
+                total + comments.filter { prModel.isPendingForBadge($0) }.count
             }
         }
         for (file, comments) in mapping.unmatchedByFile {
-            counts[file, default: 0] += comments.filter { $0.readyForPosting }.count
+            counts[file, default: 0] += comments.filter { prModel.isPendingForBadge($0) }.count
         }
         return counts
     }

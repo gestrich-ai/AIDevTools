@@ -15,6 +15,7 @@ struct InlinePostedCommentView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     if let author = comment.author {
+                        GitHubAvatarView(author: author, size: GitHubAvatarView.avatarSmall)
                         Text(author.name.flatMap { $0.isEmpty ? nil : $0 } ?? author.login)
                             .font(.subheadline.bold())
                     }

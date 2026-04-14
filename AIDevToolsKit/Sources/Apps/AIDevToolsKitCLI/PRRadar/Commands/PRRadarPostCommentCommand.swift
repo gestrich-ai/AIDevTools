@@ -35,8 +35,7 @@ struct PRRadarPostCommentCommand: AsyncParsableCommand {
 
         print("Posting comment on PR #\(options.prNumber) at \(file):\(line)...")
 
-        let useCase = PostManualCommentUseCase(config: config)
-        let success = try await useCase.execute(
+        try await PostManualCommentUseCase(config: config).execute(
             prNumber: options.prNumber,
             filePath: file,
             lineNumber: line,
@@ -44,10 +43,6 @@ struct PRRadarPostCommentCommand: AsyncParsableCommand {
             commitSHA: commitSHA
         )
 
-        if success {
-            print("Comment posted successfully.")
-        } else {
-            throw PRRadarCLIError.phaseFailed("Failed to post comment.")
-        }
+        print("Comment posted successfully.")
     }
 }

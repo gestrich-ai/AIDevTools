@@ -5,6 +5,9 @@ import SwiftUI
 /// Shows the avatar from `avatarURL` when available; falls back to initials derived from `displayName`.
 struct GitHubAvatarView: View {
 
+    static let avatarSmall: CGFloat = 18
+    static let avatarLarge: CGFloat = 33
+
     let displayName: String
     let avatarURL: String?
     let size: CGFloat

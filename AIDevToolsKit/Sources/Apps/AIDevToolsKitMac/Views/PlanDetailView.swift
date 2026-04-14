@@ -418,9 +418,8 @@ struct PlanDetailView: View {
         planModel.pipelineModel.onEvent = { @MainActor [weak executionModel] event in
             guard let executionModel else { return }
             switch event {
-            case .nodeStarted(_, let displayName):
+            case .nodeStarted:
                 executionModel.finalizeCurrentStreamingMessage()
-                executionModel.appendStatusMessage(displayName)
                 executionModel.beginStreamingMessage()
             case .nodeProgress(_, let progress):
                 if case .contentBlocks(let blocks) = progress {

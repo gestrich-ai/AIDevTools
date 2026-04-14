@@ -7,6 +7,7 @@ import Logging
 
 public enum OctokitClientError: Error, Sendable, LocalizedError {
     case authenticationFailed
+    case forbidden(String)
     case notFound(String)
     case rateLimitExceeded(String)
     case requestFailed(String)
@@ -16,10 +17,13 @@ public enum OctokitClientError: Error, Sendable, LocalizedError {
         switch self {
         case .authenticationFailed:
             return "GitHub authentication failed. Check your token is valid."
+        case .forbidden(let detail):
+            let base = "GitHub access forbidden. Check your permissions."
+            return detail.isEmpty ? base : "\(base) GitHub says: \(detail)"
         case .notFound(let detail):
             return "GitHub resource not found: \(detail)"
         case .rateLimitExceeded(let detail):
-            let base = "GitHub API rate limit exceeded or access forbidden. Check your token permissions."
+            let base = "GitHub API rate limit exceeded."
             return detail.isEmpty ? base : "\(base) GitHub says: \(detail)"
         case .requestFailed(let detail):
             return "GitHub API request failed: \(detail)"
@@ -101,6 +105,12 @@ private struct ReviewCommentResponse: Codable {
     struct ReviewCommentUser: Codable {
         let login: String
         let id: Int
+        let avatarURL: String?
+
+        enum CodingKeys: String, CodingKey {
+            case login, id
+            case avatarURL = "avatar_url"
+        }
     }
 
     enum CodingKeys: String, CodingKey {
@@ -184,6 +194,7 @@ public struct ReviewCommentData: Sendable {
     public let inReplyToId: Int?
     public let userLogin: String?
     public let userId: Int?
+    public let userAvatarURL: String?
 }
 
 public struct CreatedPullRequest: Codable, Sendable {
@@ -482,7 +493,8 @@ public struct OctokitClient: Sendable {
                         htmlUrl: r.htmlUrl,
                         inReplyToId: r.inReplyToId,
                         userLogin: r.user?.login,
-                        userId: r.user?.id
+                        userId: r.user?.id,
+                        userAvatarURL: r.user?.avatarURL
                     )
                 }
                 allResults.append(contentsOf: mapped)
@@ -1433,7 +1445,7 @@ public struct OctokitClient: Sendable {
         case 401:
             throw OctokitClientError.authenticationFailed
         case 403:
-            throw OctokitClientError.rateLimitExceeded(githubErrorMessage(from: data))
+            throw OctokitClientError.forbidden(githubErrorMessage(from: data))
         case 404:
             throw OctokitClientError.notFound(notFoundMessage)
         default:
