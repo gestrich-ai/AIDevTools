@@ -11,6 +11,8 @@ public struct ListCredentialAccountsUseCase: UseCase {
     }
 
     public func execute() throws -> [String] {
-        try settingsService.listCredentialAccounts()
+        let githubIds = Set(try settingsService.listGitHubProfileIds())
+        let anthropicIds = Set(try settingsService.listAnthropicProfileIds())
+        return githubIds.union(anthropicIds).sorted()
     }
 }

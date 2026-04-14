@@ -89,9 +89,10 @@ Define the new domain types in the SDKs or Services layer. No storage logic yet.
 
 ---
 
-## - [ ] Phase 2: Keychain Storage
+## - [x] Phase 2: Keychain Storage
 
-**Skills to read**: `ai-dev-tools-composition-root`
+**Skills used**: `ai-dev-tools-composition-root`
+**Principles applied**: New profile-based methods added to `SecureSettingsService` using the spec's key format (`github-profiles/<id>/token`, etc.). Old public account-based methods removed; an internal `loadCredential(account:type:)` bridge retained so `CredentialResolver` continues to compile — it maps old type constants to new profile keys, deferring CredentialResolver's full rewrite to Phase 3. `EnvironmentKeychainStore` updated to parse 3-component keys and synthesise `"default"` profile keys from env vars. All callers of old public methods updated minimally to keep the build green.
 
 Update `SecureSettingsService.swift` to read/write using the new keychain namespace format.
 

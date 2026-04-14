@@ -36,7 +36,7 @@ struct CompositionRoot {
 
         let providerModel = ProviderModel(registrySource: {
             let secureSettings = SecureSettingsService()
-            let account = (try? secureSettings.listCredentialAccounts())?.first ?? "default"
+            let account = (try? secureSettings.listGitHubProfileIds())?.first ?? "default"
             let resolver = CredentialResolver(settingsService: secureSettings, githubAccount: account)
             return SharedCompositionRoot.buildProviderRegistry(
                 anthropicAPIKey: resolver.getAnthropicKey(),

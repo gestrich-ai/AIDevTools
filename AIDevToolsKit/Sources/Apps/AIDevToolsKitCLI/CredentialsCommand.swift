@@ -158,7 +158,7 @@ struct CredentialsCommand: AsyncParsableCommand {
 
             print("Account: \(account)\n")
 
-            switch settingsService.loadGitHubAuth(account: account) {
+            switch settingsService.loadGitHubProfile(id: account)?.auth {
             case .token(let token):
                 print("  GitHub auth:       Token (\(masked(token)))")
             case .app(let appId, _, _):
@@ -167,7 +167,7 @@ struct CredentialsCommand: AsyncParsableCommand {
                 print("  GitHub auth:       not set")
             }
 
-            let anthropicMasked = maskedLoad { try settingsService.loadAnthropicKey(account: account) }
+            let anthropicMasked = settingsService.loadAnthropicProfile(id: account).map { masked($0.apiKey) } ?? "not set"
             print("  Anthropic API key: \(anthropicMasked)")
         }
 

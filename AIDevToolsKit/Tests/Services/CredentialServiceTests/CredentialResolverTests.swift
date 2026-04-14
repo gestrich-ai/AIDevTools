@@ -9,7 +9,7 @@ struct CredentialResolverTests {
     func envVarWinsOverKeychain() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
-        try service.saveAnthropicKey("keychain-key", account: "testaccount")
+        try service.saveAnthropicProfile(AnthropicCredentialProfile(id: "testaccount", apiKey: "keychain-key"))
 
         let resolver = CredentialResolver(
             settingsService: service,
@@ -25,7 +25,7 @@ struct CredentialResolverTests {
     func dotEnvWinsOverKeychain() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
-        try service.saveAnthropicKey("keychain-key", account: "testaccount")
+        try service.saveAnthropicProfile(AnthropicCredentialProfile(id: "testaccount", apiKey: "keychain-key"))
 
         let resolver = CredentialResolver(
             settingsService: service,
@@ -41,7 +41,7 @@ struct CredentialResolverTests {
     func keychainUsedWhenEnvMissing() throws {
         let keychain = MockKeychainStore()
         let service = SecureSettingsService(keychain: keychain)
-        try service.saveAnthropicKey("keychain-key", account: "testaccount")
+        try service.saveAnthropicProfile(AnthropicCredentialProfile(id: "testaccount", apiKey: "keychain-key"))
 
         let resolver = CredentialResolver(
             settingsService: service,

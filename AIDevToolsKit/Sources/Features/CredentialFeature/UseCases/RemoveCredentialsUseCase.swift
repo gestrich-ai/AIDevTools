@@ -12,7 +12,8 @@ public struct RemoveCredentialsUseCase: UseCase {
 
     @discardableResult
     public func execute(account: String) throws -> [CredentialStatus] {
-        try settingsService.removeCredentials(account: account)
+        settingsService.removeGitHubProfile(id: account)
+        settingsService.removeAnthropicProfile(id: account)
         return try CredentialStatusLoader(settingsService: settingsService).loadAllStatuses()
     }
 }

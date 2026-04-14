@@ -1,17 +1,9 @@
 import Foundation
 
 /// Maps keychain key types to environment variable names.
-/// Keys follow the format "account/type" (e.g., "work/github-token").
-/// The account portion is ignored — env vars are not account-scoped.
+/// Keys follow the format "prefix/profileId/suffix" (e.g., "github-profiles/work/token").
+/// The profile ID portion is ignored — env vars are not profile-scoped.
 public struct EnvironmentKeychainStore: KeychainStoring {
-    private static let typeToEnvVar: [String: String] = [
-        "anthropic-api-key": "ANTHROPIC_API_KEY",
-        "github-app-id": "GITHUB_APP_ID",
-        "github-app-installation-id": "GITHUB_APP_INSTALLATION_ID",
-        "github-app-private-key": "GITHUB_APP_PRIVATE_KEY",
-        "github-token": "GITHUB_TOKEN",
-    ]
-
     private let environment: [String: String]
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
@@ -36,17 +28,33 @@ public struct EnvironmentKeychainStore: KeychainStoring {
 
     public func allKeys() throws -> Set<String> {
         var keys = Set<String>()
-        for (type, envVar) in Self.typeToEnvVar {
+        let envVarToKey: [String: String] = [
+            "ANTHROPIC_API_KEY": "anthropic-profiles/default/api-key",
+            "GITHUB_APP_ID": "github-profiles/default/app-id",
+            "GITHUB_APP_INSTALLATION_ID": "github-profiles/default/installation-id",
+            "GITHUB_APP_PRIVATE_KEY": "github-profiles/default/private-key",
+            "GITHUB_TOKEN": "github-profiles/default/token",
+        ]
+        for (envVar, key) in envVarToKey {
             if let value = environment[envVar], !value.isEmpty {
-                keys.insert("env/\(type)")
+                keys.insert(key)
             }
         }
         return keys
     }
 
     static func envVarName(forKey key: String) -> String? {
-        guard let slashIndex = key.firstIndex(of: "/") else { return nil }
-        let type = String(key[key.index(after: slashIndex)...])
-        return typeToEnvVar[type]
+        let components = key.split(separator: "/", maxSplits: 2)
+        guard components.count == 3 else { return nil }
+        let prefix = String(components[0])
+        let suffix = String(components[2])
+        switch (prefix, suffix) {
+        case ("anthropic-profiles", "api-key"): return "ANTHROPIC_API_KEY"
+        case ("github-profiles", "app-id"): return "GITHUB_APP_ID"
+        case ("github-profiles", "installation-id"): return "GITHUB_APP_INSTALLATION_ID"
+        case ("github-profiles", "private-key"): return "GITHUB_APP_PRIVATE_KEY"
+        case ("github-profiles", "token"): return "GITHUB_TOKEN"
+        default: return nil
+        }
     }
 }

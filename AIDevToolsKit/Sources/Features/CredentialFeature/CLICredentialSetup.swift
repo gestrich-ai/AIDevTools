@@ -18,7 +18,7 @@ public func resolveGitHubCredentials(
     } else {
         let service = SecureSettingsService()
         // Swallowing intentionally: credential account enumeration failure is non-fatal — fall back to "default".
-        let account = githubAccount ?? (try? service.listCredentialAccounts())?.first ?? "default"
+        let account = githubAccount ?? (try? service.listGitHubProfileIds())?.first ?? "default"
         resolver = CredentialResolver(settingsService: service, githubAccount: account)
     }
     if case .token(let token) = resolver.getGitHubAuth() {

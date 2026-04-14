@@ -17,10 +17,10 @@ public struct SaveCredentialsUseCase: UseCase {
         anthropicKey: String?
     ) throws -> [CredentialStatus] {
         if let gitHubAuth {
-            try settingsService.saveGitHubAuth(gitHubAuth, account: account)
+            try settingsService.saveGitHubProfile(GitHubCredentialProfile(id: account, auth: gitHubAuth))
         }
         if let anthropicKey, !anthropicKey.isEmpty {
-            try settingsService.saveAnthropicKey(anthropicKey, account: account)
+            try settingsService.saveAnthropicProfile(AnthropicCredentialProfile(id: account, apiKey: anthropicKey))
         }
         return try CredentialStatusLoader(settingsService: settingsService).loadAllStatuses()
     }
