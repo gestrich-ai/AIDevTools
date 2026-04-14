@@ -4,45 +4,48 @@ public struct RepositoryConfiguration: Codable, Identifiable, Sendable {
     public let id: UUID
     public let path: URL
     public let name: String
-    public var credentialAccount: String?
+    public var anthropicCredentialProfileId: String?
+    public var architectureDocs: [String]?
     public var description: String?
     public var eval: EvalRepoSettings?
+    public var githubCredentialProfileId: String?
     public var planner: PlanRepoSettings?
     public var prradar: PRRadarRepoSettings?
+    public var pullRequest: PullRequestConfig?
     public var recentFocus: String?
     public var skills: [String]?
-    public var architectureDocs: [String]?
     public var verification: Verification?
-    public var pullRequest: PullRequestConfig?
 
     public init(
         id: UUID = UUID(),
         path: URL,
         name: String? = nil,
-        credentialAccount: String? = nil,
+        anthropicCredentialProfileId: String? = nil,
+        architectureDocs: [String]? = nil,
         description: String? = nil,
         eval: EvalRepoSettings? = nil,
+        githubCredentialProfileId: String? = nil,
         planner: PlanRepoSettings? = nil,
         prradar: PRRadarRepoSettings? = nil,
+        pullRequest: PullRequestConfig? = nil,
         recentFocus: String? = nil,
         skills: [String]? = nil,
-        architectureDocs: [String]? = nil,
-        verification: Verification? = nil,
-        pullRequest: PullRequestConfig? = nil
+        verification: Verification? = nil
     ) {
         self.id = id
         self.path = path
         self.name = name ?? path.lastPathComponent
-        self.credentialAccount = credentialAccount
+        self.anthropicCredentialProfileId = anthropicCredentialProfileId
+        self.architectureDocs = architectureDocs
         self.description = description
         self.eval = eval
+        self.githubCredentialProfileId = githubCredentialProfileId
         self.planner = planner
         self.prradar = prradar
+        self.pullRequest = pullRequest
         self.recentFocus = recentFocus
         self.skills = skills
-        self.architectureDocs = architectureDocs
         self.verification = verification
-        self.pullRequest = pullRequest
     }
 
     public func with(id: UUID) -> RepositoryConfiguration {
@@ -50,16 +53,17 @@ public struct RepositoryConfiguration: Codable, Identifiable, Sendable {
             id: id,
             path: path,
             name: name,
-            credentialAccount: credentialAccount,
+            anthropicCredentialProfileId: anthropicCredentialProfileId,
+            architectureDocs: architectureDocs,
             description: description,
             eval: eval,
+            githubCredentialProfileId: githubCredentialProfileId,
             planner: planner,
             prradar: prradar,
+            pullRequest: pullRequest,
             recentFocus: recentFocus,
             skills: skills,
-            architectureDocs: architectureDocs,
-            verification: verification,
-            pullRequest: pullRequest
+            verification: verification
         )
     }
 }

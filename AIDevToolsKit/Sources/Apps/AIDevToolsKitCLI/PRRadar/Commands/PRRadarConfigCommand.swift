@@ -49,7 +49,7 @@ struct PRRadarConfigAddCommand: AsyncParsableCommand {
         )
         var repo = RepositoryConfiguration(path: repoURL, name: name)
         if !githubAccount.isEmpty {
-            repo.credentialAccount = githubAccount
+            repo.githubCredentialProfileId = githubAccount
         }
         repo.prradar = prradarSettings
         repo.pullRequest = PullRequestConfig(

@@ -64,7 +64,7 @@ final class ClaudeChainModel {
     private var activeClient: any AIClient
     @ObservationIgnored private var chatModels: [String: ChatModel] = [:]
     @ObservationIgnored private let streamAccumulator = StreamAccumulator()
-    private var currentCredentialAccount: String?
+    private var currentGithubProfileId: String?
     private var currentRepoPath: URL?
     private var gitHubPRService: (any GitHubPRServiceProtocol)?
     private var gitHubRepoConfig: GitHubRepoConfig?
@@ -90,7 +90,7 @@ final class ClaudeChainModel {
         self.activeClient = client
     }
 
-    func loadChains(for repoPath: URL, credentialAccount: String?) {
+    func loadChains(for repoPath: URL, githubCredentialProfileId: String?) {
         if currentRepoPath?.path != repoPath.path {
             chainDetailErrors = [:]
             chainDetailNetworkFetched = []
@@ -102,7 +102,7 @@ final class ClaudeChainModel {
             gitHubRepoConfig = nil
         }
         currentRepoPath = repoPath
-        currentCredentialAccount = credentialAccount
+        currentGithubProfileId = githubCredentialProfileId
         state = .loadingChains
         Task {
             // Derive repoSlug from git config — no credentials required.
@@ -208,7 +208,7 @@ final class ClaudeChainModel {
                     worktreeOptions: worktreeOptions,
                     client: activeClient,
                     git: git,
-                    githubAccount: currentCredentialAccount
+                    githubAccount: currentGithubProfileId
                 ) { [weak self] event in
                     Task { @MainActor [weak self] in
                         self?.handleProgressEvent(event)
@@ -237,7 +237,7 @@ final class ClaudeChainModel {
         let options = ChainRunOptions(
             baseBranch: project.baseBranch,
             branchName: branchName,
-            githubAccount: currentCredentialAccount,
+            githubAccount: currentGithubProfileId,
             projectName: project.name,
             repoPath: repoPath
         )
@@ -307,7 +307,7 @@ final class ClaudeChainModel {
         try CreateChainProjectUseCase().run(
             options: .init(name: name, repoPath: repoPath, baseBranch: baseBranch)
         )
-        loadChains(for: repoPath, credentialAccount: currentCredentialAccount)
+        loadChains(for: repoPath, githubCredentialProfileId: currentGithubProfileId)
     }
 
     func reset() {
@@ -316,7 +316,7 @@ final class ClaudeChainModel {
         taskPipelines = [:]
         selectedTaskIndex = nil
         if let repoPath = currentRepoPath {
-            loadChains(for: repoPath, credentialAccount: currentCredentialAccount)
+            loadChains(for: repoPath, githubCredentialProfileId: currentGithubProfileId)
         }
     }
 
@@ -350,12 +350,12 @@ final class ClaudeChainModel {
     }
 
     private func makeGitClient() -> GitClient {
-        gitClientFactory(currentCredentialAccount)
+        gitClientFactory(currentGithubProfileId)
     }
 
     private func makeOrGetGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
         if let service = gitHubPRService { return service }
-        guard let account = currentCredentialAccount, !account.isEmpty else {
+        guard let account = currentGithubProfileId, !account.isEmpty else {
             throw CredentialError.notConfigured(account: "")
         }
         let service = try await GitHubServiceFactory.createPRService(
@@ -369,7 +369,7 @@ final class ClaudeChainModel {
 
     private func makeOrGetGitHubRepoConfig(repoPath: URL) async throws -> GitHubRepoConfig {
         if let config = gitHubRepoConfig { return config }
-        guard let account = currentCredentialAccount, !account.isEmpty else {
+        guard let account = currentGithubProfileId, !account.isEmpty else {
             throw CredentialError.notConfigured(account: "")
         }
         let config = try await GitHubServiceFactory.makeRepoConfig(

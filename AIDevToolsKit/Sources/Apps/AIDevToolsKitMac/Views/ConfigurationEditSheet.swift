@@ -9,7 +9,7 @@ struct ConfigurationEditSheet: View {
     @State private var casesDirectoryText: String
     @State private var completedDirectoryText: String
     @State private var proposedDirectoryText: String
-    @State private var credentialAccountText: String
+    @State private var githubProfileIdText: String
     @State private var descriptionText: String
     @State private var recentFocusText: String
     @State private var skillsText: String
@@ -50,7 +50,7 @@ struct ConfigurationEditSheet: View {
         _casesDirectoryText = State(initialValue: casesDirectory ?? "")
         _completedDirectoryText = State(initialValue: completedDirectory ?? "")
         _proposedDirectoryText = State(initialValue: proposedDirectory ?? "")
-        _credentialAccountText = State(initialValue: config.credentialAccount ?? "")
+        _githubProfileIdText = State(initialValue: config.githubCredentialProfileId ?? "")
         _descriptionText = State(initialValue: config.description ?? "")
         _recentFocusText = State(initialValue: config.recentFocus ?? "")
         _skillsText = State(initialValue: (config.skills ?? []).joined(separator: "\n"))
@@ -86,8 +86,8 @@ struct ConfigurationEditSheet: View {
                             .textFieldStyle(.roundedBorder)
                     }
 
-                    LabeledContent("Credential Account") {
-                        Picker("", selection: $credentialAccountText) {
+                    LabeledContent("GitHub Profile") {
+                        Picker("", selection: $githubProfileIdText) {
                             Text("None").tag("")
                             ForEach(credentialModel.credentialAccounts, id: \.account) { status in
                                 Text(status.account).tag(status.account)
@@ -207,13 +207,13 @@ struct ConfigurationEditSheet: View {
             id: config.id,
             path: repoURL,
             name: finalName,
-            credentialAccount: credentialAccountText.isEmpty ? nil : credentialAccountText,
+            architectureDocs: archDocs.isEmpty ? nil : archDocs,
             description: descriptionText.isEmpty ? nil : descriptionText,
+            githubCredentialProfileId: githubProfileIdText.isEmpty ? nil : githubProfileIdText,
+            pullRequest: pullRequest,
             recentFocus: recentFocusText.isEmpty ? nil : recentFocusText,
             skills: skills.isEmpty ? nil : skills,
-            architectureDocs: archDocs.isEmpty ? nil : archDocs,
-            verification: verification,
-            pullRequest: pullRequest
+            verification: verification
         )
         onSave(updated, cases, completed, proposed)
 

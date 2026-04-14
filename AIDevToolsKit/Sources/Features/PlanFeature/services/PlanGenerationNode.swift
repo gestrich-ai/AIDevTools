@@ -133,8 +133,8 @@ struct PlanGenerationNode: PipelineNode {
             repoContextLines.append("PR base branch: \(pr.baseBranch)")
             repoContextLines.append("Branch naming: \(pr.branchNamingConvention)")
         }
-        if let credentialAccount = repo.credentialAccount {
-            repoContextLines.append("Credential account: \(credentialAccount) (GH_TOKEN injected automatically)")
+        if let githubCredentialProfileId = repo.githubCredentialProfileId {
+            repoContextLines.append("GitHub profile: \(githubCredentialProfileId) (GH_TOKEN injected automatically)")
         }
         let repoContext = repoContextLines.joined(separator: "\n")
 

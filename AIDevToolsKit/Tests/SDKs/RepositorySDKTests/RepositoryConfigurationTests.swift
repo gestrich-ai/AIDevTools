@@ -24,18 +24,18 @@ struct RepositoryConfigurationTests {
         let repo = RepositoryConfiguration(
             path: URL(filePath: "/Users/test/my-repo"),
             name: "my-repo",
-            credentialAccount: "gestrich",
-            description: "A test repository",
-            recentFocus: "Adding auth",
-            skills: ["swift", "swiftui"],
             architectureDocs: ["docs/arch.md"],
-            verification: Verification(commands: ["swift build", "swift test"], notes: "macOS only"),
+            description: "A test repository",
+            githubCredentialProfileId: "gestrich",
             pullRequest: PullRequestConfig(
                 baseBranch: "main",
                 branchNamingConvention: "feature/<name>",
                 template: "## Summary\n",
                 notes: "Require 2 approvals"
-            )
+            ),
+            recentFocus: "Adding auth",
+            skills: ["swift", "swiftui"],
+            verification: Verification(commands: ["swift build", "swift test"], notes: "macOS only")
         )
 
         // Act
@@ -46,7 +46,7 @@ struct RepositoryConfigurationTests {
         #expect(decoded.id == repo.id)
         #expect(decoded.path == repo.path)
         #expect(decoded.name == "my-repo")
-        #expect(decoded.credentialAccount == "gestrich")
+        #expect(decoded.githubCredentialProfileId == "gestrich")
         #expect(decoded.description == "A test repository")
         #expect(decoded.recentFocus == "Adding auth")
         #expect(decoded.skills == ["swift", "swiftui"])
@@ -72,7 +72,7 @@ struct RepositoryConfigurationTests {
         #expect(decoded.id == repo.id)
         #expect(decoded.path == repo.path)
         #expect(decoded.name == "repo")
-        #expect(decoded.credentialAccount == nil)
+        #expect(decoded.githubCredentialProfileId == nil)
         #expect(decoded.description == nil)
         #expect(decoded.verification == nil)
         #expect(decoded.pullRequest == nil)

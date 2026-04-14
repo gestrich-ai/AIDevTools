@@ -72,7 +72,7 @@ struct ClaudeChainModelTests {
         let model = try makeModel()
 
         // Act
-        model.loadChains(for: repoPath, credentialAccount: nil)
+        model.loadChains(for: repoPath, githubCredentialProfileId: nil)
 
         // Assert
         guard case .loadingChains = model.state else {
@@ -101,7 +101,7 @@ struct ClaudeChainModelTests {
         let model = try makeModel()
 
         // Act
-        model.loadChains(for: repoPath, credentialAccount: nil)
+        model.loadChains(for: repoPath, githubCredentialProfileId: nil)
         try await Task.sleep(for: .milliseconds(100))
 
         // Assert: state is .loaded (not .error) — no credentials is a graceful fallback

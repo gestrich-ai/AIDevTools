@@ -43,10 +43,10 @@ public struct FinalizeCommand: AsyncParsableCommand {
             // Resolve GH_TOKEN via CredentialResolver (env GITHUB_TOKEN → .env → keychain),
             // falling back to GH_TOKEN env var for GitHub Actions compatibility
             var ghToken = ""
-            let credentialAccount = environment["GITHUB_CREDENTIAL_ACCOUNT"] ?? "default"
+            let githubCredentialProfileId = environment["GITHUB_CREDENTIAL_ACCOUNT"] ?? "default"
             let credentialResolver = CredentialResolver(
                 settingsService: SecureSettingsService(),
-                githubAccount: credentialAccount
+                githubAccount: githubCredentialProfileId
             )
             if case .token(let token) = credentialResolver.getGitHubAuth() {
                 ghToken = token

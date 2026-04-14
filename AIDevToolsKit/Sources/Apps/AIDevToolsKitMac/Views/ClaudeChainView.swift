@@ -49,7 +49,7 @@ struct ClaudeChainView: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 8)
                             Button("Retry") {
-                                model.loadChains(for: repository.path, credentialAccount: repository.credentialAccount)
+                                model.loadChains(for: repository.path, githubCredentialProfileId: repository.githubCredentialProfileId)
                             }
                         }
                         .padding()
@@ -70,7 +70,7 @@ struct ClaudeChainView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: repository.id) {
-            model.loadChains(for: repository.path, credentialAccount: repository.credentialAccount)
+            model.loadChains(for: repository.path, githubCredentialProfileId: repository.githubCredentialProfileId)
         }
         .onChange(of: model.lastLoadedProjects) { _, newProjects in
             guard !newProjects.isEmpty else { return }

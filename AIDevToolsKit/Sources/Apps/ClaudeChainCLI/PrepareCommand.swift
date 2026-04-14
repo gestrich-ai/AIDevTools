@@ -32,10 +32,10 @@ public struct PrepareCommand: AsyncParsableCommand {
             // Resolve GH_TOKEN via CredentialResolver so all child gh processes authenticate.
             // CredentialResolver checks GITHUB_TOKEN env → .env → keychain.
             // Falls back to GH_TOKEN env var for GitHub Actions compatibility.
-            let credentialAccount = env["GITHUB_CREDENTIAL_ACCOUNT"] ?? "default"
+            let githubCredentialProfileId = env["GITHUB_CREDENTIAL_ACCOUNT"] ?? "default"
             let credentialResolver = CredentialResolver(
                 settingsService: SecureSettingsService(),
-                githubAccount: credentialAccount
+                githubAccount: githubCredentialProfileId
             )
             if case .token(let token) = credentialResolver.getGitHubAuth() {
                 setenv("GH_TOKEN", token, 1)
