@@ -151,7 +151,10 @@ Remove the `await reloadDetailAsync()` call added as the temporary fix. The payl
 
 **What to watch for:** `preparation` is read by `runAnalyze` and `runFilteredAnalysis` on the very next iteration of the phase loop. Setting it here directly — before `completePhase` marks the phase complete — is the correct and sufficient ordering.
 
-## - [ ] Phase 3: Fix analyze phase handlers
+## - [x] Phase 3: Fix analyze phase handlers
+
+**Skills used**: `ai-dev-tools-code-quality`
+**Principles applied**: Captured `PRReviewResult` from `.completed(let output)` in both `runAnalyze` and `runFilteredAnalysis`. Assigned directly to `_savedAnalysis` and called a new private `updateAnalysisState(from:)` helper to set `analysisState` from the payload. Removed the standalone `reloadDetail()` call from `runFilteredAnalysis`. Extracted the helper to eliminate duplicated logic between these handlers and the `applyDetail` disk-restore path.
 
 **Skills to read**: `ai-dev-tools-code-quality`
 

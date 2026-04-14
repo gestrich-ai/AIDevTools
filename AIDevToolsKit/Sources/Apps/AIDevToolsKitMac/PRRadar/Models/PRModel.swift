@@ -335,17 +335,21 @@ final class PRModel: Identifiable, Hashable {
         }
 
         if let summary = newDetail.analysisSummary {
-            let postedCount = metadata.githubComments?.reviewComments.count ?? 0
-            analysisState = .loaded(
-                violationCount: summary.violationsFound,
-                evaluatedAt: summary.evaluatedAt,
-                postedCommentCount: postedCount
-            )
+            updateAnalysisState(from: summary)
         } else {
             analysisState = .unavailable
         }
 
         reloadReviewComments()
+    }
+
+    private func updateAnalysisState(from summary: PRReviewSummary) {
+        let postedCount = metadata.githubComments?.reviewComments.count ?? 0
+        analysisState = .loaded(
+            violationCount: summary.violationsFound,
+            evaluatedAt: summary.evaluatedAt,
+            postedCommentCount: postedCount
+        )
     }
 
     private func reloadReviewComments() {
@@ -841,10 +845,12 @@ final class PRModel: Identifiable, Hashable {
                     case .completed:
                         analyzeStreamModel?.finalizeCurrentStreamingMessage()
                     }
-                case .completed:
+                case .completed(let output):
                     analyzeStreamModel?.finalizeCurrentStreamingMessage()
                     inProgressAnalysis = nil
                     for key in evaluations.keys { evaluations[key]?.accumulator = nil }
+                    _savedAnalysis = output
+                    updateAnalysisState(from: output.summary)
                     completePhase(.analyze)
                 case .failed(let error, let logs):
                     analyzeStreamModel?.finalizeCurrentStreamingMessage()
@@ -882,10 +888,11 @@ final class PRModel: Identifiable, Hashable {
                 case .prepareStreamEvent: break
                 case .taskEvent(let task, let event):
                     handleTaskEvent(task, event)
-                case .completed:
+                case .completed(let output):
                     inProgressAnalysis = nil
                     for key in evaluations.keys { evaluations[key]?.accumulator = nil }
-                    reloadDetail()
+                    _savedAnalysis = output
+                    updateAnalysisState(from: output.summary)
                 case .failed(let error, let logs):
                     for key in evaluations.keys { evaluations[key]?.accumulator = nil }
                     failPhase(.analyze, error: error, logs: logs)
