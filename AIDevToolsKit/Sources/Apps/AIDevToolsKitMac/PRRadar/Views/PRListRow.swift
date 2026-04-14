@@ -1,4 +1,3 @@
-import ClaudeChainService
 import PRRadarModelsService
 import SwiftUI
 
@@ -23,20 +22,9 @@ struct PRListRow: View {
 
                 stateIndicator
 
-                if prModel.operationMode != .idle {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-
                 Spacer()
 
                 analysisBadge
-
-                postedCommentsBadge
-
-                reviewStatusBadge
-
-                buildStatusBadge
 
                 if let relative = relativeTimestamp {
                     Text(relative)
@@ -82,107 +70,7 @@ struct PRListRow: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1)
                 .background(.orange, in: Capsule())
-        } else if case .loaded = prModel.analysisState {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(.green)
         }
-    }
-
-    // MARK: - Posted Comments Badge
-
-    @ViewBuilder
-    private var postedCommentsBadge: some View {
-        switch prModel.analysisState {
-        case .loaded(_, _, let postedCommentCount):
-            Text("\(max(postedCommentCount, 1))")
-                .font(.caption2.bold())
-                .foregroundStyle(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 1)
-                .background(.green, in: Capsule())
-                .opacity(postedCommentCount > 0 ? 1 : 0)
-        default:
-            EmptyView()
-        }
-    }
-
-    // MARK: - Review Status Badge
-
-    @ViewBuilder
-    private var reviewStatusBadge: some View {
-        if let status = reviewStatus {
-            let approved = status.approvedBy.count
-            let rejected = status.changesRequestedBy.count
-            if approved == 0 && rejected == 0 {
-                Image(systemName: "clock.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .help("Review Pending")
-            } else {
-                HStack(spacing: 3) {
-                    if approved > 0 {
-                        countBadge(approved, color: .green,
-                                   help: "Approved by \(status.approvedBy.joined(separator: ", "))")
-                    }
-                    if rejected > 0 {
-                        countBadge(rejected, color: .red,
-                                   help: "Changes requested by \(status.changesRequestedBy.joined(separator: ", "))")
-                    }
-                }
-            }
-        }
-    }
-
-    private var reviewStatus: PRReviewStatus? {
-        guard let reviews = pr.reviews else { return nil }
-        return PRReviewStatus(reviews: reviews)
-    }
-
-    // MARK: - Build Status Badge
-
-    @ViewBuilder
-    private var buildStatusBadge: some View {
-        if pr.isMergeable == false {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.caption2)
-                .foregroundStyle(.orange)
-                .help("Merge Conflict")
-        } else if let runs = pr.checkRuns {
-            let passing = runs.filter(\.isPassing).count
-            let failing = runs.filter(\.isFailing).count
-            let pending = runs.filter { $0.status != .completed }.count
-            if passing == 0 && failing == 0 && pending == 0 {
-                EmptyView()
-            } else {
-                HStack(spacing: 3) {
-                    if passing > 0 {
-                        countBadge(passing, color: .green,
-                                   help: "\(passing) check\(passing == 1 ? "" : "s") passing")
-                    }
-                    if failing > 0 {
-                        countBadge(failing, color: .red,
-                                   help: "\(failing) check\(failing == 1 ? "" : "s") failing")
-                    }
-                    if pending > 0 && failing == 0 {
-                        countBadge(pending, color: .orange,
-                                   help: "\(pending) check\(pending == 1 ? "" : "s") pending")
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Shared Badge Helper
-
-    private func countBadge(_ count: Int, color: Color, help: String) -> some View {
-        Text("\(count)")
-            .font(.caption2.bold())
-            .foregroundStyle(.white)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(color, in: Capsule())
-            .help(help)
     }
 
     // MARK: - State Indicator

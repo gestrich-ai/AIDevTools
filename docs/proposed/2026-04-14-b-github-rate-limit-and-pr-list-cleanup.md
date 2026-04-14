@@ -66,7 +66,10 @@ Add a `private static let tokenCache = InstallationTokenCache()` to `GitHubServi
 
 For `createPRService(repoPath:resolver:dataPathsService:)`, the `installationId` is available from the `.app` case — use `"app/\(installationId)"` as the cache key (no account prefix needed since this method takes a full `CredentialResolver`).
 
-## - [ ] Phase 2: Clean up PRListRow — remove ambiguous badges
+## - [x] Phase 2: Clean up PRListRow — remove ambiguous badges
+
+**Skills used**: `ai-dev-tools-code-quality`
+**Principles applied**: Removed `buildStatusBadge`, `reviewStatusBadge`, `postedCommentsBadge`, the `ProgressView` spinner, `countBadge` helper, and `reviewStatus` computed var. Simplified `analysisBadge` to only show the orange pending-violations count. Removed unused `ClaudeChainService` import. HStack now contains only `stateIndicator`, `Spacer()`, `analysisBadge`, and the relative timestamp.
 
 **Skills to read**: `ai-dev-tools-code-quality`
 
