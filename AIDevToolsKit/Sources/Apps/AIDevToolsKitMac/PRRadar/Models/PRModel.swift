@@ -314,7 +314,7 @@ final class PRModel: Identifiable, Hashable {
             }
         }
 
-        if case .running = phaseStates[.diff] {} else { syncSnapshot = newDetail.syncSnapshot }
+        if case .running = phaseStates[.diff] {} else if case .refreshing = phaseStates[.diff] {} else { syncSnapshot = newDetail.syncSnapshot }
         if case .running = phaseStates[.prepare] {} else { preparation = newDetail.preparation }
         if case .running = phaseStates[.analyze] {} else { _savedAnalysis = newDetail.analysis }
         if case .running = phaseStates[.report] {} else { report = newDetail.report }

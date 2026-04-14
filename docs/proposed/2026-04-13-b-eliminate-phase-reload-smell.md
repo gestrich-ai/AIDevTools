@@ -246,7 +246,10 @@ Also audit remaining call sites of `reloadDetail()` — in `resetPhase`, `switch
 
 **`reloadDetail` itself stays.** The fire-and-forget method is still needed for the sync call sites (`resetPhase`, `switchToCommit`, `resetAfterDataDeletion`, `loadDetail`) that cannot await. Do not delete the method — only remove the call inside `completePhase`.
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
+
+**Skills used**: `ai-dev-tools-swift-testing`, `ai-dev-tools-enforce`
+**Principles applied**: `swift build` clean, no new warnings. Pre-existing test failures in `ClaudeChainServiceTests` and `ClaudeChainFeatureTests` confirmed as pre-existing (reproduced without this plan's changes). Enforce found one correctness issue: `applyDetail` only guarded `syncSnapshot` against `.running` but not `.refreshing` — fixed by adding the `.refreshing` guard to match the `phaseStates` loop pattern. No test files were changed so Swift Testing conventions were not applicable.
 
 **Skills to read**: `ai-dev-tools-swift-testing`, `ai-dev-tools-enforce`
 
