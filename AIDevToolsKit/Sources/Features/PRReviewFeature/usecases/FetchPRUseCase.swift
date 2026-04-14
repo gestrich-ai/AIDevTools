@@ -33,13 +33,16 @@ public struct FetchPRUseCase: StreamingUseCase {
 
         let comments = await PRDiscoveryService.loadComments(config: config, prNumber: prNumber)
 
+        let storedEffectiveDiff = PhaseOutputParser.loadEffectiveDiff(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+
         return SyncSnapshot(
             prDiff: prDiff,
             files: files,
             commentCount: comments?.comments.count ?? 0,
             reviewCount: comments?.reviews.count ?? 0,
             reviewCommentCount: comments?.reviewComments.count ?? 0,
-            commitHash: resolvedCommit
+            commitHash: resolvedCommit,
+            storedEffectiveDiff: storedEffectiveDiff
         )
     }
 

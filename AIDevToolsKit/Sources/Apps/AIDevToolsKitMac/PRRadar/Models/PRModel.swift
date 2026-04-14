@@ -78,7 +78,7 @@ final class PRModel: Identifiable, Hashable {
     var imageURLMap: [String: String] { detail?.imageURLMap ?? [:] }
     var imageBaseDir: String? { detail?.imageBaseDir }
     var savedOutputs: [PRRadarPhase: [EvaluationOutput]] { detail?.savedOutputs ?? [:] }
-    var currentCommitHash: String? { detail?.commitHash }
+    var currentCommitHash: String? { syncSnapshot?.commitHash ?? detail?.commitHash }
     var availableCommits: [String] { detail?.availableCommits ?? [] }
 
     init(metadata: PRMetadata, config: PRRadarRepoConfig) {
@@ -405,7 +405,12 @@ final class PRModel: Identifiable, Hashable {
                     case .prepareStreamEvent: break
                     case .taskEvent: break
                     case .completed(let snapshot):
-                        reloadDetail(commitHash: snapshot.commitHash)
+                        syncSnapshot = snapshot
+                        if let prDiff = snapshot.prDiff {
+                            resolvedDiff = ResolvedDiff(prDiff: prDiff, storedEffectiveDiff: snapshot.storedEffectiveDiff)
+                        } else {
+                            resolvedDiff = nil
+                        }
                         let logs = runningLogs(for: .diff)
                         phaseStates[.diff] = .completed(logs: logs)
                     case .failed(let error, let logs):

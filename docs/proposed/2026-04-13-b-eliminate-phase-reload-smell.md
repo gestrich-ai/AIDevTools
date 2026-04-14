@@ -193,7 +193,10 @@ case .completed(let output):
 
 No other state updates are needed here — `analysisState` is already handled in Phase 3 (set when analyze completes), and `report` is the only field `runReport` owns.
 
-## - [ ] Phase 5: Fix diff phase handler
+## - [x] Phase 5: Fix diff phase handler
+
+**Skills used**: `ai-dev-tools-code-quality`, `ai-dev-tools-architecture`
+**Principles applied**: Added `storedEffectiveDiff: GitDiff?` to `SyncSnapshot` (Features → Services dependency, correct direction). Updated `FetchPRUseCase.parseOutput` to load it from disk via `PhaseOutputParser.loadEffectiveDiff`, keeping the disk read inside the use case. In `refreshDiff`, replaced `reloadDetail(commitHash:)` with direct assignment of `syncSnapshot` and `resolvedDiff` from the snapshot payload. Changed `currentCommitHash` to prefer `syncSnapshot?.commitHash ?? detail?.commitHash` so subsequent phases (analyze, report) use the correct commit hash without a disk round-trip.
 
 **Skills to read**: `ai-dev-tools-code-quality`, `ai-dev-tools-architecture`
 

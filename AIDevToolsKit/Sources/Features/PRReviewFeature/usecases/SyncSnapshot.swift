@@ -1,12 +1,13 @@
 import PRRadarModelsService
 
 public struct SyncSnapshot: Sendable {
-    public let prDiff: PRDiff?
-    public let files: [String]
-    public let commentCount: Int
-    public let reviewCount: Int
-    public let reviewCommentCount: Int
     public let commitHash: String?
+    public let commentCount: Int
+    public let files: [String]
+    public let prDiff: PRDiff?
+    public let reviewCommentCount: Int
+    public let reviewCount: Int
+    public let storedEffectiveDiff: GitDiff?
 
     public init(
         prDiff: PRDiff? = nil,
@@ -14,13 +15,15 @@ public struct SyncSnapshot: Sendable {
         commentCount: Int = 0,
         reviewCount: Int = 0,
         reviewCommentCount: Int = 0,
-        commitHash: String? = nil
+        commitHash: String? = nil,
+        storedEffectiveDiff: GitDiff? = nil
     ) {
-        self.prDiff = prDiff
-        self.files = files
-        self.commentCount = commentCount
-        self.reviewCount = reviewCount
-        self.reviewCommentCount = reviewCommentCount
         self.commitHash = commitHash
+        self.commentCount = commentCount
+        self.files = files
+        self.prDiff = prDiff
+        self.reviewCommentCount = reviewCommentCount
+        self.reviewCount = reviewCount
+        self.storedEffectiveDiff = storedEffectiveDiff
     }
 }
