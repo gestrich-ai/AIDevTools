@@ -204,10 +204,7 @@ public struct PRFilter: Sendable {
     public func matches(_ metadata: PRMetadata) -> Bool {
         if let prState = state {
             let metadataState = PRState(rawValue: metadata.state.uppercased())
-            // GitHub API "open" state includes both open and draft PRs (apiStateValue maps both to "open").
-            // Treat .open filter as matching draft PRs so client-side filtering stays consistent with the API.
-            let isDraftMatchingOpenFilter = prState == .open && metadataState == .draft
-            if metadataState != prState && !isDraftMatchingOpenFilter { return false }
+            if metadataState != prState { return false }
         }
         if let baseBranch, !baseBranch.isEmpty {
             if metadata.baseRefName != baseBranch { return false }

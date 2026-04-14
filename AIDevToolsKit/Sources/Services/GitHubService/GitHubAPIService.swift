@@ -171,9 +171,7 @@ public struct GitHubAPIService: Sendable {
         logger.trace("listPullRequests: done", metadata: ["repo": "\(owner)/\(repo)", "pages": "\(page)", "total": "\(result.count)"])
 
         if let state = filter.state {
-            result = result.filter {
-                $0.enhancedState == state || (state == .open && $0.enhancedState == .draft)
-            }
+            result = result.filter { $0.enhancedState == state }
         }
         if let authorLogin = filter.authorLogin, !authorLogin.isEmpty {
             result = result.filter { $0.author?.login == authorLogin }
