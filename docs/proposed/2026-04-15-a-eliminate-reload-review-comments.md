@@ -123,7 +123,10 @@ reviewComments = await FetchReviewCommentsUseCase(config: config)
 
 ---
 
-## - [ ] Phase 4: Add `reviewComments` to `TaskProgress.completed`
+## - [x] Phase 4: Add `reviewComments` to `TaskProgress.completed`
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: `TaskProgress.completed` now carries `[ReviewComment]` alongside `RuleOutcome`. Both `AnalyzeSingleTaskUseCase` and `AnalyzeUseCase` (cached-replay path) call `FetchReviewCommentsUseCase` before yielding `.completed`, so `PRModel.handleTaskEvent()` assigns `reviewComments` directly from the event rather than spawning a separate `reloadReviewComments()` task. The App layer reads from use case output; no storage services called directly from `PRModel`.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

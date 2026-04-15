@@ -93,7 +93,9 @@ public struct AnalyzeSingleTaskUseCase: StreamingUseCase {
                     // Write task snapshot for cache
                     try AnalysisCacheService.writeTaskSnapshots(tasks: [task], evalsDir: evalsDir)
 
-                    continuation.yield(.completed(result: result))
+                    let updatedComments = await FetchReviewCommentsUseCase(config: config)
+                        .execute(prNumber: prNumber, minScore: 1, commitHash: resolvedCommit)
+                    continuation.yield(.completed(result: result, reviewComments: updatedComments))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)

@@ -221,7 +221,9 @@ public struct AnalyzeUseCase: StreamingUseCase {
         for (index, result) in cachedResults.enumerated() {
             continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
             if let task = taskMap[result.taskId] {
-                continuation.yield(.taskEvent(task: task, event: .completed(result: result)))
+                let updatedComments = await FetchReviewCommentsUseCase(config: config)
+                    .execute(prNumber: prNumber, minScore: 1, commitHash: commitHash)
+                continuation.yield(.taskEvent(task: task, event: .completed(result: result, reviewComments: updatedComments)))
             }
         }
 
@@ -252,7 +254,7 @@ public struct AnalyzeUseCase: StreamingUseCase {
                         prDiff: prDiff
                     ) {
                         continuation.yield(.taskEvent(task: task, event: event))
-                        if case .completed(let result) = event {
+                        if case .completed(let result, _) = event {
                             freshResults.append(result)
                             let status: String
                             switch result {

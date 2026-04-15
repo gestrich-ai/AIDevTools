@@ -932,11 +932,11 @@ final class PRModel: Identifiable, Hashable {
             default:
                 break
             }
-        case .completed(let result):
+        case .completed(let result, let updatedComments):
             logger.info("Evaluation task completed", metadata: ["taskId": "\(task.taskId)", "rule": "\(task.rule.name)"])
             evaluations[task.taskId]?.outcome = result
             inProgressAnalysis?.appendResult(result, prNumber: prNumber)
-            reloadReviewComments()
+            reviewComments = updatedComments
         }
     }
 
