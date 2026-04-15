@@ -130,9 +130,10 @@ Files to modify:
 Files to modify:
 - `AIDevToolsKit/Sources/Apps/AIDevToolsKitCLI/ChatCommand.swift`
 
-## - [ ] Phase 6: CLI verification
+## - [x] Phase 6: CLI verification
 
-**Skills to read**: `ai-dev-tools-debug`
+**Skills used**: `ai-dev-tools-debug`
+**Principles applied**: Built `AIDevToolsKitCLI` debug target — succeeded. Ran Codex simple chat ("Say hello") and tool-use chat ("List files") — both completed with EXIT_CODE 0, no hang, responses appeared. Ran same prompts with `--provider claude` — clean responses, no regression. Observed that tool executions appear in Codex's own human-readable format via `CLIClient`'s `printOutput: true` rather than the `[bash]`/`→` format (which requires `onStreamEvent` flowing through `CodexProvider+AIClient.run` — a gap from Phase 4 that does not block core functionality).
 
 Build and run the CLI to confirm the fix end-to-end.
 
