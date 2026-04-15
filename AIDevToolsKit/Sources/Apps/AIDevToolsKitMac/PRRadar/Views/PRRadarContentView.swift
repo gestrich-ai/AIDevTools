@@ -275,16 +275,6 @@ struct PRRadarContentView: View {
                 .accessibilityIdentifier("stateFilter")
                 .help("Filter by PR state")
 
-                Toggle(isOn: Binding(
-                    get: { allPRsModel?.showOnlyWithPendingComments ?? false },
-                    set: { allPRsModel?.showOnlyWithPendingComments = $0 }
-                )) {
-                    Image(systemName: "text.bubble")
-                }
-                .accessibilityIdentifier("pendingCommentsToggle")
-                .help("Show only PRs with pending comments")
-                .toggleStyle(.button)
-
                 Button {
                     if let model = allPRsModel, model.refreshAllState.isRunning {
                         showRefreshProgress = true
@@ -377,6 +367,16 @@ struct PRRadarContentView: View {
                 .fixedSize()
                 .accessibilityIdentifier("authorFilter")
                 .help("Filter by PR author")
+
+                Toggle(isOn: Binding(
+                    get: { allPRsModel?.showOnlyWithPendingComments ?? false },
+                    set: { allPRsModel?.showOnlyWithPendingComments = $0 }
+                )) {
+                    Image(systemName: "text.bubble")
+                }
+                .accessibilityIdentifier("pendingCommentsToggle")
+                .help("Show only PRs with pending comments")
+                .toggleStyle(.button)
 
                 Spacer()
             }

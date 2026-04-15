@@ -2,7 +2,6 @@
 
 # PR Radar
 
-## - [ ] Run PR on Cron
 ## - [ ] Add summary feature option - display summary of issues rather than PR comments
 ## - [ ] Fix diff not being respected and flagging of existing issues
 ## - [ ] Add skill to update rules based on results
