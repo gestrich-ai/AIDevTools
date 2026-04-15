@@ -344,7 +344,7 @@ final class PRModel: Identifiable, Hashable {
             analysisState = .unavailable
         }
 
-        reloadReviewComments()
+        reviewComments = newDetail.reviewComments
     }
 
     private func updateAnalysisState(from summary: PRReviewSummary) {
@@ -379,6 +379,9 @@ final class PRModel: Identifiable, Hashable {
         operationMode = .refreshing
         defer { operationMode = .idle }
         await refreshDiff(force: true)
+        // refreshDiff (via FetchPRUseCase → PRAcquisitionService) already wrote fresh
+        // comments to the GitHub cache. Read them back without an extra network call.
+        reloadReviewComments()
     }
 
     // MARK: - Diff Refresh
@@ -614,6 +617,12 @@ final class PRModel: Identifiable, Hashable {
             )
             logger.info("submitSingleComment: confirmed posted", metadata: ["prNumber": "\(prNumber)", "rule": "\(comment.ruleName)"])
             reviewComments = updated
+        } catch PostSingleCommentError.postNotConfirmed {
+            // The POST succeeded but GitHub's GET didn't reflect it within the retry window.
+            // Reload from the existing cache — the comment will appear once the PR's
+            // updatedAt changes and the user hits refresh.
+            logger.warning("submitSingleComment: postNotConfirmed", metadata: ["prNumber": "\(prNumber)"])
+            reloadReviewComments()
         } catch {
             logger.error("submitSingleComment: failed", metadata: ["prNumber": "\(prNumber)", "error": "\(error)"])
             inlinePostError = error.localizedDescription
