@@ -1,5 +1,20 @@
 # TODO
 
+# PR Radar
+
+## - [ ] Run PR on Cron
+## - [ ] Add summary feature option - display summary of issues rather than PR comments
+## - [ ] Fix diff not being respected and flagging of existing issues
+## - [ ] Add skill to update rules based on results
+## - [ ] Fix crowded list view toolbar
+## - [ ] Fix sequencing of next/last PRs being messed up as you comment on things
+## - [ ] Fix stats in diff view at top being truncated on narrow window
+## - [ ] Ignore analysis comment support
+
+# Planning Docs
+
+## - [ ] Allow edit in UI
+## - [ ] Cleanup Dead Plans
 
 # AI Output UI
 
@@ -10,34 +25,18 @@
 
 ## - [ ] Log all AI outputs to consistent locations regardless of where they are triggered.
 
-
 # Claude Chain
 
-## - [ ] CLI: Move to main CLI target
-## - [ ] Test by having it stage real PRs from CLI and compare to python staging
-## - [ ] Mac dash to see open PRs, next actions, etc.
-
-
-# Cleanup Dead Plans
-
+## - [ ] Add skill to update rules based on results
 
 # CLI Discoverability
 
 ## - [ ] Need to make it fast for AI to find all our CLI commands.
 
-
-# Configuration
-
-## - [ ] Secrets/Config: Make more granular
-## - [ ] Make Configuration review skill
-## - [ ] Add skill details that services should not know about config system.
-
-
 # Maintenance Task Support
 
 ## - [ ] Checks last change to files?
 ## - [ ] Runs some set of steps?
-
 
 # Open Claw
 
@@ -47,11 +46,9 @@
 ##  - [ ] Install SwiftUI/SwiftArchitecture skills
 ##  - [ ] Can use Claude chain for predictable access?
 
-
 # Review Skill
 
 ## - [ ] After PRs are put up, need them to be reviewed for code smells and architecture.
-
 
 # UI Test Support
 

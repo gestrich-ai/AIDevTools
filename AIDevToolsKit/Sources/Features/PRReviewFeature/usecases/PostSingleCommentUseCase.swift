@@ -66,10 +66,10 @@ public struct PostSingleCommentUseCase: UseCase {
     }
 }
 
-enum PostSingleCommentError: LocalizedError {
+public enum PostSingleCommentError: LocalizedError {
     case postNotConfirmed
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         "Comment was posted but did not appear in GitHub after several retries."
     }
 }

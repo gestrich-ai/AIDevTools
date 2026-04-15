@@ -211,7 +211,10 @@ See Phase 7.
 
 ---
 
-## - [ ] Phase 7: Enforce on all changed files
+## - [x] Phase 7: Enforce on all changed files
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-code-quality`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-swift-testing`
+**Principles applied**: Ran full enforce pass across all 6 changed files. No violations introduced by phases 1–6. Build passes clean. Flagged items that appeared as violations were either pre-existing issues or false positives: inline use case construction with `config` is the established codebase pattern (not an injection violation), `FetchReviewCommentsUseCase.execute()` is non-throwing (no error swallowing), and `?? 0` on comment counts is semantically correct (nil = no comments = 0). The two properties without `private(set)` (`currentViolationIndex`, `pendingViolationNavigation`) are pre-existing and likely intentional for SwiftUI Bindable mutation.
 
 **Skills to run**: `ai-dev-tools-enforce`
 
