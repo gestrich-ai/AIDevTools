@@ -19,18 +19,18 @@ extension CodexProvider: AIClient {
         }
 
         var command = Codex.Exec(prompt: prompt)
+        command.color = "never"
         command.ephemeral = true
         command.fullAuto = options.dangerouslySkipPermissions
+        command.json = true
         command.model = options.model
         command.skipGitRepoCheck = true
         if let outputFile = options.environment?[Self.outputFileEnvironmentKey] {
             command.outputFile = outputFile
         }
         if let schemaPath = options.environment?[Self.outputSchemaPathEnvironmentKey] {
-            command.json = true
             command.outputSchema = schemaPath
         } else if let jsonSchema = options.jsonSchema {
-            command.json = true
             command.outputSchema = jsonSchema
         }
         let result = try await run(
@@ -49,6 +49,7 @@ extension CodexProvider: AIClient {
         onOutput: (@Sendable (String) -> Void)?
     ) async throws -> AIClientResult {
         var command = Codex.Exec.Resume(sessionId: sessionId, prompt: prompt)
+        command.color = "never"
         command.fullAuto = options.dangerouslySkipPermissions
         command.model = options.model
         let result = try await run(

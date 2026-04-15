@@ -52,7 +52,10 @@ Fix `CodexProvider.executeCodex` so Codex doesn't block on stdin and fails grace
 Files to modify:
 - `AIDevToolsKit/Sources/SDKs/CodexCLISDK/CodexProvider.swift`
 
-## - [ ] Phase 2: Always use `--json` for chat runs and add `--color never`
+## - [x] Phase 2: Always use `--json` for chat runs and add `--color never`
+
+**Skills used**: none
+**Principles applied**: Added `--color` option to both `Codex.Exec` and `Codex.Exec.Resume` in alphabetical property order. Set `command.json = true` unconditionally (removed the conditional guards that only set it for schema runs) and set `command.color = "never"` in both `run` and `runResume`. The `runStructured` path already had `json = true` and didn't need `color` since its output is parsed structurally.
 
 **Skills to read**: none
 
