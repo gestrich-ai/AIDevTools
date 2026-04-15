@@ -96,7 +96,10 @@ Note: `LoadPRDetailUseCase` also calls `parseOutput()` (for its snapshot field) 
 
 ---
 
-## - [ ] Phase 3: Await comments at `runAnalysis()` end via use case
+## - [x] Phase 3: Await comments at `runAnalysis()` end via use case
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: `runAnalysis()` is already `async`, so `reloadReviewComments()` (which wrapped `FetchReviewCommentsUseCase` in a fire-and-forget `Task`) is replaced with a direct `await`. Comments now update before `runAnalysis()` returns, eliminating the race condition. `PRModel` calls the use case, not storage services directly.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

@@ -537,7 +537,8 @@ final class PRModel: Identifiable, Hashable {
         }
         let success = isPhaseCompleted(.report)
         logger.info("Analysis completed", metadata: ["prNumber": "\(prNumber)", "success": "\(success)"])
-        reloadReviewComments()
+        reviewComments = await FetchReviewCommentsUseCase(config: config)
+            .execute(prNumber: prNumber, minScore: 1, commitHash: currentCommitHash)
         return success
     }
 
