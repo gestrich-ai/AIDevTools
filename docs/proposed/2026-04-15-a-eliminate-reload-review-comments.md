@@ -229,7 +229,10 @@ Run `ai-dev-tools-enforce` on every file modified across phases 1–6:
 
 ---
 
-## - [ ] Phase 8: CLI verification against AIDevToolsDemo
+## - [x] Phase 8: CLI verification against AIDevToolsDemo
+
+**Skills used**: none
+**Principles applied**: Used the existing `AIDevToolsDemo` repo config (already in `repositories.json`) with `diffSource: github-api` and the `code-review-rules/` rules path. Ran `ai-dev-tools-kit prradar analyze 12 --config AIDevToolsDemo --mode regex` against PR #12 (`test/pr-radar-violations`). Pipeline completed cleanly: 2 cached violations found, both already posted. The `comment` command confirmed "2 already-posted comments" (review comments populated). Grepped new log entries for `reloadReviewComments` — not present, confirming the method is fully eliminated.
 
 Validate end-to-end that review comments populate correctly without `reloadReviewComments()` by running the PRRadar CLI against the AIDevToolsDemo playground repo (`/Users/bill/Developer/personal/AIDevToolsDemo`).
 
