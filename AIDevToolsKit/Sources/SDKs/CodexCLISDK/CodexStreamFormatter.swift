@@ -38,12 +38,12 @@ public final class CodexStreamFormatter: StreamFormatter, Sendable {
             if let text = item.text, !text.isEmpty {
                 let trimmed = text.trimmingCharacters(in: .whitespaces)
                 if trimmed.hasPrefix("{"), let data = trimmed.data(using: .utf8),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let reasoning = json["result"] as? String, !reasoning.isEmpty {
-                        let preview = String(reasoning.prefix(200))
-                        let suffix = reasoning.count > 200 ? "..." : ""
-                        return "[Thinking] \(preview)\(suffix)\n"
-                    }
+                   let thinking = try? decoder.decode(CodexThinkingContent.self, from: data),
+                   let reasoning = thinking.result, !reasoning.isEmpty {
+                    let preview = String(reasoning.prefix(200))
+                    let suffix = reasoning.count > 200 ? "..." : ""
+                    return "[Thinking] \(preview)\(suffix)\n"
+                } else if trimmed.hasPrefix("{") {
                     return nil
                 }
                 return text + "\n"
@@ -123,6 +123,10 @@ public final class CodexStreamFormatter: StreamFormatter, Sendable {
             return []
         }
     }
+}
+
+private struct CodexThinkingContent: Decodable {
+    let result: String?
 }
 
 private struct CodexFormatterEvent: Codable {

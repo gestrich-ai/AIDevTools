@@ -144,7 +144,10 @@ Build and run the CLI to confirm the fix end-to-end.
 - Run a prompt that exercises tool use: `"List the files in the current directory."` — confirm `[bash]` and tool result lines appear.
 - Run the same prompts with `--provider claude` to confirm no regression.
 
-## - [ ] Phase 7: Enforce and validate
+## - [x] Phase 7: Enforce and validate
+
+**Skills used**: `ai-dev-tools-enforce`
+**Principles applied**: Fixed force unwrap on `group.next()!` → guard/throw; moved `CodexCLIError` below primary `CodexProvider` type; replaced `[String: Any]` JSON parsing in `formatItem` with typed `CodexThinkingContent` Decodable struct; wired `onStreamEvent` through `runFormatted` and both public `run` overloads so structured events are no longer silently dropped.
 
 **Skills to read**: `ai-dev-tools-enforce`
 

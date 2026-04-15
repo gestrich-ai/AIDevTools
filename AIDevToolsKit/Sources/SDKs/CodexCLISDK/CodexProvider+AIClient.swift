@@ -15,7 +15,7 @@ extension CodexProvider: AIClient {
         onStreamEvent: (@Sendable (AIStreamEvent) -> Void)?
     ) async throws -> AIClientResult {
         if let sessionId = options.sessionId {
-            return try await runResume(sessionId: sessionId, prompt: prompt, options: options, onOutput: onOutput)
+            return try await runResume(sessionId: sessionId, prompt: prompt, options: options, onOutput: onOutput, onStreamEvent: onStreamEvent)
         }
 
         var command = Codex.Exec(prompt: prompt)
@@ -37,7 +37,8 @@ extension CodexProvider: AIClient {
             command: command,
             workingDirectory: options.workingDirectory,
             environment: options.environment,
-            onFormattedOutput: onOutput
+            onFormattedOutput: onOutput,
+            onStreamEvent: onStreamEvent
         )
         return AIClientResult(exitCode: result.exitCode, stderr: result.stderr, stdout: result.stdout)
     }
@@ -46,7 +47,8 @@ extension CodexProvider: AIClient {
         sessionId: String,
         prompt: String,
         options: AIClientOptions,
-        onOutput: (@Sendable (String) -> Void)?
+        onOutput: (@Sendable (String) -> Void)?,
+        onStreamEvent: (@Sendable (AIStreamEvent) -> Void)?
     ) async throws -> AIClientResult {
         var command = Codex.Exec.Resume(sessionId: sessionId, prompt: prompt)
         command.color = "never"
@@ -56,7 +58,8 @@ extension CodexProvider: AIClient {
             command: command,
             workingDirectory: options.workingDirectory,
             environment: options.environment,
-            onFormattedOutput: onOutput
+            onFormattedOutput: onOutput,
+            onStreamEvent: onStreamEvent
         )
         return AIClientResult(exitCode: result.exitCode, sessionId: sessionId, stderr: result.stderr, stdout: result.stdout)
     }

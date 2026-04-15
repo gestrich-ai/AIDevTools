@@ -1,17 +1,7 @@
+import AIOutputSDK
 import CLISDK
 import ConcurrencySDK
 import Foundation
-
-public enum CodexCLIError: Error, LocalizedError {
-    case inactivityTimeout(seconds: Int)
-
-    public var errorDescription: String? {
-        switch self {
-        case .inactivityTimeout(let seconds):
-            return "No output from Codex CLI for \(seconds) seconds"
-        }
-    }
-}
 
 public struct CodexProvider: Sendable {
 
@@ -37,13 +27,15 @@ public struct CodexProvider: Sendable {
         command: Codex.Exec,
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
-        onFormattedOutput: (@Sendable (String) -> Void)? = nil
+        onFormattedOutput: (@Sendable (String) -> Void)? = nil,
+        onStreamEvent: (@Sendable (AIStreamEvent) -> Void)? = nil
     ) async throws -> ExecutionResult {
         try await runFormatted(
             arguments: command.commandArguments,
             workingDirectory: workingDirectory,
             environment: environment,
-            onFormattedOutput: onFormattedOutput
+            onFormattedOutput: onFormattedOutput,
+            onStreamEvent: onStreamEvent
         )
     }
 
@@ -51,13 +43,15 @@ public struct CodexProvider: Sendable {
         command: Codex.Exec.Resume,
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
-        onFormattedOutput: (@Sendable (String) -> Void)? = nil
+        onFormattedOutput: (@Sendable (String) -> Void)? = nil,
+        onStreamEvent: (@Sendable (AIStreamEvent) -> Void)? = nil
     ) async throws -> ExecutionResult {
         try await runFormatted(
             arguments: command.commandArguments,
             workingDirectory: workingDirectory,
             environment: environment,
-            onFormattedOutput: onFormattedOutput
+            onFormattedOutput: onFormattedOutput,
+            onStreamEvent: onStreamEvent
         )
     }
 
@@ -67,39 +61,49 @@ public struct CodexProvider: Sendable {
         arguments: [String],
         workingDirectory: String?,
         environment: [String: String]?,
-        onFormattedOutput: (@Sendable (String) -> Void)?
+        onFormattedOutput: (@Sendable (String) -> Void)?,
+        onStreamEvent: (@Sendable (AIStreamEvent) -> Void)?
     ) async throws -> ExecutionResult {
+        guard onFormattedOutput != nil || onStreamEvent != nil else {
+            return try await executeCodex(
+                arguments: arguments,
+                workingDirectory: workingDirectory,
+                environment: environment,
+                onOutput: nil
+            )
+        }
         let formatter = CodexStreamFormatter()
         return try await executeCodex(
             arguments: arguments,
             workingDirectory: workingDirectory,
             environment: environment,
-            onOutput: onFormattedOutput.map { callback -> @Sendable (StreamOutput) -> Void in
-                { item in
-                    switch item {
-                    case .stdout(_, let text):
-                        let formatted = formatter.format(text)
-                        if !formatted.isEmpty {
-                            callback(formatted)
-                        }
-                    case .stderr(_, let text):
-                        let formatted = formatter.format(text)
-                        if !formatted.isEmpty {
-                            callback(formatted)
-                        } else {
-                            let nonJSON = text.components(separatedBy: "\n")
-                                .filter { line in
-                                    let trimmed = line.trimmingCharacters(in: .whitespaces)
-                                    return !trimmed.isEmpty && !trimmed.hasPrefix("{")
-                                }
-                                .joined(separator: "\n")
-                            if !nonJSON.isEmpty {
-                                callback(nonJSON)
-                            }
-                        }
-                    default:
-                        break
+            onOutput: { item in
+                switch item {
+                case .stdout(_, let text):
+                    let formatted = formatter.format(text)
+                    if !formatted.isEmpty {
+                        onFormattedOutput?(formatted)
                     }
+                    for event in formatter.formatStructured(text) {
+                        onStreamEvent?(event)
+                    }
+                case .stderr(_, let text):
+                    let formatted = formatter.format(text)
+                    if !formatted.isEmpty {
+                        onFormattedOutput?(formatted)
+                    } else {
+                        let nonJSON = text.components(separatedBy: "\n")
+                            .filter { line in
+                                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                                return !trimmed.isEmpty && !trimmed.hasPrefix("{")
+                            }
+                            .joined(separator: "\n")
+                        if !nonJSON.isEmpty {
+                            onFormattedOutput?(nonJSON)
+                        }
+                    }
+                default:
+                    break
                 }
             }
         )
@@ -165,7 +169,10 @@ public struct CodexProvider: Sendable {
                     }
                     throw CancellationError()
                 }
-                let value = try await group.next()!
+                guard let value = try await group.next() else {
+                    group.cancelAll()
+                    throw CancellationError()
+                }
                 group.cancelAll()
                 return value
             }
@@ -192,5 +199,16 @@ public struct CodexProvider: Sendable {
             return preferredPath
         }
         return "codex"
+    }
+}
+
+public enum CodexCLIError: Error, LocalizedError {
+    case inactivityTimeout(seconds: Int)
+
+    public var errorDescription: String? {
+        switch self {
+        case .inactivityTimeout(let seconds):
+            return "No output from Codex CLI for \(seconds) seconds"
+        }
     }
 }
