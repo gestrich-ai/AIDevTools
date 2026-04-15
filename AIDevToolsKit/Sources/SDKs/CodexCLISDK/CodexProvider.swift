@@ -1,7 +1,21 @@
-import Foundation
 import CLISDK
+import ConcurrencySDK
+import Foundation
+
+public enum CodexCLIError: Error, LocalizedError {
+    case inactivityTimeout(seconds: Int)
+
+    public var errorDescription: String? {
+        switch self {
+        case .inactivityTimeout(let seconds):
+            return "No output from Codex CLI for \(seconds) seconds"
+        }
+    }
+}
 
 public struct CodexProvider: Sendable {
+
+    private static let inactivityTimeout: TimeInterval = 120
 
     public init() {}
 
@@ -112,32 +126,61 @@ public struct CodexProvider: Sendable {
 
         let codexPath = Self.resolveCodexPath()
 
-        var outputStream: CLIOutputStream?
-        var outputTask: Task<Void, Never>?
-        if let onOutput {
-            let stream = CLIOutputStream()
-            outputStream = stream
-            outputTask = Task {
-                for await item in await stream.makeStream() {
-                    onOutput(item)
-                }
+        let timeoutError = CodexCLIError.inactivityTimeout(seconds: Int(Self.inactivityTimeout))
+        let watchdog = InactivityWatchdog(timeout: Self.inactivityTimeout, onTimeout: {})
+        var timedOut = false
+
+        let stream = CLIOutputStream()
+        let outputTask = Task {
+            for await item in await stream.makeStream() {
+                await watchdog.recordActivity()
+                onOutput?(item)
             }
         }
 
         let client = CLIClient()
-        let result = try await client.execute(
-            command: codexPath,
-            arguments: arguments,
-            workingDirectory: workingDirectory,
-            environment: env,
-            printCommand: false,
-            output: outputStream
-        )
-
-        if let outputStream {
-            await outputStream.finishAll()
+        await watchdog.start()
+        let result: ExecutionResult
+        do {
+            result = try await withThrowingTaskGroup(of: ExecutionResult.self) { group in
+                group.addTask {
+                    try await client.execute(
+                        command: codexPath,
+                        arguments: arguments,
+                        workingDirectory: workingDirectory,
+                        environment: env,
+                        printCommand: false,
+                        stdin: Data(),
+                        output: stream
+                    )
+                }
+                group.addTask {
+                    while !Task.isCancelled {
+                        try await Task.sleep(for: .seconds(15))
+                        let elapsed = await watchdog.timeSinceLastActivity()
+                        if elapsed >= Self.inactivityTimeout {
+                            timedOut = true
+                            throw timeoutError
+                        }
+                    }
+                    throw CancellationError()
+                }
+                let value = try await group.next()!
+                group.cancelAll()
+                return value
+            }
+        } catch {
+            await watchdog.cancel()
+            outputTask.cancel()
+            if timedOut {
+                throw timeoutError
+            }
+            throw error
         }
-        outputTask?.cancel()
+
+        await watchdog.cancel()
+        await stream.finishAll()
+        outputTask.cancel()
 
         return result
     }

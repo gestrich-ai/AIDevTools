@@ -423,6 +423,7 @@ var targets: [Target] = [
         dependencies: [
             .product(name: "CLISDK", package: "SwiftCLI"),
             "AIOutputSDK",
+            "ConcurrencySDK",
             "SkillScannerSDK",
         ],
         path: "Sources/SDKs/CodexCLISDK"
