@@ -379,9 +379,6 @@ final class PRModel: Identifiable, Hashable {
         operationMode = .refreshing
         defer { operationMode = .idle }
         await refreshDiff(force: true)
-        // refreshDiff (via FetchPRUseCase → PRAcquisitionService) already wrote fresh
-        // comments to the GitHub cache. Read them back without an extra network call.
-        reloadReviewComments()
     }
 
     // MARK: - Diff Refresh
@@ -413,6 +410,7 @@ final class PRModel: Identifiable, Hashable {
                     case .taskEvent: break
                     case .completed(let snapshot):
                         syncSnapshot = snapshot
+                        reviewComments = snapshot.reviewComments
                         if let prDiff = snapshot.prDiff {
                             resolvedDiff = ResolvedDiff(prDiff: prDiff, storedEffectiveDiff: snapshot.storedEffectiveDiff)
                         } else {

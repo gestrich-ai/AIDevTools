@@ -60,7 +60,10 @@ No type changes needed. `applyDetail` is only called from `reloadDetailAsync()` 
 
 ---
 
-## - [ ] Phase 2: Add `reviewComments` to `SyncSnapshot`
+## - [x] Phase 2: Add `reviewComments` to `SyncSnapshot`
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: `SyncSnapshot` now carries the reconciled `[ReviewComment]` list produced by `FetchReviewCommentsUseCase` (disk-only overload) inside `FetchPRUseCase.parseOutput()`. The `.completed` handler in `PRModel.refreshDiff()` assigns directly from the snapshot, and the redundant `reloadReviewComments()` call in `refreshPRData()` is removed. App layer reads from use case output; no storage services called directly from `PRModel`.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
