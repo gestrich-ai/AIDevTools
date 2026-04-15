@@ -70,7 +70,10 @@ Files to modify:
 - `AIDevToolsKit/Sources/SDKs/CodexCLISDK/CodexCLI.swift`
 - `AIDevToolsKit/Sources/SDKs/CodexCLISDK/CodexProvider+AIClient.swift`
 
-## - [ ] Phase 3: Add `formatStructured()` to `CodexStreamFormatter`
+## - [x] Phase 3: Add `formatStructured()` to `CodexStreamFormatter`
+
+**Skills used**: none
+**Principles applied**: Added `formatStructured()` and private `parseStreamEvents()`/`parseItemStreamEvents()` helpers mirroring the `ClaudeStreamFormatter` pattern. Reused the existing private model structs unchanged. `agent_message` maps to `.textDelta`, `command_execution` maps to `.toolUse` + `.toolResult`, and `turn.completed` maps to `.metrics(duration: nil, cost: nil, turns: nil)`. All other event types are dropped.
 
 **Skills to read**: none
 

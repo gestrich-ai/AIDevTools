@@ -79,6 +79,50 @@ public final class CodexStreamFormatter: StreamFormatter, Sendable {
         }
         return parts.joined(separator: " | ") + "\n"
     }
+
+    // MARK: - Structured Parsing
+
+    public func formatStructured(_ rawChunk: String) -> [AIStreamEvent] {
+        var events: [AIStreamEvent] = []
+        for line in rawChunk.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { continue }
+            events.append(contentsOf: parseStreamEvents(data))
+        }
+        return events
+    }
+
+    private func parseStreamEvents(_ data: Data) -> [AIStreamEvent] {
+        guard let event = try? decoder.decode(CodexFormatterEvent.self, from: data) else { return [] }
+
+        switch event.type {
+        case "item.completed":
+            return parseItemStreamEvents(event.item)
+        case "turn.completed":
+            return [.metrics(duration: nil, cost: nil, turns: nil)]
+        default:
+            return []
+        }
+    }
+
+    private func parseItemStreamEvents(_ item: CodexFormatterItem?) -> [AIStreamEvent] {
+        guard let item else { return [] }
+        switch item.type {
+        case "agent_message":
+            guard let text = item.text, !text.isEmpty else { return [] }
+            return [.textDelta(text)]
+        case "command_execution":
+            let command = item.command ?? ""
+            let output = item.aggregatedOutput ?? ""
+            let isError = (item.exitCode ?? 0) != 0
+            return [
+                .toolUse(name: "bash", detail: command),
+                .toolResult(name: "bash", summary: output, isError: isError),
+            ]
+        default:
+            return []
+        }
+    }
 }
 
 private struct CodexFormatterEvent: Codable {
