@@ -43,21 +43,14 @@ struct PRListRow: View {
                 .fontWeight(isFallback ? .regular : .semibold)
                 .lineLimit(2)
 
-            if !pr.headRefName.isEmpty {
-                Text(pr.headRefName)
-                    .font(.caption)
-                    .fontDesign(.monospaced)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
             if !pr.author.login.isEmpty {
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     GitHubAvatarView(author: pr.author, size: GitHubAvatarView.avatarSmall)
                     Text(allPRsModel?.authorDisplayName(for: pr.author) ?? (pr.author.name.isEmpty ? pr.author.login : pr.author.name))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                .padding(.bottom, 4)
             }
         }
         .padding(.vertical, 2)
