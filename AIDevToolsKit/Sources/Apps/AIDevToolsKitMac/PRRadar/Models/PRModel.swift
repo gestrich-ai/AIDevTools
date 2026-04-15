@@ -356,13 +356,6 @@ final class PRModel: Identifiable, Hashable {
         )
     }
 
-    private func reloadReviewComments() {
-        Task {
-            reviewComments = await FetchReviewCommentsUseCase(config: config)
-                .execute(prNumber: prNumber, minScore: 1, commitHash: currentCommitHash)
-        }
-    }
-
     func loadDetail() {
         guard !detailLoaded else { return }
         reloadDetail()

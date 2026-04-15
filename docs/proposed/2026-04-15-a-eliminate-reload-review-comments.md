@@ -190,7 +190,10 @@ The correct behavior: log the warning and do nothing. The comment is on GitHub. 
 
 ---
 
-## - [ ] Phase 6: Delete `reloadReviewComments()` and validate
+## - [x] Phase 6: Delete `reloadReviewComments()` and validate
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-swift-testing`
+**Principles applied**: Deleted `reloadReviewComments()` from `PRModel.swift` — all 5 call sites were removed in Phases 1–5, leaving the method with no callers. Build passes clean. Enforce and Swift Testing skills confirmed no new violations introduced by this change.
 
 **Skills to read**: `ai-dev-tools-enforce`, `ai-dev-tools-swift-testing`
 
