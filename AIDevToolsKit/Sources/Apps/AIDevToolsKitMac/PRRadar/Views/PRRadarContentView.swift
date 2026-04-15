@@ -236,7 +236,7 @@ struct PRRadarContentView: View {
                         .onChange(of: selectedPR) { _, newPR in
                             if let pr = newPR {
                                 withAnimation {
-                                    proxy.scrollTo(pr.id, anchor: .center)
+                                    proxy.scrollTo(pr.id)
                                 }
                             }
                         }
