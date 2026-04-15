@@ -81,10 +81,7 @@ struct ChatCommand: AsyncParsableCommand {
         let result = try await useCase.run(options) { progress in
             switch progress {
             case .streamEvent(let event):
-                if case .textDelta(let text) = event {
-                    print(text, terminator: "")
-                    fflush(stdout)
-                }
+                printStreamEvent(event)
             case .completed:
                 print()
             }
@@ -141,10 +138,7 @@ struct ChatCommand: AsyncParsableCommand {
                 let result = try await useCase.run(options) { progress in
                     switch progress {
                     case .streamEvent(let event):
-                        if case .textDelta(let text) = event {
-                            print(text, terminator: "")
-                            fflush(stdout)
-                        }
+                        printStreamEvent(event)
                     case .completed:
                         print()
                     }
@@ -152,6 +146,28 @@ struct ChatCommand: AsyncParsableCommand {
                 sessionId = result.sessionId ?? sessionId
             } catch {
                 print("\nError: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func printStreamEvent(_ event: AIStreamEvent) {
+        switch event {
+        case .textDelta(let text):
+            print(text, terminator: "")
+            fflush(stdout)
+        case .thinking(let text):
+            print("\n[Thinking] \(text)")
+        case .toolUse(let name, let detail):
+            print("\n[\(name)] \(detail)")
+        case .toolResult(_, let summary, _):
+            print("  → \(summary)")
+        case .metrics(let duration, let cost, let turns):
+            var parts: [String] = []
+            if let duration { parts.append("\(duration)s") }
+            if let cost { parts.append("$\(cost)") }
+            if let turns { parts.append("\(turns) turns") }
+            if !parts.isEmpty {
+                print("--- \(parts.joined(separator: " | ")) ---")
             }
         }
     }

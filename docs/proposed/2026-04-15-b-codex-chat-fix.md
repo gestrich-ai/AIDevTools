@@ -93,7 +93,7 @@ Mapping:
 Files to modify:
 - `AIDevToolsKit/Sources/SDKs/CodexCLISDK/CodexStreamFormatter.swift`
 
-## - [ ] Phase 4: Wire `onStreamEvent` through `CodexProvider`
+## - [x] Phase 4: Wire `onStreamEvent` through `CodexProvider`
 
 **Skills to read**: none
 
@@ -109,7 +109,10 @@ Files to modify:
 - `AIDevToolsKit/Sources/SDKs/CodexCLISDK/CodexProvider.swift`
 - `AIDevToolsKit/Sources/SDKs/CodexCLISDK/CodexProvider+AIClient.swift`
 
-## - [ ] Phase 5: Update `ChatCommand` to display all block types
+## - [x] Phase 5: Update `ChatCommand` to display all block types
+
+**Skills used**: none
+**Principles applied**: Added `printStreamEvent(_:)` private helper covering all `AIStreamEvent` cases. Metrics fields are assembled into a parts array and joined, silently omitting nil fields. Replaced the inline `if case .textDelta` checks in both `sendMessage` and `runInteractive` with calls to the new helper.
 
 **Skills to read**: none
 
