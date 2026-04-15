@@ -617,11 +617,7 @@ final class PRModel: Identifiable, Hashable {
             logger.info("submitSingleComment: confirmed posted", metadata: ["prNumber": "\(prNumber)", "rule": "\(comment.ruleName)"])
             reviewComments = updated
         } catch PostSingleCommentError.postNotConfirmed {
-            // The POST succeeded but GitHub's GET didn't reflect it within the retry window.
-            // Reload from the existing cache — the comment will appear once the PR's
-            // updatedAt changes and the user hits refresh.
             logger.warning("submitSingleComment: postNotConfirmed", metadata: ["prNumber": "\(prNumber)"])
-            reloadReviewComments()
         } catch {
             logger.error("submitSingleComment: failed", metadata: ["prNumber": "\(prNumber)", "error": "\(error)"])
             inlinePostError = error.localizedDescription

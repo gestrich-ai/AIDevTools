@@ -168,9 +168,10 @@ case .completed(let result, let updatedComments):
 
 ---
 
-## - [ ] Phase 5: Remove reload from `postNotConfirmed` handler
+## - [x] Phase 5: Remove reload from `postNotConfirmed` handler
 
-**Skills to read**: `ai-dev-tools-architecture`
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Removed `reloadReviewComments()` from the `postNotConfirmed` catch block and the stale comment explaining the old reload rationale. Since `PostSingleCommentUseCase` already exhausted 3 network fetches before throwing, a disk reload returns the same pre-post state — it accomplishes nothing. The logger warning is retained; the user's next refresh will detect the posted comment via `updatedAt`. App layer reads from use case output only; no additional storage calls.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
