@@ -18,7 +18,7 @@ struct CodexSessionStorage: Sendable {
             return []
         }
 
-        // session_index.jsonl is append-only, newest-wins for duplicate IDs
+        // Append-only file — newest entry wins for duplicate IDs.
         var sessionsByID: [String: ChatSession] = [:]
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -27,19 +27,62 @@ struct CodexSessionStorage: Sendable {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty,
                   let lineData = trimmed.data(using: .utf8),
+                  // Swallowing intentionally: malformed or stale index lines are skipped;
+                  // the index is append-only so individual bad entries don't affect others.
                   let entry = try? JSONDecoder().decode(SessionIndexEntry.self, from: lineData) else {
                 continue
             }
-
             let date = dateFormatter.date(from: entry.updatedAt) ?? Date.distantPast
-            sessionsByID[entry.id] = ChatSession(
-                id: entry.id,
-                lastModified: date,
-                summary: entry.threadName
-            )
+            sessionsByID[entry.id] = ChatSession(id: entry.id, lastModified: date, summary: entry.threadName)
         }
 
         return sessionsByID.values.sorted { $0.lastModified > $1.lastModified }
+    }
+
+    func getSessionDetails(sessionId: String, summary: String, lastModified: Date) -> SessionDetails? {
+        guard let fileURL = findRolloutFile(sessionId: sessionId),
+              let data = try? Data(contentsOf: fileURL),
+              let content = String(data: data, encoding: .utf8) else { return nil }
+
+        var cwd: String?
+        var gitBranch: String?
+        var rawJsonLines: [String] = []
+
+        for line in content.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            rawJsonLines.append(trimmed)
+
+            guard let lineData = trimmed.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
+                  obj["type"] as? String == "session_meta",
+                  let payload = obj["payload"] as? [String: Any] else { continue }
+
+            cwd = payload["cwd"] as? String
+            if let git = payload["git"] as? [String: Any] {
+                gitBranch = git["branch"] as? String
+            }
+        }
+
+        let session = ChatSession(id: sessionId, lastModified: lastModified, summary: summary)
+        return SessionDetails(cwd: cwd, gitBranch: gitBranch, rawJsonLines: rawJsonLines, session: session)
+    }
+
+    func appendSession(id: String, threadName: String) throws {
+        let indexPath = codexHome.appendingPathComponent("session_index.jsonl")
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let entry = SessionIndexEntry(id: id, threadName: threadName, updatedAt: dateFormatter.string(from: Date()))
+        let encoded = try JSONEncoder().encode(entry)
+        guard let line = String(data: encoded, encoding: .utf8) else { return }
+        let lineWithNewline = line + "\n"
+        if let handle = FileHandle(forWritingAtPath: indexPath.path) {
+            handle.seekToEndOfFile()
+            handle.write(Data(lineWithNewline.utf8))
+            handle.closeFile()
+        } else {
+            try lineWithNewline.write(to: indexPath, atomically: false, encoding: .utf8)
+        }
     }
 
     // MARK: - Message Loading
@@ -97,25 +140,23 @@ struct CodexSessionStorage: Sendable {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty,
                   let lineData = trimmed.data(using: .utf8),
-                  let rolloutLine = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else {
-                continue
+                  let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
+                  obj["type"] as? String == "event_msg",
+                  let payload = obj["payload"] as? [String: Any] else { continue }
+
+            let payloadType = payload["type"] as? String
+
+            if payloadType == "user_message",
+               let message = payload["message"] as? String,
+               !message.isEmpty {
+                messages.append(ChatSessionMessage(content: message, role: .user))
+            } else if payloadType == "agent_message",
+                      let message = payload["message"] as? String,
+                      !message.isEmpty {
+                let phase = payload["phase"] as? String
+                let role: ChatSessionMessage.ChatSessionMessageRole = phase == "commentary" ? .thinking : .assistant
+                messages.append(ChatSessionMessage(content: message, role: role))
             }
-
-            guard rolloutLine["type"] as? String == "response_item",
-                  let payload = rolloutLine["payload"] as? [String: Any],
-                  payload["type"] as? String == "message",
-                  let role = payload["role"] as? String,
-                  role == "user" || role == "assistant" else {
-                continue
-            }
-
-            let text = extractText(from: payload["content"])
-            guard !text.isEmpty else { continue }
-
-            messages.append(ChatSessionMessage(
-                content: text,
-                role: role == "user" ? .user : .assistant
-            ))
         }
 
         return messages
@@ -172,9 +213,9 @@ struct CodexSessionStorage: Sendable {
     }
 }
 
-// MARK: - Codable Models
+// MARK: - Models
 
-private struct SessionIndexEntry: Decodable {
+private struct SessionIndexEntry: Codable {
     let id: String
     let threadName: String
     let updatedAt: String

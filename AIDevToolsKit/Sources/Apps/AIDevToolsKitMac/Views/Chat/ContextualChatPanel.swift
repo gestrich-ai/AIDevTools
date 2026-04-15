@@ -14,7 +14,7 @@ struct ContextualChatPanel: View {
 
     @Environment(MCPModel.self) private var mcpModel
     @Environment(ProviderModel.self) private var providerModel
-    @State private var selectedProviderName: String = ""
+    @AppStorage("chatSelectedProviderName") private var selectedProviderName: String = ""
     @State private var chatModel: ChatModel?
     @State private var messageText: String = ""
     @State private var pastedImages: [ImageAttachment] = []

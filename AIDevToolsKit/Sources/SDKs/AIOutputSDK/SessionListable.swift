@@ -18,6 +18,7 @@ public struct ChatSessionMessage: Sendable {
 
     public enum ChatSessionMessageRole: Sendable {
         case assistant
+        case thinking
         case user
     }
 

@@ -27,17 +27,24 @@ struct ChatSessionDetailView: View {
                     }
                 } else {
                     VStack(spacing: 16) {
-                        Image(systemName: "exclamationmark.triangle")
+                        Image(systemName: "doc.slash")
                             .font(.system(size: 60))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.secondary)
 
-                        Text("Failed to Load Session")
+                        Text("No Session File")
                             .font(.title2)
                             .fontWeight(.semibold)
 
-                        Text("Could not read session data from file")
+                        Text("Session history is not stored on disk for this provider.\nYou can still resume the conversation.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+
+                        Button("Resume This Session") {
+                            Task { await chatModel.resumeSession(session.id) }
+                            dismiss()
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -55,14 +62,14 @@ struct ChatSessionDetailView: View {
                         }
                         .help("Copy all JSON to clipboard")
                     }
+                }
 
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Resume This Session") {
-                            Task { await chatModel.resumeSession(session.id) }
-                            dismiss()
-                        }
-                        .buttonStyle(.borderedProminent)
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Resume This Session") {
+                        Task { await chatModel.resumeSession(session.id) }
+                        dismiss()
                     }
+                    .buttonStyle(.borderedProminent)
                 }
             }
             .task {

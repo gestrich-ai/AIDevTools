@@ -20,7 +20,6 @@ extension CodexProvider: AIClient {
 
         var command = Codex.Exec(prompt: prompt)
         command.color = "never"
-        command.ephemeral = true
         command.fullAuto = options.dangerouslySkipPermissions
         command.json = true
         command.model = options.model
@@ -40,7 +39,18 @@ extension CodexProvider: AIClient {
             onFormattedOutput: onOutput,
             onStreamEvent: onStreamEvent
         )
-        return AIClientResult(exitCode: result.exitCode, stderr: result.stderr, stdout: result.stdout)
+        // Codex does not write session files or update session_index.jsonl when stdin is a
+        // pipe (which CLIClient always uses). We write the index entry ourselves so sessions
+        // appear in the history picker. The rollout file in ~/.codex/sessions/ will not exist
+        // for these runs, so loading full message history from a past session is not supported.
+        let sessionId = parseThreadId(from: result.stdout)
+        if let id = sessionId, result.exitCode == 0 {
+            let summary = String(prompt.prefix(80))
+            try? CodexSessionStorage().appendSession(id: id, threadName: summary)
+            // Swallowing intentionally: index write is best-effort. The session can still
+            // be resumed via thread_id; only the history list entry would be missing.
+        }
+        return AIClientResult(exitCode: result.exitCode, sessionId: sessionId, stderr: result.stderr, stdout: result.stdout)
     }
 
     private func runResume(
@@ -90,6 +100,20 @@ extension CodexProvider: AIClient {
         return AIStructuredResult(rawOutput: result.stdout, stderr: result.stderr, value: value)
     }
 
+    // MARK: - Helpers
+
+    private func parseThreadId(from stdout: String) -> String? {
+        for line in stdout.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, trimmed.hasPrefix("{"),
+                  let data = trimmed.data(using: .utf8),
+                  let obj = try? JSONDecoder().decode(ThreadStartedEvent.self, from: data),
+                  obj.type == "thread.started" else { continue }
+            return obj.threadId
+        }
+        return nil
+    }
+
     // MARK: - Session History
 
     public func listSessions(workingDirectory: String) async -> [ChatSession] {
@@ -98,5 +122,19 @@ extension CodexProvider: AIClient {
 
     public func loadSessionMessages(sessionId: String, workingDirectory: String) async -> [ChatSessionMessage] {
         CodexSessionStorage().loadMessages(sessionId: sessionId)
+    }
+
+    public func getSessionDetails(sessionId: String, summary: String, lastModified: Date, workingDirectory: String) -> SessionDetails? {
+        CodexSessionStorage().getSessionDetails(sessionId: sessionId, summary: summary, lastModified: lastModified)
+    }
+}
+
+private struct ThreadStartedEvent: Decodable {
+    let type: String
+    let threadId: String
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case threadId = "thread_id"
     }
 }

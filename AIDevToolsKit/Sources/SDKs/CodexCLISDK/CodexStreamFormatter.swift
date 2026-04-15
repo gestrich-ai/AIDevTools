@@ -1,8 +1,14 @@
 import AIOutputSDK
 import Foundation
 
-public final class CodexStreamFormatter: StreamFormatter, Sendable {
+// @unchecked Sendable: safe because CodexProvider always calls formatStructured() from a
+// single serial async sequence (the onOutput closure in executeCodex), never concurrently.
+public final class CodexStreamFormatter: StreamFormatter, @unchecked Sendable {
     private let decoder = JSONDecoder()
+    // Holds the most recent agent_message until the next event clarifies its role:
+    // - flushed as .thinking if a tool call follows
+    // - flushed as .textDelta if turn.completed follows (it's the final answer)
+    private var pendingAgentMessage: String?
 
     public init() {}
 
@@ -38,11 +44,9 @@ public final class CodexStreamFormatter: StreamFormatter, Sendable {
             if let text = item.text, !text.isEmpty {
                 let trimmed = text.trimmingCharacters(in: .whitespaces)
                 if trimmed.hasPrefix("{"), let data = trimmed.data(using: .utf8),
-                   let thinking = try? decoder.decode(CodexThinkingContent.self, from: data),
-                   let reasoning = thinking.result, !reasoning.isEmpty {
-                    let preview = String(reasoning.prefix(200))
-                    let suffix = reasoning.count > 200 ? "..." : ""
-                    return "[Thinking] \(preview)\(suffix)\n"
+                   let wrapped = try? decoder.decode(CodexResultWrapper.self, from: data),
+                   let result = wrapped.result, !result.isEmpty {
+                    return result + "\n"
                 } else if trimmed.hasPrefix("{") {
                     return nil
                 }
@@ -99,7 +103,13 @@ public final class CodexStreamFormatter: StreamFormatter, Sendable {
         case "item.completed":
             return parseItemStreamEvents(event.item)
         case "turn.completed":
-            return [.metrics(duration: nil, cost: nil, turns: nil)]
+            // The held agent_message is the final answer — flush as textDelta then emit metrics.
+            var events: [AIStreamEvent] = []
+            if let text = flushPendingAsTextDelta() {
+                events.append(.textDelta(text))
+            }
+            events.append(.metrics(duration: nil, cost: nil, turns: nil))
+            return events
         default:
             return []
         }
@@ -110,22 +120,47 @@ public final class CodexStreamFormatter: StreamFormatter, Sendable {
         switch item.type {
         case "agent_message":
             guard let text = item.text, !text.isEmpty else { return [] }
-            return [.textDelta(text)]
+            // Flush the previously held message as .thinking, then hold this one.
+            var events: [AIStreamEvent] = []
+            if let prev = pendingAgentMessage {
+                events.append(.thinking(prev))
+            }
+            pendingAgentMessage = text
+            return events
         case "command_execution":
+            // A tool call confirms the held message was commentary — flush as .thinking.
+            var events: [AIStreamEvent] = []
+            if let text = pendingAgentMessage {
+                events.append(.thinking(text))
+                pendingAgentMessage = nil
+            }
             let command = item.command ?? ""
             let output = item.aggregatedOutput ?? ""
             let isError = (item.exitCode ?? 0) != 0
-            return [
-                .toolUse(name: "bash", detail: command),
-                .toolResult(name: "bash", summary: output, isError: isError),
-            ]
+            events.append(.toolUse(name: "bash", detail: command))
+            events.append(.toolResult(name: "bash", summary: output, isError: isError))
+            return events
         default:
             return []
         }
     }
+
+    private func flushPendingAsTextDelta() -> String? {
+        guard let text = pendingAgentMessage else { return nil }
+        pendingAgentMessage = nil
+        // Unwrap {"result":"..."} from structured output runs.
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("{"),
+           let data = trimmed.data(using: .utf8),
+           let wrapped = try? decoder.decode(CodexResultWrapper.self, from: data),
+           let result = wrapped.result {
+            return result
+        }
+        return text
+    }
 }
 
-private struct CodexThinkingContent: Decodable {
+private struct CodexResultWrapper: Decodable {
     let result: String?
 }
 

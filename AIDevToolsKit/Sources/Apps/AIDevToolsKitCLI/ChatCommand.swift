@@ -26,6 +26,12 @@ struct ChatCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Resume the last session")
     var resume: Bool = false
 
+    @Flag(name: .long, help: "List recent sessions and exit")
+    var history: Bool = false
+
+    @Option(name: .long, help: "Print messages from a session ID and exit")
+    var session: String?
+
     @Argument(help: "Single message to send (omit for interactive mode)")
     var message: String?
 
@@ -48,9 +54,19 @@ struct ChatCommand: AsyncParsableCommand {
             client = defaultClient
         }
 
-        let useCase = SendChatMessageUseCase(client: client)
         let dir = workingDir ?? FileManager.default.currentDirectoryPath
 
+        if history {
+            try await listHistory(client: client, workingDirectory: dir)
+            return
+        }
+
+        if let sessionId = session {
+            await printSession(sessionId: sessionId, client: client, workingDirectory: dir)
+            return
+        }
+
+        let useCase = SendChatMessageUseCase(client: client)
         if let message {
             try await sendMessage(message, workingDirectory: dir, useCase: useCase, client: client)
         } else {
@@ -147,6 +163,51 @@ struct ChatCommand: AsyncParsableCommand {
             } catch {
                 print("\nError: \(error.localizedDescription)")
             }
+        }
+    }
+
+    private func printSession(sessionId: String, client: any AIClient, workingDirectory: String) async {
+        let messages = await client.loadSessionMessages(sessionId: sessionId, workingDirectory: workingDirectory)
+
+        if messages.isEmpty {
+            print("No messages found for session \(sessionId).")
+            return
+        }
+
+        let separator = String(repeating: "─", count: 60)
+        for message in messages {
+            switch message.role {
+            case .user:
+                print("\n\(separator)")
+                print("You:")
+                print(message.content)
+            case .assistant:
+                print("\n\(client.displayName):")
+                print(message.content)
+            case .thinking:
+                print("\n[Thinking] \(message.content)")
+            }
+        }
+        print()
+    }
+
+    private func listHistory(client: any AIClient, workingDirectory: String) async throws {
+        let sessions = await client.listSessions(workingDirectory: workingDirectory)
+
+        if sessions.isEmpty {
+            print("No sessions found for \(client.displayName).")
+            return
+        }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .short
+        dateFormatter.timeStyle = .short
+
+        print("\(client.displayName) sessions:\n")
+        for session in sessions {
+            let date = dateFormatter.string(from: session.lastModified)
+            print("  \(date)  \(session.summary)")
+            print("           \(session.id)\n")
         }
     }
 

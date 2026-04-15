@@ -5,7 +5,6 @@
 ## - [ ] Add summary feature option - display summary of issues rather than PR comments
 ## - [ ] Fix diff not being respected and flagging of existing issues
 ## - [ ] Add skill to update rules based on results
-## - [ ] Fix crowded list view toolbar
 ## - [ ] Fix sequencing of next/last PRs being messed up as you comment on things
 ## - [ ] Fix stats in diff view at top being truncated on narrow window
 ## - [ ] Ignore analysis comment support
@@ -18,7 +17,7 @@
 # AI Output UI
 
 ## - [ ] Allow the session to be interrupted so the user can join the chat mid-conversation.
-
+## - [ ] Fix Codex support
 
 # AI Frameworks
 
@@ -42,8 +41,8 @@
 ## - [ ] Support all config/features for debugging
 ## - [ ] Improve debugging skill
 ## - [ ] Create Cron to dispatch jobs from main branch every N minutes
-##  - [ ] Install SwiftUI/SwiftArchitecture skills
-##  - [ ] Can use Claude chain for predictable access?
+## - [ ] Install SwiftUI/SwiftArchitecture skills
+## - [ ] Can use Claude chain for predictable access?
 
 # Review Skill
 

@@ -22,6 +22,15 @@ public struct LoadSessionMessagesUseCase: UseCase {
 
     public func run(_ options: Options) async -> [ChatMessage] {
         let sessionMessages = await client.loadSessionMessages(sessionId: options.sessionId, workingDirectory: options.workingDirectory)
-        return sessionMessages.map { ChatMessage(role: $0.role == .user ? .user : .assistant, content: $0.content, isComplete: true) }
+        return sessionMessages.map { msg in
+            switch msg.role {
+            case .user:
+                return ChatMessage(role: .user, content: msg.content, isComplete: true)
+            case .thinking:
+                return ChatMessage(role: .assistant, contentBlocks: [.thinking(msg.content)], isComplete: true)
+            case .assistant:
+                return ChatMessage(role: .assistant, content: msg.content, isComplete: true)
+            }
+        }
     }
 }
