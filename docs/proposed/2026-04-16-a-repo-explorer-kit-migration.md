@@ -50,7 +50,10 @@ Expected outcome: App builds; RepoExplorer tab works as before. `RepoExplorerFea
 
 ---
 
-## - [ ] Phase 2: Move RepoExplorerFileTreeService → FileTreeService, remove RepoExplorerDataPathsService
+## - [x] Phase 2: Move RepoExplorerFileTreeService → FileTreeService, remove RepoExplorerDataPathsService
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Moved the file-tree engine into the Services layer as a first-class `AIDevToolsKit` target, rewired feature and app callers to the shared `DataPathsService` instead of a duplicate service package, and kept CLI integration out of scope for this phase.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

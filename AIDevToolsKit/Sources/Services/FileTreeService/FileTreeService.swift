@@ -1,5 +1,5 @@
+import DataPathsService
 import Foundation
-import RepoExplorerDataPathsService
 
 public actor FileTreeService {
     public struct DirectorySelectionResult: Sendable {

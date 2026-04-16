@@ -13,14 +13,6 @@ let package = Package(
             targets: ["RepoExplorerCLITools"]
         ),
         .library(
-            name: "RepoExplorerDataPathsService",
-            targets: ["RepoExplorerDataPathsService"]
-        ),
-        .library(
-            name: "RepoExplorerFileTreeService",
-            targets: ["RepoExplorerFileTreeService"]
-        ),
-        .library(
             name: "RepoExplorerGitClient",
             targets: ["RepoExplorerGitClient"]
         ),
@@ -39,18 +31,6 @@ let package = Package(
             path: "Sources/RepoExplorerCLITools"
         ),
         .target(
-            name: "RepoExplorerDataPathsService",
-            dependencies: [],
-            path: "Sources/RepoExplorerDataPathsService"
-        ),
-        .target(
-            name: "RepoExplorerFileTreeService",
-            dependencies: [
-                "RepoExplorerDataPathsService",
-            ],
-            path: "Sources/RepoExplorerFileTreeService"
-        ),
-        .target(
             name: "RepoExplorerGitClient",
             dependencies: [
                 "RepoExplorerCLITools",
@@ -61,7 +41,6 @@ let package = Package(
             name: "RepoExplorerCLI",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                "RepoExplorerFileTreeService",
             ],
             path: "Sources/RepoExplorerCLI"
         ),

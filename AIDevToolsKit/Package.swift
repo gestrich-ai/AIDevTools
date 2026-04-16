@@ -23,6 +23,7 @@ var products: [Product] = [
     .library(name: "EvalFeature", targets: ["EvalFeature"]),
     .library(name: "EvalSDK", targets: ["EvalSDK"]),
     .library(name: "EvalService", targets: ["EvalService"]),
+    .library(name: "FileTreeService", targets: ["FileTreeService"]),
     .library(name: "GitHubService", targets: ["GitHubService"]),
     .library(name: "GitSDK", targets: ["GitSDK"]),
     .library(name: "KeychainSDK", targets: ["KeychainSDK"]),
@@ -206,7 +207,7 @@ var targets: [Target] = [
     .target(
         name: "RepoExplorerFeature",
         dependencies: [
-            .product(name: "RepoExplorerFileTreeService", package: "RepoExplorerKit"),
+            "FileTreeService",
         ],
         path: "Sources/Features/RepoExplorerFeature"
     ),
@@ -285,6 +286,13 @@ var targets: [Target] = [
         name: "EvalService",
         dependencies: ["AIOutputSDK", "RepositorySDK", "SkillScannerSDK"],
         path: "Sources/Services/EvalService"
+    ),
+    .target(
+        name: "FileTreeService",
+        dependencies: [
+            "DataPathsService",
+        ],
+        path: "Sources/Services/FileTreeService"
     ),
     .target(
         name: "GitHubService",
@@ -775,6 +783,7 @@ targets.append(contentsOf: [
             "EvalFeature",
             "EvalSDK",
             "EvalService",
+            "FileTreeService",
             "GitHubService",
             "GitSDK",
             "LoggingSDK",
@@ -793,8 +802,6 @@ targets.append(contentsOf: [
             "ProviderRegistryService",
             "RepoExplorerFeature",
             "RepositorySDK",
-            .product(name: "RepoExplorerDataPathsService", package: "RepoExplorerKit"),
-            .product(name: "RepoExplorerFileTreeService", package: "RepoExplorerKit"),
             "SettingsFeature",
             "SettingsService",
             "SkillBrowserFeature",

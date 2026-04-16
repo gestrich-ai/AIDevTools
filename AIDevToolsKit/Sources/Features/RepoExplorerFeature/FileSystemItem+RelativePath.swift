@@ -1,4 +1,4 @@
-import RepoExplorerFileTreeService
+import FileTreeService
 
 extension FileSystemItem {
     func relativePath(from rootPath: String) -> String {

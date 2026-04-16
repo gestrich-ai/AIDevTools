@@ -62,7 +62,7 @@ struct CompositionRoot {
             gitClientFactory: gitClientFactory,
             mcpModel: mcpModel,
             providerModel: providerModel,
-            repoExplorerViewModelFactory: try makeRepoExplorerViewModelFactory(),
+            repoExplorerViewModelFactory: makeRepoExplorerViewModelFactory(dataPathsService: shared.dataPathsService),
             settingsModel: settingsModel,
             settingsService: shared.settingsService
         )

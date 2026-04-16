@@ -1,4 +1,4 @@
-import RepoExplorerFileTreeService
+import FileTreeService
 import SwiftUI
 
 struct QuickFilePickerView: View {

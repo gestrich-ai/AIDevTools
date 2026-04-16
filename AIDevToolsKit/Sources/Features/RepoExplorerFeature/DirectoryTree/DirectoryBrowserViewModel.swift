@@ -1,6 +1,6 @@
 import Foundation
+import FileTreeService
 import Observation
-import RepoExplorerFileTreeService
 
 @MainActor
 @Observable

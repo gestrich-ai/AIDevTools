@@ -1,5 +1,5 @@
+import DataPathsService
 import Foundation
-import RepoExplorerDataPathsService
 
 public struct DirectoryCache: Codable {
     public struct GitIgnorePattern: Codable {

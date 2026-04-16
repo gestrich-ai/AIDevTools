@@ -1,11 +1,11 @@
-import RepoExplorerDataPathsService
-import RepoExplorerFileTreeService
+import DataPathsService
+import FileTreeService
 import RepoExplorerFeature
 
 @MainActor
-func makeRepoExplorerViewModelFactory() throws -> @MainActor () -> DirectoryBrowserViewModel {
-    let dataPathsService = try RepoExplorerDataPathsService.DataPathsService()
-
+func makeRepoExplorerViewModelFactory(
+    dataPathsService: DataPathsService
+) -> @MainActor () -> DirectoryBrowserViewModel {
     return {
         DirectoryBrowserViewModel(
             fileTreeService: FileTreeService(dataPathsService: dataPathsService)
