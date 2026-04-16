@@ -43,6 +43,7 @@ public struct AITask<Output: Decodable & Sendable>: PipelineNode {
         )
         let accumulator = StreamAccumulator()
         let metricsBox = MetricsBox()
+        onProgress(.userPrompt(instructions))
 
         if let schema = jsonSchema {
             let result = try await client.runStructured(

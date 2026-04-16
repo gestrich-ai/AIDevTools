@@ -17,6 +17,7 @@ struct PlanDetailView: View {
     @State private var architectureDiagram: ArchitectureDiagram?
     @State private var selectedModule: ModuleSelection?
     @State private var isArchitectureExpanded = true
+    @AppStorage("mdPlannerProviderName") private var storedProviderName = ""
     @AppStorage("planExecuteNextOnly") private var executeNextOnly = false
     @AppStorage("planStopAfterArchitectureDiagram") private var stopAfterArchitectureDiagram = false
     @AppStorage("planUseWorktree") private var useWorktree = false
@@ -212,6 +213,9 @@ struct PlanDetailView: View {
             .labelsHidden()
             .frame(width: 120)
             .disabled(isBusy)
+            .onChange(of: planModel.selectedProviderName) { _, newValue in
+                storedProviderName = newValue
+            }
 
             Toggle("Pause for architecture", isOn: $stopAfterArchitectureDiagram)
                 .toggleStyle(.checkbox)
@@ -415,23 +419,6 @@ struct PlanDetailView: View {
         panelModel.showOutput(with: executionModel)
         activePlanModel.stopWatching()
 
-        planModel.pipelineModel.onEvent = { @MainActor [weak executionModel] event in
-            guard let executionModel else { return }
-            switch event {
-            case .nodeStarted:
-                executionModel.finalizeCurrentStreamingMessage()
-                executionModel.beginStreamingMessage()
-            case .nodeProgress(_, let progress):
-                if case .contentBlocks(let blocks) = progress {
-                    executionModel.updateCurrentStreamingBlocks(blocks)
-                }
-            case .nodeCompleted:
-                executionModel.finalizeCurrentStreamingMessage()
-            default:
-                break
-            }
-        }
-
         let stopForDiagram = stopAfterArchitectureDiagram
         let mode: PlanService.ExecuteMode = executeNextOnly ? .next : .all
         let worktree = useWorktree
@@ -439,6 +426,7 @@ struct PlanDetailView: View {
             await planModel.execute(
                 plan: plan,
                 repository: repository,
+                chatModel: executionModel,
                 executeMode: mode,
                 stopAfterArchitectureDiagram: stopForDiagram,
                 useWorktree: worktree
@@ -450,7 +438,6 @@ struct PlanDetailView: View {
         await loadPlan()
         mergeExecutionPhaseStates()
         executionChatModel?.finalizeCurrentStreamingMessage()
-        planModel.pipelineModel.onEvent = nil
         executionChatModel = nil
         activePlanModel.startWatching(url: plan.planURL)
     }

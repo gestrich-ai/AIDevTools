@@ -11,8 +11,9 @@ public protocol PipelineNode: Sendable {
 }
 
 public enum PipelineNodeProgress: Sendable {
+    case contentBlocks([AIContentBlock])
+    case custom(String)
     case output(String)
     case pausedForReview
-    case custom(String)
-    case contentBlocks([AIContentBlock])
+    case userPrompt(String)
 }

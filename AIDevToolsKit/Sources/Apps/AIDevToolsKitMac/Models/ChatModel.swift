@@ -2,6 +2,7 @@ import AIOutputSDK
 import ChatFeature
 import Foundation
 import Observation
+import PipelineSDK
 
 @Observable
 @MainActor
@@ -130,6 +131,31 @@ public final class ChatModel {
     }
 
     // MARK: - Programmatic Message Injection
+
+    public func handlePipelineEvent(_ event: PipelineEvent) {
+        switch event {
+        case .nodeStarted:
+            finalizeCurrentStreamingMessage()
+        case .nodeProgress(_, let progress):
+            switch progress {
+            case .userPrompt(let prompt):
+                appendUserMessage(prompt)
+                beginStreamingMessage()
+            case .contentBlocks(let blocks):
+                updateCurrentStreamingBlocks(blocks)
+            default:
+                break
+            }
+        case .nodeCompleted:
+            finalizeCurrentStreamingMessage()
+        default:
+            break
+        }
+    }
+
+    public func appendUserMessage(_ content: String) {
+        messages.append(ChatMessage(role: .user, content: content, isComplete: true))
+    }
 
     public func appendStatusMessage(_ content: String) {
         messages.append(ChatMessage(role: .assistant, content: content, isComplete: true))
