@@ -20,6 +20,7 @@ struct QuickFilePickerView: View {
                 TextField("Search files...", text: $searchText)
                     .textFieldStyle(.roundedBorder)
                     .focused($isSearchFieldFocused)
+                    .accessibilityIdentifier("repoExplorerQuickOpenSearchField")
                     .onSubmit {
                         if let file = filteredFiles.first(where: { $0.id == selectedFileID }) ?? filteredFiles.first {
                             selectFile(file)
@@ -33,6 +34,7 @@ struct QuickFilePickerView: View {
                     isPresented = false
                 }
                 .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("repoExplorerQuickOpenCloseButton")
             }
             .padding()
 
@@ -87,9 +89,11 @@ struct QuickFilePickerView: View {
                     .tag(file.id)
                 }
                 .listStyle(.plain)
+                .accessibilityIdentifier("repoExplorerQuickOpenResults")
             }
         }
         .frame(width: 640, height: 420)
+        .accessibilityIdentifier("repoExplorerQuickOpenSheet")
         .onAppear {
             searchText = UserDefaults.standard.string(forKey: Self.lastSearchKey) ?? ""
             if !searchText.isEmpty {

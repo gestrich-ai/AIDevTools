@@ -18,13 +18,6 @@ public struct DirectoryTreeView: View {
             }
             .padding(.vertical, 4)
         }
-        .task(id: repoPath) {
-            await viewModel.selectDirectory(url: URL(fileURLWithPath: repoPath))
-        }
-        .onDisappear {
-            Task {
-                await viewModel.stopMonitoring()
-            }
-        }
+        .accessibilityIdentifier("repoExplorerTree")
     }
 }

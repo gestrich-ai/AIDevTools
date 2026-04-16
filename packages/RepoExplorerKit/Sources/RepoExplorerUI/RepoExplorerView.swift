@@ -13,14 +13,15 @@ public struct RepoExplorerView: View {
     }
 
     public var body: some View {
-        HSplitView {
+        HStack(spacing: 0) {
             VStack(spacing: 0) {
                 header
                 Divider()
                 DirectoryTreeView(repoPath: repoPath)
                     .environment(viewModel)
+                    .frame(maxHeight: .infinity)
             }
-            .frame(minWidth: 260, idealWidth: 320, maxWidth: 420)
+            .frame(minWidth: 260, idealWidth: 320, maxWidth: 420, maxHeight: .infinity)
 
             Divider()
 
@@ -31,6 +32,7 @@ public struct RepoExplorerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $isQuickPickerPresented) {
             QuickFilePickerView(viewModel: viewModel, isPresented: $isQuickPickerPresented)
         }
@@ -41,6 +43,7 @@ public struct RepoExplorerView: View {
             .keyboardShortcut("o", modifiers: [.command, .shift])
             .hidden()
         )
+        .accessibilityIdentifier("repoExplorerRoot")
     }
 
     private var header: some View {
@@ -48,12 +51,14 @@ public struct RepoExplorerView: View {
             Text(URL(fileURLWithPath: repoPath).lastPathComponent)
                 .font(.headline)
                 .lineLimit(1)
+                .accessibilityIdentifier("repoExplorerName")
 
             Text(repoPath)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .accessibilityIdentifier("repoExplorerPath")
 
             if viewModel.isIndexing {
                 ProgressView(viewModel.indexingProgress)
@@ -71,6 +76,7 @@ public struct RepoExplorerView: View {
                     Label("Quick Open", systemImage: "magnifyingglass")
                 }
                 .help("Quick Open (Command-Shift-O)")
+                .accessibilityIdentifier("repoExplorerQuickOpenButton")
             }
         }
     }
@@ -112,6 +118,7 @@ public struct RepoExplorerView: View {
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
+                        .accessibilityIdentifier("repoExplorerPreviewText")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(nsColor: .textBackgroundColor))
