@@ -12,12 +12,21 @@ let package = Package(
             name: "RepoExplorerCLITools",
             targets: ["RepoExplorerCLITools"]
         ),
+        .library(
+            name: "RepoExplorerDataPathsService",
+            targets: ["RepoExplorerDataPathsService"]
+        ),
     ],
     targets: [
         .target(
             name: "RepoExplorerCLITools",
             dependencies: [],
             path: "Sources/RepoExplorerCLITools"
+        ),
+        .target(
+            name: "RepoExplorerDataPathsService",
+            dependencies: [],
+            path: "Sources/RepoExplorerDataPathsService"
         ),
     ]
 )
