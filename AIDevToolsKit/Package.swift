@@ -293,7 +293,7 @@ var targets: [Target] = [
     .target(
         name: "MCPService",
         dependencies: [
-            "DataPathsService",
+            "AIOutputSDK",
         ],
         path: "Sources/Services/MCPService"
     ),
