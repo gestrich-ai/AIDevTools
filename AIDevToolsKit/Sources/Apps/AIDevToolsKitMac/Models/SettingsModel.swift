@@ -5,12 +5,21 @@ import SettingsFeature
 @MainActor @Observable
 final class SettingsModel {
 
-    private let preferences = AppPreferences()
+    private let loadDataPathUseCase: LoadDataPathUseCase
+    private let preferences: AppPreferences
+    private let saveDataPathUseCase: SaveDataPathUseCase
     private(set) var aiDevToolsRepoPath: URL?
     private(set) var dataPath: URL
 
-    init() {
-        dataPath = LoadDataPathUseCase().run()
+    init(
+        loadDataPathUseCase: LoadDataPathUseCase = LoadDataPathUseCase(),
+        preferences: AppPreferences = AppPreferences(),
+        saveDataPathUseCase: SaveDataPathUseCase = SaveDataPathUseCase()
+    ) {
+        self.loadDataPathUseCase = loadDataPathUseCase
+        self.preferences = preferences
+        self.saveDataPathUseCase = saveDataPathUseCase
+        dataPath = loadDataPathUseCase.run()
         aiDevToolsRepoPath = preferences.aiDevToolsRepoPath()
     }
 
@@ -21,6 +30,6 @@ final class SettingsModel {
 
     func updateDataPath(_ newPath: URL) {
         dataPath = newPath
-        SaveDataPathUseCase().run(path: newPath)
+        saveDataPathUseCase.run(path: newPath)
     }
 }

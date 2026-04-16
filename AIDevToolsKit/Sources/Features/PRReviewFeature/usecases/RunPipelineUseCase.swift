@@ -23,6 +23,22 @@ public struct RunPipelineUseCase: StreamingUseCase {
         minScore: String? = nil,
         analysisMode: AnalysisMode = .all
     ) -> AsyncThrowingStream<PhaseProgress<RunPipelineOutput>, Error> {
+        execute(
+            prNumber: prNumber,
+            rulesDirs: [rulesDir],
+            noDryRun: noDryRun,
+            minScore: minScore,
+            analysisMode: analysisMode
+        )
+    }
+
+    public func execute(
+        prNumber: Int,
+        rulesDirs: [String],
+        noDryRun: Bool = false,
+        minScore: String? = nil,
+        analysisMode: AnalysisMode = .all
+    ) -> AsyncThrowingStream<PhaseProgress<RunPipelineOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .diff))
 
@@ -60,7 +76,7 @@ public struct RunPipelineUseCase: StreamingUseCase {
                     continuation.yield(.log(text: "\n=== Phase 2: Preparing evaluation tasks ===\n"))
                     let rulesUseCase = PrepareUseCase(config: config, aiClient: aiClient)
                     var prepareOutput: PrepareOutput?
-                    for try await progress in rulesUseCase.execute(prNumber: prNumber, rulesDir: rulesDir, commitHash: commitHash) {
+                    for try await progress in rulesUseCase.execute(prNumber: prNumber, rulesDirs: rulesDirs, commitHash: commitHash) {
                         switch progress {
                         case .running(let phase):
                             continuation.yield(.running(phase: phase))

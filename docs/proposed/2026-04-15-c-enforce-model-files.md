@@ -115,7 +115,10 @@ Second pass over the same six large App Models, now targeting severity 5–6:
 
 Build after changes.
 
-## - [ ] Phase 4: Fix — small App Models + PRRadar Models
+## - [x] Phase 4: Fix — small App Models + PRRadar Models
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-configuration-architecture`, `ai-dev-tools-swift-testing`
+**Principles applied**: Removed hidden persistence side effects from the small settings models by making writes explicit at the view boundary, injected small use-case dependencies into `PipelineModel` and `SettingsModel`, and shifted full PR review pipeline sequencing onto the existing Feature-layer `RunPipelineUseCase` so `PRModel` mainly reduces stream progress into UI state.
 
 **Skills to read**: `ai-dev-tools-enforce`
 

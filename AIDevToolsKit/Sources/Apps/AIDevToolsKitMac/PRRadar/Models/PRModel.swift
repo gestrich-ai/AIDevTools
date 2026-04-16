@@ -111,13 +111,24 @@ final class PRModel: Identifiable, Hashable {
     func loadSummary() async {
         let commitHash = await FetchPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
-        let analysisSummary: PRReviewSummary? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config,
-            prNumber: prNumber,
-            phase: .analyze,
-            filename: PRRadarPhasePaths.summaryJSONFilename,
-            commitHash: commitHash
-        )
+        let analysisSummary: PRReviewSummary?
+        do {
+            analysisSummary = try PhaseOutputParser.parsePhaseOutput(
+                config: config,
+                prNumber: prNumber,
+                phase: .analyze,
+                filename: PRRadarPhasePaths.summaryJSONFilename,
+                commitHash: commitHash
+            )
+        } catch PhaseOutputError.fileNotFound {
+            analysisSummary = nil
+        } catch {
+            logger.error(
+                "loadSummary: failed to parse saved summary",
+                metadata: ["prNumber": "\(prNumber)", "error": "\(error)"]
+            )
+            analysisSummary = nil
+        }
 
         guard let summary = analysisSummary else {
             analysisState = .unavailable
@@ -507,10 +518,34 @@ final class PRModel: Identifiable, Hashable {
         operationMode = .analyzing
         defer { operationMode = .idle }
 
+        if let ruleFilePaths {
+            return await runFilteredPipelineAnalysis(ruleFilePaths: ruleFilePaths)
+        }
+
+        let useCase = RunPipelineUseCase(config: config, aiClient: activeClient)
+        resetAnalysisRunState()
+
+        do {
+            for try await progress in useCase.execute(prNumber: prNumber, rulesDirs: config.allResolvedRulesDirs) {
+                handlePipelineProgress(progress)
+            }
+        } catch {
+            let logs = runningLogs(for: currentRunningPipelinePhase() ?? .report)
+            failPhase(currentRunningPipelinePhase() ?? .report, error: error.localizedDescription, logs: logs)
+        }
+
+        let success = isPhaseCompleted(.report)
+        logger.info("Analysis completed", metadata: ["prNumber": "\(prNumber)", "success": "\(success)"])
+        reviewComments = await FetchReviewCommentsUseCase(config: config)
+            .execute(prNumber: prNumber, minScore: 1, commitHash: currentCommitHash)
+        return success
+    }
+
+    private func runFilteredPipelineAnalysis(ruleFilePaths: [String]) async -> Bool {
         let phases: [PRRadarPhase] = [.diff, .prepare, .analyze, .report]
         for phase in phases {
             logger.info("Phase starting", metadata: ["phase": "\(phase)", "canRun": "\(canRunPhase(phase))"])
-            if phase == .analyze, let ruleFilePaths {
+            if phase == .analyze {
                 let filter = RuleFilter(ruleFilePaths: ruleFilePaths)
                 startPhase(.analyze)
                 await runFilteredAnalysis(filter: filter, aiClient: activeClient)
@@ -739,6 +774,137 @@ final class PRModel: Identifiable, Hashable {
 
     private func failPhase(_ phase: PRRadarPhase, error: String, logs: String) {
         phaseStates[phase] = .failed(error: error, logs: logs)
+    }
+
+    private func currentRunningPipelinePhase() -> PRRadarPhase? {
+        [.report, .analyze, .prepare, .diff].first {
+            switch phaseStates[$0] {
+            case .running, .refreshing:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
+    private func handlePipelineProgress(_ progress: PhaseProgress<RunPipelineOutput>) {
+        switch progress {
+        case .running(let phase):
+            switch phase {
+            case .diff:
+                startPhase(.diff, logs: "Fetching diff for PR #\(prNumber)...\n")
+            case .prepare:
+                startPhase(.prepare)
+                prepareAccumulator = nil
+                streamAccumulator.reset()
+                prepareStreamModel = makeStreamModel()
+                prepareStreamModel?.beginStreamingMessage()
+            case .analyze:
+                startPhase(.analyze, logs: "Running evaluations...\n")
+                for key in evaluations.keys { evaluations[key]?.accumulator = nil }
+                inProgressAnalysis = PRReviewResult(streaming: preparation?.tasks ?? [])
+                analyzeStreamModel = makeStreamModel()
+            case .report:
+                startPhase(.report, logs: "Generating report...\n")
+            case .metadata:
+                break
+            }
+        case .log(let text):
+            if let phase = currentRunningPipelinePhase() {
+                appendLog(text, to: phase)
+            }
+        case .prepareStreamEvent(let event):
+            let blocks = streamAccumulator.apply(event)
+            prepareStreamModel?.updateCurrentStreamingBlocks(blocks)
+            switch event {
+            case .textDelta(let text):
+                if prepareAccumulator == nil {
+                    prepareAccumulator = LiveTranscriptAccumulator(identifier: "prepare", prompt: "", startedAt: Date())
+                }
+                prepareAccumulator?.textChunks += text
+            case .toolUse(let name, _):
+                prepareAccumulator?.flushTextAndAppendToolUse(name)
+            default:
+                break
+            }
+        case .taskEvent(let task, let event):
+            handleTaskEvent(task, event)
+            switch event {
+            case .prompt:
+                streamAccumulator.reset()
+                analyzeStreamModel?.finalizeCurrentStreamingMessage()
+                analyzeStreamModel?.appendStatusMessage("Evaluating \((task.focusArea.filePath as NSString).lastPathComponent) - \(task.rule.name)")
+                analyzeStreamModel?.beginStreamingMessage()
+            case .streamEvent(let streamEvent):
+                let blocks = streamAccumulator.apply(streamEvent)
+                analyzeStreamModel?.updateCurrentStreamingBlocks(blocks)
+            case .completed:
+                analyzeStreamModel?.finalizeCurrentStreamingMessage()
+            }
+        case .progress:
+            break
+        case .completed(let output):
+            prepareAccumulator = nil
+            prepareStreamModel?.finalizeCurrentStreamingMessage()
+            preparation = detail?.preparation ?? preparation
+
+            analyzeStreamModel?.finalizeCurrentStreamingMessage()
+            inProgressAnalysis = nil
+            for key in evaluations.keys { evaluations[key]?.accumulator = nil }
+
+            report = output.report
+            completeRunningPipelinePhases(with: output)
+            reloadDetail()
+        case .failed(let error, let logs):
+            prepareAccumulator = nil
+            prepareStreamModel?.finalizeCurrentStreamingMessage()
+            prepareStreamModel = nil
+            analyzeStreamModel?.finalizeCurrentStreamingMessage()
+            analyzeStreamModel = nil
+            for key in evaluations.keys { evaluations[key]?.accumulator = nil }
+
+            let phase = currentRunningPipelinePhase() ?? .report
+            let existingLogs = runningLogs(for: phase)
+            failPhase(phase, error: error, logs: existingLogs + logs)
+        }
+    }
+
+    private func completeRunningPipelinePhases(with output: RunPipelineOutput) {
+        if output.files[.diff] != nil || syncSnapshot != nil {
+            completePhase(.diff)
+        }
+        if output.files[.prepare] != nil {
+            completePhase(.prepare)
+        }
+        if output.files[.analyze] != nil {
+            if let summary = detail?.analysisSummary {
+                updateAnalysisState(from: summary)
+            }
+            completePhase(.analyze)
+        }
+        completePhase(.report)
+    }
+
+    private func makeStreamModel() -> ChatModel {
+        let chatSettings = ChatSettings()
+        chatSettings.resumeLastSession = false
+        return ChatModel(configuration: ChatModelConfiguration(
+            client: activeClient,
+            settings: chatSettings,
+            workingDirectory: config.repoPath
+        ))
+    }
+
+    private func resetAnalysisRunState() {
+        for phase in [PRRadarPhase.diff, .prepare, .analyze, .report] {
+            phaseStates[phase] = .idle
+        }
+        prepareAccumulator = nil
+        prepareStreamModel = nil
+        analyzeStreamModel = nil
+        inProgressAnalysis = nil
+        report = nil
+        streamAccumulator.reset()
     }
 
     private func runPrepare(aiClient: any AIClient) async {

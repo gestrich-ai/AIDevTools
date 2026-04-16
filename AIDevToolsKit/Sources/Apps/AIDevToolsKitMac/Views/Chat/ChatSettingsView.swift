@@ -11,13 +11,13 @@ struct ChatSettingsView: View {
             Section {
                 Toggle("Enable Streaming", isOn: Binding(
                     get: { chatSettings.enableStreaming },
-                    set: { chatSettings.enableStreaming = $0 }
+                    set: { chatSettings.updateEnableStreaming($0) }
                 ))
                 .help("Show response as it's being generated")
 
                 Toggle("Resume Last Session", isOn: Binding(
                     get: { chatSettings.resumeLastSession },
-                    set: { chatSettings.resumeLastSession = $0 }
+                    set: { chatSettings.updateResumeLastSession($0) }
                 ))
                 .help("Automatically resume the most recent session when the app starts")
             } header: {
@@ -27,7 +27,7 @@ struct ChatSettingsView: View {
             Section {
                 Toggle("Verbose Mode", isOn: Binding(
                     get: { chatSettings.verboseMode },
-                    set: { chatSettings.verboseMode = $0 }
+                    set: { chatSettings.updateVerboseMode($0) }
                 ))
                 .help("Show thinking process and intermediate steps")
 
@@ -36,7 +36,7 @@ struct ChatSettingsView: View {
                     Spacer()
                     TextField("Tokens", value: Binding(
                         get: { chatSettings.maxThinkingTokens },
-                        set: { chatSettings.maxThinkingTokens = max($0, 1024) }
+                        set: { chatSettings.updateMaxThinkingTokens($0) }
                     ), format: .number)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)

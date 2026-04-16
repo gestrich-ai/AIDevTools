@@ -28,6 +28,11 @@ final class PipelineModel {
     }
 
     @ObservationIgnored private var runningTask: Task<PipelineContext, any Error>?
+    @ObservationIgnored private let runBlueprintUseCase: RunBlueprintUseCase
+
+    init(runBlueprintUseCase: RunBlueprintUseCase = RunBlueprintUseCase()) {
+        self.runBlueprintUseCase = runBlueprintUseCase
+    }
 
     @discardableResult
     func run(blueprint: PipelineBlueprint) async throws -> PipelineContext {
@@ -37,7 +42,7 @@ final class PipelineModel {
         }
 
         let task = Task<PipelineContext, any Error> {
-            try await RunBlueprintUseCase().run(blueprint: blueprint) { [weak self] event in
+            try await runBlueprintUseCase.run(blueprint: blueprint) { [weak self] event in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.handleEvent(event)
