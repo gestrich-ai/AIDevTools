@@ -1,10 +1,11 @@
 import AIOutputSDK
 import DataPathsService
 import Foundation
+import Logging
+import PipelineSDK
 import PipelineService
 import PlanFeature
 import PlanService
-import PipelineSDK
 import ProviderRegistryService
 import RepositorySDK
 
@@ -45,6 +46,8 @@ final class PlanModel {
             }
         }
     }
+
+    private let logger = Logger(label: "PlanModel")
 
     private(set) var completedPlans: [MarkdownPlanEntry] = []
     private(set) var plans: [MarkdownPlanEntry] = []
@@ -148,7 +151,6 @@ final class PlanModel {
         return try await dependencies.getPlanDetails(planName, directory)
     }
 
-    /// Toggles a phase checkbox in the plan markdown and returns the updated content.
     func togglePhase(plan: MarkdownPlanEntry, phaseIndex: Int) throws -> String {
         let updatedContent = try togglePhaseUseCase.run(planURL: plan.planURL, phaseIndex: phaseIndex)
         Task { await reloadPlans() }
@@ -198,12 +200,17 @@ final class PlanModel {
                 }
             )
             try await pipelineModel.run(blueprint: blueprint)
-            let completedCount = pipelineModel.nodes.filter(\.isCompleted).count
-            let totalCount = pipelineModel.nodes.count
+            let (completedCount, totalCount) = try readPhaseCount(from: plan.planURL)
+            let allCompleted = totalCount > 0 && completedCount == totalCount
+            if allCompleted {
+                logger.info("execute: all \(totalCount) phases completed", metadata: ["plan": "\(plan.planURL.lastPathComponent)"])
+            } else {
+                logger.warning("execute: stopped with \(completedCount)/\(totalCount) phases completed", metadata: ["plan": "\(plan.planURL.lastPathComponent)"])
+            }
             let result = PlanService.ExecuteResult(
                 phasesExecuted: completedCount,
                 totalPhases: totalCount,
-                allCompleted: totalCount > 0 && completedCount == totalCount,
+                allCompleted: allCompleted,
                 totalSeconds: 0
             )
             state = .completed(result, phases: [])
@@ -214,7 +221,6 @@ final class PlanModel {
         }
     }
 
-    /// Generates a plan and returns the plan name (filename without extension) on success.
     @discardableResult
     func generate(prompt: String, repositories: [RepositoryConfiguration], selectedRepository: RepositoryConfiguration? = nil) async -> String? {
         state = .generating(step: selectedRepository != nil ? "Generating plan..." : "Matching repository...")
@@ -362,5 +368,20 @@ final class PlanModel {
     private func resolvedProposedDirectory(for repo: RepositoryConfiguration) -> URL {
         let settings = repo.planner ?? PlanRepoSettings()
         return settings.resolvedProposedDirectory(repoPath: repo.path)
+    }
+
+    private func readPhaseCount(from planURL: URL) throws -> (completed: Int, total: Int) {
+        let content = try String(contentsOf: planURL, encoding: .utf8)
+        var completed = 0
+        var total = 0
+        for line in content.components(separatedBy: "\n") {
+            if line.hasPrefix("## - [x] ") {
+                completed += 1
+                total += 1
+            } else if line.hasPrefix("## - [ ] ") {
+                total += 1
+            }
+        }
+        return (completed, total)
     }
 }
