@@ -71,7 +71,10 @@ Expected outcome: `RepoExplorerDataPathsService` builds cleanly in isolation.
 
 ---
 
-## - [ ] Phase 3: Create RepoExplorerGitClient
+## - [x] Phase 3: Create RepoExplorerGitClient
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Kept this phase scoped to the SDK layer by adding a namespaced `RepoExplorerGitClient` target with only the `RepoExplorerCLITools` dependency, updating copied imports to the new module name, and replacing the copied timer-bound main-actor polling with a task-based monitor so the SDK target builds cleanly under Swift 6 concurrency checks.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
