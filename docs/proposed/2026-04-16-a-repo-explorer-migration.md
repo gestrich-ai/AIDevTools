@@ -147,7 +147,10 @@ Expected outcome: `swift run repo-explorer --help` lists all subcommands. `repo-
 
 ---
 
-## - [ ] Phase 7: Create RepoExplorerUI
+## - [x] Phase 7: Create RepoExplorerUI
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-composition-root`, `ai-dev-tools-configuration-architecture`, `ai-dev-tools-enforce`, `ai-dev-tools-swift-testing`
+**Principles applied**: Kept the migrated file browser in the app layer by introducing a standalone `RepoExplorerUI` target, injected `FileTreeService` into the observable view model instead of constructing services inside the UI, and trimmed the wrapper down to tree browsing, quick-open, and file preview so it does not pull in unrelated GitHub/Claude/Git UI dependencies.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
 

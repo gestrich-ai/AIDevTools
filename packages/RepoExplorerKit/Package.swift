@@ -24,6 +24,10 @@ let package = Package(
             name: "RepoExplorerGitClient",
             targets: ["RepoExplorerGitClient"]
         ),
+        .library(
+            name: "RepoExplorerUI",
+            targets: ["RepoExplorerUI"]
+        ),
         .executable(
             name: "repo-explorer",
             targets: ["RepoExplorerCLI"]
@@ -56,6 +60,14 @@ let package = Package(
                 "RepoExplorerCLITools",
             ],
             path: "Sources/RepoExplorerGitClient"
+        ),
+        .target(
+            name: "RepoExplorerUI",
+            dependencies: [
+                "RepoExplorerFileTreeService",
+                "RepoExplorerGitClient",
+            ],
+            path: "Sources/RepoExplorerUI"
         ),
         .executableTarget(
             name: "RepoExplorerCLI",
