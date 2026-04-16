@@ -124,7 +124,10 @@ Expected outcome: `swift run AIDevToolsKitCLI file-tree --help` (or equivalent) 
 
 ---
 
-## - [ ] Phase 5: Delete RepoExplorerKit Package
+## - [x] Phase 5: Delete RepoExplorerKit Package
+
+**Skills used**: none
+**Principles applied**: Confirmed the local package dependency cleanup had already landed in earlier phases, then limited this phase to deleting the now-empty `RepoExplorerKit` stub and keeping the `packages/` directory only if it still held other contents.
 
 **Skills to read**: none
 
