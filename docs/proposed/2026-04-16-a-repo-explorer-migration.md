@@ -173,7 +173,10 @@ Expected outcome: `RepoExplorerUI` builds. `WorkingDirectoryViews` (or a trimmed
 
 ---
 
-## - [ ] Phase 8: Add RepoExplorer Tab to WorkspaceView
+## - [x] Phase 8: Add RepoExplorer Tab to WorkspaceView
+
+**Skills used**: `ai-dev-tools-composition-root`
+**Principles applied**: Kept RepoExplorer service construction in the Mac composition root by exposing a view-model factory, then used a thin workspace tab wrapper to bind the selected repository path to the migrated RepoExplorer UI without pushing service wiring into `WorkspaceView`.
 
 **Skills to read**: `ai-dev-tools-composition-root`
 

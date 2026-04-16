@@ -6,6 +6,7 @@ import GitSDK
 import PlanFeature
 import PlanService
 import ProviderRegistryService
+import RepoExplorerUI
 import RepositorySDK
 import SettingsService
 import SkillBrowserFeature
@@ -25,6 +26,7 @@ public struct AIDevToolsKitMacEntryView: View {
     @State private var worktreeModel: WorktreeModel
     @State private var workspaceModel: WorkspaceModel
     private let evalProviderRegistry: EvalProviderRegistry
+    private let repoExplorerViewModelFactory: @MainActor () -> DirectoryBrowserViewModel
 
     public init() {
         guard let root = try? CompositionRoot.create() else {
@@ -72,10 +74,14 @@ public struct AIDevToolsKitMacEntryView: View {
             selectedProviderName: storedPlannerProvider
         ))
         evalProviderRegistry = root.evalProviderRegistry
+        repoExplorerViewModelFactory = root.repoExplorerViewModelFactory
     }
 
     public var body: some View {
-        WorkspaceView(evalProviderRegistry: evalProviderRegistry)
+        WorkspaceView(
+            evalProviderRegistry: evalProviderRegistry,
+            repoExplorerViewModelFactory: repoExplorerViewModelFactory
+        )
             .environment(appModel)
             .environment(appModel.providerModel)
             .environment(architecturePlannerModel)

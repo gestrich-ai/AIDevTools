@@ -1,5 +1,6 @@
 import Combine
 import ProviderRegistryService
+import RepoExplorerUI
 import RepositorySDK
 import SwiftUI
 
@@ -8,6 +9,7 @@ struct WorkspaceView: View {
     @Environment(WorkspaceModel.self) var model
 
     let evalProviderRegistry: EvalProviderRegistry
+    let repoExplorerViewModelFactory: @MainActor () -> DirectoryBrowserViewModel
 
     @State private var executionPanelModel = ExecutionPanelModel()
     @AppStorage(ExperimentalSettings.architecturePlannerKey) private var isArchitecturePlannerEnabled = false
@@ -89,6 +91,14 @@ struct WorkspaceView: View {
                 .tabItem { Label("Skills", systemImage: "star") }
                 .tag("skills")
                 .id("skills")
+
+            RepoExplorerWorkspaceTab(
+                repoPath: repo.path.path(percentEncoded: false),
+                viewModelFactory: repoExplorerViewModelFactory
+            )
+                .tabItem { Label("Repo Explorer", systemImage: "sidebar.squares.left") }
+                .tag("repoExplorer")
+                .id("repoExplorer")
 
             WorktreesView(isActive: selectedTab == "worktrees")
                 .tabItem { Label("Worktrees", systemImage: "square.split.2x1") }

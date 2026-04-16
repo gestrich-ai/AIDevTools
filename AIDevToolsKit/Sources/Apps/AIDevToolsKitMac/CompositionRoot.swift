@@ -4,6 +4,7 @@ import Foundation
 import GitSDK
 import MCPService
 import ProviderRegistryService
+import RepoExplorerUI
 import SettingsService
 
 @MainActor
@@ -13,6 +14,7 @@ struct CompositionRoot {
     let gitClientFactory: @Sendable (String?) -> GitClient
     let mcpModel: MCPModel
     let providerModel: ProviderModel
+    let repoExplorerViewModelFactory: @MainActor () -> DirectoryBrowserViewModel
     let settingsModel: SettingsModel
     let settingsService: SettingsService
 
@@ -60,6 +62,7 @@ struct CompositionRoot {
             gitClientFactory: gitClientFactory,
             mcpModel: mcpModel,
             providerModel: providerModel,
+            repoExplorerViewModelFactory: try makeRepoExplorerViewModelFactory(),
             settingsModel: settingsModel,
             settingsService: shared.settingsService
         )
