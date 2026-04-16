@@ -72,7 +72,10 @@ Expected outcome: App builds; `RepoExplorerKit` now has 3 targets (`RepoExplorer
 
 ---
 
-## - [ ] Phase 3: Remove RepoExplorerGitClient and RepoExplorerCLITools
+## - [x] Phase 3: Remove RepoExplorerGitClient and RepoExplorerCLITools
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Removed the unused SDK-layer targets without migrating their internals because Phase 2 left no consumers, kept `GitSDK` unchanged until a real caller exists, and limited this phase to package-graph cleanup so the remaining `RepoExplorerCLI` work stays isolated for Phase 4.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
