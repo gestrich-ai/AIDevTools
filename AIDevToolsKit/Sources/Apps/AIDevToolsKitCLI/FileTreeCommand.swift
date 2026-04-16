@@ -1,9 +1,126 @@
 import ArgumentParser
+import FileTreeService
 import Foundation
-import RepoExplorerDataPathsService
-import RepoExplorerFileTreeService
 
-struct RepoExplorerIndexCommand: AsyncParsableCommand {
+struct FileTreeCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "file-tree",
+        abstract: "Explore, index, and update repository file trees",
+        subcommands: [
+            FileTreeCreateFileCommand.self,
+            FileTreeCreateFolderCommand.self,
+            FileTreeDeleteCommand.self,
+            FileTreeIndexCommand.self,
+            FileTreeListCommand.self,
+            FileTreeRenameCommand.self,
+            FileTreeSearchCommand.self,
+            FileTreeStatsCommand.self,
+        ]
+    )
+}
+
+struct FileTreeCreateFileCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "create-file",
+        abstract: "Create an empty file at a path"
+    )
+
+    @Argument(help: "File path to create")
+    var path: String
+
+    func run() async throws {
+        let fileURL = absoluteURL(for: path)
+        let parentDirectoryURL = fileURL.deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: parentDirectoryURL.path) else {
+            throw ValidationError("Parent directory does not exist: \(parentDirectoryURL.path)")
+        }
+
+        let service = try makeFileTreeService()
+
+        do {
+            try await service.createFile(at: parentDirectoryURL, name: fileURL.lastPathComponent)
+            print("Created file: \(fileURL.path)")
+        } catch {
+            print("Failed to create file: \(error.localizedDescription)")
+            throw ExitCode.failure
+        }
+    }
+}
+
+struct FileTreeCreateFolderCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "create-folder",
+        abstract: "Create a folder at a path"
+    )
+
+    @Argument(help: "Folder path to create")
+    var path: String
+
+    func run() async throws {
+        let folderURL = absoluteURL(for: path)
+        let parentDirectoryURL = folderURL.deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: parentDirectoryURL.path) else {
+            throw ValidationError("Parent directory does not exist: \(parentDirectoryURL.path)")
+        }
+
+        let service = try makeFileTreeService()
+
+        do {
+            try await service.createFolder(at: parentDirectoryURL, name: folderURL.lastPathComponent)
+            print("Created folder: \(folderURL.path)")
+        } catch {
+            print("Failed to create folder: \(error.localizedDescription)")
+            throw ExitCode.failure
+        }
+    }
+}
+
+struct FileTreeDeleteCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "delete",
+        abstract: "Delete a file or folder"
+    )
+
+    @Argument(help: "Path to the file or folder to delete")
+    var path: String
+
+    @Flag(name: .long, help: "Skip the confirmation prompt")
+    var force: Bool = false
+
+    func run() async throws {
+        let itemURL = absoluteURL(for: path)
+        guard FileManager.default.fileExists(atPath: itemURL.path) else {
+            throw ValidationError("Path does not exist: \(itemURL.path)")
+        }
+
+        let resourceValues = try itemURL.resourceValues(forKeys: [.isDirectoryKey])
+        let isDirectory = resourceValues.isDirectory ?? false
+        let itemType = isDirectory ? "folder" : "file"
+
+        if !force {
+            print("Delete \(itemType) '\(itemURL.lastPathComponent)' at \(itemURL.path)? [y/N]", terminator: " ")
+            fflush(stdout)
+            let response = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard response == "y" || response == "yes" else {
+                print("Cancelled.")
+                return
+            }
+        }
+
+        let service = try makeFileTreeService()
+        let item = FileSystemItem(url: itemURL, isDirectory: isDirectory)
+
+        do {
+            try await service.delete(item: item)
+            print("Deleted: \(itemURL.path)")
+        } catch {
+            print("Failed to delete item: \(error.localizedDescription)")
+            throw ExitCode.failure
+        }
+    }
+}
+
+struct FileTreeIndexCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "index",
         abstract: "Index a directory and write the disk cache"
@@ -17,7 +134,7 @@ struct RepoExplorerIndexCommand: AsyncParsableCommand {
 
     func run() async throws {
         let directoryURL = try validatedDirectoryURL(for: path)
-        let service = try makeService()
+        let service = try makeFileTreeService()
 
         print("Indexing \(directoryURL.path)...")
         let startTime = Date()
@@ -39,7 +156,7 @@ struct RepoExplorerIndexCommand: AsyncParsableCommand {
     }
 }
 
-struct RepoExplorerListCommand: AsyncParsableCommand {
+struct FileTreeListCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "list",
         abstract: "List cached files for a directory"
@@ -59,7 +176,7 @@ struct RepoExplorerListCommand: AsyncParsableCommand {
 
     func run() async throws {
         let directoryURL = try validatedDirectoryURL(for: path)
-        let service = try makeService()
+        let service = try makeFileTreeService()
         _ = await service.selectDirectory(url: directoryURL)
 
         let files = try filteredFiles(
@@ -84,7 +201,52 @@ struct RepoExplorerListCommand: AsyncParsableCommand {
     }
 }
 
-struct RepoExplorerSearchCommand: AsyncParsableCommand {
+struct FileTreeRenameCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "rename",
+        abstract: "Rename or move a file or folder"
+    )
+
+    @Argument(help: "Existing path")
+    var oldPath: String
+
+    @Argument(help: "New path or new name")
+    var newPath: String
+
+    func run() async throws {
+        let sourceURL = absoluteURL(for: oldPath)
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+            throw ValidationError("Path does not exist: \(sourceURL.path)")
+        }
+
+        let resourceValues = try sourceURL.resourceValues(forKeys: [.isDirectoryKey])
+        let isDirectory = resourceValues.isDirectory ?? false
+        let destinationURL = destinationURL(from: sourceURL, input: newPath)
+
+        guard sourceURL.deletingLastPathComponent() == destinationURL.deletingLastPathComponent() else {
+            do {
+                try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
+                print("Renamed: \(sourceURL.path) -> \(destinationURL.path)")
+                return
+            } catch {
+                throw ValidationError("Failed to move item: \(error.localizedDescription)")
+            }
+        }
+
+        let service = try makeFileTreeService()
+        let item = FileSystemItem(url: sourceURL, isDirectory: isDirectory)
+
+        do {
+            try await service.rename(item: item, to: destinationURL.lastPathComponent)
+            print("Renamed: \(sourceURL.path) -> \(destinationURL.path)")
+        } catch {
+            print("Failed to rename item: \(error.localizedDescription)")
+            throw ExitCode.failure
+        }
+    }
+}
+
+struct FileTreeSearchCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "search",
         abstract: "Fuzzy search cached files"
@@ -107,7 +269,7 @@ struct RepoExplorerSearchCommand: AsyncParsableCommand {
 
     func run() async throws {
         let directoryURL = try validatedDirectoryURL(for: path)
-        let service = try makeService()
+        let service = try makeFileTreeService()
         _ = await service.selectDirectory(url: directoryURL)
 
         let result = await service.searchFiles(query: query, limit: limit, caseSensitive: caseSensitive)
@@ -126,7 +288,7 @@ struct RepoExplorerSearchCommand: AsyncParsableCommand {
     }
 }
 
-struct RepoExplorerStatsCommand: AsyncParsableCommand {
+struct FileTreeStatsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "stats",
         abstract: "Print file counts, type breakdown, and ignore summary"
@@ -137,7 +299,7 @@ struct RepoExplorerStatsCommand: AsyncParsableCommand {
 
     func run() async throws {
         let directoryURL = try validatedDirectoryURL(for: path)
-        let service = try makeService()
+        let service = try makeFileTreeService()
         let selection = await service.selectDirectory(url: directoryURL)
         let files = await service.getAllFiles()
 
@@ -174,152 +336,6 @@ struct RepoExplorerStatsCommand: AsyncParsableCommand {
 
         for (fileType, count) in counts {
             print("\(fileType): \(count)")
-        }
-    }
-}
-
-struct RepoExplorerCreateFileCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "create-file",
-        abstract: "Create an empty file at a path"
-    )
-
-    @Argument(help: "File path to create")
-    var path: String
-
-    func run() async throws {
-        let fileURL = absoluteURL(for: path)
-        let parentDirectoryURL = fileURL.deletingLastPathComponent()
-        guard FileManager.default.fileExists(atPath: parentDirectoryURL.path) else {
-            throw ValidationError("Parent directory does not exist: \(parentDirectoryURL.path)")
-        }
-
-        let service = try makeService()
-
-        do {
-            try await service.createFile(at: parentDirectoryURL, name: fileURL.lastPathComponent)
-            print("Created file: \(fileURL.path)")
-        } catch {
-            print("Failed to create file: \(error.localizedDescription)")
-            throw ExitCode.failure
-        }
-    }
-}
-
-struct RepoExplorerCreateFolderCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "create-folder",
-        abstract: "Create a folder at a path"
-    )
-
-    @Argument(help: "Folder path to create")
-    var path: String
-
-    func run() async throws {
-        let folderURL = absoluteURL(for: path)
-        let parentDirectoryURL = folderURL.deletingLastPathComponent()
-        guard FileManager.default.fileExists(atPath: parentDirectoryURL.path) else {
-            throw ValidationError("Parent directory does not exist: \(parentDirectoryURL.path)")
-        }
-
-        let service = try makeService()
-
-        do {
-            try await service.createFolder(at: parentDirectoryURL, name: folderURL.lastPathComponent)
-            print("Created folder: \(folderURL.path)")
-        } catch {
-            print("Failed to create folder: \(error.localizedDescription)")
-            throw ExitCode.failure
-        }
-    }
-}
-
-struct RepoExplorerDeleteCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "delete",
-        abstract: "Delete a file or folder"
-    )
-
-    @Argument(help: "Path to the file or folder to delete")
-    var path: String
-
-    @Flag(name: .long, help: "Skip the confirmation prompt")
-    var force: Bool = false
-
-    func run() async throws {
-        let itemURL = absoluteURL(for: path)
-        guard FileManager.default.fileExists(atPath: itemURL.path) else {
-            throw ValidationError("Path does not exist: \(itemURL.path)")
-        }
-
-        let resourceValues = try itemURL.resourceValues(forKeys: [.isDirectoryKey])
-        let isDirectory = resourceValues.isDirectory ?? false
-        let itemType = isDirectory ? "folder" : "file"
-
-        if !force {
-            print("Delete \(itemType) '\(itemURL.lastPathComponent)' at \(itemURL.path)? [y/N]", terminator: " ")
-            fflush(stdout)
-            let response = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard response == "y" || response == "yes" else {
-                print("Cancelled.")
-                return
-            }
-        }
-
-        let service = try makeService()
-        let item = FileSystemItem(url: itemURL, isDirectory: isDirectory)
-
-        do {
-            try await service.delete(item: item)
-            print("Deleted: \(itemURL.path)")
-        } catch {
-            print("Failed to delete item: \(error.localizedDescription)")
-            throw ExitCode.failure
-        }
-    }
-}
-
-struct RepoExplorerRenameCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "rename",
-        abstract: "Rename or move a file or folder"
-    )
-
-    @Argument(help: "Existing path")
-    var oldPath: String
-
-    @Argument(help: "New path or new name")
-    var newPath: String
-
-    func run() async throws {
-        let sourceURL = absoluteURL(for: oldPath)
-        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
-            throw ValidationError("Path does not exist: \(sourceURL.path)")
-        }
-
-        let resourceValues = try sourceURL.resourceValues(forKeys: [.isDirectoryKey])
-        let isDirectory = resourceValues.isDirectory ?? false
-        let destinationURL = destinationURL(from: sourceURL, input: newPath)
-
-        guard sourceURL.deletingLastPathComponent() == destinationURL.deletingLastPathComponent() else {
-            do {
-                try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
-                print("Renamed: \(sourceURL.path) -> \(destinationURL.path)")
-                return
-            } catch {
-                throw ValidationError("Failed to move item: \(error.localizedDescription)")
-            }
-        }
-
-        let service = try makeService()
-        let item = FileSystemItem(url: sourceURL, isDirectory: isDirectory)
-
-        do {
-            try await service.rename(item: item, to: destinationURL.lastPathComponent)
-            print("Renamed: \(sourceURL.path) -> \(destinationURL.path)")
-        } catch {
-            print("Failed to rename item: \(error.localizedDescription)")
-            throw ExitCode.failure
         }
     }
 }
@@ -371,9 +387,9 @@ private func filteredFiles(from files: [FileSystemItem], rootPath: String, filte
     }
 }
 
-private func makeService() throws -> FileTreeService {
-    let dataPathsService = try DataPathsService()
-    return FileTreeService(dataPathsService: dataPathsService)
+private func makeFileTreeService() throws -> FileTreeService {
+    let root = try CLICompositionRoot.create()
+    return root.fileTreeService
 }
 
 private func validatedDirectoryURL(for path: String) throws -> URL {

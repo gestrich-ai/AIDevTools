@@ -102,7 +102,10 @@ Expected outcome: `RepoExplorerKit` has only 1 target left (`RepoExplorerCLI`).
 
 ---
 
-## - [ ] Phase 4: Integrate RepoExplorerCLI into AIDevToolsKitCLI
+## - [x] Phase 4: Integrate RepoExplorerCLI into AIDevToolsKitCLI
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-composition-root`, `ai-dev-tools-configuration-architecture`, `ai-dev-tools-enforce`, `ai-dev-tools-swift-testing`
+**Principles applied**: Moved the file-tree commands into the main Apps-layer CLI, routed `FileTreeService` through `CLICompositionRoot` instead of constructing `DataPathsService` inside commands, and removed the stale package dependency that blocked builds once `RepoExplorerCLI` was deleted.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
 

@@ -7,22 +7,7 @@ let package = Package(
     platforms: [
         .macOS(.v14),
     ],
-    products: [
-        .executable(
-            name: "repo-explorer",
-            targets: ["RepoExplorerCLI"]
-        ),
-    ],
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
-    ],
-    targets: [
-        .executableTarget(
-            name: "RepoExplorerCLI",
-            dependencies: [
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ],
-            path: "Sources/RepoExplorerCLI"
-        ),
-    ]
+    products: [],
+    dependencies: [],
+    targets: []
 )
