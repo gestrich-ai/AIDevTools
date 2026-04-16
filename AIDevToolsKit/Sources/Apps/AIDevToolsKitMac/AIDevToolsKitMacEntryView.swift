@@ -6,7 +6,7 @@ import GitSDK
 import PlanFeature
 import PlanService
 import ProviderRegistryService
-import RepoExplorerUI
+import RepoExplorerFeature
 import RepositorySDK
 import SettingsService
 import SkillBrowserFeature

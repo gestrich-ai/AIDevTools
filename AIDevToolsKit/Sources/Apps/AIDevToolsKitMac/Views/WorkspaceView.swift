@@ -1,6 +1,6 @@
 import Combine
 import ProviderRegistryService
-import RepoExplorerUI
+import RepoExplorerFeature
 import RepositorySDK
 import SwiftUI
 

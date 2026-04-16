@@ -1,4 +1,4 @@
-import RepoExplorerUI
+import RepoExplorerFeature
 import SwiftUI
 
 struct RepoExplorerWorkspaceTab: View {

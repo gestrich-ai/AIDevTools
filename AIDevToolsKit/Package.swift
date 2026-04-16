@@ -42,6 +42,7 @@ var products: [Product] = [
     .library(name: "PRRadarModelsService", targets: ["PRRadarModelsService"]),
     .library(name: "PRReviewFeature", targets: ["PRReviewFeature"]),
     .library(name: "ProviderRegistryService", targets: ["ProviderRegistryService"]),
+    .library(name: "RepoExplorerFeature", targets: ["RepoExplorerFeature"]),
     .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
     .library(name: "SettingsFeature", targets: ["SettingsFeature"]),
     .library(name: "SettingsService", targets: ["SettingsService"]),
@@ -201,6 +202,13 @@ var targets: [Target] = [
             "UseCaseSDK",
         ],
         path: "Sources/Features/PRReviewFeature"
+    ),
+    .target(
+        name: "RepoExplorerFeature",
+        dependencies: [
+            .product(name: "RepoExplorerFileTreeService", package: "RepoExplorerKit"),
+        ],
+        path: "Sources/Features/RepoExplorerFeature"
     ),
     .target(
         name: "SettingsFeature",
@@ -783,10 +791,10 @@ targets.append(contentsOf: [
             "PRRadarModelsService",
             "PRReviewFeature",
             "ProviderRegistryService",
+            "RepoExplorerFeature",
             "RepositorySDK",
             .product(name: "RepoExplorerDataPathsService", package: "RepoExplorerKit"),
             .product(name: "RepoExplorerFileTreeService", package: "RepoExplorerKit"),
-            .product(name: "RepoExplorerUI", package: "RepoExplorerKit"),
             "SettingsFeature",
             "SettingsService",
             "SkillBrowserFeature",

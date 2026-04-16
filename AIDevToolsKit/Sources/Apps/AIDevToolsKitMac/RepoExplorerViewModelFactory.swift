@@ -1,6 +1,6 @@
 import RepoExplorerDataPathsService
 import RepoExplorerFileTreeService
-import RepoExplorerUI
+import RepoExplorerFeature
 
 @MainActor
 func makeRepoExplorerViewModelFactory() throws -> @MainActor () -> DirectoryBrowserViewModel {

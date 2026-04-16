@@ -220,34 +220,26 @@ public final class DirectoryBrowserViewModel {
     }
 
     private func restoreExpansion(items: [FileSystemItem], expandedPaths: Set<String>) {
-        for item in items where expandedPaths.contains(item.path) {
-            item.isExpanded = true
-            let children = item.loadChildren(ignorePatterns: ignorePatterns)
-            item.setChildren(children)
-            if !children.isEmpty {
-                restoreExpansion(items: children, expandedPaths: expandedPaths)
+        for item in items {
+            let shouldExpand = expandedPaths.contains(item.path)
+            item.isExpanded = shouldExpand
+            if shouldExpand {
+                loadChildrenIfNeeded(for: item)
+                if let children = item.children {
+                    restoreExpansion(items: children, expandedPaths: expandedPaths)
+                }
             }
         }
     }
 
     private func restoreSelectedItemIfNeeded() {
-        guard let selectedPath = UserDefaults.standard.string(forKey: selectedPathKey),
-              let item = findItem(withPath: selectedPath, in: rootItems)
-        else {
+        guard selectedItem == nil,
+              let selectedPath = UserDefaults.standard.string(forKey: selectedPathKey),
+              let item = findItem(withPath: selectedPath, in: rootItems) else {
             return
         }
 
-        selectedItem = item
-        guard !item.isDirectory else {
-            return
-        }
-
-        Task {
-            let content = await fileTreeService.loadFileContent(from: item.url)
-            await MainActor.run { [weak self] in
-                self?.fileContent = content
-            }
-        }
+        selectItem(item)
     }
 
     private func findItem(withPath path: String, in items: [FileSystemItem]) -> FileSystemItem? {
@@ -255,13 +247,11 @@ public final class DirectoryBrowserViewModel {
             if item.path == path {
                 return item
             }
-
             if let children = item.children,
                let found = findItem(withPath: path, in: children) {
                 return found
             }
         }
-
         return nil
     }
 }

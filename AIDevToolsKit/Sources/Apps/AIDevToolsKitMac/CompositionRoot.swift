@@ -4,7 +4,7 @@ import Foundation
 import GitSDK
 import MCPService
 import ProviderRegistryService
-import RepoExplorerUI
+import RepoExplorerFeature
 import SettingsService
 
 @MainActor
