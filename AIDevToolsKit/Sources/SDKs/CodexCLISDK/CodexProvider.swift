@@ -2,10 +2,12 @@ import AIOutputSDK
 import CLISDK
 import ConcurrencySDK
 import Foundation
+import Logging
 
 public struct CodexProvider: Sendable {
 
-    private static let inactivityTimeout: TimeInterval = 120
+    private static let inactivityTimeout: TimeInterval = 480
+    private static let logger = Logger(label: "CodexProvider")
 
     public init() {}
 
@@ -142,7 +144,8 @@ public struct CodexProvider: Sendable {
             }
         }
 
-        let client = CLIClient()
+        let client = CLIClient(printOutput: false)
+        Self.logger.debug("Codex CLI starting", metadata: ["workingDirectory": "\(workingDirectory ?? "(none)")"])
         await watchdog.start()
         let result: ExecutionResult
         do {
@@ -163,6 +166,11 @@ public struct CodexProvider: Sendable {
                         try await Task.sleep(for: .seconds(15))
                         let elapsed = await watchdog.timeSinceLastActivity()
                         if elapsed >= Self.inactivityTimeout {
+                            Self.logger.error("Codex CLI inactivity timeout", metadata: [
+                                "elapsed": "\(Int(elapsed))s",
+                                "timeout": "\(Int(Self.inactivityTimeout))s",
+                                "workingDirectory": "\(workingDirectory ?? "(none)")"
+                            ])
                             timedOut = true
                             throw timeoutError
                         }
@@ -189,6 +197,7 @@ public struct CodexProvider: Sendable {
         await stream.finishAll()
         outputTask.cancel()
 
+        Self.logger.debug("Codex CLI completed", metadata: ["exitCode": "\(result.exitCode)"])
         return result
     }
 
@@ -212,3 +221,4 @@ public enum CodexCLIError: Error, LocalizedError {
         }
     }
 }
+

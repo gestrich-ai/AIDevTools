@@ -1,4 +1,5 @@
 import AIOutputSDK
+import CLISDK
 import Foundation
 
 extension CodexProvider: AIClient {
@@ -20,7 +21,7 @@ extension CodexProvider: AIClient {
 
         var command = Codex.Exec(prompt: prompt)
         command.color = "never"
-        command.fullAuto = options.dangerouslySkipPermissions
+        command.dangerouslyBypassApprovalsAndSandbox = options.dangerouslySkipPermissions
         command.json = true
         command.model = options.model
         command.skipGitRepoCheck = true
@@ -32,25 +33,47 @@ extension CodexProvider: AIClient {
         } else if let jsonSchema = options.jsonSchema {
             command.outputSchema = jsonSchema
         }
-        let result = try await run(
-            command: command,
-            workingDirectory: options.workingDirectory,
-            environment: options.environment,
-            onFormattedOutput: onOutput,
-            onStreamEvent: onStreamEvent
-        )
-        // Codex does not write session files or update session_index.jsonl when stdin is a
-        // pipe (which CLIClient always uses). We write the index entry ourselves so sessions
-        // appear in the history picker. The rollout file in ~/.codex/sessions/ will not exist
-        // for these runs, so loading full message history from a past session is not supported.
-        let sessionId = parseThreadId(from: result.stdout)
-        if let id = sessionId, result.exitCode == 0 {
-            let summary = String(prompt.prefix(80))
-            try? CodexSessionStorage().appendSession(id: id, threadName: summary)
-            // Swallowing intentionally: index write is best-effort. The session can still
-            // be resumed via thread_id; only the history list entry would be missing.
+
+        let stdoutCapture = StdoutAccumulator()
+        let maxTimeoutRetries = 1
+        var retryCount = 0
+
+        while true {
+            do {
+                let result = try await run(
+                    command: command,
+                    workingDirectory: options.workingDirectory,
+                    environment: options.environment,
+                    onOutput: Self.outputHandler(stdoutCapture: stdoutCapture, onOutput: onOutput, onStreamEvent: onStreamEvent)
+                )
+                // Codex does not write session files or update session_index.jsonl when stdin is a
+                // pipe (which CLIClient always uses). We write the index entry ourselves so sessions
+                // appear in the history picker. The rollout file in ~/.codex/sessions/ will not exist
+                // for these runs, so loading full message history from a past session is not supported.
+                let sessionId = parseThreadId(from: result.stdout)
+                if let id = sessionId, result.exitCode == 0 {
+                    let summary = String(prompt.prefix(80))
+                    try? CodexSessionStorage().appendSession(id: id, threadName: summary)
+                    // Swallowing intentionally: index write is best-effort. The session can still
+                    // be resumed via thread_id; only the history list entry would be missing.
+                }
+                return AIClientResult(exitCode: result.exitCode, sessionId: sessionId, stderr: result.stderr, stdout: result.stdout)
+            } catch let error as CodexCLIError {
+                guard case .inactivityTimeout = error,
+                      retryCount < maxTimeoutRetries,
+                      let threadId = parseThreadId(from: stdoutCapture.content) else {
+                    throw error
+                }
+                retryCount += 1
+                return try await runResume(
+                    sessionId: threadId,
+                    prompt: "Continue where you left off.",
+                    options: options,
+                    onOutput: onOutput,
+                    onStreamEvent: onStreamEvent
+                )
+            }
         }
-        return AIClientResult(exitCode: result.exitCode, sessionId: sessionId, stderr: result.stderr, stdout: result.stdout)
     }
 
     private func runResume(
@@ -62,7 +85,7 @@ extension CodexProvider: AIClient {
     ) async throws -> AIClientResult {
         var command = Codex.Exec.Resume(sessionId: sessionId, prompt: prompt)
         command.color = "never"
-        command.fullAuto = options.dangerouslySkipPermissions
+        command.dangerouslyBypassApprovalsAndSandbox = options.dangerouslySkipPermissions
         command.model = options.model
         let result = try await run(
             command: command,
@@ -83,8 +106,8 @@ extension CodexProvider: AIClient {
         onStreamEvent: (@Sendable (AIStreamEvent) -> Void)?
     ) async throws -> AIStructuredResult<T> {
         var command = Codex.Exec(prompt: prompt)
+        command.dangerouslyBypassApprovalsAndSandbox = options.dangerouslySkipPermissions
         command.ephemeral = true
-        command.fullAuto = options.dangerouslySkipPermissions
         command.json = true
         command.model = options.model
         command.outputSchema = jsonSchema
@@ -101,6 +124,44 @@ extension CodexProvider: AIClient {
     }
 
     // MARK: - Helpers
+
+    private static func outputHandler(
+        stdoutCapture: StdoutAccumulator,
+        onOutput: (@Sendable (String) -> Void)?,
+        onStreamEvent: (@Sendable (AIStreamEvent) -> Void)?
+    ) -> @Sendable (StreamOutput) -> Void {
+        let formatter = CodexStreamFormatter()
+        return { item in
+            switch item {
+            case .stdout(_, let text):
+                stdoutCapture.append(text)
+                let formatted = formatter.format(text)
+                if !formatted.isEmpty {
+                    onOutput?(formatted)
+                }
+                for event in formatter.formatStructured(text) {
+                    onStreamEvent?(event)
+                }
+            case .stderr(_, let text):
+                let formatted = formatter.format(text)
+                if !formatted.isEmpty {
+                    onOutput?(formatted)
+                } else {
+                    let nonJSON = text.components(separatedBy: "\n")
+                        .filter { line in
+                            let trimmed = line.trimmingCharacters(in: .whitespaces)
+                            return !trimmed.isEmpty && !trimmed.hasPrefix("{")
+                        }
+                        .joined(separator: "\n")
+                    if !nonJSON.isEmpty {
+                        onOutput?(nonJSON)
+                    }
+                }
+            default:
+                break
+            }
+        }
+    }
 
     private func parseThreadId(from stdout: String) -> String? {
         for line in stdout.components(separatedBy: "\n") {
@@ -126,6 +187,23 @@ extension CodexProvider: AIClient {
 
     public func getSessionDetails(sessionId: String, summary: String, lastModified: Date, workingDirectory: String) -> SessionDetails? {
         CodexSessionStorage().getSessionDetails(sessionId: sessionId, summary: summary, lastModified: lastModified)
+    }
+}
+
+final class StdoutAccumulator: @unchecked Sendable {
+    private let lock = NSLock()
+    private var buffer = ""
+
+    var content: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return buffer
+    }
+
+    func append(_ text: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        buffer += text
     }
 }
 

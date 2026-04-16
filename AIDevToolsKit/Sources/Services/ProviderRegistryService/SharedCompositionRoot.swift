@@ -5,12 +5,14 @@ import CodexCLISDK
 import CredentialService
 import DataPathsService
 import Foundation
+import MCPService
 import SettingsService
 
 public struct SharedCompositionRoot {
     public let credentialResolver: CredentialResolver
     public let dataPathsService: DataPathsService
     public let evalProviderRegistry: EvalProviderRegistry
+    public let mcpService: MCPService
     public let providerRegistry: ProviderRegistry
     public let settingsService: SettingsService
 
@@ -39,10 +41,12 @@ public struct SharedCompositionRoot {
             includeCodex: prefs.isCodexEnabled(),
             includeAnthropicAPI: prefs.isAnthropicAPIEnabled()
         )
+        let configurableProviders = providerRegistry.providers.compactMap { $0 as? any MCPConfigurable }
         return SharedCompositionRoot(
             credentialResolver: credentialResolver,
             dataPathsService: dataPathsService,
             evalProviderRegistry: buildEvalProviderRegistry(from: providerRegistry),
+            mcpService: MCPService(configurableProviders: configurableProviders),
             providerRegistry: providerRegistry,
             settingsService: settingsService
         )

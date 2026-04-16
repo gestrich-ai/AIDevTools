@@ -1,9 +1,12 @@
-import DataPathsService
+import AIOutputSDK
 import Foundation
 
 public struct MCPService: Sendable {
+    private let configurableProviders: [any MCPConfigurable]
 
-    public init() {}
+    public init(configurableProviders: [any MCPConfigurable] = []) {
+        self.configurableProviders = configurableProviders
+    }
 
     public static func siblingBinaryURL(bundleURL: URL) -> URL {
         bundleURL
@@ -62,22 +65,8 @@ public struct MCPService: Sendable {
     }
 
     public func writeMCPConfig(binaryURL: URL) {
-        let config = """
-        {
-          "mcpServers": {
-            "ai-dev-tools-kit": {
-              "command": "\(binaryURL.path)",
-              "args": ["mcp"]
-            }
-          }
+        for provider in configurableProviders {
+            provider.writeMCPConfig(binaryURL: binaryURL)
         }
-        """
-        let fileURL = DataPathsService.mcpConfigFileURL
-        // Best-effort write; failure here is non-fatal.
-        try? FileManager.default.createDirectory(
-            at: fileURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try? config.write(to: fileURL, atomically: true, encoding: .utf8)
     }
 }

@@ -9,7 +9,6 @@ import ProviderRegistryService
 
 struct CLICompositionRoot {
     let credentialResolver: CredentialResolver
-    let dotEnvLoader: DotEnvironmentLoader
     let evalProviderRegistry: EvalProviderRegistry
     let gitClient: GitClient
     let mcpService: MCPService
@@ -44,10 +43,9 @@ struct CLICompositionRoot {
 
     private init(shared: SharedCompositionRoot, printGitOutput: Bool = true) {
         credentialResolver = shared.credentialResolver
-        dotEnvLoader = DotEnvironmentLoader()
         evalProviderRegistry = shared.evalProviderRegistry
         gitClient = GitClient(printOutput: printGitOutput, environment: shared.credentialResolver.gitEnvironment)
-        mcpService = MCPService()
+        mcpService = shared.mcpService
         providerRegistry = shared.providerRegistry
         postServiceSetup()
     }

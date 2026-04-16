@@ -2,6 +2,7 @@ import CredentialService
 import DataPathsService
 import Foundation
 import GitSDK
+import MCPService
 import ProviderRegistryService
 import SettingsService
 
@@ -32,7 +33,7 @@ struct CompositionRoot {
         }
 
         let sessionsDirectory = try shared.dataPathsService.path(for: .anthropicSessions)
-        let mcpModel = MCPModel(settingsModel: settingsModel)
+        let mcpModel = MCPModel(settingsModel: settingsModel, mcpService: shared.mcpService)
         mcpModel.writeMCPConfigIfNeeded()
 
         let providerModel = ProviderModel(registrySource: {

@@ -5,10 +5,11 @@ import MCPService
 final class MCPModel {
 
     private let settingsModel: SettingsModel
-    private let mcpService = MCPService()
+    private let mcpService: MCPService
 
-    init(settingsModel: SettingsModel) {
+    init(settingsModel: SettingsModel, mcpService: MCPService) {
         self.settingsModel = settingsModel
+        self.mcpService = mcpService
     }
 
     var status: MCPStatus {

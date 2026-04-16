@@ -5,6 +5,7 @@ public struct Codex {
     @CLICommand
     public struct Exec {
         @Option("--color") public var color: String?
+        @Flag public var dangerouslyBypassApprovalsAndSandbox: Bool = false
         @Flag public var ephemeral: Bool = false
         @Flag public var fullAuto: Bool = false
         @Flag public var json: Bool = false
@@ -18,6 +19,7 @@ public struct Codex {
         public struct Resume {
             @Flag public var all: Bool = false
             @Option("--color") public var color: String?
+            @Flag public var dangerouslyBypassApprovalsAndSandbox: Bool = false
             @Flag public var fullAuto: Bool = false
             @Flag public var last: Bool = false
             @Option public var model: String?
