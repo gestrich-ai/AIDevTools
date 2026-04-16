@@ -90,7 +90,10 @@ Expected outcome: `RepoExplorerGitClient` builds, including `GitRepositoryMonito
 
 ---
 
-## - [ ] Phase 4: Create RepoExplorerFileTreeService
+## - [x] Phase 4: Create RepoExplorerFileTreeService
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Kept this phase in the services layer by adding a namespaced `RepoExplorerFileTreeService` target that depends only on `RepoExplorerDataPathsService`, copied the file-tree models and monitor into the package, and made only the minimum import and platform adjustments needed for Swift 6/macOS package builds.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
