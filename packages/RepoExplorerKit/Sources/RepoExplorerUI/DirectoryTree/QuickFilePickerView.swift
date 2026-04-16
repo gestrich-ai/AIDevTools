@@ -138,15 +138,7 @@ struct QuickFilePickerView: View {
     }
 
     private func relativePath(for file: FileSystemItem) -> String {
-        guard let rootPath = viewModel.currentRootPath else {
-            return file.path
-        }
-
-        if file.path.hasPrefix(rootPath) {
-            let relativePath = String(file.path.dropFirst(rootPath.count))
-            return relativePath.hasPrefix("/") ? String(relativePath.dropFirst()) : relativePath
-        }
-
-        return file.path
+        guard let rootPath = viewModel.currentRootPath else { return file.path }
+        return file.relativePath(from: rootPath)
     }
 }

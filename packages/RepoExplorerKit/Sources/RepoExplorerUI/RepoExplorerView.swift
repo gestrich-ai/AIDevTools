@@ -134,11 +134,6 @@ public struct RepoExplorerView: View {
     }
 
     private func relativePath(for item: FileSystemItem) -> String {
-        guard item.path.hasPrefix(repoPath) else {
-            return item.path
-        }
-
-        let relativePath = String(item.path.dropFirst(repoPath.count))
-        return relativePath.hasPrefix("/") ? String(relativePath.dropFirst()) : relativePath
+        item.relativePath(from: repoPath)
     }
 }
