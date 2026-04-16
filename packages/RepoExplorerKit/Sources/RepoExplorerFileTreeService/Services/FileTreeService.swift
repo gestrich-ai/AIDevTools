@@ -461,8 +461,12 @@ public actor FileTreeService {
         indexingStartTime = Date()
         let gitignoreData = scanGitignoreFiles(from: url)
         let rootItems = await loadDirectoryTreeRecursively(url: url, ignorePatterns: gitignoreData.flatPatterns)
+        var allFiles: [FileSystemItem] = []
+        collectAllFilesFromFullTree(items: rootItems, files: &allFiles)
+
         gitignorePatternsByDirectory = gitignoreData.patternsByDirectory
         ignorePatterns = gitignoreData.flatPatterns
+        cachedAllFiles = allFiles
         saveTreeToCache(rootItems: rootItems)
 
         return DirectorySelectionResult(rootItems: rootItems, cachedFiles: nil, patterns: gitignoreData)

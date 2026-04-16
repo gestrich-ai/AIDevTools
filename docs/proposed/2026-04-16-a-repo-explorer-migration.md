@@ -114,7 +114,10 @@ Expected outcome: Full file-tree engine builds, including FSEvents monitoring an
 
 ---
 
-## - [ ] Phase 5: Create RepoExplorerCLI
+## - [x] Phase 5: Create RepoExplorerCLI
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Added `RepoExplorerCLI` as an app-layer executable that depends only on `RepoExplorerFileTreeService`, kept command orchestration inside the CLI target without introducing higher-layer imports, and fixed fresh-scan file caching in the service so the CLI and future UI share the same indexing behavior.
 
 **Skills to read**: `ai-dev-tools-architecture`
 
