@@ -119,10 +119,14 @@ final class EvalRunnerModel {
         let prior = state.lastResults
         let suiteName = suite?.name
         let caseId = evalCase?.id
+        guard let providerName = resolvedProviderName(providerFilter: providerFilter) else {
+            state = .error(EvalRunnerError.providerNotConfigured, prior: prior)
+            return
+        }
         state = .running(progress: RunProgress(
             completedCases: 0,
             totalCases: 0,
-            provider: providerFilter?.first ?? registry.defaultEntry?.name ?? "",
+            provider: providerName,
             currentCaseId: caseId
         ), prior: prior)
 
@@ -254,14 +258,25 @@ final class EvalRunnerModel {
             state = .idle(prior: summaries)
         }
     }
+
+    private func resolvedProviderName(providerFilter: [String]?) -> String? {
+        if let providerName = providerFilter?.first {
+            return providerName
+        }
+        return registry.defaultEntry?.name
+    }
 }
 
 enum EvalRunnerError: LocalizedError {
     case noCasesFound
+    case providerNotConfigured
 
     var errorDescription: String? {
         switch self {
-        case .noCasesFound: return "No eval cases found matching filters."
+        case .noCasesFound:
+            return "No eval cases found matching filters."
+        case .providerNotConfigured:
+            return "No eval provider is configured. Select a provider or configure a default provider before running evals."
         }
     }
 }

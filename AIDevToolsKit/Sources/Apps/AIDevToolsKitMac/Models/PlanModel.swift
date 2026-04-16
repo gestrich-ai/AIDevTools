@@ -69,16 +69,7 @@ final class PlanModel {
 
     private var activeClient: any AIClient
     @ObservationIgnored private var chatModels: [String: ChatModel] = [:]
-
-    private var planService: PlanService {
-        PlanService(
-            client: activeClient,
-            resolveProposedDirectory: { repo in
-                let s = repo.planner ?? PlanRepoSettings()
-                return s.resolvedProposedDirectory(repoPath: repo.path)
-            }
-        )
-    }
+    private let dependencies: Dependencies
     private let dataPathsService: DataPathsService?
     private let deletePlanUseCase: DeletePlanUseCase
     private let mcpConfigPath: String?
@@ -98,6 +89,7 @@ final class PlanModel {
         self.mcpConfigPath = mcpConfigPath
         self.providerRegistry = providerRegistry
         self.togglePhaseUseCase = togglePhaseUseCase
+        self.dependencies = Dependencies()
 
         guard let client = selectedProviderName.flatMap({ providerRegistry.client(named: $0) })
             ?? providerRegistry.defaultClient else {
@@ -126,8 +118,8 @@ final class PlanModel {
         state = .loadingPlans(prior: prior)
         let proposedDir = resolvedProposedDirectory(for: repo)
         let completedDir = resolvedCompletedDirectory(for: repo)
-        async let proposedTask = LoadPlansUseCase(proposedDirectory: proposedDir).run()
-        async let completedTask = LoadPlansUseCase(proposedDirectory: completedDir).run()
+        async let proposedTask = dependencies.loadPlans(proposedDir)
+        async let completedTask = dependencies.loadPlans(completedDir)
         let (proposed, completed) = await (proposedTask, completedTask)
         guard self.currentRepository?.id == repo.id else {
             state = prior
@@ -153,7 +145,7 @@ final class PlanModel {
         let directory = completedPlans.contains(where: { $0.name == planName })
             ? resolvedCompletedDirectory(for: repository)
             : resolvedProposedDirectory(for: repository)
-        return try await GetPlanDetailsUseCase(proposedDirectory: directory).run(planName: planName)
+        return try await dependencies.getPlanDetails(planName, directory)
     }
 
     /// Toggles a phase checkbox in the plan markdown and returns the updated content.
@@ -166,19 +158,27 @@ final class PlanModel {
     func completePlan(_ plan: MarkdownPlanEntry, repository: RepositoryConfiguration) throws {
         let settings = repository.planner ?? PlanRepoSettings()
         let completedDir = settings.resolvedCompletedDirectory(repoPath: repository.path)
-        try CompletePlanUseCase(completedDirectory: completedDir).run(planURL: plan.planURL)
+        try dependencies.completePlan(plan.planURL, completedDir)
         Task { await reloadPlans() }
     }
 
     func execute(
         plan: MarkdownPlanEntry,
         repository: RepositoryConfiguration,
+        chatModel: ChatModel? = nil,
         executeMode: PlanService.ExecuteMode = .all,
         stopAfterArchitectureDiagram: Bool = false,
         useWorktree: Bool = false
     ) async {
         state = .executing
         phaseCompleteCount = 0
+
+        if let chatModel {
+            pipelineModel.onEvent = { @MainActor [weak chatModel] event in
+                chatModel?.handlePipelineEvent(event)
+            }
+        }
+        defer { pipelineModel.onEvent = nil }
 
         do {
             let worktreeOptions = useWorktree ? computePlanWorktreeOptions(plan: plan, repoPath: repository.path) : nil
@@ -190,7 +190,7 @@ final class PlanModel {
                 stopAfterArchitectureDiagram: stopAfterArchitectureDiagram,
                 worktreeOptions: worktreeOptions
             )
-            let blueprint = try await planService.buildExecutePipeline(
+            let blueprint = try await dependencies.planService(activeClient).buildExecutePipeline(
                 options: options,
                 pendingTasksProvider: { [weak self] in
                     guard let self else { return [] }
@@ -226,7 +226,7 @@ final class PlanModel {
         )
 
         do {
-            let result = try await planService.generate(options: options) { [weak self] progress in
+            let result = try await dependencies.planService(activeClient).generate(options: options) { [weak self] progress in
                 guard let self else { return }
                 Task { @MainActor in
                     switch progress {
@@ -289,7 +289,7 @@ final class PlanModel {
     }
 
     func appendReviewTemplate(_ template: ReviewTemplate, to planURL: URL) async throws {
-        try await AppendReviewTemplateUseCase().run(.init(planURL: planURL, template: template))
+        try await dependencies.appendReviewTemplate(template, planURL)
     }
 
     func reportError(_ error: Error) {
@@ -301,6 +301,44 @@ final class PlanModel {
     }
 
     // MARK: - Private
+
+    private struct Dependencies {
+        let appendReviewTemplate: @Sendable (ReviewTemplate, URL) async throws -> Void
+        let completePlan: @Sendable (URL, URL) throws -> Void
+        let getPlanDetails: @Sendable (String, URL) async throws -> String
+        let loadPlans: @Sendable (URL) async -> [MarkdownPlanEntry]
+        let planService: @Sendable (any AIClient) -> PlanService
+
+        init(
+            appendReviewTemplate: @escaping @Sendable (ReviewTemplate, URL) async throws -> Void = { template, planURL in
+                try await AppendReviewTemplateUseCase().run(.init(planURL: planURL, template: template))
+            },
+            completePlan: @escaping @Sendable (URL, URL) throws -> Void = { planURL, completedDirectory in
+                try CompletePlanUseCase(completedDirectory: completedDirectory).run(planURL: planURL)
+            },
+            getPlanDetails: @escaping @Sendable (String, URL) async throws -> String = { planName, directory in
+                try await GetPlanDetailsUseCase(proposedDirectory: directory).run(planName: planName)
+            },
+            loadPlans: @escaping @Sendable (URL) async -> [MarkdownPlanEntry] = { directory in
+                await LoadPlansUseCase(proposedDirectory: directory).run()
+            },
+            planService: @escaping @Sendable (any AIClient) -> PlanService = { client in
+                PlanService(
+                    client: client,
+                    resolveProposedDirectory: { repo in
+                        let settings = repo.planner ?? PlanRepoSettings()
+                        return settings.resolvedProposedDirectory(repoPath: repo.path)
+                    }
+                )
+            }
+        ) {
+            self.appendReviewTemplate = appendReviewTemplate
+            self.completePlan = completePlan
+            self.getPlanDetails = getPlanDetails
+            self.loadPlans = loadPlans
+            self.planService = planService
+        }
+    }
 
     private func computePlanWorktreeOptions(plan: MarkdownPlanEntry, repoPath: URL) -> WorktreeOptions? {
         guard let service = dataPathsService else { return nil }

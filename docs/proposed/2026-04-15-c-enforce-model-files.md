@@ -99,7 +99,10 @@ Run enforce in **fix mode** on these files. Focus on severity 7–10 first:
 
 After fixing, build the project to confirm it compiles.
 
-## - [ ] Phase 3: Fix — large App Models (severity 5–6)
+## - [x] Phase 3: Fix — large App Models (severity 5–6)
+
+**Skills used**: `ai-dev-tools-build-quality`, `ai-dev-tools-code-quality`, `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-configuration-architecture`, `ai-dev-tools-code-organization`, `ai-dev-tools-swift-testing`
+**Principles applied**: Centralized `PlanModel`'s plan-loading/detail/completion/template-append wiring behind a single dependency container created at initialization so method-level dependency construction no longer drifts. Replaced `EvalRunnerModel`'s empty-string provider fallback with an explicit configuration error state, preserving existing behavior everywhere a real provider is available and keeping the current worktree build-compatible.
 
 **Skills to read**: `ai-dev-tools-code-quality`, `ai-dev-tools-build-quality`
 
