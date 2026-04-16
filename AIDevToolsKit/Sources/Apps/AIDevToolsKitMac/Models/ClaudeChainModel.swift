@@ -1,15 +1,11 @@
 import AIOutputSDK
 import ClaudeChainFeature
-import CredentialService
 import ClaudeChainService
 import DataPathsService
 import Foundation
-import GitHubService
 import GitSDK
 import Logging
 import PipelineService
-import PRRadarCLIService
-import PRRadarConfigService
 import ProviderRegistryService
 import SweepFeature
 
@@ -66,11 +62,32 @@ final class ClaudeChainModel {
     @ObservationIgnored private let streamAccumulator = StreamAccumulator()
     private var currentGithubProfileId: String?
     private var currentRepoPath: URL?
-    private var gitHubPRService: (any GitHubPRServiceProtocol)?
-    private var gitHubRepoConfig: GitHubRepoConfig?
     private let dataPathsService: DataPathsService
     private let gitClientFactory: @Sendable (String?) -> GitClient
     private let providerRegistry: ProviderRegistry
+    private var useCases: UseCases
+
+    private struct UseCases {
+        let executeChain: ExecuteClaudeChainUseCase
+        let loadChainDetail: LoadChainProjectDetailUseCase
+        let loadChains: LoadClaudeChainsUseCase
+        let prepareFinalizeStaged: PrepareFinalizeStagedChainUseCase
+
+        init(
+            client: any AIClient,
+            dataPathsService: DataPathsService,
+            gitClientFactory: @Sendable @escaping (String?) -> GitClient
+        ) {
+            executeChain = ExecuteClaudeChainUseCase(
+                client: client,
+                dataPathsService: dataPathsService,
+                gitClientFactory: gitClientFactory
+            )
+            loadChainDetail = LoadChainProjectDetailUseCase(dataPathsService: dataPathsService)
+            loadChains = LoadClaudeChainsUseCase(client: client, dataPathsService: dataPathsService)
+            prepareFinalizeStaged = PrepareFinalizeStagedChainUseCase(client: client)
+        }
+    }
 
     init(
         providerRegistry: ProviderRegistry,
@@ -88,6 +105,11 @@ final class ClaudeChainModel {
         }
         self.selectedProviderName = client.name
         self.activeClient = client
+        self.useCases = UseCases(
+            client: client,
+            dataPathsService: dataPathsService,
+            gitClientFactory: gitClientFactory
+        )
     }
 
     func loadChains(for repoPath: URL, githubCredentialProfileId: String?) {
@@ -98,36 +120,17 @@ final class ClaudeChainModel {
             chainDetails = [:]
             chainDetailLoading = []
             fetchWarnings = []
-            gitHubPRService = nil
-            gitHubRepoConfig = nil
         }
         currentRepoPath = repoPath
         currentGithubProfileId = githubCredentialProfileId
         state = .loadingChains
         Task {
-            // Derive repoSlug from git config — no credentials required.
-            let rawSlug: String
-            if let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoPath.path) {
-                rawSlug = slug
-            } else {
-                logger.warning("loadChains: cannot determine repo slug for \(repoPath.path); project cache will be skipped")
-                rawSlug = ""
-            }
-            let repoSlug = rawSlug.replacingOccurrences(of: "/", with: "-")
-
-            // GitHub service is optional: used for network refresh only.
-            // Cold open from the service cache works without credentials.
-            let optionalPRService = try? await makeOrGetGitHubPRService(repoPath: repoPath)
-
-            let listChainsUseCase = ListChainsUseCase(
-                client: activeClient,
-                repoPath: repoPath,
-                prService: optionalPRService,
-                dataPathsService: dataPathsService,
-                repoSlug: repoSlug
-            )
             do {
-                for try await result in listChainsUseCase.stream() {
+                let stream = await useCases.loadChains.stream(
+                    repoPath: repoPath,
+                    githubAccount: githubCredentialProfileId
+                )
+                for try await result in stream {
                     lastLoadedProjects = result.projects
                     fetchWarnings = result.failures
                     state = .loaded(result.projects)
@@ -156,10 +159,12 @@ final class ClaudeChainModel {
         Task {
             do {
                 guard let repoPath = currentRepoPath else { return }
-                let service = try await makeOrGetGitHubPRService(repoPath: repoPath)
-                let config = try await makeOrGetGitHubRepoConfig(repoPath: repoPath)
-                let useCase = GetChainDetailUseCase(gitHubPRService: service, config: config)
-                for try await detail in useCase.stream(options: .init(project: project)) {
+                let stream = try await useCases.loadChainDetail.stream(
+                    project: project,
+                    repoPath: repoPath,
+                    githubAccount: currentGithubProfileId
+                )
+                for try await detail in stream {
                     chainDetails[projectName] = detail
                 }
                 chainDetailNetworkFetched.insert(projectName)
@@ -186,29 +191,21 @@ final class ClaudeChainModel {
         stagingOnly: Bool = false,
         useWorktree: Bool = false
     ) {
-        let strategy = ChainExecutionStrategyFactory.strategy(for: project.kind)
-        state = .executing(progress: ExecutionProgress(phases: strategy.initialPhases))
+        state = .executing(progress: ExecutionProgress(phases: useCases.executeChain.phases(for: project)))
         executionChatModel = makeChatModel(workingDirectory: repoPath.path())
         streamAccumulator.reset()
 
-        let worktreeOptions = useWorktree ? computeChainWorktreeOptions(
-            project: project,
-            repoPath: repoPath,
-            taskIndex: taskIndex
-        ) : nil
-
         Task {
-            let git = makeGitClient()
             do {
-                let result = try await strategy.execute(
-                    project: project,
-                    repoPath: repoPath,
-                    taskIndex: taskIndex,
-                    stagingOnly: stagingOnly,
-                    worktreeOptions: worktreeOptions,
-                    client: activeClient,
-                    git: git,
-                    githubAccount: currentGithubProfileId
+                let result = try await useCases.executeChain.run(
+                    options: .init(
+                        githubAccount: currentGithubProfileId,
+                        project: project,
+                        repoPath: repoPath,
+                        stagingOnly: stagingOnly,
+                        taskIndex: taskIndex,
+                        useWorktree: useWorktree
+                    )
                 ) { [weak self] event in
                     Task { @MainActor [weak self] in
                         self?.handleProgressEvent(event)
@@ -223,24 +220,11 @@ final class ClaudeChainModel {
     }
 
     func finalizeStaged(at index: Int, project: ChainProject, repoPath: URL) {
-        guard let task = project.tasks.first(where: { $0.index == index }) else { return }
-
         state = .executing(progress: Self.finalizeProgress())
         selectedTaskIndex = index
 
         let pipelineModel = PipelineModel()
         taskPipelines[index] = pipelineModel
-
-        let taskHash = TaskService.generateTaskHash(description: task.description)
-        let branchName = PRService.formatBranchName(projectName: project.name, taskHash: taskHash)
-
-        let options = ChainRunOptions(
-            baseBranch: project.baseBranch,
-            branchName: branchName,
-            githubAccount: currentGithubProfileId,
-            projectName: project.name,
-            repoPath: repoPath
-        )
 
         pipelineModel.onEvent = { @MainActor [weak self] event in
             guard let self else { return }
@@ -251,8 +235,15 @@ final class ClaudeChainModel {
 
         Task {
             do {
-                let blueprint = try await BuildFinalizePipelineUseCase(client: activeClient).run(task: task, options: options)
-                let finalContext = try await pipelineModel.run(blueprint: blueprint)
+                let prepared = try await useCases.prepareFinalizeStaged.run(
+                    options: .init(
+                        githubAccount: currentGithubProfileId,
+                        project: project,
+                        repoPath: repoPath,
+                        taskIndex: index
+                    )
+                )
+                let finalContext = try await pipelineModel.run(blueprint: prepared.blueprint)
 
                 let prURL = finalContext[PRStep.prURLKey]
                 let prNumber = finalContext[PRStep.prNumberKey]
@@ -267,7 +258,7 @@ final class ClaudeChainModel {
                     message: prURL.map { "PR created: \($0)" } ?? "Staged task finalized",
                     prURL: prURL,
                     prNumber: prNumber,
-                    taskDescription: task.description
+                    taskDescription: prepared.task.description
                 )
                 state = .completed(result: result)
                 refreshChainDetail(project: project)
@@ -326,64 +317,14 @@ final class ClaudeChainModel {
 
     // MARK: - Private
 
-    private func computeChainWorktreeOptions(
-        project: ChainProject,
-        repoPath: URL,
-        taskIndex: Int?
-    ) -> WorktreeOptions? {
-        let nextTask: ChainTask?
-        if let idx = taskIndex {
-            nextTask = project.tasks.first(where: { $0.index == idx })
-        } else {
-            nextTask = project.tasks.first(where: { !$0.isCompleted })
-        }
-        guard let task = nextTask else { return nil }
-        let taskHash = TaskService.generateTaskHash(description: task.description)
-        let branchName = PRService.formatBranchName(projectName: project.name, taskHash: taskHash)
-        guard let worktreesDir = try? dataPathsService.path(for: .claudeChainWorktrees) else { return nil }
-        let destinationPath = worktreesDir.appendingPathComponent(branchName).path
-        return WorktreeOptions(
-            branchName: branchName,
-            destinationPath: destinationPath,
-            repoPath: repoPath.path
-        )
-    }
-
-    private func makeGitClient() -> GitClient {
-        gitClientFactory(currentGithubProfileId)
-    }
-
-    private func makeOrGetGitHubPRService(repoPath: URL) async throws -> any GitHubPRServiceProtocol {
-        if let service = gitHubPRService { return service }
-        guard let account = currentGithubProfileId, !account.isEmpty else {
-            throw CredentialError.notConfigured(profileId: currentGithubProfileId)
-        }
-        let service = try await GitHubServiceFactory.createPRService(
-            repoPath: repoPath.path,
-            githubAccount: account,
-            dataPathsService: dataPathsService
-        )
-        gitHubPRService = service
-        return service
-    }
-
-    private func makeOrGetGitHubRepoConfig(repoPath: URL) async throws -> GitHubRepoConfig {
-        if let config = gitHubRepoConfig { return config }
-        guard let account = currentGithubProfileId, !account.isEmpty else {
-            throw CredentialError.notConfigured(profileId: currentGithubProfileId)
-        }
-        let config = try await GitHubServiceFactory.makeRepoConfig(
-            repoPath: repoPath.path,
-            githubAccount: account,
-            dataPathsService: dataPathsService
-        )
-        gitHubRepoConfig = config
-        return config
-    }
-
     private func rebuildClient() {
         guard let client = providerRegistry.client(named: selectedProviderName) else { return }
         activeClient = client
+        useCases = UseCases(
+            client: client,
+            dataPathsService: dataPathsService,
+            gitClientFactory: gitClientFactory
+        )
     }
 
     private static func finalizeProgress() -> ExecutionProgress {

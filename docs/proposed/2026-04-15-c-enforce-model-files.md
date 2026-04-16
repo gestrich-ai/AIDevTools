@@ -75,7 +75,10 @@ AIDevToolsKit/Sources/Services/SkillService/Models/SkillContent.swift
 
 **Expected output**: A ranked violation report sorted by severity. Use this to determine the fix order for Phases 2–5.
 
-## - [ ] Phase 2: Fix — large App Models (severity 7–10)
+## - [x] Phase 2: Fix — large App Models (severity 7–10)
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`
+**Principles applied**: Moved Claude chain orchestration out of the App-layer model into focused Feature-layer use cases for chain loading, detail enrichment, execution, and staged finalization. Kept `ClaudeChainModel` as the UI reducer that manages observable state, chat output, and pipeline presentation while preserving the existing view-facing API.
 
 **Skills to read**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`
 
