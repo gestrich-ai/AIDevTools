@@ -3,8 +3,8 @@ import Foundation
 
 public struct CaseResult: Codable, Sendable {
     public let caseId: String
-    public var passed: Bool
-    public var errors: [String]
+    public let passed: Bool
+    public let errors: [String]
     public let skipped: [String]
     public let skillChecks: [SkillCheckResult]
     public let task: String?
@@ -41,5 +41,43 @@ public struct CaseResult: Codable, Sendable {
         self.mustNotInclude = mustNotInclude
         self.providerResponse = providerResponse
         self.toolCallSummary = toolCallSummary
+    }
+
+    public func appendingErrors(_ additionalErrors: [String]) -> CaseResult {
+        guard !additionalErrors.isEmpty else {
+            return self
+        }
+
+        return CaseResult(
+            caseId: caseId,
+            passed: passed,
+            errors: errors + additionalErrors,
+            skipped: skipped,
+            skillChecks: skillChecks,
+            task: task,
+            input: input,
+            expected: expected,
+            mustInclude: mustInclude,
+            mustNotInclude: mustNotInclude,
+            providerResponse: providerResponse,
+            toolCallSummary: toolCallSummary
+        )
+    }
+
+    public func withPassed(_ passed: Bool) -> CaseResult {
+        CaseResult(
+            caseId: caseId,
+            passed: passed,
+            errors: errors,
+            skipped: skipped,
+            skillChecks: skillChecks,
+            task: task,
+            input: input,
+            expected: expected,
+            mustInclude: mustInclude,
+            mustNotInclude: mustNotInclude,
+            providerResponse: providerResponse,
+            toolCallSummary: toolCallSummary
+        )
     }
 }

@@ -172,7 +172,7 @@ public struct RunEvalsUseCase: UseCase {
 
             if let summary = result.toolCallSummary, summary.rejected > 0 {
                 let warning = "\u{26A0} \(summary.rejected) tool call(s) rejected (permissions)"
-                result.errors.append(warning)
+                result = result.appendingErrors([warning])
             }
 
             if evalCase.mode == .edit {
@@ -183,7 +183,7 @@ public struct RunEvalsUseCase: UseCase {
                     diff: diff,
                     repoRoot: options.repoRoot
                 )
-                result.errors.append(contentsOf: fileErrors)
+                result = result.appendingErrors(fileErrors)
 
                 if let rubric = evalCase.rubric {
                     let rubricErrors = try await rubricEvaluator.evaluate(
@@ -198,10 +198,10 @@ public struct RunEvalsUseCase: UseCase {
                         model: options.model,
                         repoRoot: options.repoRoot
                     )
-                    result.errors.append(contentsOf: rubricErrors)
+                    result = result.appendingErrors(rubricErrors)
                 }
 
-                result.passed = result.errors.isEmpty
+                result = result.withPassed(result.errors.isEmpty)
             }
 
             results.append(result)

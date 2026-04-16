@@ -132,7 +132,10 @@ PRRadar Models:
 
 These are smaller (20–90 lines each) so a single enforce pass should cover all severity levels at once. Build after changes.
 
-## - [ ] Phase 5: Fix — Service + Feature Models
+## - [x] Phase 5: Fix — Service + Feature Models
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`
+**Principles applied**: Kept the Service and Feature models as plain, lower-layer value types, and tightened `CaseResult` to immutable copy-on-write semantics so Feature-layer code no longer mutates Service-layer model state directly.
 
 **Skills to read**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`
 
