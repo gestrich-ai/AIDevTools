@@ -126,6 +126,8 @@ private struct ChainProjectRow: View {
             HStack(spacing: 4) {
                 Text(project.name)
                     .font(.body)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                 Spacer()
                 if isLoading {
                     ProgressView()
