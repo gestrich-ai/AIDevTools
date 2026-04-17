@@ -71,6 +71,15 @@ public struct RepoExplorerView: View {
         .toolbar {
             ToolbarItemGroup {
                 Button {
+                    Task { await viewModel.refreshDirectory() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .help("Refresh — delete cache and rescan")
+                .disabled(viewModel.isIndexing)
+                .accessibilityIdentifier("repoExplorerRefreshButton")
+
+                Button {
                     isQuickPickerPresented = true
                 } label: {
                     Label("Quick Open", systemImage: "magnifyingglass")
@@ -90,7 +99,7 @@ public struct RepoExplorerView: View {
             Spacer()
 
             if let selectedItem = viewModel.selectedItem {
-                Text(relativePath(for: selectedItem))
+                Text(selectedItem.relativePath(from: repoPath))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -131,9 +140,5 @@ public struct RepoExplorerView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-    }
-
-    private func relativePath(for item: FileSystemItem) -> String {
-        item.relativePath(from: repoPath)
     }
 }

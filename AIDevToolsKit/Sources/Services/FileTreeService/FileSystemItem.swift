@@ -114,7 +114,7 @@ public final class FileSystemItem: Codable, Equatable, Identifiable, ObservableO
             }
             return items
         } catch {
-            print("Error loading children for \(url.path): \(error)")
+            FileTreeLoggers.item.warning("Failed to load children for \(url.path): \(error)")
             return []
         }
     }

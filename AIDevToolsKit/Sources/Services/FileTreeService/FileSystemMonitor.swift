@@ -27,7 +27,7 @@ public actor FileSystemMonitor {
             return
         }
 
-        print("Starting FSEvents monitoring for: \(path)")
+        FileTreeLoggers.monitor.debug("Starting FSEvents monitoring", metadata: ["path": .string(path)])
 
         let context = CallbackContext(monitor: self)
         callbackContext = context
@@ -76,7 +76,7 @@ public actor FileSystemMonitor {
             0.3,
             UInt32(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot)
         ) else {
-            print("Failed to create FSEventStream")
+            FileTreeLoggers.monitor.error("Failed to create FSEventStream")
             return
         }
 
@@ -85,11 +85,11 @@ public actor FileSystemMonitor {
         if FSEventStreamStart(stream) {
             eventStream = stream
             isMonitoring = true
-            print("FSEvents monitoring started")
+            FileTreeLoggers.monitor.debug("FSEvents monitoring started")
         } else {
             FSEventStreamInvalidate(stream)
             FSEventStreamRelease(stream)
-            print("Failed to start FSEventStream")
+            FileTreeLoggers.monitor.error("Failed to start FSEventStream")
         }
     }
 

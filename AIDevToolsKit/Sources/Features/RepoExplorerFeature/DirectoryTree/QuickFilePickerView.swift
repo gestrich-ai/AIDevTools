@@ -78,7 +78,7 @@ struct QuickFilePickerView: View {
 
                             Spacer()
 
-                            Text(relativePath(for: file))
+                            Text(viewModel.currentRootPath.map { file.relativePath(from: $0) } ?? file.path)
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -135,10 +135,5 @@ struct QuickFilePickerView: View {
     private func selectFile(_ file: FileSystemItem) {
         viewModel.selectItem(file)
         isPresented = false
-    }
-
-    private func relativePath(for file: FileSystemItem) -> String {
-        guard let rootPath = viewModel.currentRootPath else { return file.path }
-        return file.relativePath(from: rootPath)
     }
 }

@@ -47,13 +47,6 @@ struct FileItemRow: View {
                     viewModel.loadChildrenIfNeeded(for: item)
                 }
             }
-            .onTapGesture(count: 2) {
-                if item.isDirectory {
-                    viewModel.toggleExpansion(for: item)
-                } else {
-                    viewModel.selectItem(item)
-                }
-            }
             .onTapGesture {
                 if item.isDirectory {
                     viewModel.toggleExpansion(for: item)

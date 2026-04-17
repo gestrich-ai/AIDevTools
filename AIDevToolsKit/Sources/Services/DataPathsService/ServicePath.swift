@@ -4,6 +4,7 @@ public enum ServicePath {
     case claudeChainProject(repoSlug: String, projectName: String)
     case claudeChainService(repoSlug: String)
     case evalsOutput(String)
+    case fileTreeCache
     case github(repoSlug: String)
     case prradarOutput(String)
     case repositories
@@ -21,6 +22,8 @@ public enum ServicePath {
             return "services/claude-chain-service/\(repoSlug)"
         case .evalsOutput(let repoName):
             return "services/evals/\(repoName)"
+        case .fileTreeCache:
+            return "services/file-tree/cache"
         case .github(let repoSlug):
             return "services/github/\(repoSlug)"
         case .prradarOutput(let repoName):

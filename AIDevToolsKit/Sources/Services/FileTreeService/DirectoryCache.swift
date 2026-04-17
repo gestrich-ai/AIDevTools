@@ -32,18 +32,21 @@ public struct DirectoryCache: Codable {
 
     public func isValid() -> Bool {
         guard FileManager.default.fileExists(atPath: rootPath) else {
-            print("Cache invalid: root path doesn't exist")
+            FileTreeLoggers.cache.debug("Cache invalid: root path does not exist", metadata: ["rootPath": .string(rootPath)])
             return false
         }
 
         let maxAge: TimeInterval = 300
         let age = Date().timeIntervalSince(lastModified)
         if age > maxAge {
-            print("Cache invalid: too old (\(Int(age))s > \(Int(maxAge))s)")
+            FileTreeLoggers.cache.debug(
+                "Cache invalid: too old",
+                metadata: ["ageSeconds": .stringConvertible(Int(age)), "maxAgeSeconds": .stringConvertible(Int(maxAge))]
+            )
             return false
         }
 
-        print("Cache valid: age \(Int(age))s")
+        FileTreeLoggers.cache.debug("Cache valid", metadata: ["ageSeconds": .stringConvertible(Int(age))])
         return true
     }
 
@@ -52,9 +55,9 @@ public struct DirectoryCache: Codable {
             let fileURL = try Self.cacheFileURL(for: rootPath, dataPathsService: dataPathsService)
             let data = try JSONEncoder().encode(self)
             try data.write(to: fileURL)
-            print("Saved cache to: \(fileURL.path)")
+            FileTreeLoggers.cache.debug("Saved cache", metadata: ["path": .string(fileURL.path)])
         } catch {
-            print("Failed to save cache: \(error)")
+            FileTreeLoggers.cache.warning("Failed to save cache: \(error)")
         }
     }
 
@@ -66,9 +69,9 @@ public struct DirectoryCache: Codable {
         do {
             let fileURL = try cacheFileURL(for: rootPath, dataPathsService: dataPathsService)
             try? FileManager.default.removeItem(at: fileURL)
-            print("Invalidated cache for: \(rootPath)")
+            FileTreeLoggers.cache.debug("Invalidated cache", metadata: ["rootPath": .string(rootPath)])
         } catch {
-            print("Failed to invalidate cache: \(error)")
+            FileTreeLoggers.cache.warning("Failed to invalidate cache: \(error)")
         }
     }
 
@@ -76,7 +79,7 @@ public struct DirectoryCache: Codable {
         do {
             let fileURL = try cacheFileURL(for: rootPath, dataPathsService: dataPathsService)
             guard FileManager.default.fileExists(atPath: fileURL.path) else {
-                print("No cache file found at: \(fileURL.path)")
+                FileTreeLoggers.cache.debug("No cache file found", metadata: ["path": .string(fileURL.path)])
                 return nil
             }
 
@@ -84,14 +87,23 @@ public struct DirectoryCache: Codable {
             let cache = try JSONDecoder().decode(DirectoryCache.self, from: data)
 
             guard cache.rootPath == rootPath else {
-                print("Cache root path mismatch")
+                FileTreeLoggers.cache.warning(
+                    "Cache root path mismatch",
+                    metadata: ["expectedRootPath": .string(rootPath), "cachedRootPath": .string(cache.rootPath)]
+                )
                 return nil
             }
 
-            print("Loaded cache with \(cache.rootItems.count) root items and \(cache.ignorePatterns.count) gitignore patterns")
+            FileTreeLoggers.cache.debug(
+                "Loaded cache",
+                metadata: [
+                    "rootItems": .stringConvertible(cache.rootItems.count),
+                    "ignorePatternGroups": .stringConvertible(cache.ignorePatterns.count),
+                ]
+            )
             return cache
         } catch {
-            print("Failed to load cache: \(error)")
+            FileTreeLoggers.cache.warning("Failed to load cache: \(error)")
             return nil
         }
     }
@@ -109,7 +121,7 @@ public struct DirectoryCache: Codable {
     }
 
     private static func cacheFileURL(for rootPath: String, dataPathsService: DataPathsService) throws -> URL {
-        let cacheDirectory = try dataPathsService.path(for: "file-tree", subdirectory: "cache")
+        let cacheDirectory = try dataPathsService.path(for: .fileTreeCache)
         return cacheDirectory.appendingPathComponent("cache_\(stableHash(for: rootPath)).json")
     }
 

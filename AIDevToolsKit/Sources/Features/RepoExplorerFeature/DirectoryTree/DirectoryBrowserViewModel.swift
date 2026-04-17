@@ -66,6 +66,12 @@ public final class DirectoryBrowserViewModel {
         )
     }
 
+    public func refreshDirectory() async {
+        guard let currentRootPath else { return }
+        await fileTreeService.invalidateCache()
+        await selectDirectory(url: URL(fileURLWithPath: currentRootPath))
+    }
+
     public func stopMonitoring() async {
         await fileTreeService.stopMonitoring()
     }

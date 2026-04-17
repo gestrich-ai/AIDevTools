@@ -147,6 +147,7 @@ var targets: [Target] = [
             "AIOutputSDK",
             "EvalSDK",
             "EvalService",
+            "MCPService",
             "ProviderRegistryService",
             "SkillScannerSDK",
             "UseCaseSDK",
@@ -291,6 +292,7 @@ var targets: [Target] = [
         name: "FileTreeService",
         dependencies: [
             "DataPathsService",
+            .product(name: "Logging", package: "swift-log"),
         ],
         path: "Sources/Services/FileTreeService"
     ),
@@ -385,6 +387,7 @@ var targets: [Target] = [
             "CodexCLISDK",
             "CredentialService",
             "DataPathsService",
+            "MCPService",
             "SettingsService",
         ],
         path: "Sources/Services/ProviderRegistryService"
@@ -439,6 +442,7 @@ var targets: [Target] = [
         name: "CodexCLISDK",
         dependencies: [
             .product(name: "CLISDK", package: "SwiftCLI"),
+            .product(name: "Logging", package: "swift-log"),
             "AIOutputSDK",
             "ConcurrencySDK",
             "SkillScannerSDK",

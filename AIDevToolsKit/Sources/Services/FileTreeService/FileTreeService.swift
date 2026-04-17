@@ -51,6 +51,8 @@ public actor FileTreeService {
         }
     }
 
+    private static let lastIndexDurationKey = "lastIndexDuration"
+
     private let dataPathsService: DataPathsService
     private var cachedAllFiles: [FileSystemItem]?
     private var currentRootItems: [FileSystemItem] = []
@@ -113,8 +115,13 @@ public actor FileTreeService {
     }
 
     public func getLastIndexDuration() -> TimeInterval? {
-        let duration = UserDefaults.standard.double(forKey: "lastIndexDuration")
+        let duration = UserDefaults.standard.double(forKey: Self.lastIndexDurationKey)
         return duration > 0 ? duration : nil
+    }
+
+    public func invalidateCache() {
+        guard let rootPath = currentRootPath else { return }
+        DirectoryCache.invalidate(for: rootPath, dataPathsService: dataPathsService)
     }
 
     public func hasCachedFiles() -> Bool {
@@ -164,7 +171,7 @@ public actor FileTreeService {
             }
             return items
         } catch {
-            print("Error loading root directory: \(error)")
+            FileTreeLoggers.service.warning("Failed to load root directory: \(error)")
             return []
         }
     }
@@ -266,13 +273,11 @@ public actor FileTreeService {
         }
     }
 
-    public func stopMonitoring() {
-        Task {
-            await fileSystemMonitor?.stopMonitoring()
-            fileSystemMonitor = nil
-            onProgressChanged = nil
-            onTreeUpdated = nil
-        }
+    public func stopMonitoring() async {
+        await fileSystemMonitor?.stopMonitoring()
+        fileSystemMonitor = nil
+        onProgressChanged = nil
+        onTreeUpdated = nil
     }
 
     private static func collectAllFilesFromFullTreeNonIsolated(items: [FileSystemItem], files: inout [FileSystemItem]) {
@@ -300,7 +305,7 @@ public actor FileTreeService {
                     patternsByDirectory[url.path] = patterns
                 }
             } catch {
-                print("Error reading .gitignore at \(gitignoreURL.path): \(error)")
+                FileTreeLoggers.service.warning("Failed to read .gitignore at \(gitignoreURL.path): \(error)")
             }
         }
 
@@ -317,7 +322,7 @@ public actor FileTreeService {
                 }
             }
         } catch {
-            print("Error scanning directory \(url.path): \(error)")
+            FileTreeLoggers.service.warning("Failed to scan directory \(url.path): \(error)")
         }
     }
 
@@ -364,7 +369,7 @@ public actor FileTreeService {
                     patternsByDirectory[url.path] = patterns
                 }
             } catch {
-                print("Error reading .gitignore at \(gitignoreURL.path): \(error)")
+                FileTreeLoggers.service.warning("Failed to read .gitignore at \(gitignoreURL.path): \(error)")
             }
         }
 
@@ -381,11 +386,11 @@ public actor FileTreeService {
                 }
             }
         } catch {
-            print("Error scanning directory \(url.path): \(error)")
+            FileTreeLoggers.service.warning("Failed to scan directory \(url.path): \(error)")
         }
     }
 
-    private func findItem(at path: String, in items: [FileSystemItem], rootPath _: String) -> FileSystemItem? {
+    private func findItem(at path: String, in items: [FileSystemItem]) -> FileSystemItem? {
         for item in items {
             if item.path == path {
                 return item
@@ -394,7 +399,7 @@ public actor FileTreeService {
             if path.hasPrefix(item.path + "/"),
                 let children = item.children,
                 !children.isEmpty,
-                let found = findItem(at: path, in: children, rootPath: "")
+                let found = findItem(at: path, in: children)
             {
                 return found
             }
@@ -417,7 +422,7 @@ public actor FileTreeService {
                 continue
             }
 
-            if let item = findItem(at: changedPath, in: currentRootItems, rootPath: rootPath) {
+            if let item = findItem(at: changedPath, in: currentRootItems) {
                 let freshChildren = item.loadChildren(ignorePatterns: ignorePatterns)
                 updateCachedFilesForDirectory(directoryPath: changedPath, newChildren: freshChildren)
                 item.setChildren(freshChildren)
@@ -514,7 +519,7 @@ public actor FileTreeService {
         cache.save(dataPathsService: dataPathsService)
 
         if let indexingStartTime {
-            UserDefaults.standard.set(Date().timeIntervalSince(indexingStartTime), forKey: "lastIndexDuration")
+            UserDefaults.standard.set(Date().timeIntervalSince(indexingStartTime), forKey: Self.lastIndexDurationKey)
         }
         self.indexingStartTime = nil
     }
@@ -567,7 +572,7 @@ public actor FileTreeService {
             rootItems: freshRootItems
         )
         cache.save(dataPathsService: dataPathsService)
-        UserDefaults.standard.set(duration, forKey: "lastIndexDuration")
+        UserDefaults.standard.set(duration, forKey: Self.lastIndexDurationKey)
         onProgressChanged?(.idle)
     }
 
