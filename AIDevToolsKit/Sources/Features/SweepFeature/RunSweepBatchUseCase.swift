@@ -16,18 +16,24 @@ public struct RunSweepBatchUseCase: UseCase {
         public let repoPath: URL
         public let taskDirectory: URL
         public let taskName: String
+        public let taskRelativePath: String
+        public let worktreesDirectory: URL?
 
         public init(
             taskDirectory: URL,
+            taskRelativePath: String,
             repoPath: URL,
             baseBranch: String = "main",
-            dryRun: Bool = false
+            dryRun: Bool = false,
+            worktreesDirectory: URL? = nil
         ) {
             self.baseBranch = baseBranch
             self.dryRun = dryRun
             self.repoPath = repoPath
             self.taskDirectory = taskDirectory
             self.taskName = taskDirectory.lastPathComponent
+            self.taskRelativePath = taskRelativePath
+            self.worktreesDirectory = worktreesDirectory
         }
     }
 
@@ -56,16 +62,44 @@ public struct RunSweepBatchUseCase: UseCase {
     public enum Progress: Sendable {
         case checkingOpenPRs
         case completed(SweepBatchStats)
+        case contentBlocks([AIContentBlock])
         case creatingBranch(String)
         case creatingPR
+        case creatingWorktree(String)
         case prCreated(prURL: String)
         case runningTasks
         case taskCompleted(String)
         case taskStarted(String)
+
+        public var displayText: String {
+            switch self {
+            case .checkingOpenPRs:              return "Checking for open PRs..."
+            case .contentBlocks:                return ""
+            case .creatingBranch(let b):        return "Creating branch: \(b)"
+            case .creatingWorktree(let path):   return "Creating worktree: \(URL(fileURLWithPath: path).lastPathComponent)"
+            case .runningTasks:                 return "Running sweep tasks..."
+            case .taskStarted(let id):          return "Processing: \(id)"
+            case .taskCompleted(let id):        return "Completed: \(id)"
+            case .creatingPR:                   return "Creating PR..."
+            case .prCreated(let url):           return "PR created: \(url)"
+            case .completed:                    return "Completed"
+            }
+        }
+
+        public var phaseId: String? {
+            switch self {
+            case .checkingOpenPRs, .creatingBranch:                             return "prepare"
+            case .creatingWorktree:                                             return "worktree"
+            case .contentBlocks, .runningTasks, .taskStarted, .taskCompleted:  return "ai"
+            case .creatingPR, .prCreated:                                       return "finalize"
+            case .completed:                                                     return nil
+            }
+        }
     }
 
     public static let phases: [ChainExecutionPhase] = [
         ChainExecutionPhase(id: "prepare", displayName: "Prepare"),
+        ChainExecutionPhase(id: "worktree", displayName: "Creating Worktree"),
         ChainExecutionPhase(id: "ai", displayName: "AI Execution"),
         ChainExecutionPhase(id: "finalize", displayName: "Create PR"),
     ]
@@ -94,6 +128,10 @@ public struct RunSweepBatchUseCase: UseCase {
             git: git
         )
 
+        if options.dryRun {
+            return try await runDryRun(source: source, options: options, onProgress: onProgress)
+        }
+
         // Check for open sweep PRs before starting
         onProgress?(.checkingOpenPRs)
         let openCount = try await countOpenSweepPRs(branchPrefix: branchPrefix, repoDir: repoDir)
@@ -106,57 +144,100 @@ public struct RunSweepBatchUseCase: UseCase {
         onProgress?(.creatingBranch(batchBranch))
         logger.info("[\(taskName)] Creating batch branch: \(batchBranch)")
 
-        if (try? await git.fetch(remote: "origin", branch: options.baseBranch, workingDirectory: repoDir)) != nil {
-            try await git.checkout(ref: "FETCH_HEAD", workingDirectory: repoDir)
+        // Fetch is non-destructive regardless of worktree mode.
+        // Swallowing intentionally: a fetch failure (network, shallow clone) is non-fatal.
+        let fetchSucceeded = (try? await git.fetch(remote: "origin", branch: options.baseBranch, workingDirectory: repoDir)) != nil
+
+        let effectiveRepoPath: URL
+        let effectiveTaskDirectory: URL
+        let worktreeNodeForPipeline: WorktreeNode?
+
+        if let worktreesDir = options.worktreesDirectory {
+            let worktreePath = worktreesDir.appendingPathComponent(batchBranch).path
+            let basedOn = fetchSucceeded ? "FETCH_HEAD" : "HEAD"
+            logger.info("[\(taskName)] Will create worktree at \(worktreePath) based on \(basedOn)")
+            effectiveRepoPath = URL(fileURLWithPath: worktreePath)
+            effectiveTaskDirectory = effectiveRepoPath.appendingPathComponent(options.taskRelativePath)
+            let wOptions = WorktreeOptions(
+                branchName: batchBranch,
+                destinationPath: worktreePath,
+                repoPath: repoDir,
+                basedOn: basedOn
+            )
+            worktreeNodeForPipeline = WorktreeNode(options: wOptions, gitClient: git)
+        } else {
+            if fetchSucceeded {
+                try await git.checkout(ref: "FETCH_HEAD", workingDirectory: repoDir)
+            }
+            try await git.checkout(ref: batchBranch, forceCreate: true, workingDirectory: repoDir)
+            effectiveRepoPath = options.repoPath
+            effectiveTaskDirectory = options.taskDirectory
+            worktreeNodeForPipeline = nil
         }
-        try await git.checkout(ref: batchBranch, forceCreate: true, workingDirectory: repoDir)
+
+        let effectiveRepoDir = effectiveRepoPath.path
+        let effectiveSource = SweepClaudeChainSource(
+            taskName: taskName,
+            taskDirectory: effectiveTaskDirectory,
+            repoPath: effectiveRepoPath,
+            git: git
+        )
 
         // Phase A: Drain all tasks via pipeline
-        onProgress?(.runningTasks)
+        let sweepSourceID = "sweep-source"
         let taskSourceNode = TaskSourceNode(
-            id: "sweep-source",
+            id: sweepSourceID,
             displayName: "Sweep: \(taskName)",
-            source: source
+            source: effectiveSource
         )
         let taskConfiguration = PipelineConfiguration(
             executionMode: .all,
             provider: client,
-            workingDirectory: repoDir
+            workingDirectory: effectiveRepoDir
         )
         let runner = PipelineRunner()
+
+        var pipelineNodes: [any PipelineNode] = []
+        let hasWorktreeNode = worktreeNodeForPipeline != nil
+        if let wn = worktreeNodeForPipeline {
+            pipelineNodes.append(wn)
+        } else {
+            onProgress?(.runningTasks)
+        }
+        pipelineNodes.append(taskSourceNode)
+
         _ = try await runner.run(
-            nodes: [taskSourceNode],
+            nodes: pipelineNodes,
             configuration: taskConfiguration
         ) { event in
             switch event {
-            case .nodeStarted(let id, _) where id != "sweep-source":
+            case .nodeStarted(let id, _) where id == WorktreeNode.nodeID:
+                onProgress?(.creatingWorktree(effectiveRepoDir))
+            case .nodeStarted(let id, _) where id == sweepSourceID && hasWorktreeNode:
+                onProgress?(.runningTasks)
+            case .nodeStarted(let id, _) where id != sweepSourceID && id != WorktreeNode.nodeID:
                 onProgress?(.taskStarted(id))
-            case .nodeCompleted(let id, _) where id != "sweep-source":
+            case .nodeCompleted(let id, _) where id != sweepSourceID && id != WorktreeNode.nodeID:
                 onProgress?(.taskCompleted(id))
+            case .nodeProgress(_, let progress):
+                if case .contentBlocks(let blocks) = progress {
+                    onProgress?(.contentBlocks(blocks))
+                }
             default:
                 break
             }
         }
 
-        let sweepResult = await source.batchStats()
+        let sweepResult = await effectiveSource.batchStats()
 
         // Phase B: Create PR if any tasks produced changes
-        var prURL: String? = nil
+        var prURL: String?
         if sweepResult.modifyingTasks > 0 {
             onProgress?(.creatingPR)
             logger.info("[\(taskName)] \(sweepResult.modifyingTasks) modifying task(s), creating PR")
 
-            let batchDescription = "Sweep [\(taskName)]: \(sweepResult.modifyingTasks) file(s) updated, cursor at \(sweepResult.finalCursor ?? "end")"
+            let batchDescription = "Sweep: \(sweepResult.modifyingTasks) file(s) updated, \(BranchInfo.sweepCursorPrefix)\(sweepResult.finalCursor ?? "end")"
             let prConfig = PRConfiguration(labels: [Constants.defaultPRLabel])
-            let prStep = PRStep(
-                id: "pr-step",
-                displayName: "Create PR",
-                baseBranch: options.baseBranch,
-                configuration: prConfig,
-                gitClient: git,
-                projectName: taskName,
-                taskDescription: batchDescription
-            )
             let commentStep = ChainPRCommentStep(
                 id: "pr-comment-step",
                 displayName: "Post PR Comment",
@@ -170,10 +251,24 @@ public struct RunSweepBatchUseCase: UseCase {
             let prConfiguration = PipelineConfiguration(
                 executionMode: .all,
                 provider: client,
-                workingDirectory: repoDir
+                workingDirectory: effectiveRepoDir
             )
+            var prNodes: [any PipelineNode] = []
+            let templatePath = options.taskDirectory.appendingPathComponent("pr-template.md").path
+            let prStep = PRStep(
+                id: "pr-step",
+                displayName: "Create PR",
+                baseBranch: options.baseBranch,
+                configuration: prConfig,
+                gitClient: git,
+                projectName: taskName,
+                taskDescription: batchDescription,
+                prTemplatePath: FileManager.default.fileExists(atPath: templatePath) ? templatePath : nil
+            )
+            prNodes.append(prStep)
+            prNodes.append(commentStep)
             let prContext = try await runner.run(
-                nodes: [prStep, commentStep],
+                nodes: prNodes,
                 configuration: prConfiguration
             ) { _ in }
             prURL = prContext[PRStep.prURLKey]
@@ -198,6 +293,20 @@ public struct RunSweepBatchUseCase: UseCase {
     }
 
     // MARK: - Private
+
+    private func runDryRun(
+        source: SweepClaudeChainSource,
+        options: Options,
+        onProgress: (@Sendable (Progress) -> Void)?
+    ) async throws -> Result {
+        onProgress?(.runningTasks)
+        let sweepResult = try await source.dryRunStats()
+        onProgress?(.completed(sweepResult))
+        let message = sweepResult.tasks == 0 && sweepResult.skipped == 0
+            ? "No files to process"
+            : "\(sweepResult.tasks) task(s), \(sweepResult.modifyingTasks) modifying, \(sweepResult.skipped) skipped"
+        return Result(success: true, message: message, sweepResult: sweepResult)
+    }
 
     private func makeBatchBranch(prefix: String) -> String {
         let formatter = DateFormatter()

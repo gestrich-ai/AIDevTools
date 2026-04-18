@@ -334,36 +334,43 @@ final class ClaudeChainModel {
     private func handleSweepProgress(_ progress: RunSweepBatchUseCase.Progress) {
         guard case .executing(var current) = state else { return }
 
+        current.currentPhase = progress.displayText
+
         switch progress {
         case .checkingOpenPRs:
-            current.currentPhase = "Checking for open PRs..."
             current.setPhaseStatus(id: "prepare", status: .running)
             executionChatModel?.appendStatusMessage("Checking for open PRs...")
         case .creatingBranch(let b):
-            current.currentPhase = "Creating branch: \(b)"
             current.setPhaseStatus(id: "prepare", status: .completed)
             executionChatModel?.appendStatusMessage("Creating branch: \(b)")
+        case .creatingWorktree(let path):
+            current.setPhaseStatus(id: "worktree", status: .running)
+            executionChatModel?.appendStatusMessage("Creating worktree: \(URL(fileURLWithPath: path).lastPathComponent)")
         case .runningTasks:
-            current.currentPhase = "Running sweep tasks..."
+            let worktreeStatus = current.phases.first(where: { $0.id == "worktree" })?.status
+            if worktreeStatus == .running {
+                current.setPhaseStatus(id: "worktree", status: .completed)
+            } else {
+                current.setPhaseStatus(id: "worktree", status: .skipped)
+            }
             current.setPhaseStatus(id: "ai", status: .running)
             executionChatModel?.appendStatusMessage("Running sweep tasks...")
         case .taskStarted(let id):
-            current.currentPhase = "Processing: \(id)"
             executionChatModel?.appendStatusMessage("Processing: \(id)")
             executionChatModel?.beginStreamingMessage()
         case .taskCompleted:
             executionChatModel?.finalizeCurrentStreamingMessage()
+        case .contentBlocks(let blocks):
+            executionChatModel?.updateCurrentStreamingBlocks(blocks)
+            return
         case .creatingPR:
-            current.currentPhase = "Creating PR..."
             current.setPhaseStatus(id: "ai", status: .completed)
             current.setPhaseStatus(id: "finalize", status: .running)
             executionChatModel?.appendStatusMessage("Creating PR...")
         case .prCreated(let url):
-            current.currentPhase = "PR created"
             current.setPhaseStatus(id: "finalize", status: .completed)
             executionChatModel?.appendStatusMessage("PR: \(url)")
         case .completed:
-            current.currentPhase = "Completed"
             current.setPhaseStatus(id: "ai", status: .completed)
             executionChatModel?.appendStatusMessage("Completed")
         }
