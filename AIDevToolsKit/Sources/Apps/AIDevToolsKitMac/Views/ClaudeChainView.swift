@@ -383,7 +383,8 @@ private struct ChainProjectDetailView: View {
             enrichedTasks?.first(where: { $0.task.description == task.description })?.enrichedPR
         }
 
-        let openTasks = project.tasks.filter { pr($0) != nil && !pr($0)!.isDraft && !pr($0)!.isMerged }
+        let openTasks = project.tasks.filter { pr($0)?.isOpen == true }
+        let closedTasks = project.tasks.filter { pr($0)?.isClosed == true }
         let draftTasks = project.tasks.filter { pr($0)?.isDraft == true }
         let notStartedTasks = project.tasks.filter { pr($0) == nil && !$0.isCompleted }
         let mergedTasks = project.tasks.filter { pr($0)?.isMerged == true || (pr($0) == nil && $0.isCompleted) }
@@ -414,6 +415,11 @@ private struct ChainProjectDetailView: View {
             if !openTasks.isEmpty {
                 Section("Open") {
                     ForEach(openTasks) { TableRow($0) }
+                }
+            }
+            if !closedTasks.isEmpty {
+                Section("Closed") {
+                    ForEach(closedTasks) { TableRow($0) }
                 }
             }
             if !draftTasks.isEmpty {

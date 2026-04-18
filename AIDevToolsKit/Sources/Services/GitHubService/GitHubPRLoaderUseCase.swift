@@ -45,6 +45,8 @@ public struct GitHubPRLoaderUseCase {
                     return
                 }
 
+                // Swallowing intentionally: author name cache is best-effort; missing names
+                // fall back to login handles, which does not affect PR data correctness.
                 let cachedAuthorEntries = (try? await service.loadAllAuthors()) ?? []
                 let nameMap = Dictionary(uniqueKeysWithValues: cachedAuthorEntries.map { ($0.login, $0.name) })
 
@@ -74,9 +76,9 @@ public struct GitHubPRLoaderUseCase {
                 }
 
                 // Re-read from cache after the API write: the cache is the source of truth.
-                // This ensures .fetched reflects the full filtered cache (not just the batch
-                // returned by the API), so no previously-cached PRs disappear due to API
-                // pagination limits.
+                // updatePRs(filter:) already wrote the API results to disk, so reading back
+                // from cache and applying filter.matches() gives consistent results — the same
+                // logic used for the .cached event above. Never return raw API data directly.
                 let postFetchCached = await service.readAllCachedPRs()
                 let fetchedPRs = postFetchCached
                     .map { $0.withAuthorNames(from: nameMap) }
@@ -86,9 +88,9 @@ public struct GitHubPRLoaderUseCase {
 
                 continuation.yield(.fetched(fetchedPRs))
 
-                // Enrichment targets are the PRs returned by the API (not the full cache):
-                // these are the ones that may have changed and need review/check data refreshed.
-                // isUnchanged compares the pre-fetch cache state against the fresh API updatedAt.
+                // Enrichment targets: PRs the API returned that also pass the filter.
+                // Using fetchedGHPRs (not the full cache) scopes enrichment to PRs that
+                // the API confirmed are still relevant — avoids re-enriching stale entries.
                 let enrichmentTargets = fetchedGHPRs
                     .map { $0.withAuthorNames(from: nameMap) }
                     .compactMap { try? $0.toPRMetadata() }

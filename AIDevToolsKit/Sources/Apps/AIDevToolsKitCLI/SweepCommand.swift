@@ -72,9 +72,6 @@ struct SweepRunCommand: AsyncParsableCommand {
         let useCase = RunSweepBatchUseCase(client: client, git: root.gitClient)
         let options = RunSweepBatchUseCase.Options(
             taskDirectory: taskURL,
-            taskRelativePath: taskURL.path.hasPrefix(repoURL.path + "/")
-                ? String(taskURL.path.dropFirst(repoURL.path.count + 1))
-                : taskURL.lastPathComponent,
             repoPath: repoURL,
             baseBranch: baseBranch,
             dryRun: dryRun
@@ -104,8 +101,6 @@ struct SweepRunCommand: AsyncParsableCommand {
             print("Checking for open sweep PRs...")
         case .creatingBranch(let branch):
             print("Creating batch branch: \(branch)")
-        case .creatingWorktree(let path):
-            print("Creating worktree: \(URL(fileURLWithPath: path).lastPathComponent)")
         case .runningTasks:
             print("Running sweep tasks...")
         case .taskStarted(let id):
@@ -116,8 +111,6 @@ struct SweepRunCommand: AsyncParsableCommand {
             print("Creating PR for batch changes...")
         case .prCreated(let url):
             print("PR: \(url)")
-        case .contentBlocks:
-            break
         case .completed(let r):
             print("\(r.tasks) task(s), \(r.modifyingTasks) modifying, \(r.skipped) skipped")
         }

@@ -3,7 +3,6 @@ import GitHubService
 
 public struct EnrichedPR: Sendable {
     public let pr: PRMetadata
-    public var isDraft: Bool { pr.isDraft }
     public let reviewStatus: PRReviewStatus
     public let buildStatus: PRBuildStatus
 
@@ -17,7 +16,10 @@ public struct EnrichedPR: Sendable {
         self.buildStatus = buildStatus
     }
 
+    public var isClosed: Bool { PRState(rawValue: pr.state.uppercased()) == .closed }
+    public var isDraft: Bool { pr.isDraft }
     public var isMerged: Bool { pr.mergedAt != nil }
+    public var isOpen: Bool { PRState(rawValue: pr.state.uppercased()) == .open }
 
     public var ageDays: Int {
         let dateString = pr.mergedAt ?? pr.createdAt

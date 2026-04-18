@@ -41,10 +41,8 @@ public struct ExecuteSweepChainUseCase: UseCase {
         let useCase = RunSweepBatchUseCase(client: client, git: git)
         let sweepOptions = RunSweepBatchUseCase.Options(
             taskDirectory: taskDirectory,
-            taskRelativePath: options.project.basePath,
             repoPath: options.repoPath,
-            baseBranch: options.baseBranch,
-            worktreesDirectory: options.worktreesDirectory
+            baseBranch: options.baseBranch
         )
 
         let result = try await useCase.run(options: sweepOptions, onProgress: onProgress)
