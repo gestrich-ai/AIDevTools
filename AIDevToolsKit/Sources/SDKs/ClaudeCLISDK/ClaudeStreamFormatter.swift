@@ -2,24 +2,6 @@ import AIOutputSDK
 import Foundation
 import Logging
 
-public struct ClaudeResultSummary: Codable, Sendable {
-    public let type: String
-    public let isError: Bool?
-    public let subtype: String?
-    public let durationMs: Int?
-    public let totalCostUsd: Double?
-    public let numTurns: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case type
-        case isError = "is_error"
-        case subtype
-        case durationMs = "duration_ms"
-        case totalCostUsd = "total_cost_usd"
-        case numTurns = "num_turns"
-    }
-}
-
 public final class ClaudeStreamFormatter: StreamFormatter, Sendable {
     private let decoder = JSONDecoder()
     private let logger = Logger(label: "ClaudeStreamFormatter")
@@ -271,5 +253,25 @@ public final class ClaudeStreamFormatter: StreamFormatter, Sendable {
     private func parseResultStreamEvents(_ event: ClaudeResultSummary) -> [AIStreamEvent] {
         let duration: TimeInterval? = event.durationMs.map { Double($0) / 1000.0 }
         return [.metrics(duration: duration, cost: event.totalCostUsd, turns: event.numTurns)]
+    }
+}
+
+// MARK: - Supporting Types
+
+public struct ClaudeResultSummary: Codable, Sendable {
+    public let type: String
+    public let isError: Bool?
+    public let subtype: String?
+    public let durationMs: Int?
+    public let totalCostUsd: Double?
+    public let numTurns: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case isError = "is_error"
+        case subtype
+        case durationMs = "duration_ms"
+        case totalCostUsd = "total_cost_usd"
+        case numTurns = "num_turns"
     }
 }
