@@ -287,7 +287,7 @@ struct ContextualChatPanel: View {
                 ?? providerModel.providerRegistry.defaultClient else { return }
 
         let settings = ChatSettings()
-        settings.resumeLastSession = false
+        settings.resumeLastSession = true
 
         let mcpConfigPath: String?
         if case .ready = mcpModel.status {

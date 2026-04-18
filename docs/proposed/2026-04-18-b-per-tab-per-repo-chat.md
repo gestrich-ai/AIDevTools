@@ -116,7 +116,10 @@ private func restorePanelVisibility() {
 
 ---
 
-## - [ ] Phase 3: Auto-resume last session when panel opens
+## - [x] Phase 3: Auto-resume last session when panel opens
+
+**Skills used**: `ai-dev-tools-enforce`
+**Principles applied**: Kept the change local to chat panel model creation, enabling last-session resume only for this contextual panel flow without introducing extra persistence or cross-layer coordination.
 
 **Skills to read**: (none specific)
 
