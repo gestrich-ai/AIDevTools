@@ -27,6 +27,7 @@ public final class ChatModel {
     private let resumeLatestSessionUseCase: ResumeLatestSessionUseCase
     private let sendMessageUseCase: SendChatMessageUseCase
     private let systemPrompt: String?
+    private var currentConsumeTask: Task<Void, Never>?
     private var currentTask: Task<Void, Never>?
     private var hasStartedSession: Bool = false
     private var sessionId: String?
@@ -89,20 +90,17 @@ public final class ChatModel {
 
     // MARK: - Public API
 
-    public nonisolated func sendMessage(_ content: String, images: [ImageAttachment] = []) async {
+    public func sendMessage(_ content: String, images: [ImageAttachment] = []) {
         guard !content.isEmpty || !images.isEmpty else { return }
 
-        let currentlyProcessing = await MainActor.run { isProcessing }
-
-        if currentlyProcessing {
-            await MainActor.run {
-                let queuedMessage = QueuedMessage(content: content, images: images)
-                messageQueue.append(queuedMessage)
-            }
+        if isProcessing {
+            messageQueue.append(QueuedMessage(content: content, images: images))
             return
         }
 
-        await sendMessageInternal(content, images: images)
+        currentTask = Task {
+            await sendMessageInternal(content, images: images)
+        }
     }
 
     public func startNewConversation() {
@@ -115,6 +113,8 @@ public final class ChatModel {
     public func cancelCurrentRequest() {
         currentTask?.cancel()
         currentTask = nil
+        currentConsumeTask?.cancel()
+        currentConsumeTask = nil
         state = .idle
     }
 
@@ -207,6 +207,14 @@ public final class ChatModel {
     ) async {
         let accumulator = StreamAccumulator()
         for await event in stream {
+            guard !Task.isCancelled else { break }
+            if case .sessionStarted(let id) = event {
+                await MainActor.run {
+                    self.sessionId = id
+                    self.hasStartedSession = true
+                }
+                continue
+            }
             let updatedBlocks = accumulator.apply(event)
             await MainActor.run { [updatedBlocks] in
                 guard let index = self.messages.firstIndex(where: { $0.id == messageId }) else { return }
@@ -286,7 +294,7 @@ public final class ChatModel {
         }
 
         let resumeId = await MainActor.run {
-            settings.resumeLastSession && hasStartedSession ? sessionId : nil
+            hasStartedSession ? sessionId : nil
         }
         let workingDir = await MainActor.run { workingDirectory }
         let mcpPath = await MainActor.run { mcpConfigPath }
@@ -317,21 +325,29 @@ public final class ChatModel {
             let consumeTask = Task {
                 await self.consumeStream(stream, messageId: assistantMessageId)
             }
+            await MainActor.run { self.currentConsumeTask = consumeTask }
 
-            let result = try await sendMessageUseCase.run(options) { @Sendable progress in
-                switch progress {
-                case .streamEvent(let event):
-                    continuation.yield(event)
-                case .completed:
-                    break
+            let result: SendChatMessageUseCase.Result
+            do {
+                result = try await sendMessageUseCase.run(options) { @Sendable progress in
+                    switch progress {
+                    case .streamEvent(let event):
+                        continuation.yield(event)
+                    case .completed:
+                        break
+                    }
                 }
+            } catch {
+                continuation.finish()
+                consumeTask.cancel()
+                throw error
             }
             continuation.finish()
             await consumeTask.value
 
             await MainActor.run {
                 let displayName = providerDisplayName
-                if result.exitCode == 0 {
+                if result.exitCode == 0 || result.exitCode == 130 || result.exitCode == 143 {
                     hasStartedSession = true
                     if let newSessionId = result.sessionId {
                         sessionId = newSessionId
@@ -369,12 +385,16 @@ public final class ChatModel {
                 state = .idle
             }
         } catch {
+            let isCancellation = error is CancellationError
             await MainActor.run {
                 if let index = messages.firstIndex(where: { $0.id == assistantMessageId }) {
+                    let content = isCancellation
+                        ? "Request interrupted by user"
+                        : "Error: \(error.localizedDescription)"
                     messages[index] = ChatMessage(
                         id: assistantMessageId,
                         role: .assistant,
-                        content: "Error: \(error.localizedDescription)",
+                        content: content,
                         timestamp: messages[index].timestamp,
                         isComplete: true
                     )
@@ -439,38 +459,3 @@ public final class ChatModel {
     }
 }
 
-public struct ChatModelConfiguration {
-    public let client: any AIClient
-    public let mcpConfigPath: String?
-    public let settings: ChatSettings
-    public let systemPrompt: String?
-    public let workingDirectory: String?
-
-    public init(
-        client: any AIClient,
-        mcpConfigPath: String? = nil,
-        settings: ChatSettings = ChatSettings(),
-        systemPrompt: String? = nil,
-        workingDirectory: String? = nil
-    ) {
-        self.client = client
-        self.mcpConfigPath = mcpConfigPath
-        self.settings = settings
-        self.systemPrompt = systemPrompt
-        self.workingDirectory = workingDirectory
-    }
-}
-
-public struct QueuedMessage: Identifiable, Sendable {
-    public let id: UUID
-    public let content: String
-    public let images: [ImageAttachment]
-    public let timestamp: Date
-
-    public init(id: UUID = UUID(), content: String, images: [ImageAttachment] = [], timestamp: Date = Date()) {
-        self.id = id
-        self.content = content
-        self.images = images
-        self.timestamp = timestamp
-    }
-}

@@ -46,28 +46,28 @@ extension ClaudeProvider {
     // MARK: - Private Helpers
 
     private static func listSessionsSync(workingDirectory: String) -> [ChatSession] {
+        var sessionsByID: [String: ChatSession] = [:]
+
         let projectPath = sessionDirectoryPath(workingDirectory: workingDirectory)
-        guard FileManager.default.fileExists(atPath: projectPath) else { return [] }
-
-        var sessions: [ChatSession] = []
-
-        do {
-            let files = try FileManager.default.contentsOfDirectory(atPath: projectPath)
+        if FileManager.default.fileExists(atPath: projectPath),
+           let files = try? FileManager.default.contentsOfDirectory(atPath: projectPath) {
             for file in files where file.hasSuffix(".jsonl") {
                 let sessionId = (file as NSString).deletingPathExtension
                 let filePath = (projectPath as NSString).appendingPathComponent(file)
-
-                if let summary = findSummaryInSessionFile(at: filePath) {
-                    let attributes = try FileManager.default.attributesOfItem(atPath: filePath)
+                if let summary = findSummaryInSessionFile(at: filePath),
+                   let attributes = try? FileManager.default.attributesOfItem(atPath: filePath) {
                     let modificationDate = attributes[.modificationDate] as? Date ?? Date()
-                    sessions.append(ChatSession(id: sessionId, lastModified: modificationDate, summary: summary))
+                    sessionsByID[sessionId] = ChatSession(id: sessionId, lastModified: modificationDate, summary: summary)
                 }
             }
-        } catch {
-            // Directory listing failed
         }
 
-        return sessions.sorted { $0.lastModified > $1.lastModified }
+        // Include sessions written on cancellation before the Claude-owned file is fully flushed.
+        for session in ClaudeSessionIndex().listSessions() where sessionsByID[session.id] == nil {
+            sessionsByID[session.id] = session
+        }
+
+        return sessionsByID.values.sorted { $0.lastModified > $1.lastModified }
     }
 
     private static func loadSessionMessagesSync(sessionId: String, workingDirectory: String) -> [ChatSessionMessage] {

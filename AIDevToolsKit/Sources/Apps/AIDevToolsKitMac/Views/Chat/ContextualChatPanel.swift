@@ -277,9 +277,7 @@ struct ContextualChatPanel: View {
         messageText = ""
         pastedImages = []
 
-        Task {
-            await chatModel?.sendMessage(message, images: images)
-        }
+        chatModel?.sendMessage(message, images: images)
     }
 
     // MARK: - Private

@@ -30,6 +30,8 @@ public final class StreamAccumulator: @unchecked Sendable {
             blocks.append(.toolResult(name: name, summary: summary, isError: isError))
         case .metrics(let duration, let cost, let turns):
             blocks.append(.metrics(duration: duration, cost: cost, turns: turns))
+        case .sessionStarted:
+            break
         }
         return blocks
     }

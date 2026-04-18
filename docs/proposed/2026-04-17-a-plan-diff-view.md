@@ -31,13 +31,24 @@ PR Radar uses two diff views: `DiffPhaseView` (inline, Diff tab) and `EffectiveD
 
 ## Phases
 
-## - [ ] Phase 1: Create a shared `GitDiffViewsKit` target
+## - [ ] Phase 1: Create a shared `GitUIKit` target
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-code-organization`
 
-Create a new Swift package target `GitDiffViewsKit` for generic, reusable diff UI components. This target will be importable by both PRRadar and the new planning diff feature — and any future feature that needs a diff view.
+Create a new Swift package target `GitUIKit` in the `ui-toolkits` layer for generic, reusable diff UI components. This target will be importable by both PRRadar and the new planning diff feature — and any future feature that needs a diff view.
 
-Move the following from `PRRadar/Views/GitViews/RichDiffViews.swift` into `GitDiffViewsKit`:
+In `Package.swift`, add a `// UI Toolkits Layer` section and register the target:
+
+```swift
+// UI Toolkits Layer
+.target(
+    name: "GitUIKit",
+    dependencies: [],
+    path: "Sources/UIToolkits/GitUIKit"
+),
+```
+
+Move the following from `PRRadar/Views/GitViews/RichDiffViews.swift` into `GitUIKit`:
 
 - `DiffLineRowView` — single diff line renderer (line numbers, gutter colors, monospaced text)
 - `HunkHeaderView` — `@@ -X,Y +A,B @@` hunk separator bar
@@ -46,13 +57,13 @@ Move the following from `PRRadar/Views/GitViews/RichDiffViews.swift` into `GitDi
 - The `diffListRow()` view modifier
 - `DiffLayout` constants (gutter width etc.)
 
-Update PRRadar to import `GitDiffViewsKit` instead of defining these types locally. This is a pure refactor — no behavior changes.
+Update PRRadar to import `GitUIKit` instead of defining these types locally. This is a pure refactor — no behavior changes.
 
-## - [ ] Phase 2: Build `GitDiffView` in `GitDiffViewsKit`
+## - [ ] Phase 2: Build `GitDiffView` in `GitUIKit`
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-code-organization`
 
-Create `GitDiffView` in `GitDiffViewsKit`. It takes a single `GitDiff` and has no dependency on `PRModel`, `PRDiff`, or any PR Radar type.
+Create `GitDiffView` in `GitUIKit`. It takes a single `GitDiff` and has no dependency on `PRModel`, `PRDiff`, or any PR Radar type.
 
 **File sidebar (left panel):**
 A `List` with a "Changed Files" section showing each file's last path component and hunk count. Matches the visual style of `EffectiveDiffView`'s left panel. Tapping a file sets `selectedFile` and filters the right panel.

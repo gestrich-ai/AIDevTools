@@ -1,5 +1,5 @@
 {
-  "originHash" : "2dd168c099d782e1edd373ede7de14410bf5f2a20102e10847fcf135eae4d0bf",
+  "originHash" : "186acf8c639f9d05e19f6ac5d94748667ac80e76d108f065d8c016f9e0fb4cc4",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -304,7 +304,7 @@
       "location" : "https://github.com/gestrich/SwiftCLI",
       "state" : {
         "branch" : "main",
-        "revision" : "b376c7ab86e0d064ad288173c11aa66694502b8c"
+        "revision" : "64aa10862f3ab875bb90fc84025596936ed009fc"
       }
     },
     {

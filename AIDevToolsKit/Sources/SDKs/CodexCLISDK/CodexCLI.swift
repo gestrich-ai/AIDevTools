@@ -18,11 +18,12 @@ public struct Codex {
         @CLICommand
         public struct Resume {
             @Flag public var all: Bool = false
-            @Option("--color") public var color: String?
             @Flag public var dangerouslyBypassApprovalsAndSandbox: Bool = false
             @Flag public var fullAuto: Bool = false
+            @Flag public var json: Bool = false
             @Flag public var last: Bool = false
             @Option public var model: String?
+            @Flag public var skipGitRepoCheck: Bool = false
             @Positional public var sessionId: String?
             @Positional public var prompt: String?
         }

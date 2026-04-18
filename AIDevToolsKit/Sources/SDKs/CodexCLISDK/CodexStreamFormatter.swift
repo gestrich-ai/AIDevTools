@@ -102,6 +102,11 @@ public final class CodexStreamFormatter: StreamFormatter, @unchecked Sendable {
         switch event.type {
         case "item.completed":
             return parseItemStreamEvents(event.item)
+        case "thread.started":
+            if let id = event.threadId {
+                return [.sessionStarted(id)]
+            }
+            return []
         case "turn.completed":
             // The held agent_message is the final answer — flush as textDelta then emit metrics.
             var events: [AIStreamEvent] = []
@@ -165,9 +170,15 @@ private struct CodexResultWrapper: Decodable {
 }
 
 private struct CodexFormatterEvent: Codable {
-    let type: String
     let item: CodexFormatterItem?
+    let threadId: String?
+    let type: String
     let usage: CodexFormatterUsage?
+
+    enum CodingKeys: String, CodingKey {
+        case item, type, usage
+        case threadId = "thread_id"
+    }
 }
 
 private struct CodexFormatterItem: Codable {

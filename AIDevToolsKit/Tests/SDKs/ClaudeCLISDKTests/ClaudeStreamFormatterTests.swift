@@ -204,9 +204,25 @@ struct ClaudeStreamFormatterTests {
         #expect(events.isEmpty)
     }
 
+    @Test func systemEventEmitsSessionStarted() {
+        // Arrange
+        let systemEvent = #"{"type":"system","subtype":"init","session_id":"abc123"}"#
+
+        // Act
+        let events = formatter.formatStructured(systemEvent)
+
+        // Assert
+        #expect(events.count == 1)
+        if case .sessionStarted(let id) = events[0] {
+            #expect(id == "abc123")
+        } else {
+            Issue.record("Expected .sessionStarted, got \(events[0])")
+        }
+    }
+
     @Test func unknownEventTypeReturnsNoEvents() {
         // Arrange
-        let unknown = #"{"type":"system","subtype":"init","session_id":"abc123"}"#
+        let unknown = #"{"type":"unknown_event_type"}"#
 
         // Act
         let events = formatter.formatStructured(unknown)

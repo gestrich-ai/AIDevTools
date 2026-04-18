@@ -1,4 +1,5 @@
 import AIOutputSDK
+import CLISDK
 
 extension ClaudeProvider: AIClient {
     public var name: String { "claude" }
@@ -19,15 +20,54 @@ extension ClaudeProvider: AIClient {
         command.resume = options.sessionId
         command.systemPrompt = options.systemPrompt
         command.verbose = true
-        let result = try await run(
-            command: command,
-            workingDirectory: options.workingDirectory,
-            environment: options.environment,
-            onFormattedOutput: onOutput,
-            onStreamEvent: onStreamEvent
-        )
-        let sessionId = Self.extractSessionId(from: result.stdout)
-        return AIClientResult(exitCode: result.exitCode, sessionId: sessionId, stderr: result.stderr, stdout: result.stdout)
+
+        let stdoutCapture = StdoutAccumulator()
+        let formatter = ClaudeStreamFormatter()
+
+        do {
+            let result = try await run(
+                command: command,
+                workingDirectory: options.workingDirectory,
+                environment: options.environment,
+                onOutput: { item in
+                    switch item {
+                    case .stdout(_, let text):
+                        stdoutCapture.append(text)
+                        if let onOutput {
+                            let formatted = formatter.format(text)
+                            if !formatted.isEmpty { onOutput(formatted) }
+                        }
+                        if let onStreamEvent {
+                            for event in formatter.formatStructured(text) {
+                                onStreamEvent(event)
+                            }
+                        }
+                    case .stderr(_, let text):
+                        if let onOutput {
+                            let nonJSON = text.components(separatedBy: "\n")
+                                .filter { line in
+                                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                                    return !trimmed.isEmpty && !trimmed.hasPrefix("{")
+                                }
+                                .joined(separator: "\n")
+                            if !nonJSON.isEmpty { onOutput(nonJSON) }
+                        }
+                    default:
+                        break
+                    }
+                }
+            )
+            let sessionId = Self.extractSessionId(from: result.stdout)
+            return AIClientResult(exitCode: result.exitCode, sessionId: sessionId, stderr: result.stderr, stdout: result.stdout)
+        } catch is CancellationError {
+            // Claude writes its own session file to disk, but it may not be flushed by the
+            // time ChatModel calls listSessions(). Storing the session_id from partial stdout
+            // into our own index makes recovery reliable without depending on file-system timing.
+            if let sessionId = Self.extractSessionId(from: stdoutCapture.content) {
+                try? ClaudeSessionIndex().appendSession(id: sessionId, summary: String(prompt.prefix(80)))
+            }
+            throw CancellationError()
+        }
     }
 
     public func runStructured<T: Decodable & Sendable>(

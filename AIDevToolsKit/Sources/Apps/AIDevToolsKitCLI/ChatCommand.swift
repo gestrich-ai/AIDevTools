@@ -32,6 +32,9 @@ struct ChatCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Print messages from a session ID and exit")
     var session: String?
 
+    @Option(name: .long, help: "Cancel the request after N seconds using cooperative cancellation (for testing)")
+    var cancelAfter: Int?
+
     @Argument(help: "Single message to send (omit for interactive mode)")
     var message: String?
 
@@ -94,6 +97,24 @@ struct ChatCommand: AsyncParsableCommand {
             systemPrompt: systemPrompt
         )
 
+        if let seconds = cancelAfter {
+            let sendTask = Task {
+                try await useCase.run(options) { progress in
+                    switch progress {
+                    case .streamEvent(let event):
+                        printStreamEvent(event)
+                    case .completed:
+                        print()
+                    }
+                }
+            }
+            try await Task.sleep(nanoseconds: UInt64(seconds) * 1_000_000_000)
+            print("\n[Cancelling after \(seconds)s...]")
+            sendTask.cancel()
+            _ = try? await sendTask.value
+            return
+        }
+
         let result = try await useCase.run(options) { progress in
             switch progress {
             case .streamEvent(let event):
@@ -126,6 +147,23 @@ struct ChatCommand: AsyncParsableCommand {
             }
         }
 
+        let sessionBox = InteractiveSessionBox()
+        let taskBox = InteractiveCancellableTask()
+
+        // Ctrl-C cancels the in-flight request instead of terminating the process.
+        // Users exit with Ctrl-D or by typing 'exit'.
+        signal(SIGINT, SIG_IGN)
+        let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .global())
+        sigintSource.setEventHandler {
+            taskBox.cancel()
+            print("\n[Cancelled]")
+        }
+        sigintSource.resume()
+        defer {
+            sigintSource.cancel()
+            signal(SIGINT, SIG_DFL)
+        }
+
         while true {
             print("\nYou: ", terminator: "")
             fflush(stdout)
@@ -150,19 +188,34 @@ struct ChatCommand: AsyncParsableCommand {
             print("\n\(client.displayName): ", terminator: "")
             fflush(stdout)
 
-            do {
-                let result = try await useCase.run(options) { progress in
+            let task = Task {
+                try await useCase.run(options) { progress in
                     switch progress {
                     case .streamEvent(let event):
-                        printStreamEvent(event)
+                        switch event {
+                        case .sessionStarted(let id):
+                            sessionBox.id = id
+                        default:
+                            printStreamEvent(event)
+                        }
                     case .completed:
                         print()
                     }
                 }
-                sessionId = result.sessionId ?? sessionId
+            }
+            taskBox.store(cancel: { task.cancel() })
+
+            do {
+                let result = try await task.value
+                sessionBox.id = result.sessionId ?? sessionBox.id
+            } catch is CancellationError {
+                // sessionBox.id already captured from .sessionStarted before cancel
             } catch {
                 print("\nError: \(error.localizedDescription)")
             }
+
+            taskBox.clear()
+            sessionId = sessionBox.id
         }
     }
 
@@ -213,15 +266,6 @@ struct ChatCommand: AsyncParsableCommand {
 
     private func printStreamEvent(_ event: AIStreamEvent) {
         switch event {
-        case .textDelta(let text):
-            print(text, terminator: "")
-            fflush(stdout)
-        case .thinking(let text):
-            print("\n[Thinking] \(text)")
-        case .toolUse(let name, let detail):
-            print("\n[\(name)] \(detail)")
-        case .toolResult(_, let summary, _):
-            print("  → \(summary)")
         case .metrics(let duration, let cost, let turns):
             var parts: [String] = []
             if let duration { parts.append("\(duration)s") }
@@ -230,6 +274,58 @@ struct ChatCommand: AsyncParsableCommand {
             if !parts.isEmpty {
                 print("--- \(parts.joined(separator: " | ")) ---")
             }
+        case .sessionStarted:
+            break
+        case .textDelta(let text):
+            print(text, terminator: "")
+            fflush(stdout)
+        case .thinking(let text):
+            print("\n[Thinking] \(text)")
+        case .toolResult(_, let summary, _):
+            print("  → \(summary)")
+        case .toolUse(let name, let detail):
+            print("\n[\(name)] \(detail)")
         }
+    }
+}
+
+private final class InteractiveSessionBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _id: String?
+
+    var id: String? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _id
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            _id = newValue
+        }
+    }
+}
+
+private final class InteractiveCancellableTask: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelAction: (() -> Void)?
+
+    func store(cancel: @escaping () -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
+        cancelAction = cancel
+    }
+
+    func cancel() {
+        lock.lock()
+        defer { lock.unlock() }
+        cancelAction?()
+    }
+
+    func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        cancelAction = nil
     }
 }

@@ -51,7 +51,7 @@ extension CodexProvider: AIClient {
                 // appear in the history picker. The rollout file in ~/.codex/sessions/ will not exist
                 // for these runs, so loading full message history from a past session is not supported.
                 let sessionId = parseThreadId(from: result.stdout)
-                if let id = sessionId, result.exitCode == 0 {
+                if let id = sessionId, result.exitCode == 0 || result.exitCode == 143 {
                     let summary = String(prompt.prefix(80))
                     try? CodexSessionStorage().appendSession(id: id, threadName: summary)
                     // Swallowing intentionally: index write is best-effort. The session can still
@@ -72,6 +72,15 @@ extension CodexProvider: AIClient {
                     onOutput: onOutput,
                     onStreamEvent: onStreamEvent
                 )
+            } catch is CancellationError {
+                // Save session ID from partial stdout so the thread can be resumed after cancellation.
+                // The thread.started event is emitted early, so it's already in stdoutCapture even when
+                // the request is cancelled mid-response.
+                if let threadId = parseThreadId(from: stdoutCapture.content) {
+                    let summary = String(prompt.prefix(80))
+                    try? CodexSessionStorage().appendSession(id: threadId, threadName: summary)
+                }
+                throw CancellationError()
             }
         }
     }
@@ -84,9 +93,10 @@ extension CodexProvider: AIClient {
         onStreamEvent: (@Sendable (AIStreamEvent) -> Void)?
     ) async throws -> AIClientResult {
         var command = Codex.Exec.Resume(sessionId: sessionId, prompt: prompt)
-        command.color = "never"
         command.dangerouslyBypassApprovalsAndSandbox = options.dangerouslySkipPermissions
+        command.json = true
         command.model = options.model
+        command.skipGitRepoCheck = true
         let result = try await run(
             command: command,
             workingDirectory: options.workingDirectory,

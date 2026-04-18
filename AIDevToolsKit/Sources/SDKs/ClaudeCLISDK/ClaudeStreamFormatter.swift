@@ -193,20 +193,31 @@ public final class ClaudeStreamFormatter: StreamFormatter, Sendable {
                 logger.error("Failed to decode assistant event for structured parse: \(error.localizedDescription)")
                 return []
             }
-        case ClaudeEventType.user:
-            do {
-                let event = try decoder.decode(ClaudeUserEvent.self, from: data)
-                return parseUserStreamEvents(event)
-            } catch {
-                logger.error("Failed to decode user event for structured parse: \(error.localizedDescription)")
-                return []
-            }
         case ClaudeEventType.result:
             do {
                 let event = try decoder.decode(ClaudeResultSummary.self, from: data)
                 return parseResultStreamEvents(event)
             } catch {
                 logger.error("Failed to decode result event for structured parse: \(error.localizedDescription)")
+                return []
+            }
+        case ClaudeEventType.system:
+            do {
+                let event = try decoder.decode(ClaudeSystemEvent.self, from: data)
+                if let id = event.sessionId {
+                    return [.sessionStarted(id)]
+                }
+                return []
+            } catch {
+                logger.error("Failed to decode system event for structured parse: \(error.localizedDescription)")
+                return []
+            }
+        case ClaudeEventType.user:
+            do {
+                let event = try decoder.decode(ClaudeUserEvent.self, from: data)
+                return parseUserStreamEvents(event)
+            } catch {
+                logger.error("Failed to decode user event for structured parse: \(error.localizedDescription)")
                 return []
             }
         default:
