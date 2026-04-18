@@ -10,8 +10,8 @@ struct RightExecutionPanelView: View {
 
     @State private var chatContext: GlobalChatContext
 
-    init(workingDirectory: String) {
-        _chatContext = State(initialValue: GlobalChatContext(workingDirectory: workingDirectory))
+    init(tab: String, workingDirectory: String) {
+        _chatContext = State(initialValue: GlobalChatContext(tab: tab, workingDirectory: workingDirectory))
     }
 
     var body: some View {
@@ -63,7 +63,7 @@ struct RightExecutionPanelView: View {
 @MainActor
 final class GlobalChatContext: ViewChatContext {
 
-    let chatContextIdentifier = "global"
+    let chatContextIdentifier: String
     let chatWorkingDirectory: String
     let chatSystemPrompt = """
         You are an AI assistant embedded in the AIDevTools Mac app — a developer productivity tool \
@@ -90,7 +90,8 @@ final class GlobalChatContext: ViewChatContext {
         The working directory is the root of the AIDevTools repository.
         """
 
-    init(workingDirectory: String) {
+    init(tab: String, workingDirectory: String) {
+        self.chatContextIdentifier = "\(tab)-\(workingDirectory)"
         self.chatWorkingDirectory = workingDirectory
     }
 }

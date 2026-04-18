@@ -43,8 +43,10 @@ struct WorkspaceView: View {
         }
         .inspector(isPresented: Bindable(executionPanelModel).isVisible) {
             RightExecutionPanelView(
+                tab: selectedTab,
                 workingDirectory: model.selectedRepository?.path.path(percentEncoded: false) ?? ""
             )
+            .id("\(selectedTab)-\(model.selectedRepository?.id.uuidString ?? "")")
             .environment(executionPanelModel)
         }
         .task {
