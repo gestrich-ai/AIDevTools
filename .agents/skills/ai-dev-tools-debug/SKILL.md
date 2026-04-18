@@ -333,6 +333,48 @@ Use `--config <config-name>` to select the repository. Run `config list` to see 
 - **Build and test:** Run `swift build` and `swift test` from `PRRadarLibrary/` to verify changes.
 - **Daily review script:** `scripts/daily-review.sh` runs the `run-all` pipeline on a daily basis (via cron or launchd). Supports `--mode` and `--lookback-hours` flags.
 
+### Cost Tracking
+
+**Two separate output directories exist — check the right one:**
+
+- **CLI output** (used by `ai-dev-tools-kit prradar` and `daily-review.sh`): `~/Desktop/ai-dev-tools/services/pr-radar/repos/<repo-name>/`
+- **Mac app output** (used by the GUI, from `~/Library/Application Support/PRRadar/settings.json`): defined per-config in that settings file (e.g. `~/Desktop/code-reviews/`)
+
+Cost is only tracked in the CLI output directory. The Mac app directory may be stale or have zero costs if it predates cost tracking.
+
+**Where cost lives in the CLI output:**
+
+```
+<dataPath>/services/pr-radar/repos/<repo-name>/
+  <PR_NUMBER>/
+    analysis/<commitHash>/
+      evaluate/
+        phase_result.json          # totalCostUsd for the whole PR evaluate phase
+        summary.json               # totalCostUsd, totalTasks, violationsFound
+        data-<taskId>.json         # per-rule: analysisMethod.costUsd (AI only; regex/script = 0)
+```
+
+**Compute today's total cost:**
+
+```bash
+find ~/Desktop/ai-dev-tools/services/pr-radar/repos/ios-auto -path "*/evaluate/phase_result.json" | python3 -c "
+import sys, json
+total = 0.0
+for path in sys.stdin:
+    path = path.strip()
+    try:
+        with open(path) as f: d = json.load(f)
+        ts = d.get('completed_at','')
+        cost = d.get('stats',{}).get('cost_usd', 0) or 0
+        if 'YYYY-MM-DD' in ts:  # replace with today's date
+            total += float(cost)
+    except: pass
+print(f'Total: \${total:.4f}')
+"
+```
+
+**Cost is only non-zero for AI rules** (rules with no `violation_script` or `violation_regex`). Script and regex rules always report `$0`.
+
 ## Debugging Tips
 
 - **Provider didn't edit files?** Check raw stdout for permission errors. With `--debug`, verify CLI args include `--dangerously-skip-permissions` for edit-mode cases.
