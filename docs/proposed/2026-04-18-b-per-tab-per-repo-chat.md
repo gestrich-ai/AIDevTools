@@ -75,7 +75,10 @@ Pass `tab: selectedTab` from `WorkspaceView` when constructing `RightExecutionPa
 
 ---
 
-## - [ ] Phase 2: Persist panel open/closed state per tab+repo
+## - [x] Phase 2: Persist panel open/closed state per tab+repo
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-configuration-architecture`, `ai-dev-tools-swift-testing`
+**Principles applied**: Persisted only view-layer UI state in `UserDefaults`, keyed it by the existing tab+repo identity, restored it on launch and context switches, and forced unsupported contexts closed so visibility cannot leak across tabs or repos.
 
 **Skills to read**: (none specific — standard SwiftUI AppStorage/UserDefaults pattern)
 

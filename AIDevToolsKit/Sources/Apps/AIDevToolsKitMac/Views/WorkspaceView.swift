@@ -18,6 +18,10 @@ struct WorkspaceView: View {
     @State private var deepLinkWatcher = DeepLinkWatcher()
     @State private var selectedRepoID: UUID?
 
+    private var isChatPanelSupportedTab: Bool {
+        selectedTab == "claudeChain" || selectedTab == "plans"
+    }
+
     var body: some View {
         NavigationSplitView {
             List(model.repositories, selection: $selectedRepoID) { repo in
@@ -57,6 +61,16 @@ struct WorkspaceView: View {
                 selectedRepoID = id
                 await model.selectRepository(repo)
             }
+            restorePanelVisibility()
+        }
+        .onChange(of: executionPanelModel.isVisible) { _, isVisible in
+            savePanelVisibility(isVisible)
+        }
+        .onChange(of: selectedTab) { _, _ in
+            restorePanelVisibility()
+        }
+        .onChange(of: model.selectedRepository?.id) { _, _ in
+            restorePanelVisibility()
         }
         .onReceive(NotificationCenter.default.publisher(for: .credentialsDidChange)) { _ in
             appModel.applyCredentialChange(.anthropicAPIKey)
@@ -118,5 +132,26 @@ struct WorkspaceView: View {
             }
         }
         .environment(executionPanelModel)
+    }
+
+    private func panelVisibilityKey(tab: String, repoID: UUID?) -> String {
+        "chatPanelVisible_\(tab)_\(repoID?.uuidString ?? "none")"
+    }
+
+    private func savePanelVisibility(_ isVisible: Bool) {
+        guard isChatPanelSupportedTab, let repo = model.selectedRepository else { return }
+
+        let key = panelVisibilityKey(tab: selectedTab, repoID: repo.id)
+        UserDefaults.standard.set(isVisible, forKey: key)
+    }
+
+    private func restorePanelVisibility() {
+        guard isChatPanelSupportedTab, let repo = model.selectedRepository else {
+            executionPanelModel.isVisible = false
+            return
+        }
+
+        let key = panelVisibilityKey(tab: selectedTab, repoID: repo.id)
+        executionPanelModel.isVisible = UserDefaults.standard.bool(forKey: key)
     }
 }
