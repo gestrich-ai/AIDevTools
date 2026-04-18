@@ -116,6 +116,14 @@ public final class ChatModel {
         currentConsumeTask?.cancel()
         currentConsumeTask = nil
         state = .idle
+        if let id = currentStreamingMessageId,
+           let index = messages.firstIndex(where: { $0.id == id }),
+           messages[index].contentBlocks.isEmpty {
+            messages.remove(at: index)
+            currentStreamingMessageId = nil
+        } else {
+            finalizeCurrentStreamingMessage()
+        }
     }
 
     public func clearMessages() {
@@ -309,6 +317,7 @@ public final class ChatModel {
 
         await MainActor.run {
             messages.append(placeholderMessage)
+            currentStreamingMessageId = assistantMessageId
         }
 
         let options = SendChatMessageUseCase.Options(
