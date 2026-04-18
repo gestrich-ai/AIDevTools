@@ -114,7 +114,7 @@ Only after all three steps pass is the fix complete.
 
 ## Phases
 
-## - [ ] Phase 1: Add `sessionStarted` to AIStreamEvent
+## - [x] Phase 1: Add `sessionStarted` to AIStreamEvent
 
 **Skills to read**: `ai-dev-tools-architecture`
 
@@ -124,7 +124,7 @@ In `ClaudeStreamFormatter.formatStructured`, emit `.sessionStarted(sessionId)` w
 
 In the Codex formatter, emit `.sessionStarted(threadId)` when parsing `{"type":"thread.started","thread_id":"..."}`.
 
-## - [ ] Phase 2: Handle `sessionStarted` in ChatModel and runInteractive
+## - [x] Phase 2: Handle `sessionStarted` in ChatModel and runInteractive
 
 **Skills to read**: `ai-dev-tools-code-quality`
 
@@ -145,7 +145,7 @@ case .sessionStarted(let id):
 
 This sets `sessionId` within seconds of a message starting — before any Ctrl-C can lose it.
 
-## - [ ] Phase 3: Add Ctrl-C handling to interactive loop
+## - [x] Phase 3: Add Ctrl-C handling to interactive loop
 
 **Skills to read**: `ai-dev-tools-code-quality`
 
@@ -155,11 +155,11 @@ Currently Ctrl-C kills the entire process. Change it to cancel only the in-fligh
 2. Install a `DispatchSource` SIGINT handler before the loop that cancels the task and prints `\n[Cancelled]` without exiting
 3. Remove the handler when the loop exits
 
-## - [ ] Phase 4: Validate with the three-step process
+## - [x] Phase 4: Validate with the three-step process
 
 Run all three validation steps in order. Step 1 must pass before proceeding.
 
-## - [ ] Phase 5: Cleanup
+## - [x] Phase 5: Cleanup
 
 Remove the async session-lookup recovery block from `sendMessageInternal`'s catch clause — it is racy and no longer needed once session IDs are captured early. Keep the `session_index.jsonl` writes in both provider catch blocks as a last-resort fallback (e.g., process killed before first event).
 
