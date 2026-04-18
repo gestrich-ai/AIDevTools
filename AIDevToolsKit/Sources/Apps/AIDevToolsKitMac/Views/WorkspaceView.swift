@@ -50,7 +50,7 @@ struct WorkspaceView: View {
                 tab: selectedTab,
                 workingDirectory: model.selectedRepository?.path.path(percentEncoded: false) ?? ""
             )
-            .id("\(selectedTab)-\(model.selectedRepository?.id.uuidString ?? "")")
+            .id("\(selectedTab)-\(model.selectedRepository?.path.path(percentEncoded: false) ?? "")")
             .environment(executionPanelModel)
         }
         .task {
@@ -67,9 +67,6 @@ struct WorkspaceView: View {
             savePanelVisibility(isVisible)
         }
         .onChange(of: selectedTab) { _, _ in
-            restorePanelVisibility()
-        }
-        .onChange(of: model.selectedRepository?.id) { _, _ in
             restorePanelVisibility()
         }
         .onReceive(NotificationCenter.default.publisher(for: .credentialsDidChange)) { _ in
@@ -134,24 +131,24 @@ struct WorkspaceView: View {
         .environment(executionPanelModel)
     }
 
-    private func panelVisibilityKey(tab: String, repoID: UUID?) -> String {
-        "chatPanelVisible_\(tab)_\(repoID?.uuidString ?? "none")"
+    private func panelVisibilityKey(tab: String) -> String {
+        "chatPanelVisible_\(tab)"
     }
 
     private func savePanelVisibility(_ isVisible: Bool) {
-        guard isChatPanelSupportedTab, let repo = model.selectedRepository else { return }
+        guard isChatPanelSupportedTab else { return }
 
-        let key = panelVisibilityKey(tab: selectedTab, repoID: repo.id)
+        let key = panelVisibilityKey(tab: selectedTab)
         UserDefaults.standard.set(isVisible, forKey: key)
     }
 
     private func restorePanelVisibility() {
-        guard isChatPanelSupportedTab, let repo = model.selectedRepository else {
+        guard isChatPanelSupportedTab else {
             executionPanelModel.isVisible = false
             return
         }
 
-        let key = panelVisibilityKey(tab: selectedTab, repoID: repo.id)
+        let key = panelVisibilityKey(tab: selectedTab)
         executionPanelModel.isVisible = UserDefaults.standard.bool(forKey: key)
     }
 }

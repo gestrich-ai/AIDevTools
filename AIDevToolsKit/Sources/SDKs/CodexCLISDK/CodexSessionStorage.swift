@@ -11,7 +11,7 @@ struct CodexSessionStorage: Sendable {
 
     // MARK: - Session Listing
 
-    func listSessions() -> [ChatSession] {
+    func listSessions(workingDirectory: String) -> [ChatSession] {
         let indexPath = codexHome.appendingPathComponent("session_index.jsonl")
         guard let data = try? Data(contentsOf: indexPath),
               let content = String(data: data, encoding: .utf8) else {
@@ -22,6 +22,7 @@ struct CodexSessionStorage: Sendable {
         var sessionsByID: [String: ChatSession] = [:]
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let normalizedWorkingDirectory = normalizedPath(workingDirectory)
 
         for line in content.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -30,6 +31,9 @@ struct CodexSessionStorage: Sendable {
                   // Swallowing intentionally: malformed or stale index lines are skipped;
                   // the index is append-only so individual bad entries don't affect others.
                   let entry = try? JSONDecoder().decode(SessionIndexEntry.self, from: lineData) else {
+                continue
+            }
+            guard sessionWorkingDirectory(sessionId: entry.id) == normalizedWorkingDirectory else {
                 continue
             }
             let date = dateFormatter.date(from: entry.updatedAt) ?? Date.distantPast
@@ -53,14 +57,9 @@ struct CodexSessionStorage: Sendable {
             guard !trimmed.isEmpty else { continue }
             rawJsonLines.append(trimmed)
 
-            guard let lineData = trimmed.data(using: .utf8),
-                  let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-                  obj["type"] as? String == "session_meta",
-                  let payload = obj["payload"] as? [String: Any] else { continue }
-
-            cwd = payload["cwd"] as? String
-            if let git = payload["git"] as? [String: Any] {
-                gitBranch = git["branch"] as? String
+            if let payload = parseSessionMeta(from: trimmed) {
+                cwd = payload.cwd
+                gitBranch = payload.git?.branch
             }
         }
 
@@ -106,6 +105,24 @@ struct CodexSessionStorage: Sendable {
     private func findRolloutFile(sessionId: String) -> URL? {
         let sessionsDir = codexHome.appendingPathComponent("sessions")
         return findFileRecursively(in: sessionsDir, containing: sessionId)
+    }
+
+    private func sessionWorkingDirectory(sessionId: String) -> String? {
+        guard let fileURL = findRolloutFile(sessionId: sessionId),
+              let data = try? Data(contentsOf: fileURL),
+              let content = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        for line in content.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            if let payload = parseSessionMeta(from: trimmed), let cwd = payload.cwd {
+                return normalizedPath(cwd)
+            }
+        }
+
+        return nil
     }
 
     private func findFileRecursively(in directory: URL, containing sessionId: String) -> URL? {
@@ -211,9 +228,34 @@ struct CodexSessionStorage: Sendable {
 
         return ""
     }
+
+    private func parseSessionMeta(from line: String) -> SessionMetaPayload? {
+        guard let data = line.data(using: .utf8),
+              let meta = try? JSONDecoder().decode(SessionMetaLine.self, from: data),
+              meta.type == "session_meta" else { return nil }
+        return meta.payload
+    }
+
+    private func normalizedPath(_ path: String) -> String {
+        URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+    }
 }
 
 // MARK: - Models
+
+private struct SessionMetaLine: Codable {
+    let type: String
+    let payload: SessionMetaPayload?
+}
+
+private struct SessionMetaPayload: Codable {
+    let cwd: String?
+    let git: SessionMetaGit?
+}
+
+private struct SessionMetaGit: Codable {
+    let branch: String?
+}
 
 private struct SessionIndexEntry: Codable {
     let id: String

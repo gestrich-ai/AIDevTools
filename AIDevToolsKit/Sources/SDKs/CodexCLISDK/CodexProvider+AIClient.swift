@@ -188,7 +188,7 @@ extension CodexProvider: AIClient {
     // MARK: - Session History
 
     public func listSessions(workingDirectory: String) async -> [ChatSession] {
-        CodexSessionStorage().listSessions()
+        CodexSessionStorage().listSessions(workingDirectory: workingDirectory)
     }
 
     public func loadSessionMessages(sessionId: String, workingDirectory: String) async -> [ChatSessionMessage] {

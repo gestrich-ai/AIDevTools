@@ -8,10 +8,10 @@ import SwiftUI
 struct RightExecutionPanelView: View {
     @Environment(ExecutionPanelModel.self) private var panelModel
 
-    @State private var chatContext: GlobalChatContext
+    private let chatContext: GlobalChatContext
 
     init(tab: String, workingDirectory: String) {
-        _chatContext = State(initialValue: GlobalChatContext(tab: tab, workingDirectory: workingDirectory))
+        chatContext = GlobalChatContext(tab: tab, workingDirectory: workingDirectory)
     }
 
     var body: some View {

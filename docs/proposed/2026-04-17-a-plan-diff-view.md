@@ -31,11 +31,11 @@ PR Radar uses two diff views: `DiffPhaseView` (inline, Diff tab) and `EffectiveD
 
 ## Phases
 
-## - [ ] Phase 1: Create a shared `GitUIKit` target
+## - [ ] Phase 1: Create a shared target called `GitUIKit`
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-code-organization`
 
-Create a new Swift package target `GitUIKit` in the `ui-toolkits` layer for generic, reusable diff UI components. This target will be importable by both PRRadar and the new planning diff feature — and any future feature that needs a diff view.
+Create a new Swift package target called `GitUIKit` in the `ui-toolkits` layer for generic, reusable diff UI components. This target will be importable by both PRRadar and the new planning diff feature — and any future feature that needs a diff view.
 
 In `Package.swift`, add a `// UI Toolkits Layer` section and register the target:
 

@@ -18,7 +18,7 @@ struct ContextualChatPanel: View {
     @State private var chatModel: ChatModel?
     @State private var messageText: String = ""
     @State private var pastedImages: [ImageAttachment] = []
-    @State private var customWorkingDirectory: String?
+    @State private var workingDirectory: String = ""
     @State private var showingMCPPopover: Bool = false
     @State private var showingQueueViewer: Bool = false
     @State private var showingSessionPicker: Bool = false
@@ -43,7 +43,7 @@ struct ContextualChatPanel: View {
             if selectedProviderName.isEmpty {
                 selectedProviderName = providerModel.providerRegistry.defaultClient?.name ?? ""
             }
-            customWorkingDirectory = nil
+            workingDirectory = context.chatWorkingDirectory
             rebuildChatModel()
         }
         .onChange(of: selectedProviderName) {
@@ -60,62 +60,65 @@ struct ContextualChatPanel: View {
     // MARK: - Header
 
     private var headerBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "bubble.left.and.bubble.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            Text("Chat")
-                .font(.caption.weight(.medium))
+                Text("Chat")
+                    .font(.caption.weight(.medium))
 
+                Spacer()
+
+                Picker("", selection: Binding(
+                    get: {
+                        selectedProviderName.isEmpty
+                            ? (providerModel.providerRegistry.defaultClient?.name ?? "")
+                            : selectedProviderName
+                    },
+                    set: { selectedProviderName = $0 }
+                )) {
+                    ForEach(providerModel.providerRegistry.providers, id: \.name) { provider in
+                        Text(provider.displayName).tag(provider.name)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 100)
+
+                Button(action: { showingSessionPicker = true }) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Session history")
+                .popover(isPresented: $showingSessionPicker) {
+                    if let model = chatModel {
+                        ChatSessionPickerView()
+                            .environment(model)
+                    }
+                }
+
+                Button(action: { chatModel?.startNewConversation() }) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("New conversation")
+            }
+            
             Button(action: selectWorkingDirectory) {
                 Label(workingDirectoryLabel, systemImage: "folder")
                     .font(.caption)
                     .foregroundStyle(isSessionLocked ? .tertiary : .secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
             .disabled(isSessionLocked)
             .help(workingDirectoryHelpText)
-
-            Spacer()
-
-            Picker("", selection: Binding(
-                get: {
-                    selectedProviderName.isEmpty
-                        ? (providerModel.providerRegistry.defaultClient?.name ?? "")
-                        : selectedProviderName
-                },
-                set: { selectedProviderName = $0 }
-            )) {
-                ForEach(providerModel.providerRegistry.providers, id: \.name) { provider in
-                    Text(provider.displayName).tag(provider.name)
-                }
-            }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .frame(width: 100)
-
-            Button(action: { showingSessionPicker = true }) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Session history")
-            .popover(isPresented: $showingSessionPicker) {
-                if let model = chatModel {
-                    ChatSessionPickerView()
-                        .environment(model)
-                }
-            }
-
-            Button(action: { chatModel?.startNewConversation() }) {
-                Image(systemName: "square.and.pencil")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("New conversation")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -293,10 +296,6 @@ struct ContextualChatPanel: View {
 
     // MARK: - Private
 
-    private var effectiveWorkingDirectory: String {
-        customWorkingDirectory ?? context.chatWorkingDirectory
-    }
-
     private var isSessionLocked: Bool {
         chatModel?.hasStartedSession == true
     }
@@ -304,13 +303,13 @@ struct ContextualChatPanel: View {
     private var workingDirectoryHelpText: String {
         let prefix = isSessionLocked ? "Working directory locked:" : "Working directory:"
         let suffix = isSessionLocked ? "" : "\nClick to change"
-        return "\(prefix) \(effectiveWorkingDirectory)\(suffix)"
+        return "\(prefix) \(workingDirectory)\(suffix)"
     }
 
     private var workingDirectoryLabel: String {
-        guard !effectiveWorkingDirectory.isEmpty else { return "Select folder" }
-        let label = URL(fileURLWithPath: effectiveWorkingDirectory).lastPathComponent
-        return label.isEmpty ? effectiveWorkingDirectory : label
+        guard !workingDirectory.isEmpty else { return "Select folder" }
+        let label = URL(fileURLWithPath: workingDirectory).lastPathComponent
+        return label.isEmpty ? workingDirectory : label
     }
 
     private func rebuildChatModel() {
@@ -332,7 +331,7 @@ struct ContextualChatPanel: View {
             mcpConfigPath: mcpConfigPath,
             settings: settings,
             systemPrompt: context.chatSystemPrompt,
-            workingDirectory: effectiveWorkingDirectory
+            workingDirectory: workingDirectory
         ))
     }
 
@@ -341,14 +340,14 @@ struct ContextualChatPanel: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        if !effectiveWorkingDirectory.isEmpty {
-            panel.directoryURL = URL(fileURLWithPath: effectiveWorkingDirectory)
+        if !workingDirectory.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: workingDirectory)
         }
         panel.prompt = "Select"
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        customWorkingDirectory = url.path
+        workingDirectory = url.path
         rebuildChatModel()
     }
 }
