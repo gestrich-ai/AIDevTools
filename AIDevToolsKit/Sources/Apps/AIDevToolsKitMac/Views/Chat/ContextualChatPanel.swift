@@ -18,6 +18,7 @@ struct ContextualChatPanel: View {
     @State private var chatModel: ChatModel?
     @State private var messageText: String = ""
     @State private var pastedImages: [ImageAttachment] = []
+    @State private var customWorkingDirectory: String?
     @State private var showingMCPPopover: Bool = false
     @State private var showingQueueViewer: Bool = false
     @State private var showingSessionPicker: Bool = false
@@ -42,6 +43,7 @@ struct ContextualChatPanel: View {
             if selectedProviderName.isEmpty {
                 selectedProviderName = providerModel.providerRegistry.defaultClient?.name ?? ""
             }
+            customWorkingDirectory = nil
             rebuildChatModel()
         }
         .onChange(of: selectedProviderName) {
@@ -65,6 +67,15 @@ struct ContextualChatPanel: View {
 
             Text("Chat")
                 .font(.caption.weight(.medium))
+
+            Button(action: selectWorkingDirectory) {
+                Label(workingDirectoryLabel, systemImage: "folder")
+                    .font(.caption)
+                    .foregroundStyle(isSessionLocked ? .tertiary : .secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(isSessionLocked)
+            .help(workingDirectoryHelpText)
 
             Spacer()
 
@@ -282,6 +293,26 @@ struct ContextualChatPanel: View {
 
     // MARK: - Private
 
+    private var effectiveWorkingDirectory: String {
+        customWorkingDirectory ?? context.chatWorkingDirectory
+    }
+
+    private var isSessionLocked: Bool {
+        chatModel?.hasStartedSession == true
+    }
+
+    private var workingDirectoryHelpText: String {
+        let prefix = isSessionLocked ? "Working directory locked:" : "Working directory:"
+        let suffix = isSessionLocked ? "" : "\nClick to change"
+        return "\(prefix) \(effectiveWorkingDirectory)\(suffix)"
+    }
+
+    private var workingDirectoryLabel: String {
+        guard !effectiveWorkingDirectory.isEmpty else { return "Select folder" }
+        let label = URL(fileURLWithPath: effectiveWorkingDirectory).lastPathComponent
+        return label.isEmpty ? effectiveWorkingDirectory : label
+    }
+
     private func rebuildChatModel() {
         guard let client = providerModel.providerRegistry.client(named: selectedProviderName)
                 ?? providerModel.providerRegistry.defaultClient else { return }
@@ -301,7 +332,23 @@ struct ContextualChatPanel: View {
             mcpConfigPath: mcpConfigPath,
             settings: settings,
             systemPrompt: context.chatSystemPrompt,
-            workingDirectory: context.chatWorkingDirectory
+            workingDirectory: effectiveWorkingDirectory
         ))
+    }
+
+    private func selectWorkingDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        if !effectiveWorkingDirectory.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: effectiveWorkingDirectory)
+        }
+        panel.prompt = "Select"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        customWorkingDirectory = url.path
+        rebuildChatModel()
     }
 }

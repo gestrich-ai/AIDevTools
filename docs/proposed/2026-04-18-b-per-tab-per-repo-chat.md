@@ -140,7 +140,10 @@ settings.resumeLastSession = true   // was false
 
 ---
 
-## - [ ] Phase 4: Working directory selector in chat header
+## - [x] Phase 4: Working directory selector in chat header
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-configuration-architecture`, `ai-dev-tools-swift-testing`
+**Principles applied**: Kept the selector local to the app-layer chat panel, rebuilt the chat model only while the session is still pre-start, and used the existing session-start signal to lock the working directory once conversation state exists.
 
 **Skills to read**: (none specific)
 

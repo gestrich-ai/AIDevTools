@@ -29,7 +29,7 @@ public final class ChatModel {
     private let systemPrompt: String?
     private var currentConsumeTask: Task<Void, Never>?
     private var currentTask: Task<Void, Never>?
-    private var hasStartedSession: Bool = false
+    public private(set) var hasStartedSession: Bool = false
     private var sessionId: String?
 
     public init(
@@ -467,4 +467,3 @@ public final class ChatModel {
         case processing
     }
 }
-
