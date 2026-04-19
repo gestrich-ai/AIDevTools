@@ -29,6 +29,8 @@ public struct ClaudeProvider: Sendable {
         onOutput: (@Sendable (StreamOutput) -> Void)? = nil
     ) async throws -> ExecutionResult {
         let client = CLIClient(printOutput: false)
+        let sanitizedArguments = command.commandArguments.map(Self.sanitizeLaunchString)
+        let sanitizedWorkingDirectory = workingDirectory.map(Self.sanitizeLaunchString)
         var env = environment ?? ProcessInfo.processInfo.environment
         env[ClaudeEnvironmentKey.claudeCode] = ""
         let home = env["HOME"] ?? "/Users/\(NSUserName())"
@@ -65,8 +67,8 @@ public struct ClaudeProvider: Sendable {
                 group.addTask {
                     try await client.execute(
                         command: claudePath,
-                        arguments: command.commandArguments,
-                        workingDirectory: workingDirectory,
+                        arguments: sanitizedArguments,
+                        workingDirectory: sanitizedWorkingDirectory,
                         environment: env,
                         printCommand: false,
                         output: outputStream
@@ -178,6 +180,10 @@ public struct ClaudeProvider: Sendable {
                 currentCommand = Self.structuredOutputFollowUpCommand(from: command, sessionId: sessionId)
             }
         }
+    }
+
+    private static func sanitizeLaunchString(_ string: String) -> String {
+        string.replacingOccurrences(of: "\0", with: "")
     }
 
     // MARK: - Output Handlers

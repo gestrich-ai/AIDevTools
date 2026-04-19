@@ -117,6 +117,8 @@ public struct CodexProvider: Sendable {
         environment: [String: String]?,
         onOutput: (@Sendable (StreamOutput) -> Void)?
     ) async throws -> ExecutionResult {
+        let sanitizedArguments = arguments.map(Self.sanitizeLaunchString)
+        let sanitizedWorkingDirectory = workingDirectory.map(Self.sanitizeLaunchString)
         var env = environment ?? ProcessInfo.processInfo.environment
         let home = env["HOME"] ?? "/Users/\(NSUserName())"
         let additionalPaths = [
@@ -153,8 +155,8 @@ public struct CodexProvider: Sendable {
                 group.addTask {
                     try await client.execute(
                         command: codexPath,
-                        arguments: arguments,
-                        workingDirectory: workingDirectory,
+                        arguments: sanitizedArguments,
+                        workingDirectory: sanitizedWorkingDirectory,
                         environment: env,
                         printCommand: false,
                         stdin: Data(),
@@ -209,6 +211,10 @@ public struct CodexProvider: Sendable {
         }
         return "codex"
     }
+
+    private static func sanitizeLaunchString(_ string: String) -> String {
+        string.replacingOccurrences(of: "\0", with: "")
+    }
 }
 
 public enum CodexCLIError: Error, LocalizedError {
@@ -221,4 +227,3 @@ public enum CodexCLIError: Error, LocalizedError {
         }
     }
 }
-
