@@ -6,7 +6,7 @@ public struct GitClient: Sendable {
     private let client: CLIClient
     private let environment: [String: String]?
 
-    public init(client: CLIClient = CLIClient(), environment: [String: String]? = nil) {
+    public init(client: CLIClient = CLIClient(printOutput: false), environment: [String: String]? = nil) {
         self.client = client
         self.environment = environment
     }

@@ -1,11 +1,8 @@
 import AppKit
 import GitDiffModelsService
 import GitUIToolkit
-import Logging
 import PRRadarModelsService
 import SwiftUI
-
-private let logger = Logger(label: "RichDiffViews")
 
 // MARK: - Inline Comment Card
 
@@ -452,7 +449,6 @@ struct AnnotatedDiffContentView: View {
             .scrollContentBackground(.hidden)
             .task(id: scrollToCommentID) {
                 guard let id = scrollToCommentID else { return }
-                logger.info("scrollToCommentID task: scrolling to \(id)")
                 try? await Task.sleep(for: .milliseconds(100))
                 guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.3)) {

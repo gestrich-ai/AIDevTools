@@ -1,11 +1,8 @@
 import GitDiffModelsService
-import Logging
 import PRRadarConfigService
 import PRRadarModelsService
 import PRReviewFeature
 import SwiftUI
-
-private let logger = Logger(label: "DiffPhaseView")
 
 struct DiffPhaseView: View {
 
@@ -56,7 +53,6 @@ struct DiffPhaseView: View {
             }
         }
         .onAppear {
-            logger.info("DiffPhaseView.onAppear: selectedFile=\(selectedFile ?? "nil") pendingNav=\(prModel.pendingViolationNavigation.map(String.init(describing:)) ?? "nil") reviewComments=\(reviewComments.count)")
             consumePendingNavigation()
             if selectedFile == nil {
                 selectedFile = fullDiff.changedFiles.first
@@ -588,9 +584,7 @@ struct DiffPhaseView: View {
     private func consumePendingNavigation() {
         guard let nav = prModel.pendingViolationNavigation else { return }
         let violationCount = orderedViolations.count
-        logger.info("consumePendingNavigation: nav=\(nav) violationCount=\(violationCount) reviewComments=\(reviewComments.count)")
         guard violationCount > 0 else {
-            logger.info("consumePendingNavigation: no violations yet, keeping pending navigation for later")
             return
         }
         prModel.pendingViolationNavigation = nil
@@ -623,7 +617,6 @@ struct DiffPhaseView: View {
         prModel.currentViolationIndex = newIndex
 
         let violation = violations[newIndex]
-        logger.info("navigateViolation: index=\(newIndex)/\(violations.count) file=\(URL(fileURLWithPath: violation.file).lastPathComponent)")
 
         if violation.file != selectedFile {
             selectedFile = violation.file
