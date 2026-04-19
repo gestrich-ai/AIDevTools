@@ -1,4 +1,4 @@
-import PRRadarModelsService
+import GitDiffModelsService
 import Testing
 @testable import GitUIToolkit
 

@@ -1,4 +1,5 @@
 import Foundation
+import GitDiffModelsService
 import Testing
 @testable import PRRadarCLIService
 @testable import PRRadarModelsService

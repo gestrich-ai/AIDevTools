@@ -16,137 +16,137 @@ import SwiftUI
 import WorktreeFeature
 
 public struct AIDevToolsKitMacEntryView: View {
-  @State private var appModel: AppModel
-  @State private var architecturePlannerModel: ArchitecturePlannerModel
-  @State private var claudeChainModel: ClaudeChainModel
-  @State private var credentialModel = CredentialModel()
-  @State private var ipcServer: AppIPCServer
-  @State private var mcpModel: MCPModel
-  @State private var planModel: PlanModel
-  @State private var settingsModel: SettingsModel
-  @State private var worktreeModel: WorktreeModel
-  @State private var workspaceModel: WorkspaceModel
-  private let evalProviderRegistry: EvalProviderRegistry
-  private let gitWorkingDirectoryMonitor: GitWorkingDirectoryMonitor
-  private let localDiffService: LocalDiffService
-  private let repoExplorerViewModelFactory: @MainActor () -> DirectoryBrowserViewModel
-
-  public init() {
-    guard let root = try? CompositionRoot.create() else {
-      fatalError("Failed to initialize app services. Check data directory permissions.")
-    }
-    _ipcServer = State(initialValue: AppIPCServer())
-    _mcpModel = State(initialValue: root.mcpModel)
-    _settingsModel = State(initialValue: root.settingsModel)
-    let appModel = AppModel(providerModel: root.providerModel)
-    _appModel = State(initialValue: appModel)
-    let store = root.settingsService.repositoryStore
-    let worktreeModel = WorktreeModel(gitClient: root.gitClientFactory(nil))
-    _worktreeModel = State(initialValue: worktreeModel)
+    @State private var appModel: AppModel
+    @State private var architecturePlannerModel: ArchitecturePlannerModel
+    @State private var claudeChainModel: ClaudeChainModel
+    @State private var credentialModel = CredentialModel()
+    @State private var ipcServer: AppIPCServer
+    @State private var mcpModel: MCPModel
+    @State private var planModel: PlanModel
+    @State private var settingsModel: SettingsModel
+    @State private var worktreeModel: WorktreeModel
+    @State private var workspaceModel: WorkspaceModel
+    private let evalProviderRegistry: EvalProviderRegistry
+    private let gitWorkingDirectoryMonitor: GitWorkingDirectoryMonitor
+    private let localDiffService: LocalDiffService
+    private let repoExplorerViewModelFactory: @MainActor () -> DirectoryBrowserViewModel
+    
+    public init() {
+        guard let root = try? CompositionRoot.create() else {
+            fatalError("Failed to initialize app services. Check data directory permissions.")
+        }
+        _ipcServer = State(initialValue: AppIPCServer())
+        _mcpModel = State(initialValue: root.mcpModel)
+        _settingsModel = State(initialValue: root.settingsModel)
+        let appModel = AppModel(providerModel: root.providerModel)
+        _appModel = State(initialValue: appModel)
+        let store = root.settingsService.repositoryStore
+        let worktreeModel = WorktreeModel(gitClient: root.gitClientFactory(nil))
+        _worktreeModel = State(initialValue: worktreeModel)
         _workspaceModel = State(initialValue: WorkspaceModel(
-        dataPathsService: root.dataPathsService,
-        repositoryStore: store,
-        loadRepositories: LoadRepositoriesUseCase(store: store),
-        loadSkills: LoadSkillsUseCase(),
-        configureNewRepository: ConfigureNewRepositoryUseCase(
-          addRepository: AddRepositoryUseCase(store: store),
-          repositoryStore: store,
-          updateRepository: UpdateRepositoryUseCase(store: store)
-        ),
-        removeRepositoryWithSettings: RemoveRepositoryWithSettingsUseCase(
-          removeRepository: RemoveRepositoryUseCase(store: store)
-        ),
-        updateRepository: UpdateRepositoryUseCase(store: store),
-        worktreeModel: worktreeModel
+            dataPathsService: root.dataPathsService,
+            repositoryStore: store,
+            loadRepositories: LoadRepositoriesUseCase(store: store),
+            loadSkills: LoadSkillsUseCase(),
+            configureNewRepository: ConfigureNewRepositoryUseCase(
+                addRepository: AddRepositoryUseCase(store: store),
+                repositoryStore: store,
+                updateRepository: UpdateRepositoryUseCase(store: store)
+            ),
+            removeRepositoryWithSettings: RemoveRepositoryWithSettingsUseCase(
+                removeRepository: RemoveRepositoryUseCase(store: store)
+            ),
+            updateRepository: UpdateRepositoryUseCase(store: store),
+            worktreeModel: worktreeModel
         ))
-    let storedPlannerProviderName = UserDefaults.standard.string(forKey: "mdPlannerProviderName")
+        let storedPlannerProviderName = UserDefaults.standard.string(forKey: "mdPlannerProviderName")
         _planModel = State(initialValue: PlanModel(
-        dataPathsService: root.dataPathsService,
-        mcpConfigPath: DataPathsService.mcpConfigFileURL.path,
-        providerRegistry: appModel.providerModel.providerRegistry,
-        selectedProviderName: storedPlannerProviderName
+            dataPathsService: root.dataPathsService,
+            mcpConfigPath: DataPathsService.mcpConfigFileURL.path,
+            providerRegistry: appModel.providerModel.providerRegistry,
+            selectedProviderName: storedPlannerProviderName
         ))
-    let storedPlannerProvider = UserDefaults.standard.string(forKey: "archPlannerProviderName")
+        let storedPlannerProvider = UserDefaults.standard.string(forKey: "archPlannerProviderName")
         _claudeChainModel = State(initialValue: ClaudeChainModel(
-        providerRegistry: appModel.providerModel.providerRegistry,
-        dataPathsService: root.dataPathsService,
-        gitClientFactory: root.gitClientFactory
+            providerRegistry: appModel.providerModel.providerRegistry,
+            dataPathsService: root.dataPathsService,
+            gitClientFactory: root.gitClientFactory
         ))
         _architecturePlannerModel = State(initialValue: ArchitecturePlannerModel(
-        dataPathsService: root.dataPathsService,
-        providerRegistry: appModel.providerModel.providerRegistry,
-        selectedProviderName: storedPlannerProvider
+            dataPathsService: root.dataPathsService,
+            providerRegistry: appModel.providerModel.providerRegistry,
+            selectedProviderName: storedPlannerProvider
         ))
-    evalProviderRegistry = root.evalProviderRegistry
-    gitWorkingDirectoryMonitor = root.gitWorkingDirectoryMonitor
-    localDiffService = root.localDiffService
-    repoExplorerViewModelFactory = root.repoExplorerViewModelFactory
-  }
-
-  public var body: some View {
-    WorkspaceView(
-      evalProviderRegistry: evalProviderRegistry,
-      repoExplorerViewModelFactory: repoExplorerViewModelFactory
-    )
-            .environment(appModel)
-            .environment(appModel.providerModel)
-            .environment(architecturePlannerModel)
-            .environment(claudeChainModel)
-            .environment(credentialModel)
-            .environment(\.gitWorkingDirectoryMonitor, gitWorkingDirectoryMonitor)
-            .environment(\.localDiffService, localDiffService)
-            .environment(mcpModel)
-            .environment(planModel)
-            .environment(worktreeModel)
-            .environment(workspaceModel)
-            .frame(minWidth: 800, minHeight: 600)
-            .onChange(of: settingsModel.aiDevToolsRepoPath) { mcpModel.writeMCPConfigIfNeeded() }
-            .task { await ipcServer.start() }
-  }
+        evalProviderRegistry = root.evalProviderRegistry
+        gitWorkingDirectoryMonitor = root.gitWorkingDirectoryMonitor
+        localDiffService = root.localDiffService
+        repoExplorerViewModelFactory = root.repoExplorerViewModelFactory
+    }
+    
+    public var body: some View {
+        WorkspaceView(
+            evalProviderRegistry: evalProviderRegistry,
+            repoExplorerViewModelFactory: repoExplorerViewModelFactory
+        )
+        .environment(appModel)
+        .environment(appModel.providerModel)
+        .environment(architecturePlannerModel)
+        .environment(claudeChainModel)
+        .environment(credentialModel)
+        .environment(\.gitWorkingDirectoryMonitor, gitWorkingDirectoryMonitor)
+        .environment(\.localDiffService, localDiffService)
+        .environment(mcpModel)
+        .environment(planModel)
+        .environment(worktreeModel)
+        .environment(workspaceModel)
+        .frame(minWidth: 800, minHeight: 600)
+        .onChange(of: settingsModel.aiDevToolsRepoPath) { mcpModel.writeMCPConfigIfNeeded() }
+        .task { await ipcServer.start() }
+    }
 }
 
 public struct AIDevToolsSettingsView: View {
-  @State private var appModel: AppModel
-  @State private var credentialModel = CredentialModel()
-  @State private var logsModel = LogsModel()
-  @State private var mcpModel: MCPModel
-  @State private var settingsModel: SettingsModel
-  @State private var workspaceModel: WorkspaceModel
-
-  public init() {
-    guard let root = try? CompositionRoot.create() else {
-      fatalError("Failed to initialize app services. Check data directory permissions.")
-    }
-    _appModel = State(initialValue: AppModel(providerModel: root.providerModel))
-    _mcpModel = State(initialValue: root.mcpModel)
-    _settingsModel = State(initialValue: root.settingsModel)
-    let store = root.settingsService.repositoryStore
+    @State private var appModel: AppModel
+    @State private var credentialModel = CredentialModel()
+    @State private var logsModel = LogsModel()
+    @State private var mcpModel: MCPModel
+    @State private var settingsModel: SettingsModel
+    @State private var workspaceModel: WorkspaceModel
+    
+    public init() {
+        guard let root = try? CompositionRoot.create() else {
+            fatalError("Failed to initialize app services. Check data directory permissions.")
+        }
+        _appModel = State(initialValue: AppModel(providerModel: root.providerModel))
+        _mcpModel = State(initialValue: root.mcpModel)
+        _settingsModel = State(initialValue: root.settingsModel)
+        let store = root.settingsService.repositoryStore
         _workspaceModel = State(initialValue: WorkspaceModel(
-        dataPathsService: root.dataPathsService,
-        repositoryStore: store,
-        loadRepositories: LoadRepositoriesUseCase(store: store),
-        loadSkills: LoadSkillsUseCase(),
-        configureNewRepository: ConfigureNewRepositoryUseCase(
-          addRepository: AddRepositoryUseCase(store: store),
-          repositoryStore: store,
-          updateRepository: UpdateRepositoryUseCase(store: store)
-        ),
-        removeRepositoryWithSettings: RemoveRepositoryWithSettingsUseCase(
-          removeRepository: RemoveRepositoryUseCase(store: store)
-        ),
-        updateRepository: UpdateRepositoryUseCase(store: store)
+            dataPathsService: root.dataPathsService,
+            repositoryStore: store,
+            loadRepositories: LoadRepositoriesUseCase(store: store),
+            loadSkills: LoadSkillsUseCase(),
+            configureNewRepository: ConfigureNewRepositoryUseCase(
+                addRepository: AddRepositoryUseCase(store: store),
+                repositoryStore: store,
+                updateRepository: UpdateRepositoryUseCase(store: store)
+            ),
+            removeRepositoryWithSettings: RemoveRepositoryWithSettingsUseCase(
+                removeRepository: RemoveRepositoryUseCase(store: store)
+            ),
+            updateRepository: UpdateRepositoryUseCase(store: store)
         ))
-  }
-
-  public var body: some View {
-    SettingsView()
-      .environment(appModel)
-      .environment(appModel.providerModel)
-      .environment(credentialModel)
-      .environment(logsModel)
-      .environment(mcpModel)
-      .environment(settingsModel)
-      .environment(workspaceModel)
-      .task { workspaceModel.load() }
-  }
+    }
+    
+    public var body: some View {
+        SettingsView()
+            .environment(appModel)
+            .environment(appModel.providerModel)
+            .environment(credentialModel)
+            .environment(logsModel)
+            .environment(mcpModel)
+            .environment(settingsModel)
+            .environment(workspaceModel)
+            .task { workspaceModel.load() }
+    }
 }

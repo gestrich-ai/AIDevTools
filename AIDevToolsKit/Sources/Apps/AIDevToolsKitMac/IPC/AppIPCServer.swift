@@ -2,6 +2,10 @@ import AppIPCSDK
 import Darwin
 import Foundation
 
+/// Local Unix-socket server that lets CLI tools ask the running Mac app for UI state.
+///
+/// This is the server-side half of the app IPC contract. The Mac app owns the
+/// socket and answers small request-response queries such as `getUIState`.
 @MainActor
 final class AppIPCServer {
     private var serverTask: Task<Void, Never>?
@@ -19,6 +23,7 @@ final class AppIPCServer {
         }
     }
 
+    /// Creates the socket, binds it, and serves requests until the task is cancelled.
     private nonisolated static func runServer(socketPath: String) async {
         try? FileManager.default.removeItem(atPath: socketPath)
         let dir = URL(fileURLWithPath: socketPath).deletingLastPathComponent().path
@@ -54,6 +59,7 @@ final class AppIPCServer {
         }
     }
 
+    /// Accepts incoming client connections and dispatches each one independently.
     private nonisolated static func acceptLoop(fd: Int32) async {
         while !Task.isCancelled {
             let clientFd = Darwin.accept(fd, nil, nil)
@@ -64,6 +70,7 @@ final class AppIPCServer {
         }
     }
 
+    /// Decodes one request, builds the current UI snapshot, and writes it back.
     private nonisolated static func handleConnection(clientFd: Int32) async {
         defer { Darwin.close(clientFd) }
 

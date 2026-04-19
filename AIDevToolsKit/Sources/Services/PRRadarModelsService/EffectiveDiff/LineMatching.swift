@@ -1,4 +1,5 @@
 import Foundation
+import GitDiffModelsService
 
 // MARK: - Data Structures
 

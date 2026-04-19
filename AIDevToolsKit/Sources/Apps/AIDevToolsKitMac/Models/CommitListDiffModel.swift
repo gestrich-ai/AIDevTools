@@ -1,57 +1,10 @@
 import GitSDK
+import GitDiffModelsService
 import LocalDiffService
 import Observation
-import PRRadarModelsService
 
 @MainActor @Observable
 final class CommitListDiffModel {
-    enum DiffState {
-        case empty(message: String)
-        case error(String)
-        case loaded(GitDiff)
-        case loading
-    }
-
-    struct Entry: Identifiable, Equatable {
-        enum Kind: Equatable {
-            case commit(GitCommitSummary)
-            case staged
-            case unstaged
-        }
-
-        let id: String
-        let kind: Kind
-
-        var detailText: String {
-            switch kind {
-            case .commit(let commit):
-                commit.hash.prefix(7).description
-            case .staged:
-                "Index"
-            case .unstaged:
-                "Working tree"
-            }
-        }
-
-        var title: String {
-            switch kind {
-            case .commit(let commit):
-                commit.subject
-            case .staged:
-                "Staged changes"
-            case .unstaged:
-                "Unstaged changes"
-            }
-        }
-    }
-
-    enum EntriesState {
-        case empty
-        case error(String)
-        case loaded([Entry])
-        case loading
-    }
-
     private let diffService: LocalDiffService
     private let planPhaseDescriptions: [String]
     private let recentCommitLimit: Int
@@ -287,5 +240,52 @@ final class CommitListDiffModel {
             autoSelectFirstEntry: false,
             reloadDiffIfNeeded: shouldReloadDiff
         )
+    }
+
+    enum DiffState {
+        case empty(message: String)
+        case error(String)
+        case loaded(GitDiff)
+        case loading
+    }
+
+    enum EntriesState {
+        case empty
+        case error(String)
+        case loaded([Entry])
+        case loading
+    }
+
+    struct Entry: Identifiable, Equatable {
+        enum Kind: Equatable {
+            case commit(GitCommitSummary)
+            case staged
+            case unstaged
+        }
+
+        let id: String
+        let kind: Kind
+
+        var detailText: String {
+            switch kind {
+            case .commit(let commit):
+                commit.hash.prefix(7).description
+            case .staged:
+                "Index"
+            case .unstaged:
+                "Working tree"
+            }
+        }
+
+        var title: String {
+            switch kind {
+            case .commit(let commit):
+                commit.subject
+            case .staged:
+                "Staged changes"
+            case .unstaged:
+                "Unstaged changes"
+            }
+        }
     }
 }

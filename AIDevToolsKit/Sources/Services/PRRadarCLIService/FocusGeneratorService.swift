@@ -1,5 +1,6 @@
 import AIOutputSDK
 import Foundation
+import GitDiffModelsService
 import PRRadarModelsService
 
 /// Generates focus areas (reviewable units of code) from diff hunks.

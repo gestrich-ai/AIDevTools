@@ -5,6 +5,7 @@ import Glibc
 #endif
 import Foundation
 
+/// Errors surfaced while talking to the local Mac app over IPC.
 public enum IPCError: Error, LocalizedError, Sendable {
     case appNotRunning
     case connectionFailed(String)
@@ -22,6 +23,10 @@ public enum IPCError: Error, LocalizedError, Sendable {
     }
 }
 
+/// Small client for the app's local IPC channel.
+///
+/// IPC here means inter-process communication: the CLI connects to the Mac app
+/// over a Unix domain socket and asks for the current UI state.
 public struct AppIPCClient: Sendable {
 
     /// Canonical path to the Unix domain socket used for Mac app IPC.
@@ -34,6 +39,7 @@ public struct AppIPCClient: Sendable {
 
     public init() {}
 
+    /// Fetches the current UI state from the running Mac app.
     public func getUIState() async throws -> IPCUIState {
         let path = Self.socketFilePath
         guard FileManager.default.fileExists(atPath: path) else {
@@ -42,6 +48,7 @@ public struct AppIPCClient: Sendable {
         return try Self.performRequest(socketPath: path)
     }
 
+    /// Performs a single request-response round trip over the Unix socket.
     private static func performRequest(socketPath: String) throws -> IPCUIState {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else {

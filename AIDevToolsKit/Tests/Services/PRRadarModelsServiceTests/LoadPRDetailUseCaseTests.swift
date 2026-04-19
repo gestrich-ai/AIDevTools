@@ -1,4 +1,5 @@
 import Foundation
+import GitDiffModelsService
 import RepositorySDK
 import Testing
 @testable import PRRadarCLIService

@@ -1,3 +1,5 @@
+import GitDiffModelsService
+
 public struct PRDiff: Codable, Sendable, Equatable {
     public let commitHash: String
     public let rawText: String

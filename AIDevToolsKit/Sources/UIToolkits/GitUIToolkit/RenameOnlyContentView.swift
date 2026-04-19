@@ -1,6 +1,6 @@
 import SwiftUI
 
-public struct PureRenameContentView: View {
+public struct RenameOnlyContentView: View {
     public init() {}
 
     public var body: some View {

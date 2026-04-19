@@ -24,6 +24,7 @@ var products: [Product] = [
     .library(name: "EvalSDK", targets: ["EvalSDK"]),
     .library(name: "EvalService", targets: ["EvalService"]),
     .library(name: "FileTreeService", targets: ["FileTreeService"]),
+    .library(name: "GitDiffModelsService", targets: ["GitDiffModelsService"]),
     .library(name: "GitHubService", targets: ["GitHubService"]),
     .library(name: "GitSDK", targets: ["GitSDK"]),
     .library(name: "GitUIToolkit", targets: ["GitUIToolkit"]),
@@ -118,7 +119,7 @@ var targets: [Target] = [
     .target(
         name: "GitUIToolkit",
         dependencies: [
-            "PRRadarModelsService",
+            "GitDiffModelsService",
         ],
         path: "Sources/UIToolkits/GitUIToolkit"
     ),
@@ -206,6 +207,7 @@ var targets: [Target] = [
             "ClaudeCLISDK",
             "CredentialService",
             "EnvironmentSDK",
+            "GitDiffModelsService",
             "GitHubService",
             "LoggingSDK",
             "PRRadarCLIService",
@@ -321,10 +323,15 @@ var targets: [Target] = [
         path: "Sources/Services/GitHubService"
     ),
     .target(
+        name: "GitDiffModelsService",
+        dependencies: [],
+        path: "Sources/Services/GitDiffModelsService"
+    ),
+    .target(
         name: "LocalDiffService",
         dependencies: [
+            "GitDiffModelsService",
             "GitSDK",
-            "PRRadarModelsService",
         ],
         path: "Sources/Services/LocalDiffService"
     ),
@@ -350,6 +357,7 @@ var targets: [Target] = [
         dependencies: [
             "AIOutputSDK",
             .product(name: "CLISDK", package: "SwiftCLI"),
+            "GitDiffModelsService",
             "GitHubService",
             "GitSDK",
             .product(name: "Logging", package: "swift-log"),
@@ -368,6 +376,7 @@ var targets: [Target] = [
             "CredentialService",
             "DataPathsService",
             "EnvironmentSDK",
+            "GitDiffModelsService",
             "GitHubService",
             "GitSDK",
             "OctokitSDK",
@@ -393,6 +402,7 @@ var targets: [Target] = [
         name: "PRRadarModelsService",
         dependencies: [
             .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
+            "GitDiffModelsService",
             "GitHubService",
         ],
         path: "Sources/Services/PRRadarModelsService"
@@ -700,7 +710,7 @@ var targets: [Target] = [
     ),
     .testTarget(
         name: "GitUIToolkitTests",
-        dependencies: ["GitUIToolkit", "PRRadarModelsService"],
+        dependencies: ["GitDiffModelsService", "GitUIToolkit"],
         path: "Tests/UIToolkits/GitUIToolkitTests"
     ),
     .testTarget(
@@ -745,6 +755,7 @@ var targets: [Target] = [
         name: "PRRadarModelsServiceTests",
         dependencies: [
             "EnvironmentSDK",
+            "GitDiffModelsService",
             "GitHubService",
             "KeychainSDK",
             "PRRadarCLIService",
@@ -821,6 +832,7 @@ targets.append(contentsOf: [
             "EvalSDK",
             "EvalService",
             "FileTreeService",
+            "GitDiffModelsService",
             "GitHubService",
             "GitSDK",
             "GitUIToolkit",

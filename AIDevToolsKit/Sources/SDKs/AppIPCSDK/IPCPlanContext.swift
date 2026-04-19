@@ -1,5 +1,6 @@
 import Foundation
 
+/// Plan-specific context attached to IPC UI state when the Plans tab is active.
 public struct IPCPlanContext: Codable, Equatable, Sendable {
     public let completedPhases: [String]
     public let planFilePath: String

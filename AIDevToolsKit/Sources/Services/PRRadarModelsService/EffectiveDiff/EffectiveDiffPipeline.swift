@@ -1,4 +1,5 @@
 import Foundation
+import GitDiffModelsService
 
 /// Result of running the full effective diff pipeline.
 public struct EffectiveDiffPipelineResult: Sendable, Equatable {

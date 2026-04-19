@@ -1,4 +1,5 @@
 import AppKit
+import GitDiffModelsService
 import GitUIToolkit
 import Logging
 import PRRadarModelsService
@@ -376,7 +377,7 @@ struct AnnotatedDiffContentView: View {
                     }
 
                     if hunks.allSatisfy({ $0.diffLines.isEmpty }) && oldPath != nil {
-                        PureRenameContentView()
+                        RenameOnlyContentView()
                             .diffListRow()
                     }
 

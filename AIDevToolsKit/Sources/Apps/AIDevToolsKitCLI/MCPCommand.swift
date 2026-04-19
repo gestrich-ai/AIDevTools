@@ -159,49 +159,7 @@ struct MCPCommand: AsyncParsableCommand {
     private static func handleGetChatContext() async throws -> CallTool.Result {
         do {
             let state = try await AppIPCClient().getUIState()
-            var lines = [
-                "Current tab: \(state.currentTab ?? "unknown")",
-                "Selected chain: \(state.selectedChainName ?? "none")",
-                "Selected plan: \(state.selectedPlanName ?? "none")",
-            ]
-
-            if let planContext = state.activePlanContext {
-                lines.append("")
-                lines.append("Open plan context:")
-                lines.append("Plan name: \(planContext.planName)")
-                lines.append("Plan file path: \(planContext.planFilePath)")
-                let completedPhases = planContext.completedPhases.isEmpty
-                    ? "none"
-                    : planContext.completedPhases.joined(separator: "; ")
-                lines.append("Completed phases: \(completedPhases)")
-            } else {
-                lines.append("")
-                lines.append("Open plan context: none")
-            }
-
-            if let diffContext = state.activeDiffContext {
-                lines.append("")
-                lines.append("Open diff context:")
-                if diffContext.selectedCommits.isEmpty {
-                    lines.append("Selected commits: none")
-                } else {
-                    lines.append("Selected commits:")
-                    for commit in diffContext.selectedCommits {
-                        lines.append("- \(commit.hash): \(commit.message)")
-                    }
-                }
-                lines.append("Selected file: \(diffContext.selectedFilePath ?? "none")")
-                let selectedSources = diffContext.selectedSources.isEmpty
-                    ? "none"
-                    : diffContext.selectedSources.joined(separator: ", ")
-                lines.append("Selected diff sources: \(selectedSources)")
-                lines.append("Note: if the user asks about changes visible in an open diff or asks to make edits, they are likely requesting code modifications to the files shown here.")
-            } else {
-                lines.append("")
-                lines.append("Open diff context: none")
-            }
-
-            return .init(content: [.text(text: lines.joined(separator: "\n"), annotations: nil, _meta: nil)], isError: false)
+            return .init(content: [.text(text: state.chatContextText(), annotations: nil, _meta: nil)], isError: false)
         } catch {
             return .init(
                 content: [.text(text: "App is not running or unavailable: \(error.localizedDescription)", annotations: nil, _meta: nil)],
@@ -319,12 +277,7 @@ struct MCPCommand: AsyncParsableCommand {
     private static func handleGetUIState() async throws -> CallTool.Result {
         do {
             let state = try await AppIPCClient().getUIState()
-            let text = """
-                Current tab: \(state.currentTab ?? "unknown")
-                Selected chain: \(state.selectedChainName ?? "none")
-                Selected plan: \(state.selectedPlanName ?? "none")
-                """
-            return .init(content: [.text(text: text, annotations: nil, _meta: nil)], isError: false)
+            return .init(content: [.text(text: state.uiStateText(), annotations: nil, _meta: nil)], isError: false)
         } catch {
             return .init(
                 content: [.text(text: "App is not running or unavailable: \(error.localizedDescription)", annotations: nil, _meta: nil)],

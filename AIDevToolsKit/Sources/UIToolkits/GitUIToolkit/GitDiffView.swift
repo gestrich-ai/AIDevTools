@@ -1,4 +1,4 @@
-import PRRadarModelsService
+import GitDiffModelsService
 import SwiftUI
 
 public struct GitDiffView: View {
@@ -90,46 +90,43 @@ public struct GitDiffView: View {
 
     @ViewBuilder
     private var diffContent: some View {
-        List {
-            ForEach(renderedFiles, id: \.filePath) { file in
-                if let renameFrom = file.renameFrom {
-                    RenameFileHeaderView(oldPath: renameFrom, newPath: file.filePath)
-                        .diffListRow()
-                } else {
-                    Text(file.filePath)
-                        .font(.system(.body, design: .monospaced))
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(nsColor: .windowBackgroundColor))
-                        .diffListRow()
-                }
+        VStack(spacing: 0) {
+            if let pinnedFileHeader {
+                pinnedFileHeaderView(for: pinnedFileHeader)
+            }
 
-                if file.showsPureRename {
-                    PureRenameContentView()
-                        .diffListRow()
-                }
+            List {
+                ForEach(renderedFiles, id: \.filePath) { file in
+                    if pinnedFileHeader == nil {
+                        fileHeaderView(for: file)
+                            .diffListRow()
+                    }
 
-                ForEach(file.hunks, id: \.hunk.id) { renderedHunk in
-                    HunkHeaderView(hunk: renderedHunk.hunk)
-                        .diffListRow()
+                    if file.showsPureRename {
+                        RenameOnlyContentView()
+                            .diffListRow()
+                    }
 
-                    ForEach(renderedHunk.lines, id: \.rawLineWithNumbers) { line in
-                        DiffLineRowView(
-                            lineContent: line.rawLine,
-                            oldLineNumber: line.oldLineNumber,
-                            newLineNumber: line.newLineNumber,
-                            lineType: line.lineType
-                        )
-                        .diffListRow()
+                    ForEach(file.hunks, id: \.hunk.id) { renderedHunk in
+                        HunkHeaderView(hunk: renderedHunk.hunk)
+                            .diffListRow()
+
+                        ForEach(renderedHunk.lines, id: \.rawLineWithNumbers) { line in
+                            DiffLineRowView(
+                                lineContent: line.rawLine,
+                                oldLineNumber: line.oldLineNumber,
+                                newLineNumber: line.newLineNumber,
+                                lineType: line.lineType
+                            )
+                            .diffListRow()
+                        }
                     }
                 }
             }
+            .listStyle(.plain)
+            .background(Color(nsColor: .textBackgroundColor))
+            .scrollContentBackground(.hidden)
         }
-        .listStyle(.plain)
-        .background(Color(nsColor: .textBackgroundColor))
-        .scrollContentBackground(.hidden)
     }
 
     private var displayedFiles: [String] {
@@ -156,11 +153,39 @@ public struct GitDiffView: View {
         }
     }
 
+    private var pinnedFileHeader: RenderedFile? {
+        guard renderedFiles.count == 1 else { return nil }
+        return renderedFiles.first
+    }
+
     private var effectiveSelectedFile: String? {
         if showsFileSidebar {
             return selectedFile
         }
         return selectedFileOverride ?? selectedFile
+    }
+
+    @ViewBuilder
+    private func fileHeaderView(for file: RenderedFile) -> some View {
+        if let renameFrom = file.renameFrom {
+            RenameFileHeaderView(oldPath: renameFrom, newPath: file.filePath)
+        } else {
+            Text(file.filePath)
+                .font(.system(.body, design: .monospaced))
+                .fontWeight(.bold)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(nsColor: .windowBackgroundColor))
+        }
+    }
+
+    private func pinnedFileHeaderView(for file: RenderedFile) -> some View {
+        fileHeaderView(for: file)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .overlay(alignment: .bottom) {
+                Divider()
+            }
     }
 }
 

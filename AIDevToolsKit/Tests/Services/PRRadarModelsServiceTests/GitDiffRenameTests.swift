@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import GitDiffModelsService
 @testable import PRRadarModelsService
 
 @Suite("GitDiff Rename Parsing")

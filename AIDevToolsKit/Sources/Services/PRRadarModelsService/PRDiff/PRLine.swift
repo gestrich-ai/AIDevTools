@@ -1,3 +1,5 @@
+import GitDiffModelsService
+
 public struct PRLine: Codable, Sendable, Equatable {
     public let content: String
     public let rawLine: String

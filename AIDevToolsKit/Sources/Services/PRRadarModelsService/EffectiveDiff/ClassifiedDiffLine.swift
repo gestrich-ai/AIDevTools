@@ -1,3 +1,5 @@
+import GitDiffModelsService
+
 // MARK: - Counterpart
 
 public struct Counterpart: Codable, Sendable, Equatable {

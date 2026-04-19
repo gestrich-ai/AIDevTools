@@ -1,3 +1,5 @@
+import GitDiffModelsService
+
 public struct PRHunk: Codable, Sendable, Equatable {
     public let filePath: String
     public let oldStart: Int

@@ -1,4 +1,5 @@
 import Foundation
+import GitDiffModelsService
 
 // MARK: - Move Report Models (algorithm-internal versions)
 

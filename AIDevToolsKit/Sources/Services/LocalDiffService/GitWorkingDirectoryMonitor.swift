@@ -78,7 +78,7 @@ private actor ChangeEmitter {
         debounceTask = Task {
             try? await Task.sleep(nanoseconds: debounceIntervalNanoseconds)
             guard !Task.isCancelled else { return }
-            await self.flush()
+            self.flush()
         }
     }
 
@@ -100,6 +100,7 @@ private final class MonitorState {
     private let emitter: ChangeEmitter
     private let pollIntervalNanoseconds: UInt64
 
+    private var historyPollTask: Task<Void, Never>?
     private var indexMonitor: DispatchSourceFileSystemObject?
     private var indexPollTask: Task<Void, Never>?
 #if canImport(CoreServices)
@@ -119,6 +120,7 @@ private final class MonitorState {
         let repoMetadataPath = URL(fileURLWithPath: standardizedRepoRoot).appendingPathComponent(".git").standardizedFileURL.path
         let indexPath = URL(fileURLWithPath: standardizedGitDirectory).appendingPathComponent("index").standardizedFileURL.path
 
+        startHistoryPolling(gitDirectory: standardizedGitDirectory)
         startIndexMonitor(indexPath: indexPath)
         if !startWorkingTreeEventStream(
             repoRoot: standardizedRepoRoot,
@@ -134,6 +136,9 @@ private final class MonitorState {
     }
 
     func stop() {
+        historyPollTask?.cancel()
+        historyPollTask = nil
+
         indexMonitor?.cancel()
         indexMonitor = nil
 
@@ -199,6 +204,22 @@ private final class MonitorState {
         }
     }
 
+    private func startHistoryPolling(gitDirectory: String) {
+        historyPollTask?.cancel()
+        historyPollTask = Task {
+            var previousSnapshot = gitHistorySnapshot(gitDirectory: gitDirectory)
+
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: pollIntervalNanoseconds)
+                let currentSnapshot = gitHistorySnapshot(gitDirectory: gitDirectory)
+                if currentSnapshot != previousSnapshot {
+                    previousSnapshot = currentSnapshot
+                    await emitter.enqueue(.history)
+                }
+            }
+        }
+    }
+
     private func startWorkingTreePolling(repoRoot: String, gitDirectory: String, repoMetadataPath: String) {
         workingTreePollTask?.cancel()
         workingTreePollTask = Task {
@@ -258,6 +279,17 @@ private final class MonitorState {
         return DirectorySnapshot(fileCount: fileCount, latestModification: latestModification)
     }
 
+    private func gitHistorySnapshot(gitDirectory: String) -> GitHistorySnapshot {
+        let headPath = URL(fileURLWithPath: gitDirectory).appendingPathComponent("HEAD").standardizedFileURL.path
+        let resolvedReferencePath = resolvedHeadReferencePath(gitDirectory: gitDirectory, headPath: headPath)
+
+        return GitHistorySnapshot(
+            head: fileSnapshot(at: headPath),
+            resolvedReferencePath: resolvedReferencePath,
+            resolvedReference: resolvedReferencePath.map(fileSnapshot(at:)) ?? .missing
+        )
+    }
+
     private func fileSnapshot(at path: String) -> FileSnapshot {
         let fileURL = URL(fileURLWithPath: path)
         let resourceKeys: Set<URLResourceKey> = [.contentModificationDateKey, .fileSizeKey]
@@ -269,6 +301,24 @@ private final class MonitorState {
             modificationDate: resourceValues.contentModificationDate ?? .distantPast,
             size: resourceValues.fileSize ?? 0
         )
+    }
+
+    private func resolvedHeadReferencePath(gitDirectory: String, headPath: String) -> String? {
+        guard
+            let headContents = try? String(contentsOfFile: headPath, encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            headContents.hasPrefix("ref: ")
+        else {
+            return nil
+        }
+
+        let reference = String(headContents.dropFirst("ref: ".count))
+        guard !reference.isEmpty else { return nil }
+
+        return URL(fileURLWithPath: gitDirectory)
+            .appendingPathComponent(reference)
+            .standardizedFileURL
+            .path
     }
 
     private func startWorkingTreeEventStream(repoRoot: String, gitDirectory: String, repoMetadataPath: String) -> Bool {
@@ -349,9 +399,17 @@ private struct DirectorySnapshot: Equatable {
 }
 
 private struct FileSnapshot: Equatable {
+    static let missing = FileSnapshot(exists: false, modificationDate: .distantPast, size: 0)
+
     let exists: Bool
     let modificationDate: Date
     let size: Int
+}
+
+private struct GitHistorySnapshot: Equatable {
+    let head: FileSnapshot
+    let resolvedReferencePath: String?
+    let resolvedReference: FileSnapshot
 }
 
 private final class WorkingTreeCallbackContext {

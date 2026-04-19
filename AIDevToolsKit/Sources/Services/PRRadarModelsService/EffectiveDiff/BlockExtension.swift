@@ -1,4 +1,5 @@
 import Foundation
+import GitDiffModelsService
 
 let defaultContextLines = 3
 let defaultTrimProximity = 3

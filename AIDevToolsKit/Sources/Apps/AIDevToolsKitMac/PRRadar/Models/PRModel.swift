@@ -1,6 +1,7 @@
 import AIOutputSDK
 import ClaudeCLISDK
 import Foundation
+import GitDiffModelsService
 import Logging
 import PRRadarCLIService
 import PRRadarConfigService

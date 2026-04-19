@@ -7,8 +7,8 @@ import Testing
 struct GitWorkingDirectoryMonitorTests {
     private let gitClient = GitClient()
 
-    @Test("publishes an index change after the git index is modified")
-    func publishesIndexChanges() async throws {
+    @Test("publishes a history change after a commit advances HEAD")
+    func publishesHistoryChangesForCommits() async throws {
         let repo = try await makeRepository()
         defer { cleanupRepository(repo) }
 
@@ -21,34 +21,39 @@ struct GitWorkingDirectoryMonitorTests {
             pollIntervalNanoseconds: 50_000_000
         )
         let stream = monitor.changes(repoPath: repo)
-        let waiter = Task { () throws -> Set<GitWorkingDirectoryChange> in
-            var iterator = stream.makeAsyncIterator()
-            guard let changes = await iterator.next() else {
-                throw TestFailure("Monitor stream ended before emitting a change.")
-            }
-            return changes
-        }
+        let waiter = firstChange(in: stream)
 
         try await Task.sleep(nanoseconds: 300_000_000)
 
-        let indexPath = URL(fileURLWithPath: try await gitClient.getGitDirectory(workingDirectory: repo))
-            .appendingPathComponent("index")
-            .path
-        try FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: indexPath)
+        try runGit(arguments: ["commit", "--allow-empty", "-m", "Second commit"], workingDirectory: repo)
 
-        let changes = try await withThrowingTaskGroup(of: Set<GitWorkingDirectoryChange>.self) { group in
-            group.addTask {
-                try await waiter.value
-            }
-            group.addTask {
-                try await Task.sleep(nanoseconds: 3_000_000_000)
-                throw TestFailure("Timed out waiting for a git working directory change.")
-            }
+        let changes = try await awaitChange(waiter)
 
-            let result = try await group.next()
-            group.cancelAll()
-            return try #require(result)
-        }
+        #expect(changes.contains(.history))
+    }
+
+    @Test("publishes an index change after files are staged")
+    func publishesIndexChangesForStaging() async throws {
+        let repo = try await makeRepository()
+        defer { cleanupRepository(repo) }
+
+        try write("alpha\n", to: repo, path: "README.md")
+        try await gitClient.addAll(workingDirectory: repo)
+        try await gitClient.commit(message: "Initial commit", workingDirectory: repo)
+
+        let monitor = GitWorkingDirectoryMonitor(
+            debounceIntervalNanoseconds: 50_000_000,
+            pollIntervalNanoseconds: 50_000_000
+        )
+        let stream = monitor.changes(repoPath: repo)
+        let waiter = firstChange(in: stream)
+
+        try await Task.sleep(nanoseconds: 300_000_000)
+
+        try write("beta\n", to: repo, path: "README.md")
+        try await gitClient.addAll(workingDirectory: repo)
+
+        let changes = try await awaitChange(waiter)
 
         #expect(changes.contains(.index))
     }
@@ -73,6 +78,32 @@ struct GitWorkingDirectoryMonitorTests {
     private func write(_ content: String, to repoPath: String, path: String) throws {
         let fileURL = URL(fileURLWithPath: repoPath).appendingPathComponent(path)
         try content.write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+
+    private func firstChange(in stream: AsyncStream<Set<GitWorkingDirectoryChange>>) -> Task<Set<GitWorkingDirectoryChange>, Error> {
+        Task {
+            var iterator = stream.makeAsyncIterator()
+            guard let changes = await iterator.next() else {
+                throw TestFailure("Monitor stream ended before emitting a change.")
+            }
+            return changes
+        }
+    }
+
+    private func awaitChange(_ waiter: Task<Set<GitWorkingDirectoryChange>, Error>) async throws -> Set<GitWorkingDirectoryChange> {
+        try await withThrowingTaskGroup(of: Set<GitWorkingDirectoryChange>.self) { group in
+            group.addTask {
+                try await waiter.value
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: 3_000_000_000)
+                throw TestFailure("Timed out waiting for a git working directory change.")
+            }
+
+            let result = try await group.next()
+            group.cancelAll()
+            return try #require(result)
+        }
     }
 
     private func runGit(arguments: [String], workingDirectory: String) throws {

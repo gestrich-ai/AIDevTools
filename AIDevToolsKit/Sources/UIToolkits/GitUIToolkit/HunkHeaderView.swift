@@ -1,4 +1,4 @@
-import PRRadarModelsService
+import GitDiffModelsService
 import SwiftUI
 
 public struct HunkHeaderView<TrailingContent: View>: View {

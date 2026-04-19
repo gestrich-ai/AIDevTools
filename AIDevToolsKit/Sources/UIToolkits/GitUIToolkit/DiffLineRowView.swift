@@ -1,4 +1,4 @@
-import PRRadarModelsService
+import GitDiffModelsService
 import SwiftUI
 
 public struct DiffLineRowView: View {

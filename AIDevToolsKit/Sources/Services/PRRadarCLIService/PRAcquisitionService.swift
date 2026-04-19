@@ -1,4 +1,5 @@
 import Foundation
+import GitDiffModelsService
 import GitHubService
 import GitSDK
 import OctokitSDK
@@ -320,4 +321,3 @@ public struct PRAcquisitionService: Sendable {
         public let commitHash: String
     }
 }
-

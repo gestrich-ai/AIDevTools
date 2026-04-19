@@ -1,5 +1,6 @@
 import Foundation
 
+/// Diff-specific context attached to IPC UI state when a diff is open.
 public struct IPCDiffContext: Codable, Equatable, Sendable {
     public let selectedCommits: [IPCDiffCommit]
     public let selectedFilePath: String?
