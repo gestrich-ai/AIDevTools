@@ -6,7 +6,13 @@ import ProviderRegistryService
 import SwiftUI
 
 struct RightExecutionPanelView: View {
+    private enum WidthMode: String {
+        case side
+        case wide
+    }
+
     @Environment(ExecutionPanelModel.self) private var panelModel
+    @AppStorage("executionPanelWidthMode") private var executionPanelWidthMode = WidthMode.side.rawValue
 
     private let chatContext: GlobalChatContext
 
@@ -23,14 +29,45 @@ struct RightExecutionPanelView: View {
     }
 
     private var segmentPicker: some View {
-        Picker("", selection: Bindable(panelModel).selectedSegment) {
-            Text("Chat").tag(ExecutionPanelModel.Segment.chat)
-            Text("Output").tag(ExecutionPanelModel.Segment.output)
+        HStack(spacing: 8) {
+            Picker("", selection: Bindable(panelModel).selectedSegment) {
+                Text("Chat").tag(ExecutionPanelModel.Segment.chat)
+                Text("Output").tag(ExecutionPanelModel.Segment.output)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 4) {
+                widthModeButton(for: .wide, helpText: "Use the wider panel width")
+                widthModeButton(for: .side, helpText: "Use the smaller side-panel width")
+            }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
         .padding(.horizontal)
         .padding(.vertical, 8)
+    }
+
+    private var isWidePanel: Bool {
+        WidthMode(rawValue: executionPanelWidthMode) == .wide
+    }
+
+    private func widthModeButton(for mode: WidthMode, helpText: String) -> some View {
+        Button {
+            executionPanelWidthMode = mode.rawValue
+        } label: {
+            Text(mode == .side ? "􁁨" : "􀤵")
+                .font(.system(size: 14))
+                .frame(width: 24, height: 18)
+                .background(currentWidthMode == mode ? Color.accentColor.opacity(0.15) : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .help(helpText)
+    }
+
+    private var currentWidthMode: WidthMode {
+        WidthMode(rawValue: executionPanelWidthMode) ?? .side
     }
 
     @ViewBuilder

@@ -5,6 +5,11 @@ import RepositorySDK
 import SwiftUI
 
 struct WorkspaceView: View {
+    private enum ExecutionPanelWidthMode: String {
+        case side
+        case wide
+    }
+
     @Environment(AppModel.self) private var appModel
     @Environment(WorkspaceModel.self) var model
 
@@ -13,14 +18,22 @@ struct WorkspaceView: View {
 
     @State private var executionPanelModel = ExecutionPanelModel()
     @AppStorage(ExperimentalSettings.architecturePlannerKey) private var isArchitecturePlannerEnabled = false
+    @AppStorage("executionPanelWidthMode") private var executionPanelWidthMode = ExecutionPanelWidthMode.side.rawValue
+    @AppStorage("workspaceExecutionPanelWidth") private var storedExecutionPanelWidth: Double = 360
     @AppStorage("selectedRepositoryID") private var storedRepoID: String = ""
     @AppStorage("selectedWorkspaceTab") private var selectedTab: String = "claudeChain"
     @State private var deepLinkWatcher = DeepLinkWatcher()
+    @State private var panelDragStartWidth: CGFloat?
     @State private var selectedRepoID: UUID?
 
     private var isChatPanelSupportedTab: Bool {
         selectedTab == "claudeChain" || selectedTab == "plans"
     }
+
+    private static let executionPanelMinWidth: CGFloat = 320
+    private static let executionPanelMaxWidth: CGFloat = 900
+    private static let executionPanelResizeHandleWidth: CGFloat = 8
+    private static let workspaceDetailMinWidth: CGFloat = 420
 
     var body: some View {
         NavigationSplitView {
@@ -36,7 +49,7 @@ struct WorkspaceView: View {
             }
         } detail: {
             if let repo = model.selectedRepository {
-                tabContent(for: repo)
+                detailContent(for: repo)
             } else {
                 ContentUnavailableView(
                     "Select a Repository",
@@ -44,14 +57,6 @@ struct WorkspaceView: View {
                     description: Text("Choose a repository from the sidebar.")
                 )
             }
-        }
-        .inspector(isPresented: Bindable(executionPanelModel).isVisible) {
-            RightExecutionPanelView(
-                tab: selectedTab,
-                workingDirectory: model.selectedRepository?.path.path(percentEncoded: false) ?? ""
-            )
-            .id("\(selectedTab)-\(model.selectedRepository?.path.path(percentEncoded: false) ?? "")")
-            .environment(executionPanelModel)
         }
         .task {
             deepLinkWatcher.start()
@@ -62,9 +67,13 @@ struct WorkspaceView: View {
                 await model.selectRepository(repo)
             }
             restorePanelVisibility()
+            applyExecutionPanelWidthPreset()
         }
         .onChange(of: executionPanelModel.isVisible) { _, isVisible in
             savePanelVisibility(isVisible)
+        }
+        .onChange(of: executionPanelWidthMode) { _, _ in
+            applyExecutionPanelWidthPreset()
         }
         .onChange(of: selectedTab) { _, _ in
             restorePanelVisibility()
@@ -72,6 +81,33 @@ struct WorkspaceView: View {
         .onReceive(NotificationCenter.default.publisher(for: .credentialsDidChange)) { _ in
             appModel.applyCredentialChange(.anthropicAPIKey)
             appModel.applyCredentialChange(.githubToken)
+        }
+    }
+
+    @ViewBuilder
+    private func detailContent(for repo: RepositoryConfiguration) -> some View {
+        if isChatPanelSupportedTab && executionPanelModel.isVisible {
+            GeometryReader { geometry in
+                let panelWidth = clampedExecutionPanelWidth(for: geometry.size.width)
+
+                HStack(spacing: 0) {
+                    tabContent(for: repo)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    executionPanelResizeHandle(totalWidth: geometry.size.width)
+
+                    RightExecutionPanelView(
+                        tab: selectedTab,
+                        workingDirectory: repo.path.path(percentEncoded: false)
+                    )
+                    .id("\(selectedTab)-\(repo.path.path(percentEncoded: false))")
+                    .frame(width: panelWidth)
+                    .environment(executionPanelModel)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        } else {
+            tabContent(for: repo)
         }
     }
 
@@ -129,6 +165,54 @@ struct WorkspaceView: View {
             }
         }
         .environment(executionPanelModel)
+    }
+
+    private func executionPanelResizeHandle(totalWidth: CGFloat) -> some View {
+        Color.clear
+            .frame(width: Self.executionPanelResizeHandleWidth)
+            .overlay {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.25))
+                    .frame(width: 1)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        let startWidth = panelDragStartWidth ?? clampedExecutionPanelWidth(for: totalWidth)
+                        if panelDragStartWidth == nil {
+                            panelDragStartWidth = startWidth
+                        }
+                        storedExecutionPanelWidth = clampedExecutionPanelWidth(
+                            startWidth - value.translation.width,
+                            totalWidth: totalWidth
+                        )
+                    }
+                    .onEnded { _ in
+                        panelDragStartWidth = nil
+                    }
+            )
+    }
+
+    private func applyExecutionPanelWidthPreset() {
+        switch ExecutionPanelWidthMode(rawValue: executionPanelWidthMode) ?? .side {
+        case .side:
+            storedExecutionPanelWidth = 360
+        case .wide:
+            storedExecutionPanelWidth = 720
+        }
+    }
+
+    private func clampedExecutionPanelWidth(for totalWidth: CGFloat) -> CGFloat {
+        clampedExecutionPanelWidth(CGFloat(storedExecutionPanelWidth), totalWidth: totalWidth)
+    }
+
+    private func clampedExecutionPanelWidth(_ proposedWidth: CGFloat, totalWidth: CGFloat) -> CGFloat {
+        let maxWidth = min(
+            Self.executionPanelMaxWidth,
+            max(Self.executionPanelMinWidth, totalWidth - Self.workspaceDetailMinWidth)
+        )
+        return min(max(proposedWidth, Self.executionPanelMinWidth), maxWidth)
     }
 
     private func panelVisibilityKey(tab: String) -> String {

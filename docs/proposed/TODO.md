@@ -14,10 +14,17 @@
 ## - [ ] Allow edit in UI
 ## - [ ] Cleanup Dead Plans
 
-# AI Output UI
+# Chat & AI Output View
 
 ## - [ ] Allow the session to be interrupted so the user can join the chat mid-conversation.
-## - [ ] Fix Codex support
+## - [ ] Expandable text input view
+## - [ ] Escape button
+## - [ ] Fix lack of MCP awareness
+## - [ ] Fix historical chat timestamps showing the current time instead of the actual message time
+## - [ ] Make the chat header buttons larger for history and new conversation
+## - [ ] Remove the "Full" button
+## - [x] Resizable side chat view horizontally
+## - [ ] Support arrow up
 
 # AI Frameworks
 
