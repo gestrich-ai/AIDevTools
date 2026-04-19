@@ -26,6 +26,7 @@ var products: [Product] = [
     .library(name: "FileTreeService", targets: ["FileTreeService"]),
     .library(name: "GitHubService", targets: ["GitHubService"]),
     .library(name: "GitSDK", targets: ["GitSDK"]),
+    .library(name: "GitUIToolkit", targets: ["GitUIToolkit"]),
     .library(name: "KeychainSDK", targets: ["KeychainSDK"]),
     .library(name: "LoggingSDK", targets: ["LoggingSDK"]),
     .library(name: "LogsFeature", targets: ["LogsFeature"]),
@@ -110,6 +111,15 @@ var targets: [Target] = [
             "WorktreeFeature",
         ],
         path: "Sources/Apps/AIDevToolsKitCLI"
+    ),
+
+    // UI Toolkits Layer
+    .target(
+        name: "GitUIToolkit",
+        dependencies: [
+            "PRRadarModelsService",
+        ],
+        path: "Sources/UIToolkits/GitUIToolkit"
     ),
 
     // Features Layer
@@ -790,6 +800,7 @@ targets.append(contentsOf: [
             "FileTreeService",
             "GitHubService",
             "GitSDK",
+            "GitUIToolkit",
             "LoggingSDK",
             "LogsFeature",
             "MCPService",

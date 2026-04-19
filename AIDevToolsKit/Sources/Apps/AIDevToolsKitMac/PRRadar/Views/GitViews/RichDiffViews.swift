@@ -1,21 +1,10 @@
 import AppKit
+import GitUIToolkit
 import Logging
 import PRRadarModelsService
 import SwiftUI
 
 private let logger = Logger(label: "RichDiffViews")
-
-enum DiffLayout {
-    static let gutterWidth: CGFloat = 96
-}
-
-private extension View {
-    func diffListRow() -> some View {
-        self
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-    }
-}
 
 // MARK: - Inline Comment Card
 
@@ -318,265 +307,6 @@ private extension DiffLineType {
 
 // MARK: - Views
 
-struct DiffLineRowView: View {
-    let lineContent: String
-    let oldLineNumber: Int?
-    let newLineNumber: Int?
-    let lineType: DiffLineType
-    let searchQuery: String
-    var isMoved: Bool
-    var prLine: PRLine?
-    var onAddComment: (() -> Void)?
-    var onMoveTapped: (() -> Void)?
-    var onSelectRules: (() -> Void)?
-
-    init(
-        lineContent: String,
-        oldLineNumber: Int?,
-        newLineNumber: Int?,
-        lineType: DiffLineType,
-        searchQuery: String = "",
-        isMoved: Bool = false,
-        prLine: PRLine? = nil,
-        onAddComment: (() -> Void)? = nil,
-        onMoveTapped: (() -> Void)? = nil,
-        onSelectRules: (() -> Void)? = nil
-    ) {
-        self.lineContent = lineContent
-        self.oldLineNumber = oldLineNumber
-        self.newLineNumber = newLineNumber
-        self.lineType = lineType
-        self.searchQuery = searchQuery
-        self.isMoved = isMoved
-        self.prLine = prLine
-        self.onAddComment = onAddComment
-        self.onMoveTapped = onMoveTapped
-        self.onSelectRules = onSelectRules
-    }
-
-    @State private var isHovering = false
-    @State private var showLineInfo = false
-
-    private var matchesSearch: Bool {
-        guard !searchQuery.isEmpty else { return false }
-        return lineContent.lowercased().contains(searchQuery.lowercased())
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            HStack(spacing: 2) {
-                Text(oldLineNumber.map { String($0) } ?? "")
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 40, alignment: .trailing)
-
-                Color.clear
-                    .frame(width: 4, height: 16)
-                    .overlay {
-                        if isMoved, let onMoveTapped {
-                            Button(action: onMoveTapped) {
-                                Image(systemName: "arrow.right.arrow.left")
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(.orange)
-                            }
-                            .buttonStyle(.plain)
-                            .help("View moved code")
-                        }
-                    }
-
-                Text(newLineNumber.map { String($0) } ?? "")
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 40, alignment: .trailing)
-            }
-            .padding(.horizontal, 4)
-            .frame(maxHeight: .infinity)
-            .background(gutterBackground)
-            .contextMenu {
-                if prLine != nil {
-                    Button("Line Info") {
-                        showLineInfo = true
-                    }
-                }
-                if let onSelectRules {
-                    Button {
-                        onSelectRules()
-                    } label: {
-                        Label("Select Rules & Analyze\u{2026}", systemImage: "sparkles")
-                    }
-                }
-            }
-            .popover(isPresented: $showLineInfo) {
-                if let line = prLine {
-                    LineInfoPopoverView(line: line)
-                }
-            }
-            .overlay(alignment: .trailing) {
-                if isHovering, let onAddComment, newLineNumber != nil {
-                    Button(action: onAddComment) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 18, height: 18)
-                            .background(Color.accentColor.opacity(0.7))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .offset(x: 12)
-                }
-            }
-
-            HStack(spacing: 0) {
-                if matchesSearch {
-                    Text(highlightedContent)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(textColor)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                } else {
-                    Text(lineContent)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(textColor)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                }
-            }
-        }
-        .background(backgroundColor)
-        .overlay(
-            RoundedRectangle(cornerRadius: 2)
-                .stroke(Color.white.opacity(isHovering ? 0.15 : 0), lineWidth: 1)
-        )
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            isHovering = hovering
-        }
-    }
-
-    private var textColor: Color {
-        switch lineType {
-        case .added, .removed:
-            return Color.white
-        case .context, .header:
-            return Color.primary
-        }
-    }
-
-    private var gutterBackground: Color {
-        switch lineType {
-        case .added:
-            return Color.green.opacity(0.15)
-        case .removed:
-            return Color.red.opacity(0.15)
-        case .context, .header:
-            return Color.gray.opacity(0.1)
-        }
-    }
-
-    private var backgroundColor: Color {
-        switch lineType {
-        case .added:
-            return Color.green.opacity(0.08)
-        case .removed:
-            return Color.red.opacity(0.08)
-        case .context, .header:
-            return Color.clear
-        }
-    }
-
-    private var highlightedContent: AttributedString {
-        var attributedString = AttributedString(lineContent)
-        if let range = attributedString.range(of: searchQuery, options: .caseInsensitive) {
-            attributedString[range].backgroundColor = .yellow.opacity(0.5)
-            attributedString[range].foregroundColor = .black
-        }
-        return attributedString
-    }
-}
-
-struct HunkHeaderView<TrailingContent: View>: View {
-    let hunk: Hunk
-    let trailingContent: TrailingContent
-
-    init(hunk: Hunk) where TrailingContent == EmptyView {
-        self.hunk = hunk
-        self.trailingContent = EmptyView()
-    }
-
-    init(hunk: Hunk, @ViewBuilder trailing: () -> TrailingContent) {
-        self.hunk = hunk
-        self.trailingContent = trailing()
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Divider()
-
-            HStack(spacing: 8) {
-                Text("@@ -\(hunk.oldStart),\(hunk.oldLength) +\(hunk.newStart),\(hunk.newLength) @@")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                trailingContent
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.8))
-
-            Divider()
-        }
-    }
-}
-
-// MARK: - Rename Views
-
-struct RenameFileHeaderView: View {
-    let oldPath: String
-    let newPath: String
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Text(oldPath)
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            Text(" \u{2192} ")
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.tertiary)
-                .fixedSize()
-            Text(newPath)
-                .font(.system(.body, design: .monospaced))
-                .fontWeight(.bold)
-                .lineLimit(1)
-                .truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .windowBackgroundColor))
-    }
-}
-
-struct PureRenameContentView: View {
-    var body: some View {
-        Text("File renamed without changes.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 struct AnnotatedDiffContentView: View {
     let prDiff: PRDiff
     let displayDiff: GitDiff
@@ -668,6 +398,11 @@ struct AnnotatedDiffContentView: View {
                         ForEach(prHunk.lines, id: \.stableID) { line in
                             let displayType = line.diffType
                             let moveDetail = findMoveDetail(for: line, in: prDiff.moves)
+                            let onAddComment = line.newLineNumber.map { newLineNumber in
+                                {
+                                    composingCommentLine = (filePath: prHunk.filePath, lineNumber: newLineNumber)
+                                }
+                            }
 
                             DiffLineRowView(
                                 lineContent: line.rawLine,
@@ -676,12 +411,10 @@ struct AnnotatedDiffContentView: View {
                                 lineType: displayType,
                                 searchQuery: searchQuery,
                                 isMoved: line.pairing != nil,
-                                prLine: line,
-                                onAddComment: line.newLineNumber != nil ? {
-                                    composingCommentLine = (filePath: prHunk.filePath, lineNumber: line.newLineNumber!)
-                                } : nil,
+                                onAddComment: onAddComment,
                                 onMoveTapped: moveDetail.map { detail in { onMoveTapped?(detail) } },
-                                onSelectRules: onSelectRules
+                                onSelectRules: onSelectRules,
+                                lineInfoContent: { AnyView(LineInfoPopoverView(line: line)) }
                             )
                             .diffListRow()
 
@@ -883,4 +616,3 @@ struct AnnotatedDiffContentView: View {
         }
     }
 }
-
