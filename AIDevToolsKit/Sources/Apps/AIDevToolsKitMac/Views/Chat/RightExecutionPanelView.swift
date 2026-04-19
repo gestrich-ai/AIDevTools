@@ -121,6 +121,7 @@ final class GlobalChatContext: ViewChatContext {
         - General development work in this repository.
 
         You have access to MCP tools:
+        - get_chat_context: Check active plan and diff selection context, including selected commits and the selected file in an open diff
         - get_ui_state: Check which chain or plan is currently open in the app
         - get_chain_status(name:): Check task completion status for a named chain
 

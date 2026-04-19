@@ -4,8 +4,13 @@ import Foundation
 
 @MainActor
 final class AppIPCServer {
+    private let mcpContextModel: MCPContextModel
 
     private nonisolated var socketPath: String { AppIPCClient.socketFilePath }
+
+    init(mcpContextModel: MCPContextModel) {
+        self.mcpContextModel = mcpContextModel
+    }
 
     func start() async {
         try? FileManager.default.removeItem(atPath: socketPath)
@@ -36,22 +41,22 @@ final class AppIPCServer {
         Darwin.listen(fd, 5)
 
         await withTaskCancellationHandler {
-            await Self.acceptLoop(fd: fd)
+            await acceptLoop(fd: fd)
         } onCancel: {
             Darwin.close(fd)
             try? FileManager.default.removeItem(atPath: path)
         }
     }
 
-    private nonisolated static func acceptLoop(fd: Int32) async {
+    private func acceptLoop(fd: Int32) async {
         while !Task.isCancelled {
             let clientFd = Darwin.accept(fd, nil, nil)
             guard clientFd >= 0 else { break }
-            Task.detached { await handleConnection(clientFd: clientFd) }
+            Task { await self.handleConnection(clientFd: clientFd) }
         }
     }
 
-    private nonisolated static func handleConnection(clientFd: Int32) async {
+    private func handleConnection(clientFd: Int32) async {
         defer { Darwin.close(clientFd) }
 
         var requestData = Data()
@@ -68,6 +73,8 @@ final class AppIPCServer {
 
         let uiState: IPCUIState = await MainActor.run {
             IPCUIState(
+                activeDiffContext: mcpContextModel.activeDiffContext,
+                activePlanContext: mcpContextModel.activePlanContext,
                 currentTab: UserDefaults.standard.string(forKey: "selectedWorkspaceTab"),
                 selectedChainName: UserDefaults.standard.string(forKey: "selectedChainProject"),
                 selectedPlanName: UserDefaults.standard.string(forKey: "selectedPlanName")

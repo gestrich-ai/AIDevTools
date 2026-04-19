@@ -1,3 +1,4 @@
+import AppIPCSDK
 import GitSDK
 import LocalDiffService
 import Observation
@@ -60,6 +61,7 @@ final class CommitListDiffModel {
 
     private(set) var diffState: DiffState = .empty(message: "Select a commit or working tree diff.")
     private(set) var entriesState: EntriesState = .loading
+    private(set) var selectedFilePath: String?
     private(set) var selectedEntryIDs: Set<String> = []
     private var monitorTask: Task<Void, Never>?
 
@@ -84,6 +86,24 @@ final class CommitListDiffModel {
 
     var hasPlanCommitSelection: Bool {
         !planPhaseDescriptions.isEmpty
+    }
+
+    var mcpDiffContext: IPCDiffContext? {
+        let selectedEntries = entries.filter { selectedEntryIDs.contains($0.id) }
+        guard !selectedEntries.isEmpty else { return nil }
+
+        let selectedCommits = selectedEntries.compactMap { entry -> IPCDiffCommit? in
+            guard case .commit(let commit) = entry.kind else { return nil }
+            return IPCDiffCommit(hash: commit.hash, message: commit.subject)
+        }
+
+        let selectedSources = selectedEntries.map(\.title)
+
+        return IPCDiffContext(
+            selectedCommits: selectedCommits,
+            selectedFilePath: selectedFilePath,
+            selectedSources: selectedSources
+        )
     }
 
     func load() async {
@@ -130,6 +150,10 @@ final class CommitListDiffModel {
         }
     }
 
+    func setSelectedFilePath(_ path: String?) {
+        selectedFilePath = path
+    }
+
     private func combinedDiff(from entries: [Entry]) async throws -> GitDiff {
         var diffParts: [GitDiff] = []
         let selectedCommits = entries.compactMap { entry -> GitCommitSummary? in
@@ -170,6 +194,7 @@ final class CommitListDiffModel {
     private func reloadDiff() async {
         let selectedEntries = entries.filter { selectedEntryIDs.contains($0.id) }
         guard !selectedEntries.isEmpty else {
+            selectedFilePath = nil
             diffState = .empty(message: "Select a commit or working tree diff.")
             return
         }
@@ -178,11 +203,18 @@ final class CommitListDiffModel {
         do {
             let diff = try await combinedDiff(from: selectedEntries)
             if diff.rawContent.isEmpty {
+                selectedFilePath = nil
                 diffState = .empty(message: "No diff content is available for the current selection.")
             } else {
+                if let selectedFilePath, diff.changedFiles.contains(selectedFilePath) {
+                    self.selectedFilePath = selectedFilePath
+                } else {
+                    self.selectedFilePath = diff.changedFiles.first
+                }
                 diffState = .loaded(diff)
             }
         } catch {
+            selectedFilePath = nil
             diffState = .error(error.localizedDescription)
         }
     }
@@ -224,6 +256,7 @@ final class CommitListDiffModel {
             entriesState = updatedEntries.isEmpty ? .empty : .loaded(updatedEntries)
 
             guard !nextSelection.isEmpty else {
+                selectedFilePath = nil
                 diffState = .empty(message: "Select a commit or working tree diff.")
                 return
             }

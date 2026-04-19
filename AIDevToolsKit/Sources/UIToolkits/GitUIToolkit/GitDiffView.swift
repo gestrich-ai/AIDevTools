@@ -3,11 +3,13 @@ import SwiftUI
 
 public struct GitDiffView: View {
     public let diff: GitDiff
+    private let onSelectedFileChange: ((String?) -> Void)?
 
     @State private var selectedFile: String?
 
-    public init(diff: GitDiff) {
+    public init(diff: GitDiff, onSelectedFileChange: ((String?) -> Void)? = nil) {
         self.diff = diff
+        self.onSelectedFileChange = onSelectedFileChange
     }
 
     public var body: some View {
@@ -21,12 +23,17 @@ public struct GitDiffView: View {
             if selectedFile == nil {
                 selectedFile = diff.changedFiles.first
             }
+            onSelectedFileChange?(selectedFile)
         }
         .onChange(of: diff.changedFiles) { _, changedFiles in
             if let selectedFile, changedFiles.contains(selectedFile) {
                 return
             }
             self.selectedFile = changedFiles.first
+            onSelectedFileChange?(self.selectedFile)
+        }
+        .onChange(of: selectedFile) { _, newValue in
+            onSelectedFileChange?(newValue)
         }
     }
 

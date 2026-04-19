@@ -7,6 +7,7 @@ import SwiftUI
 
 struct PlanDetailView: View {
     @Environment(ExecutionPanelModel.self) private var panelModel
+    @Environment(MCPContextModel.self) private var mcpContextModel
     @Environment(PlanModel.self) var planModel
     let plan: MarkdownPlanEntry
     let repository: RepositoryConfiguration
@@ -46,6 +47,7 @@ struct PlanDetailView: View {
             panelModel.clearOutput()
             activePlanModel.stopWatching()
             await loadPlan()
+            syncPlanMCPContext()
         }
         .onChange(of: planModel.phaseCompleteCount) {
             loadArchitectureDiagram()
@@ -57,6 +59,10 @@ struct PlanDetailView: View {
             guard !newContent.isEmpty else { return }
             planContent = newContent
             localPhases = activePlanModel.phases
+            syncPlanMCPContext()
+        }
+        .onDisappear {
+            mcpContextModel.clearPlanContext(planFilePath: plan.planURL.path())
         }
     }
 
@@ -458,6 +464,7 @@ struct PlanDetailView: View {
             let updatedContent = try planModel.togglePhase(plan: plan, phaseIndex: index)
             planContent = updatedContent
             localPhases = PlanPhase.parsePhases(from: updatedContent)
+            syncPlanMCPContext()
         } catch {
             planModel.reportError(error)
         }
@@ -486,6 +493,7 @@ struct PlanDetailView: View {
         }
 
         loadArchitectureDiagram()
+        syncPlanMCPContext()
     }
 
     private func loadArchitectureDiagram() {
@@ -508,6 +516,14 @@ struct PlanDetailView: View {
             return "\(minutes)m \(seconds)s"
         }
         return "\(seconds)s"
+    }
+
+    private func syncPlanMCPContext() {
+        mcpContextModel.updatePlanContext(
+            planName: plan.name,
+            planFilePath: plan.planURL.path(),
+            completedPhases: localPhases.filter(\.isCompleted).map(\.description)
+        )
     }
 }
 

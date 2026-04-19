@@ -4,6 +4,7 @@ import LocalDiffService
 import SwiftUI
 
 struct CommitListDiffView: View {
+    @Environment(MCPContextModel.self) private var mcpContextModel
     @State private var model: CommitListDiffModel
 
     init(
@@ -32,10 +33,15 @@ struct CommitListDiffView: View {
         }
         .task {
             await model.load()
+            syncMCPContext()
             model.startMonitoring()
+        }
+        .onChange(of: model.mcpDiffContext) { _, _ in
+            syncMCPContext()
         }
         .onDisappear {
             model.stopMonitoring()
+            mcpContextModel.clearDiffContext()
         }
     }
 
@@ -119,7 +125,7 @@ struct CommitListDiffView: View {
                 description: Text(error)
             )
         case .loaded(let diff):
-            GitDiffView(diff: diff)
+            GitDiffView(diff: diff, onSelectedFileChange: model.setSelectedFilePath)
         case .loading:
             ProgressView("Loading diff…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -158,5 +164,9 @@ struct CommitListDiffView: View {
                 .lineLimit(1)
         }
         .padding(.vertical, 2)
+    }
+
+    private func syncMCPContext() {
+        mcpContextModel.updateDiffContext(model.mcpDiffContext)
     }
 }

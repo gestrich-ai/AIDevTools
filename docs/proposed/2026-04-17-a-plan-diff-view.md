@@ -137,7 +137,10 @@ The diff view should respond to changes on disk without requiring manual refresh
 
 Implement this as a `GitWorkingDirectoryMonitor` service that publishes change notifications via `AsyncStream` or `Combine`. `CommitListDiffView` subscribes and refreshes accordingly.
 
-## - [ ] Phase 5: MCP context integration for chat
+## - [x] Phase 5: MCP context integration for chat
+
+**Skills used**: `ai-dev-tools-composition-root`, `ai-dev-tools-enforce`
+**Principles applied**: Added a single Mac-app context model in the composition root for transient chat state, updated plan and diff views to publish only active UI context into that model, and extended the existing MCP/IPC path with a focused `get_chat_context` tool instead of introducing a second transport or ad hoc service wiring.
 
 **Skills to read**: `ai-dev-tools-composition-root`
 

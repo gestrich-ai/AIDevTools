@@ -45,6 +45,11 @@ struct MCPCommand: AsyncParsableCommand {
     private static var allTools: [Tool] {
         var tools = [
         Tool(
+            name: "get_chat_context",
+            description: "Returns active plan and diff selection context from the AIDevTools Mac app. If a user asks about changes visible in an open diff or asks to make edits, they are likely requesting code modifications to the files shown.",
+            inputSchema: .object(["type": .string("object"), "properties": .object([:])])
+        ),
+        Tool(
             name: "get_chain_status",
             description: "Returns task completion status for a named chain project, discovered via GitHub API across all branches",
             inputSchema: .object([
@@ -125,6 +130,8 @@ struct MCPCommand: AsyncParsableCommand {
 
     static func handleCallTool(_ params: CallTool.Parameters) async throws -> CallTool.Result {
         switch params.name {
+        case "get_chat_context":
+            return try await handleGetChatContext()
         case "get_chain_status":
             return try await handleGetChainStatus(params.arguments ?? [:])
         case "get_plan_details":
@@ -147,6 +154,69 @@ struct MCPCommand: AsyncParsableCommand {
     }
 
     // MARK: - Tool handlers
+
+    #if canImport(Darwin)
+    private static func handleGetChatContext() async throws -> CallTool.Result {
+        do {
+            let state = try await AppIPCClient().getUIState()
+            var lines = [
+                "Current tab: \(state.currentTab ?? "unknown")",
+                "Selected chain: \(state.selectedChainName ?? "none")",
+                "Selected plan: \(state.selectedPlanName ?? "none")",
+            ]
+
+            if let planContext = state.activePlanContext {
+                lines.append("")
+                lines.append("Open plan context:")
+                lines.append("Plan name: \(planContext.planName)")
+                lines.append("Plan file path: \(planContext.planFilePath)")
+                let completedPhases = planContext.completedPhases.isEmpty
+                    ? "none"
+                    : planContext.completedPhases.joined(separator: "; ")
+                lines.append("Completed phases: \(completedPhases)")
+            } else {
+                lines.append("")
+                lines.append("Open plan context: none")
+            }
+
+            if let diffContext = state.activeDiffContext {
+                lines.append("")
+                lines.append("Open diff context:")
+                if diffContext.selectedCommits.isEmpty {
+                    lines.append("Selected commits: none")
+                } else {
+                    lines.append("Selected commits:")
+                    for commit in diffContext.selectedCommits {
+                        lines.append("- \(commit.hash): \(commit.message)")
+                    }
+                }
+                lines.append("Selected file: \(diffContext.selectedFilePath ?? "none")")
+                let selectedSources = diffContext.selectedSources.isEmpty
+                    ? "none"
+                    : diffContext.selectedSources.joined(separator: ", ")
+                lines.append("Selected diff sources: \(selectedSources)")
+                lines.append("Note: if the user asks about changes visible in an open diff or asks to make edits, they are likely requesting code modifications to the files shown here.")
+            } else {
+                lines.append("")
+                lines.append("Open diff context: none")
+            }
+
+            return .init(content: [.text(text: lines.joined(separator: "\n"), annotations: nil, _meta: nil)], isError: false)
+        } catch {
+            return .init(
+                content: [.text(text: "App is not running or unavailable: \(error.localizedDescription)", annotations: nil, _meta: nil)],
+                isError: false
+            )
+        }
+    }
+    #else
+    private static func handleGetChatContext() async throws -> CallTool.Result {
+        .init(
+            content: [.text(text: "Chat context is only available on macOS when the app is running.", annotations: nil, _meta: nil)],
+            isError: false
+        )
+    }
+    #endif
 
     private static func handleListPlans() async throws -> CallTool.Result {
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
