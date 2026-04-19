@@ -778,6 +778,9 @@ var targets: [Target] = [
 products.append(
     .library(name: "AIDevToolsKitMac", targets: ["AIDevToolsKitMac"])
 )
+products.append(
+    .library(name: "MarkdownUIToolkit", targets: ["MarkdownUIToolkit"])
+)
 
 dependencies.append(contentsOf: [
     .package(url: "https://github.com/gonzalezreal/swift-markdown-ui.git", from: "2.0.0"),
@@ -813,6 +816,7 @@ targets.append(contentsOf: [
             "LocalDiffService",
             "LoggingSDK",
             "LogsFeature",
+            "MarkdownUIToolkit",
             "MCPService",
             "PlanFeature",
             "PlanService",
@@ -836,6 +840,13 @@ targets.append(contentsOf: [
             "WorktreeFeature",
         ],
         path: "Sources/Apps/AIDevToolsKitMac"
+    ),
+    .target(
+        name: "MarkdownUIToolkit",
+        dependencies: [
+            .product(name: "MarkdownUI", package: "swift-markdown-ui"),
+        ],
+        path: "Sources/UIToolkits/MarkdownUIToolkit"
     ),
     .testTarget(
         name: "AIDevToolsKitMacTests",

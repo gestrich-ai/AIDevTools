@@ -298,6 +298,11 @@ final class PlanModel {
         try await dependencies.appendReviewTemplate(template, planURL)
     }
 
+    func savePlanContent(_ content: String, to planURL: URL) async throws {
+        try await dependencies.savePlanContent(content, planURL)
+        await reloadPlans()
+    }
+
     func reportError(_ error: Error) {
         state = .error(error)
     }
@@ -314,6 +319,7 @@ final class PlanModel {
         let getPlanDetails: @Sendable (String, URL) async throws -> String
         let loadPlans: @Sendable (URL) async -> [MarkdownPlanEntry]
         let planService: @Sendable (any AIClient) -> PlanService
+        let savePlanContent: @Sendable (String, URL) async throws -> Void
 
         init(
             appendReviewTemplate: @escaping @Sendable (ReviewTemplate, URL) async throws -> Void = { template, planURL in
@@ -336,6 +342,9 @@ final class PlanModel {
                         return settings.resolvedProposedDirectory(repoPath: repo.path)
                     }
                 )
+            },
+            savePlanContent: @escaping @Sendable (String, URL) async throws -> Void = { content, planURL in
+                try SavePlanContentUseCase().run(content: content, planURL: planURL)
             }
         ) {
             self.appendReviewTemplate = appendReviewTemplate
@@ -343,6 +352,7 @@ final class PlanModel {
             self.getPlanDetails = getPlanDetails
             self.loadPlans = loadPlans
             self.planService = planService
+            self.savePlanContent = savePlanContent
         }
     }
 

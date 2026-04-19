@@ -155,7 +155,10 @@ Include a description note in the MCP resource that tells the AI: when a user as
 
 Identify the existing MCP infrastructure in the project (look for MCP server registration) to determine the correct place to add these resources. Keep the new resources scoped — they reflect transient UI state, so they should read from a shared observable state object updated by `CommitListDiffView`.
 
-## - [ ] Phase 6: Markdown editor mode and live reload for plan view
+## - [x] Phase 6: Markdown editor mode and live reload for plan view
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-code-organization`
+**Principles applied**: Kept markdown editing in a reusable UI toolkit instead of the planning feature, saved edited content through a dedicated PlanFeature use case rather than direct view-layer file I/O, and coordinated file watching with edit mode so view mode live-reloads without overwriting in-progress edits.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-code-organization`
 

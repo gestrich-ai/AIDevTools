@@ -1,5 +1,5 @@
 import AIOutputSDK
-import MarkdownUI
+import MarkdownUIToolkit
 import PlanFeature
 import PlanService
 import RepositorySDK
@@ -25,8 +25,10 @@ struct PlanDetailView: View {
 
     @State private var executionChatModel: ChatModel?
     @State private var activePlanModel = ActivePlanModel()
+    @State private var editablePlanContent = ""
     @State private var isAddTaskPopoverPresented = false
     @State private var isAppendReviewPopoverPresented = false
+    @State private var isEditingMarkdown = false
     @State private var newTaskDescription = ""
 
     var body: some View {
@@ -47,6 +49,7 @@ struct PlanDetailView: View {
             panelModel.clearOutput()
             activePlanModel.stopWatching()
             await loadPlan()
+            resumeWatchingIfNeeded()
             syncPlanMCPContext()
         }
         .onChange(of: planModel.phaseCompleteCount) {
@@ -56,12 +59,17 @@ struct PlanDetailView: View {
             Task { await handleExecutionComplete() }
         }
         .onChange(of: activePlanModel.content) { _, newContent in
-            guard !newContent.isEmpty else { return }
+            guard !isEditingMarkdown, !newContent.isEmpty else { return }
             planContent = newContent
+            editablePlanContent = newContent
             localPhases = activePlanModel.phases
             syncPlanMCPContext()
         }
+        .onChange(of: isEditingMarkdown) { _, isEditing in
+            handleEditingModeChange(isEditing)
+        }
         .onDisappear {
+            activePlanModel.stopWatching()
             mcpContextModel.clearPlanContext(planFilePath: plan.planURL.path())
         }
     }
@@ -89,12 +97,11 @@ struct PlanDetailView: View {
 
                 if let planContent {
                     Divider()
-                    Markdown(planContent)
-                        .markdownTheme(.gitHub.text {
-                            ForegroundColor(.primary)
-                            FontSize(14)
-                        })
-                        .textSelection(.enabled)
+                    EditableMarkdownView(text: $editablePlanContent, isEditing: isEditingMarkdown)
+                        .frame(maxWidth: .infinity, minHeight: 320, alignment: .topLeading)
+                        .onAppear {
+                            editablePlanContent = planContent
+                        }
                 } else if let loadError {
                     ContentUnavailableView(
                         "Failed to Load Plan",
@@ -233,6 +240,13 @@ struct PlanDetailView: View {
                 .font(.caption)
                 .help("Run plan execution in an isolated git worktree")
                 .disabled(isBusy)
+
+            Button {
+                isEditingMarkdown.toggle()
+            } label: {
+                Label(isEditingMarkdown ? "Done" : "Edit", systemImage: isEditingMarkdown ? "checkmark.circle" : "pencil")
+            }
+            .disabled(isBusy || planContent == nil)
 
             Button {
                 completePlan()
@@ -445,7 +459,7 @@ struct PlanDetailView: View {
         mergeExecutionPhaseStates()
         executionChatModel?.finalizeCurrentStreamingMessage()
         executionChatModel = nil
-        activePlanModel.startWatching(url: plan.planURL)
+        resumeWatchingIfNeeded()
     }
 
     private func mergeExecutionPhaseStates() {
@@ -484,16 +498,51 @@ struct PlanDetailView: View {
         do {
             let content = try await planModel.getPlanDetails(planName: plan.name, repository: repository)
             planContent = content
+            editablePlanContent = content
             localPhases = PlanPhase.parsePhases(from: content)
             loadError = nil
         } catch {
             planContent = nil
+            editablePlanContent = ""
             localPhases = []
             loadError = error.localizedDescription
         }
 
         loadArchitectureDiagram()
         syncPlanMCPContext()
+    }
+
+    private func handleEditingModeChange(_ isEditing: Bool) {
+        if isEditing {
+            editablePlanContent = planContent ?? ""
+            activePlanModel.stopWatching()
+            return
+        }
+
+        let trimmedOriginal = planContent ?? ""
+        guard editablePlanContent != trimmedOriginal else {
+            resumeWatchingIfNeeded()
+            return
+        }
+
+        Task {
+            do {
+                try await planModel.savePlanContent(editablePlanContent, to: plan.planURL)
+                planContent = editablePlanContent
+                localPhases = PlanPhase.parsePhases(from: editablePlanContent)
+                loadError = nil
+                syncPlanMCPContext()
+            } catch {
+                loadError = error.localizedDescription
+                editablePlanContent = trimmedOriginal
+            }
+            resumeWatchingIfNeeded()
+        }
+    }
+
+    private func resumeWatchingIfNeeded() {
+        guard !isEditingMarkdown else { return }
+        activePlanModel.startWatching(url: plan.planURL)
     }
 
     private func loadArchitectureDiagram() {
