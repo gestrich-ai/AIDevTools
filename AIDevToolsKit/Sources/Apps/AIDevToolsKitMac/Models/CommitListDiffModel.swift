@@ -1,5 +1,5 @@
-import GitSDK
 import GitDiffModelsService
+import GitSDK
 import LocalDiffService
 import Observation
 

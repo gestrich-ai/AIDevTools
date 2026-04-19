@@ -1,4 +1,3 @@
-import GitSDK
 import GitUIToolkit
 import LocalDiffService
 import SwiftUI
@@ -8,7 +7,7 @@ struct CommitListDiffView: View {
 
     init(
         diffService: LocalDiffService,
-        workingDirectoryMonitor: GitWorkingDirectoryMonitor = GitWorkingDirectoryMonitor(),
+        workingDirectoryMonitor: GitWorkingDirectoryMonitor,
         planPhaseDescriptions: [String] = [],
         recentCommitLimit: Int = 20,
         repoPath: String

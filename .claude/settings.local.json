@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f ~/.claude/session_index.jsonl)",
+      "Bash(.build/debug/ai-dev-tools-kit chat *)",
+      "Read(//Users/bill/.claude/**)",
+      "Bash(python3 -c \"import sys,json; d=json.loads\\(sys.stdin.read\\(\\).strip\\(\\)\\); print\\(f'  id={d[\\\\\"id\\\\\"]}'\\)\")"
+    ]
+  }
+}

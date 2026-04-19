@@ -100,6 +100,7 @@ private final class MonitorState {
     private let emitter: ChangeEmitter
     private let pollIntervalNanoseconds: UInt64
 
+    private var historyEventStream: FSEventStreamRef?
     private var historyPollTask: Task<Void, Never>?
     private var indexMonitor: DispatchSourceFileSystemObject?
     private var indexPollTask: Task<Void, Never>?
@@ -107,6 +108,7 @@ private final class MonitorState {
     private var workingTreeEventStream: FSEventStreamRef?
 #endif
     private var workingTreePollTask: Task<Void, Never>?
+    private var historyCallbackContext: GitHistoryCallbackContext?
     private var workingTreeCallbackContext: WorkingTreeCallbackContext?
 
     init(emitter: ChangeEmitter, pollIntervalNanoseconds: UInt64) {
@@ -120,7 +122,9 @@ private final class MonitorState {
         let repoMetadataPath = URL(fileURLWithPath: standardizedRepoRoot).appendingPathComponent(".git").standardizedFileURL.path
         let indexPath = URL(fileURLWithPath: standardizedGitDirectory).appendingPathComponent("index").standardizedFileURL.path
 
-        startHistoryPolling(gitDirectory: standardizedGitDirectory)
+        if !startHistoryEventStream(gitDirectory: standardizedGitDirectory) {
+            startHistoryPolling(gitDirectory: standardizedGitDirectory)
+        }
         startIndexMonitor(indexPath: indexPath)
         if !startWorkingTreeEventStream(
             repoRoot: standardizedRepoRoot,
@@ -138,6 +142,16 @@ private final class MonitorState {
     func stop() {
         historyPollTask?.cancel()
         historyPollTask = nil
+
+#if canImport(CoreServices)
+        if let stream = historyEventStream {
+            FSEventStreamStop(stream)
+            FSEventStreamInvalidate(stream)
+            FSEventStreamRelease(stream)
+            historyEventStream = nil
+        }
+#endif
+        historyCallbackContext = nil
 
         indexMonitor?.cancel()
         indexMonitor = nil
@@ -218,6 +232,73 @@ private final class MonitorState {
                 }
             }
         }
+    }
+
+    private func startHistoryEventStream(gitDirectory: String) -> Bool {
+#if canImport(CoreServices)
+        let callbackContext = GitHistoryCallbackContext(
+            emitter: emitter,
+            gitDirectory: gitDirectory
+        )
+        historyCallbackContext = callbackContext
+
+        let pathsToWatch = [gitDirectory as CFString] as CFArray
+        var streamContext = FSEventStreamContext(
+            version: 0,
+            info: Unmanaged.passRetained(callbackContext).toOpaque(),
+            retain: nil,
+            release: { info in
+                guard let info else { return }
+                Unmanaged<GitHistoryCallbackContext>.fromOpaque(info).release()
+            },
+            copyDescription: nil
+        )
+
+        guard let stream = FSEventStreamCreate(
+            kCFAllocatorDefault,
+            { _, info, eventCount, eventPaths, eventFlags, _ in
+                guard let info else { return }
+                let context = Unmanaged<GitHistoryCallbackContext>.fromOpaque(info).takeUnretainedValue()
+                let pathsPointer = eventPaths.assumingMemoryBound(to: UnsafeMutablePointer<CChar>?.self)
+
+                for index in 0..<eventCount {
+                    let flag = eventFlags[index]
+                    guard shouldEmitHistoryChange(flag: flag) else { continue }
+                    guard let cString = pathsPointer[index] else { continue }
+                    let path = URL(fileURLWithPath: String(cString: cString)).standardizedFileURL.path
+                    guard context.shouldEmit(path: path) else { continue }
+
+                    Task {
+                        await context.emitter.enqueue(.history)
+                    }
+                    return
+                }
+            },
+            &streamContext,
+            pathsToWatch,
+            FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
+            0.2,
+            UInt32(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot)
+        ) else {
+            historyCallbackContext = nil
+            return false
+        }
+
+        FSEventStreamSetDispatchQueue(stream, DispatchQueue(label: "GitWorkingDirectoryMonitor.history"))
+
+        guard FSEventStreamStart(stream) else {
+            FSEventStreamInvalidate(stream)
+            FSEventStreamRelease(stream)
+            historyCallbackContext = nil
+            return false
+        }
+
+        historyEventStream = stream
+        return true
+#else
+        _ = gitDirectory
+        return false
+#endif
     }
 
     private func startWorkingTreePolling(repoRoot: String, gitDirectory: String, repoMetadataPath: String) {
@@ -412,6 +493,34 @@ private struct GitHistorySnapshot: Equatable {
     let resolvedReference: FileSnapshot
 }
 
+private final class GitHistoryCallbackContext {
+    let emitter: ChangeEmitter
+    private let gitDirectory: String
+    private let packedRefsPath: String
+    private let refsPathPrefix: String
+
+    init(emitter: ChangeEmitter, gitDirectory: String) {
+        self.emitter = emitter
+        self.gitDirectory = URL(fileURLWithPath: gitDirectory).standardizedFileURL.path
+        self.packedRefsPath = URL(fileURLWithPath: gitDirectory)
+            .appendingPathComponent("packed-refs")
+            .standardizedFileURL
+            .path
+        self.refsPathPrefix = URL(fileURLWithPath: gitDirectory)
+            .appendingPathComponent("refs")
+            .standardizedFileURL
+            .path + "/"
+    }
+
+    func shouldEmit(path: String) -> Bool {
+        let standardizedPath = URL(fileURLWithPath: path).standardizedFileURL.path
+        if standardizedPath == "\(gitDirectory)/HEAD" { return true }
+        if standardizedPath == packedRefsPath { return true }
+        if standardizedPath.hasPrefix(refsPathPrefix) { return true }
+        return false
+    }
+}
+
 private final class WorkingTreeCallbackContext {
     let emitter: ChangeEmitter
     private let excludedPaths: Set<String>
@@ -433,5 +542,9 @@ private func shouldEmitWorkingTreeChange(flag: FSEventStreamEventFlags) -> Bool 
     if flag & UInt32(kFSEventStreamEventFlagItemRemoved) != 0 { return true }
     if flag & UInt32(kFSEventStreamEventFlagItemRenamed) != 0 { return true }
     return false
+}
+
+private func shouldEmitHistoryChange(flag: FSEventStreamEventFlags) -> Bool {
+    shouldEmitWorkingTreeChange(flag: flag)
 }
 #endif

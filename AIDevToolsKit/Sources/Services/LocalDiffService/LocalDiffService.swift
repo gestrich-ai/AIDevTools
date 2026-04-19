@@ -1,5 +1,5 @@
-import GitDiffModelsService
 import GitSDK
+import GitDiffModelsService
 
 public struct LocalDiffService: Sendable {
     private let emptyTreeHash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
@@ -10,14 +10,15 @@ public struct LocalDiffService: Sendable {
     }
 
     public func getCombinedDiff(commits: [String], repoPath: String) async throws -> GitDiff {
-        guard try await gitClient.isGitRepository(at: repoPath) else {
-            throw GitOperationsError.notARepository("Not a git repository: \(repoPath)")
-        }
+        try await ensureGitRepository(at: repoPath)
         guard let newestCommit = commits.first, let oldestCommit = commits.last else {
             return GitDiff(rawContent: "", hunks: [], commitHash: "")
         }
 
-        do {
+        return try await loadDiff(
+            for: repoPath,
+            failurePrefix: "Failed to compute combined diff"
+        ) {
             let baseRef = try await combinedDiffBaseReference(for: oldestCommit, repoPath: repoPath)
             let rawDiff = try await gitClient.diff(
                 ref1: baseRef,
@@ -26,44 +27,39 @@ public struct LocalDiffService: Sendable {
             )
             let commitHash = commits.count == 1 ? newestCommit : "\(baseRef)...\(newestCommit)"
             return GitDiff.fromDiffContent(rawDiff, commitHash: commitHash)
-        } catch {
-            throw GitOperationsError.diffFailed("Failed to compute combined diff: \(error)")
         }
     }
 
     public func getDiff(forCommit commit: String, repoPath: String) async throws -> GitDiff {
-        guard try await gitClient.isGitRepository(at: repoPath) else {
-            throw GitOperationsError.notARepository("Not a git repository: \(repoPath)")
-        }
-        do {
+        try await ensureGitRepository(at: repoPath)
+        return try await loadDiff(
+            for: repoPath,
+            failurePrefix: "Failed to load diff for commit \(commit)"
+        ) {
             let rawDiff = try await gitClient.show(spec: commit, format: "", workingDirectory: repoPath)
             return GitDiff.fromDiffContent(rawDiff, commitHash: commit)
-        } catch {
-            throw GitOperationsError.diffFailed("Failed to load diff for commit \(commit): \(error)")
         }
     }
 
     public func getStagedDiff(repoPath: String) async throws -> GitDiff {
-        guard try await gitClient.isGitRepository(at: repoPath) else {
-            throw GitOperationsError.notARepository("Not a git repository: \(repoPath)")
-        }
-        do {
+        try await ensureGitRepository(at: repoPath)
+        return try await loadDiff(
+            for: repoPath,
+            failurePrefix: "Failed to load staged diff"
+        ) {
             let rawDiff = try await gitClient.diff(cached: true, workingDirectory: repoPath)
             return GitDiff.fromDiffContent(rawDiff, commitHash: "INDEX")
-        } catch {
-            throw GitOperationsError.diffFailed("Failed to load staged diff: \(error)")
         }
     }
 
     public func getUnstagedDiff(repoPath: String) async throws -> GitDiff {
-        guard try await gitClient.isGitRepository(at: repoPath) else {
-            throw GitOperationsError.notARepository("Not a git repository: \(repoPath)")
-        }
-        do {
+        try await ensureGitRepository(at: repoPath)
+        return try await loadDiff(
+            for: repoPath,
+            failurePrefix: "Failed to load unstaged diff"
+        ) {
             let rawDiff = try await gitClient.diff(ref1: "HEAD", workingDirectory: repoPath)
             return GitDiff.fromDiffContent(rawDiff, commitHash: "WORKTREE")
-        } catch {
-            throw GitOperationsError.diffFailed("Failed to load unstaged diff: \(error)")
         }
     }
 
@@ -90,6 +86,24 @@ public struct LocalDiffService: Sendable {
             return "\(oldestCommit)^"
         } catch {
             return emptyTreeHash
+        }
+    }
+
+    private func ensureGitRepository(at repoPath: String) async throws {
+        guard try await gitClient.isGitRepository(at: repoPath) else {
+            throw GitOperationsError.notARepository("Not a git repository: \(repoPath)")
+        }
+    }
+
+    private func loadDiff(
+        for repoPath: String,
+        failurePrefix: String,
+        operation: () async throws -> GitDiff
+    ) async throws -> GitDiff {
+        do {
+            return try await operation()
+        } catch {
+            throw GitOperationsError.diffFailed("\(failurePrefix): \(error)")
         }
     }
 }

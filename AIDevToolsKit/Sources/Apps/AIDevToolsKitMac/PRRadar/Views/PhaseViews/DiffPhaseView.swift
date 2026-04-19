@@ -39,6 +39,8 @@ struct DiffPhaseView: View {
     }
 
     var body: some View {
+        let mapping = commentMapping(for: fullDiff)
+
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 PhaseSummaryBar(items: summaryItems(for: fullDiff))
@@ -47,10 +49,10 @@ struct DiffPhaseView: View {
             .padding(8)
 
             HSplitView {
-                fileList(for: fullDiff)
+                fileList(for: fullDiff, mapping: mapping)
                     .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
 
-                diffContent(for: fullDiff)
+                diffContent(for: fullDiff, mapping: mapping)
             }
         }
         .onAppear {
@@ -98,8 +100,8 @@ struct DiffPhaseView: View {
     }
 
     @ViewBuilder
-    private func fileList(for diff: GitDiff) -> some View {
-        annotatedFileList(for: diff)
+    private func fileList(for diff: GitDiff, mapping: DiffCommentMapping) -> some View {
+        annotatedFileList(for: diff, mapping: mapping)
     }
 
     @ViewBuilder
@@ -118,8 +120,7 @@ struct DiffPhaseView: View {
     }
 
     @ViewBuilder
-    private func annotatedFileList(for diff: GitDiff) -> some View {
-        let mapping = commentMapping(for: diff)
+    private func annotatedFileList(for diff: GitDiff, mapping: DiffCommentMapping) -> some View {
         let allFiles = filesWithViolationCounts(mapping: mapping)
         let postedCounts = postedCommentCountsByFile(mapping: mapping)
 
@@ -172,7 +173,7 @@ struct DiffPhaseView: View {
     // MARK: - Diff Content
 
     @ViewBuilder
-    private func diffContent(for diff: GitDiff) -> some View {
+    private func diffContent(for diff: GitDiff, mapping: DiffCommentMapping) -> some View {
         let filtered: GitDiff = {
             if let file = selectedFile {
                 let hunks = diff.getHunks(byFilePath: file)
@@ -224,7 +225,7 @@ struct DiffPhaseView: View {
             AnnotatedDiffContentView(
                 prDiff: prDiff,
                 displayDiff: filtered,
-                commentMapping: commentMapping(for: diff),
+                commentMapping: mapping,
                 prModel: prModel,
                 scrollToCommentID: $scrollToCommentID,
                 highlightedCommentID: highlightedCommentID,
