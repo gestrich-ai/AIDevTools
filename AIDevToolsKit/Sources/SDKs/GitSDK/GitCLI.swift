@@ -158,6 +158,7 @@ public struct GitCLI {
 
     @CLICommand
     public struct Show {
+        @PrefixOption("--format=") public var format: String?
         @Positional public var spec: String
     }
 }

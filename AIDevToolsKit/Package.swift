@@ -28,6 +28,7 @@ var products: [Product] = [
     .library(name: "GitSDK", targets: ["GitSDK"]),
     .library(name: "GitUIToolkit", targets: ["GitUIToolkit"]),
     .library(name: "KeychainSDK", targets: ["KeychainSDK"]),
+    .library(name: "LocalDiffService", targets: ["LocalDiffService"]),
     .library(name: "LoggingSDK", targets: ["LoggingSDK"]),
     .library(name: "LogsFeature", targets: ["LogsFeature"]),
     .library(name: "MCPService", targets: ["MCPService"]),
@@ -318,6 +319,14 @@ var targets: [Target] = [
             "RepositorySDK",
         ],
         path: "Sources/Services/GitHubService"
+    ),
+    .target(
+        name: "LocalDiffService",
+        dependencies: [
+            "GitSDK",
+            "PRRadarModelsService",
+        ],
+        path: "Sources/Services/LocalDiffService"
     ),
     .target(
         name: "MCPService",
@@ -801,6 +810,7 @@ targets.append(contentsOf: [
             "GitHubService",
             "GitSDK",
             "GitUIToolkit",
+            "LocalDiffService",
             "LoggingSDK",
             "LogsFeature",
             "MCPService",

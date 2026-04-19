@@ -92,7 +92,10 @@ No `onAddComment`, `onMoveTapped`, or `onSelectRules` callbacks (pass nil). No `
 
 Layout: `HSplitView` with sidebar `frame(minWidth: 180, idealWidth: 220, maxWidth: 260)`, same proportions as `DiffPhaseView`.
 
-## - [ ] Phase 3: Build `CommitListDiffView` with commit selection
+## - [x] Phase 3: Build `CommitListDiffView` with commit selection
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
+**Principles applied**: Kept the commit-selection model and SwiftUI entry view in the app layer, moved reusable local diff loading into a dedicated shared service instead of wiring git commands directly in views, and left plan-specific preselection as optional input so the component stays general-purpose.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
 

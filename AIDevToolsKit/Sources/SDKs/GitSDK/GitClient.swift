@@ -399,6 +399,50 @@ public struct GitClient: Sendable {
         }
     }
 
+    public func listRecentCommits(maxCount: Int, workingDirectory: String) async throws -> [GitCommitSummary] {
+        let command = GitCLI.Log(maxCount: String(maxCount), pretty: "format:%H%x00%s%x00%B%x00")
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return parseCommitSummaries(from: result.stdout)
+    }
+
+    public func show(spec: String, format: String? = nil, workingDirectory: String) async throws -> String {
+        let command = GitCLI.Show(format: format, spec: spec)
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return result.stdout
+    }
+
+    public func diff(cached: Bool = false, ref1: String? = nil, ref2: String? = nil, workingDirectory: String) async throws -> String {
+        let command = GitCLI.Diff(cached: cached, ref1: ref1, ref2: ref2)
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        return result.stdout
+    }
+
+    private func parseCommitSummaries(from output: String) -> [GitCommitSummary] {
+        let entries = output
+            .components(separatedBy: "\0")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        var commits: [GitCommitSummary] = []
+        var index = 0
+        while index + 2 < entries.count {
+            let hash = entries[index]
+            guard hash.count == 40 else {
+                index += 1
+                continue
+            }
+
+            commits.append(
+                GitCommitSummary(
+                    body: entries[index + 2],
+                    hash: hash,
+                    subject: entries[index + 1]
+                )
+            )
+            index += 3
+        }
+        return commits
+    }
+
     private func parseWorktreeList(_ output: String) -> [WorktreeInfo] {
         let blocks = output.components(separatedBy: "\n\n")
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }

@@ -125,6 +125,23 @@ public struct GitService: Sendable {
         return try await gitClient.getMergeBase(ref1: commit1, ref2: commit2, workingDirectory: repoPath)
     }
 
+    public func listCommitsMatching(_ pattern: String, repoPath: String) async throws -> [GitCommitSummary] {
+        try await gitClient.logGrepAll(pattern, workingDirectory: repoPath).map { entry in
+            let subject = entry.body
+                .components(separatedBy: .newlines)
+                .first?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return GitCommitSummary(body: entry.body, hash: entry.hash, subject: subject)
+        }
+    }
+
+    public func listRecentCommits(limit: Int = 20, repoPath: String) async throws -> [GitCommitSummary] {
+        guard try await gitClient.isGitRepository(at: repoPath) else {
+            throw GitOperationsError.notARepository("Not a git repository: \(repoPath)")
+        }
+        return try await gitClient.listRecentCommits(maxCount: limit, workingDirectory: repoPath)
+    }
+
     public func getRemoteURL(path: String) async throws -> String {
         try await gitClient.remoteGetURL(workingDirectory: path)
     }
