@@ -29,9 +29,11 @@ public struct GetPlanDetailsUseCase: UseCase {
         guard let plan = plans.first(where: { $0.name == planName }) else {
             throw GetPlanDetailsError.planNotFound(planName)
         }
-        guard let content = try? String(contentsOf: plan.planURL, encoding: .utf8) else {
-            throw GetPlanDetailsError.contentUnreadable(planName)
-        }
-        return content
+        return try await Task.detached(priority: .userInitiated) {
+            guard let content = try? String(contentsOf: plan.planURL, encoding: .utf8) else {
+                throw GetPlanDetailsError.contentUnreadable(planName)
+            }
+            return content
+        }.value
     }
 }

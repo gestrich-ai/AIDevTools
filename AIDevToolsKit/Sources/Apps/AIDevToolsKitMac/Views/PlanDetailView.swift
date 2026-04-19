@@ -10,7 +10,6 @@ struct PlanDetailView: View {
   @Environment(ExecutionPanelModel.self) private var panelModel
   @Environment(\.gitWorkingDirectoryMonitor) private var gitWorkingDirectoryMonitor
   @Environment(\.localDiffService) private var localDiffService
-  @Environment(MCPContextModel.self) private var mcpContextModel
   @Environment(PlanModel.self) var planModel
   let plan: MarkdownPlanEntry
   let repository: RepositoryConfiguration
@@ -31,7 +30,6 @@ struct PlanDetailView: View {
   @State private var editablePlanContent = ""
   @State private var isAddTaskPopoverPresented = false
   @State private var isAppendReviewPopoverPresented = false
-  @State private var isDiffPresented = false
   @State private var isEditingMarkdown = false
   @State private var newTaskDescription = ""
 
@@ -54,7 +52,6 @@ struct PlanDetailView: View {
       activePlanModel.stopWatching()
       await loadPlan()
       resumeWatchingIfNeeded()
-      syncPlanMCPContext()
     }
     .onChange(of: planModel.phaseCompleteCount) {
       loadArchitectureDiagram()
@@ -67,55 +64,78 @@ struct PlanDetailView: View {
       planContent = newContent
       editablePlanContent = newContent
       localPhases = activePlanModel.phases
-      syncPlanMCPContext()
     }
     .onChange(of: isEditingMarkdown) { _, isEditing in
       handleEditingModeChange(isEditing)
     }
     .onDisappear {
       activePlanModel.stopWatching()
-      mcpContextModel.clearPlanContext(planFilePath: plan.planURL.path())
     }
   }
 
   // MARK: - Sub-views
 
   private var planContentView: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 16) {
-        phaseSection
-        queuedTasksSection
+    Group {
+      if shouldShowDiffSection {
+        GeometryReader { geometry in
+          VStack(spacing: 0) {
+            planDocumentScrollView
+              .frame(height: max(320, geometry.size.height * 0.5))
 
-        if let diagram = architectureDiagram {
-          DisclosureGroup("Architecture", isExpanded: $isArchitectureExpanded) {
-            ArchitectureDiagramView(
-              diagram: diagram,
-              selectedModule: $selectedModule
-            )
+            Divider()
+
+            diffSection
+              .frame(height: max(320, geometry.size.height * 0.5))
           }
         }
+      } else {
+        planDocumentScrollView
+      }
+    }
+  }
 
-        if let result = planModel.state.completionResult {
-          completionBanner(result)
-        }
+  private var planDocumentScrollView: some View {
+    ScrollView {
+      planDocumentContent
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+  }
 
-        if let planContent {
-          Divider()
-          EditableMarkdownView(text: $editablePlanContent, isEditing: isEditingMarkdown)
-            .frame(maxWidth: .infinity, minHeight: 320, alignment: .topLeading)
-            .onAppear {
-              editablePlanContent = planContent
-            }
-        } else if let loadError {
-          ContentUnavailableView(
-            "Failed to Load Plan",
-            systemImage: "exclamationmark.triangle",
-            description: Text(loadError)
+  @ViewBuilder
+  private var planDocumentContent: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      phaseSection
+      queuedTasksSection
+
+      if let diagram = architectureDiagram {
+        DisclosureGroup("Architecture", isExpanded: $isArchitectureExpanded) {
+          ArchitectureDiagramView(
+            diagram: diagram,
+            selectedModule: $selectedModule
           )
         }
       }
-      .padding()
-      .frame(maxWidth: .infinity, alignment: .leading)
+
+      if let result = planModel.state.completionResult {
+        completionBanner(result)
+      }
+
+      if let planContent {
+        Divider()
+        EditableMarkdownView(text: $editablePlanContent, isEditing: isEditingMarkdown)
+          .frame(maxWidth: .infinity, minHeight: 320, alignment: .topLeading)
+          .onAppear {
+            editablePlanContent = planContent
+          }
+      } else if let loadError {
+        ContentUnavailableView(
+          "Failed to Load Plan",
+          systemImage: "exclamationmark.triangle",
+          description: Text(loadError)
+        )
+      }
     }
   }
 
@@ -246,13 +266,6 @@ struct PlanDetailView: View {
         .disabled(isBusy)
 
             Button {
-                isDiffPresented = true
-            } label: {
-                Label("Diff", systemImage: "arrow.left.and.right.square")
-            }
-            .disabled(planContent == nil)
-
-            Button {
                 isEditingMarkdown.toggle()
             } label: {
                 Label(isEditingMarkdown ? "Done" : "Edit", systemImage: isEditingMarkdown ? "checkmark.circle" : "pencil")
@@ -329,15 +342,6 @@ struct PlanDetailView: View {
       .disabled(isBusy)
     }
     .padding()
-        .sheet(isPresented: $isDiffPresented) {
-            CommitListDiffView(
-                diffService: localDiffService,
-                workingDirectoryMonitor: gitWorkingDirectoryMonitor,
-                planPhaseDescriptions: completedPhaseDescriptions,
-                repoPath: repository.path.path()
-            )
-            .frame(minWidth: 900, minHeight: 640)
-        }
   }
 
   @ViewBuilder
@@ -498,7 +502,6 @@ struct PlanDetailView: View {
       let updatedContent = try planModel.togglePhase(plan: plan, phaseIndex: index)
       planContent = updatedContent
       localPhases = PlanPhase.parsePhases(from: updatedContent)
-      syncPlanMCPContext()
     } catch {
       planModel.reportError(error)
     }
@@ -529,7 +532,6 @@ struct PlanDetailView: View {
     }
 
     loadArchitectureDiagram()
-    syncPlanMCPContext()
   }
 
   private func handleEditingModeChange(_ isEditing: Bool) {
@@ -551,7 +553,6 @@ struct PlanDetailView: View {
         planContent = editablePlanContent
         localPhases = PlanPhase.parsePhases(from: editablePlanContent)
         loadError = nil
-        syncPlanMCPContext()
       } catch {
         loadError = error.localizedDescription
         editablePlanContent = trimmedOriginal
@@ -587,16 +588,29 @@ struct PlanDetailView: View {
     return "\(seconds)s"
   }
 
-    private var completedPhaseDescriptions: [String] {
-        localPhases.filter(\.isCompleted).map(\.description)
-    }
+  private var completedPhaseDescriptions: [String] {
+    localPhases.filter(\.isCompleted).map(\.description)
+  }
 
-  private func syncPlanMCPContext() {
-    mcpContextModel.updatePlanContext(
-      planName: plan.name,
-      planFilePath: plan.planURL.path(),
-            completedPhases: completedPhaseDescriptions
-    )
+  private var shouldShowDiffSection: Bool {
+    !completedPhaseDescriptions.isEmpty
+  }
+
+  private var diffSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Diff")
+        .font(.headline)
+        .foregroundStyle(.secondary)
+
+      CommitListDiffView(
+        diffService: localDiffService,
+        workingDirectoryMonitor: gitWorkingDirectoryMonitor,
+        planPhaseDescriptions: completedPhaseDescriptions,
+        repoPath: repository.path.path()
+      )
+      .frame(maxWidth: .infinity, minHeight: 520, alignment: .topLeading)
+      .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
   }
 }
 

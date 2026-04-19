@@ -4,7 +4,6 @@ import LocalDiffService
 import SwiftUI
 
 struct CommitListDiffView: View {
-    @Environment(MCPContextModel.self) private var mcpContextModel
     @State private var model: CommitListDiffModel
 
     init(
@@ -24,24 +23,29 @@ struct CommitListDiffView: View {
     }
 
     var body: some View {
-        VSplitView {
-            commitList
-                .frame(minHeight: 180, idealHeight: 220)
+        HSplitView {
+            sidebar
+                .frame(minWidth: 240, idealWidth: 280, maxWidth: 360)
 
             diffContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task {
             await model.load()
-            syncMCPContext()
             model.startMonitoring()
-        }
-        .onChange(of: model.mcpDiffContext) { _, _ in
-            syncMCPContext()
         }
         .onDisappear {
             model.stopMonitoring()
-            mcpContextModel.clearDiffContext()
+        }
+    }
+
+    private var sidebar: some View {
+        VSplitView {
+            commitList
+                .frame(minHeight: 220, idealHeight: 280)
+
+            filesList
+                .frame(minHeight: 180, idealHeight: 220)
         }
     }
 
@@ -109,6 +113,57 @@ struct CommitListDiffView: View {
         .padding()
     }
 
+    private var filesList: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Files")
+                .font(.headline)
+
+            switch model.diffState {
+            case .empty(let message):
+                ContentUnavailableView(
+                    "No Files",
+                    systemImage: "doc",
+                    description: Text(message)
+                )
+            case .error(let error):
+                ContentUnavailableView(
+                    "Failed to Load Files",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(error)
+                )
+            case .loaded:
+                List(
+                    selection: Binding(
+                        get: { model.selectedFilePath.map { Set([$0]) } ?? [] },
+                        set: { newSelection in
+                            model.setSelectedFilePath(newSelection.first)
+                        }
+                    )
+                ) {
+                    Section("Changed Files") {
+                        ForEach(model.changedFiles, id: \.self) { filePath in
+                            HStack {
+                                Text(URL(fileURLWithPath: filePath).lastPathComponent)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text(filePath)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            .tag(filePath)
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+            case .loading:
+                ProgressView("Loading files…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .padding()
+    }
+
     @ViewBuilder
     private var diffContent: some View {
         switch model.diffState {
@@ -125,7 +180,12 @@ struct CommitListDiffView: View {
                 description: Text(error)
             )
         case .loaded(let diff):
-            GitDiffView(diff: diff, onSelectedFileChange: model.setSelectedFilePath)
+            GitDiffView(
+                diff: diff,
+                selectedFile: model.selectedFilePath,
+                showsFileSidebar: false,
+                onSelectedFileChange: model.setSelectedFilePath
+            )
         case .loading:
             ProgressView("Loading diff…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -164,9 +224,5 @@ struct CommitListDiffView: View {
                 .lineLimit(1)
         }
         .padding(.vertical, 2)
-    }
-
-    private func syncMCPContext() {
-        mcpContextModel.updateDiffContext(model.mcpDiffContext)
     }
 }

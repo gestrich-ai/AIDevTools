@@ -21,7 +21,6 @@ public struct AIDevToolsKitMacEntryView: View {
   @State private var claudeChainModel: ClaudeChainModel
   @State private var credentialModel = CredentialModel()
   @State private var ipcServer: AppIPCServer
-  @State private var mcpContextModel: MCPContextModel
   @State private var mcpModel: MCPModel
   @State private var planModel: PlanModel
   @State private var settingsModel: SettingsModel
@@ -36,8 +35,7 @@ public struct AIDevToolsKitMacEntryView: View {
     guard let root = try? CompositionRoot.create() else {
       fatalError("Failed to initialize app services. Check data directory permissions.")
     }
-    _ipcServer = State(initialValue: AppIPCServer(mcpContextModel: root.mcpContextModel))
-    _mcpContextModel = State(initialValue: root.mcpContextModel)
+    _ipcServer = State(initialValue: AppIPCServer())
     _mcpModel = State(initialValue: root.mcpModel)
     _settingsModel = State(initialValue: root.settingsModel)
     let appModel = AppModel(providerModel: root.providerModel)
@@ -97,7 +95,6 @@ public struct AIDevToolsKitMacEntryView: View {
             .environment(credentialModel)
             .environment(\.gitWorkingDirectoryMonitor, gitWorkingDirectoryMonitor)
             .environment(\.localDiffService, localDiffService)
-            .environment(mcpContextModel)
             .environment(mcpModel)
             .environment(planModel)
             .environment(worktreeModel)

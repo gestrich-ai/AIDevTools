@@ -4,15 +4,22 @@ import Foundation
 
 @MainActor
 final class AppIPCServer {
-    private let mcpContextModel: MCPContextModel
+    private var serverTask: Task<Void, Never>?
 
     private nonisolated var socketPath: String { AppIPCClient.socketFilePath }
 
-    init(mcpContextModel: MCPContextModel) {
-        self.mcpContextModel = mcpContextModel
-    }
+    init() {}
 
     func start() async {
+        serverTask?.cancel()
+
+        let socketPath = self.socketPath
+        serverTask = Task.detached(priority: .background) {
+            await Self.runServer(socketPath: socketPath)
+        }
+    }
+
+    private nonisolated static func runServer(socketPath: String) async {
         try? FileManager.default.removeItem(atPath: socketPath)
         let dir = URL(fileURLWithPath: socketPath).deletingLastPathComponent().path
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
@@ -23,9 +30,8 @@ final class AppIPCServer {
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
         let maxLen = MemoryLayout.size(ofValue: addr.sun_path) - 1
-        let path = socketPath
         withUnsafeMutablePointer(to: &addr.sun_path) { ptr in
-            path.withCString { src in
+            socketPath.withCString { src in
                 _ = strncpy(UnsafeMutableRawPointer(ptr).assumingMemoryBound(to: CChar.self), src, maxLen)
             }
         }
@@ -44,19 +50,21 @@ final class AppIPCServer {
             await acceptLoop(fd: fd)
         } onCancel: {
             Darwin.close(fd)
-            try? FileManager.default.removeItem(atPath: path)
+            try? FileManager.default.removeItem(atPath: socketPath)
         }
     }
 
-    private func acceptLoop(fd: Int32) async {
+    private nonisolated static func acceptLoop(fd: Int32) async {
         while !Task.isCancelled {
             let clientFd = Darwin.accept(fd, nil, nil)
             guard clientFd >= 0 else { break }
-            Task { await self.handleConnection(clientFd: clientFd) }
+            Task {
+                await handleConnection(clientFd: clientFd)
+            }
         }
     }
 
-    private func handleConnection(clientFd: Int32) async {
+    private nonisolated static func handleConnection(clientFd: Int32) async {
         defer { Darwin.close(clientFd) }
 
         var requestData = Data()
@@ -73,8 +81,6 @@ final class AppIPCServer {
 
         let uiState: IPCUIState = await MainActor.run {
             IPCUIState(
-                activeDiffContext: mcpContextModel.activeDiffContext,
-                activePlanContext: mcpContextModel.activePlanContext,
                 currentTab: UserDefaults.standard.string(forKey: "selectedWorkspaceTab"),
                 selectedChainName: UserDefaults.standard.string(forKey: "selectedChainProject"),
                 selectedPlanName: UserDefaults.standard.string(forKey: "selectedPlanName")

@@ -15,36 +15,55 @@ public struct GitDiffView: View {
     }
 
     public let diff: GitDiff
+    private let selectedFileOverride: String?
+    private let showsFileSidebar: Bool
     private let onSelectedFileChange: ((String?) -> Void)?
 
     @State private var selectedFile: String?
 
-    public init(diff: GitDiff, onSelectedFileChange: ((String?) -> Void)? = nil) {
+    public init(
+        diff: GitDiff,
+        selectedFile: String? = nil,
+        showsFileSidebar: Bool = true,
+        onSelectedFileChange: ((String?) -> Void)? = nil
+    ) {
         self.diff = diff
+        self.selectedFileOverride = selectedFile
+        self.showsFileSidebar = showsFileSidebar
         self.onSelectedFileChange = onSelectedFileChange
     }
 
     public var body: some View {
-        HSplitView {
-            fileSidebar
-                .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
+        Group {
+            if showsFileSidebar {
+                HSplitView {
+                    fileSidebar
+                        .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
 
-            diffContent
+                    diffContent
+                }
+            } else {
+                diffContent
+            }
         }
         .onAppear {
             if selectedFile == nil {
-                selectedFile = diff.changedFiles.first
+                selectedFile = selectedFileOverride ?? diff.changedFiles.first
             }
-            onSelectedFileChange?(selectedFile)
+            if selectedFileOverride == nil {
+                onSelectedFileChange?(effectiveSelectedFile)
+            }
         }
         .onChange(of: diff.changedFiles) { _, changedFiles in
-            if let selectedFile, changedFiles.contains(selectedFile) {
+            let currentSelection = effectiveSelectedFile
+            if let currentSelection, changedFiles.contains(currentSelection) {
                 return
             }
             self.selectedFile = changedFiles.first
-            onSelectedFileChange?(self.selectedFile)
+            onSelectedFileChange?(effectiveSelectedFile)
         }
         .onChange(of: selectedFile) { _, newValue in
+            guard showsFileSidebar else { return }
             onSelectedFileChange?(newValue)
         }
     }
@@ -114,7 +133,7 @@ public struct GitDiffView: View {
     }
 
     private var displayedFiles: [String] {
-        guard let selectedFile else { return diff.changedFiles }
+        guard let selectedFile = effectiveSelectedFile else { return diff.changedFiles }
         return [selectedFile]
     }
 
@@ -135,6 +154,13 @@ public struct GitDiffView: View {
                 showsPureRename: hunks.contains(where: \.isPureRename)
             )
         }
+    }
+
+    private var effectiveSelectedFile: String? {
+        if showsFileSidebar {
+            return selectedFile
+        }
+        return selectedFileOverride ?? selectedFile
     }
 }
 

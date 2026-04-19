@@ -14,26 +14,49 @@ public struct MigrateDataPathsUseCase: UseCase {
     private static let logger = NoOpLogger()
     #endif
 
+    private static let currentMigrationVersion = 1
+
     private let dataPathsService: DataPathsService
     private let oldArchPlannerRoot: URL
-    private let fileManager: FileManager
+    private var fileManager: FileManager { .default }
 
     public init(
         dataPathsService: DataPathsService,
-        oldArchPlannerRoot: URL = URL.homeDirectory.appending(path: ".ai-dev-tools"),
-        fileManager: FileManager = .default
+        oldArchPlannerRoot: URL = URL.homeDirectory.appending(path: ".ai-dev-tools")
     ) {
         self.dataPathsService = dataPathsService
         self.oldArchPlannerRoot = oldArchPlannerRoot
-        self.fileManager = fileManager
     }
 
     public func run() throws {
+        guard try shouldRunMigration() else { return }
         try migrateSettingsFile(name: "repositories.json", to: .repositories)
         try migrateArchitecturePlannerData()
         try migrateFeatureSettingsIntoRepositories()
         try migrateAnthropicSessions()
         try migrateDirectoryLayouts()
+        try writeMigrationMarker()
+    }
+
+    private func shouldRunMigration() throws -> Bool {
+        let markerURL = migrationMarkerURL()
+        guard fileManager.fileExists(atPath: markerURL.path) else { return true }
+        let marker = try String(contentsOf: markerURL, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return marker != "\(Self.currentMigrationVersion)"
+    }
+
+    private func writeMigrationMarker() throws {
+        let markerURL = migrationMarkerURL()
+        try fileManager.createDirectory(
+            at: markerURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try "\(Self.currentMigrationVersion)".write(to: markerURL, atomically: true, encoding: .utf8)
+    }
+
+    private func migrationMarkerURL() -> URL {
+        dataPathsService.rootPath.appending(path: ".data-paths-migration-version")
     }
 
     private func migrateSettingsFile(name: String, to servicePath: ServicePath) throws {

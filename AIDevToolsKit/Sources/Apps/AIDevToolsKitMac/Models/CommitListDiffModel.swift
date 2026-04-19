@@ -1,4 +1,3 @@
-import AppIPCSDK
 import GitSDK
 import LocalDiffService
 import Observation
@@ -84,26 +83,13 @@ final class CommitListDiffModel {
         return entries
     }
 
-    var hasPlanCommitSelection: Bool {
-        !planPhaseDescriptions.isEmpty
+    var changedFiles: [String] {
+        guard case .loaded(let diff) = diffState else { return [] }
+        return diff.changedFiles
     }
 
-    var mcpDiffContext: IPCDiffContext? {
-        let selectedEntries = entries.filter { selectedEntryIDs.contains($0.id) }
-        guard !selectedEntries.isEmpty else { return nil }
-
-        let selectedCommits = selectedEntries.compactMap { entry -> IPCDiffCommit? in
-            guard case .commit(let commit) = entry.kind else { return nil }
-            return IPCDiffCommit(hash: commit.hash, message: commit.subject)
-        }
-
-        let selectedSources = selectedEntries.map(\.title)
-
-        return IPCDiffContext(
-            selectedCommits: selectedCommits,
-            selectedFilePath: selectedFilePath,
-            selectedSources: selectedSources
-        )
+    var hasPlanCommitSelection: Bool {
+        !planPhaseDescriptions.isEmpty
     }
 
     func load() async {
@@ -126,6 +112,7 @@ final class CommitListDiffModel {
     }
 
     func select(entries entryIDs: Set<String>) async {
+        guard selectedEntryIDs != entryIDs else { return }
         selectedEntryIDs = entryIDs
         await reloadDiff()
     }
@@ -133,7 +120,11 @@ final class CommitListDiffModel {
     func selectPlanCommits() async {
         guard !planPhaseDescriptions.isEmpty else { return }
         do {
-            let matchingCommits = try await diffService.listCommitsMatching("Complete Phase", repoPath: repoPath)
+            let diffService = self.diffService
+            let repoPath = self.repoPath
+            let matchingCommits = try await Task.detached(priority: .userInitiated) {
+                try await diffService.listCommitsMatching("Complete Phase", repoPath: repoPath)
+            }.value
             let matchingHashes = Set(matchingCommits.compactMap { commit in
                 planPhaseDescriptions.contains(where: { description in
                     commit.subject.hasSuffix(": \(description)")
@@ -151,44 +142,54 @@ final class CommitListDiffModel {
     }
 
     func setSelectedFilePath(_ path: String?) {
+        guard selectedFilePath != path else { return }
         selectedFilePath = path
     }
 
     private func combinedDiff(from entries: [Entry]) async throws -> GitDiff {
-        var diffParts: [GitDiff] = []
         let selectedCommits = entries.compactMap { entry -> GitCommitSummary? in
             guard case .commit(let commit) = entry.kind else { return nil }
             return commit
         }
-
-        if selectedCommits.count > 1 {
-            diffParts.append(
-                try await diffService.getCombinedDiff(
-                    commits: selectedCommits.map(\.hash),
-                    repoPath: repoPath
-                )
-            )
-        } else if let commit = selectedCommits.first {
-            diffParts.append(try await diffService.getDiff(forCommit: commit.hash, repoPath: repoPath))
+        let includeStaged = entries.contains { entry in
+            if case .staged = entry.kind { return true }
+            return false
         }
+        let includeUnstaged = entries.contains { entry in
+            if case .unstaged = entry.kind { return true }
+            return false
+        }
+        let diffService = self.diffService
+        let repoPath = self.repoPath
 
-        for entry in entries {
-            switch entry.kind {
-            case .commit:
-                continue
-            case .staged:
+        return try await Task.detached(priority: .userInitiated) {
+            var diffParts: [GitDiff] = []
+
+            if selectedCommits.count > 1 {
+                diffParts.append(
+                    try await diffService.getCombinedDiff(
+                        commits: selectedCommits.map(\.hash),
+                        repoPath: repoPath
+                    )
+                )
+            } else if let commit = selectedCommits.first {
+                diffParts.append(try await diffService.getDiff(forCommit: commit.hash, repoPath: repoPath))
+            }
+
+            if includeStaged {
                 diffParts.append(try await diffService.getStagedDiff(repoPath: repoPath))
-            case .unstaged:
+            }
+            if includeUnstaged {
                 diffParts.append(try await diffService.getUnstagedDiff(repoPath: repoPath))
             }
-        }
 
-        let rawDiff = diffParts
-            .map(\.rawContent)
-            .filter { !$0.isEmpty }
-            .joined(separator: "\n")
-        let commitHash = selectedCommits.map(\.hash).joined(separator: ",")
-        return GitDiff.fromDiffContent(rawDiff, commitHash: commitHash)
+            let rawDiff = diffParts
+                .map(\.rawContent)
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n")
+            let commitHash = selectedCommits.map(\.hash).joined(separator: ",")
+            return GitDiff.fromDiffContent(rawDiff, commitHash: commitHash)
+        }.value
     }
 
     private func reloadDiff() async {
@@ -229,9 +230,15 @@ final class CommitListDiffModel {
         }
 
         do {
-            let unstagedDiff = try await diffService.getUnstagedDiff(repoPath: repoPath)
-            let stagedDiff = try await diffService.getStagedDiff(repoPath: repoPath)
-            let recentCommits = try await diffService.listRecentCommits(limit: recentCommitLimit, repoPath: repoPath)
+            let diffService = self.diffService
+            let recentCommitLimit = self.recentCommitLimit
+            let repoPath = self.repoPath
+            let (unstagedDiff, stagedDiff, recentCommits) = try await Task.detached(priority: .userInitiated) {
+                async let unstagedDiff = diffService.getUnstagedDiff(repoPath: repoPath)
+                async let stagedDiff = diffService.getStagedDiff(repoPath: repoPath)
+                async let recentCommits = diffService.listRecentCommits(limit: recentCommitLimit, repoPath: repoPath)
+                return try await (unstagedDiff, stagedDiff, recentCommits)
+            }.value
 
             var updatedEntries: [Entry] = []
             if !unstagedDiff.rawContent.isEmpty {

@@ -15,7 +15,6 @@ struct CompositionRoot {
   let gitClientFactory: @Sendable (String?) -> GitClient
   let gitWorkingDirectoryMonitor: GitWorkingDirectoryMonitor
   let localDiffService: LocalDiffService
-  let mcpContextModel: MCPContextModel
   let mcpModel: MCPModel
   let providerModel: ProviderModel
   let repoExplorerViewModelFactory: @MainActor () -> DirectoryBrowserViewModel
@@ -39,7 +38,6 @@ struct CompositionRoot {
     }
 
     let sessionsDirectory = try shared.dataPathsService.path(for: .anthropicSessions)
-    let mcpContextModel = MCPContextModel()
     let mcpModel = MCPModel(settingsModel: settingsModel, mcpService: shared.mcpService)
     mcpModel.writeMCPConfigIfNeeded()
 
@@ -67,7 +65,6 @@ struct CompositionRoot {
             gitClientFactory: gitClientFactory,
             gitWorkingDirectoryMonitor: shared.gitWorkingDirectoryMonitor,
             localDiffService: shared.localDiffService,
-            mcpContextModel: mcpContextModel,
             mcpModel: mcpModel,
             providerModel: providerModel,
             repoExplorerViewModelFactory: makeRepoExplorerViewModelFactory(dataPathsService: shared.dataPathsService),
