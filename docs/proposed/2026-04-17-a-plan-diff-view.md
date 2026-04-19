@@ -189,7 +189,10 @@ Replace the simple "View Diff" button and sheet from the original design with `C
 
 Wire `GitWorkingDirectoryMonitor` (Phase 4) and the MCP state object (Phase 5) into the composition root so both are available when the view appears.
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-swift-testing`
+**Principles applied**: Added focused automated validation around the new diff toolkit, local diff service, monitor, and plan-selection flow; fixed the root-commit combined-diff edge case uncovered by validation; kept test-only seams small and reused the existing package test structure.
 
 **Skills to read**: `ai-dev-tools-swift-testing`, `ai-dev-tools-enforce`
 

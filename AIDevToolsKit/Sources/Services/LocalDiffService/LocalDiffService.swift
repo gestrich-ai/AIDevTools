@@ -2,6 +2,7 @@ import GitSDK
 import PRRadarModelsService
 
 public struct LocalDiffService: Sendable {
+    private let emptyTreeHash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
     private let gitClient: GitClient
 
     public init(gitClient: GitClient = GitClient()) {
@@ -17,12 +18,13 @@ public struct LocalDiffService: Sendable {
         }
 
         do {
+            let baseRef = try await combinedDiffBaseReference(for: oldestCommit, repoPath: repoPath)
             let rawDiff = try await gitClient.diff(
-                ref1: "\(oldestCommit)^",
+                ref1: baseRef,
                 ref2: newestCommit,
                 workingDirectory: repoPath
             )
-            let commitHash = commits.count == 1 ? newestCommit : "\(oldestCommit)^...\(newestCommit)"
+            let commitHash = commits.count == 1 ? newestCommit : "\(baseRef)...\(newestCommit)"
             return GitDiff.fromDiffContent(rawDiff, commitHash: commitHash)
         } catch {
             throw GitOperationsError.diffFailed("Failed to compute combined diff: \(error)")
@@ -80,5 +82,14 @@ public struct LocalDiffService: Sendable {
             throw GitOperationsError.notARepository("Not a git repository: \(repoPath)")
         }
         return try await gitClient.listRecentCommits(maxCount: limit, workingDirectory: repoPath)
+    }
+
+    private func combinedDiffBaseReference(for oldestCommit: String, repoPath: String) async throws -> String {
+        do {
+            _ = try await gitClient.catFile(type: true, object: "\(oldestCommit)^", workingDirectory: repoPath)
+            return "\(oldestCommit)^"
+        } catch {
+            return emptyTreeHash
+        }
     }
 }

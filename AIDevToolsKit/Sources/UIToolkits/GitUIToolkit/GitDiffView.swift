@@ -2,6 +2,18 @@ import PRRadarModelsService
 import SwiftUI
 
 public struct GitDiffView: View {
+    struct RenderedFile {
+        let filePath: String
+        let hunks: [RenderedHunk]
+        let renameFrom: String?
+        let showsPureRename: Bool
+    }
+
+    struct RenderedHunk {
+        let hunk: Hunk
+        let lines: [DiffLine]
+    }
+
     public let diff: GitDiff
     private let onSelectedFileChange: ((String?) -> Void)?
 
@@ -60,15 +72,12 @@ public struct GitDiffView: View {
     @ViewBuilder
     private var diffContent: some View {
         List {
-            ForEach(displayedFiles, id: \.self) { filePath in
-                let hunks = diff.getHunks(byFilePath: filePath)
-                let renameFrom = hunks.first(where: { $0.renameFrom != nil })?.renameFrom
-
-                if let renameFrom {
-                    RenameFileHeaderView(oldPath: renameFrom, newPath: filePath)
+            ForEach(renderedFiles, id: \.filePath) { file in
+                if let renameFrom = file.renameFrom {
+                    RenameFileHeaderView(oldPath: renameFrom, newPath: file.filePath)
                         .diffListRow()
                 } else {
-                    Text(filePath)
+                    Text(file.filePath)
                         .font(.system(.body, design: .monospaced))
                         .fontWeight(.bold)
                         .padding(.horizontal, 8)
@@ -78,16 +87,16 @@ public struct GitDiffView: View {
                         .diffListRow()
                 }
 
-                if hunks.contains(where: \.isPureRename) {
+                if file.showsPureRename {
                     PureRenameContentView()
                         .diffListRow()
                 }
 
-                ForEach(hunks.filter { !$0.isPureRename }) { hunk in
-                    HunkHeaderView(hunk: hunk)
+                ForEach(file.hunks, id: \.hunk.id) { renderedHunk in
+                    HunkHeaderView(hunk: renderedHunk.hunk)
                         .diffListRow()
 
-                    ForEach(hunk.getDiffLines().filter { $0.lineType != .header }, id: \.rawLineWithNumbers) { line in
+                    ForEach(renderedHunk.lines, id: \.rawLineWithNumbers) { line in
                         DiffLineRowView(
                             lineContent: line.rawLine,
                             oldLineNumber: line.oldLineNumber,
@@ -107,6 +116,25 @@ public struct GitDiffView: View {
     private var displayedFiles: [String] {
         guard let selectedFile else { return diff.changedFiles }
         return [selectedFile]
+    }
+
+    var renderedFiles: [RenderedFile] {
+        displayedFiles.map { filePath in
+            let hunks = diff.getHunks(byFilePath: filePath)
+            return RenderedFile(
+                filePath: filePath,
+                hunks: hunks
+                    .filter { !$0.isPureRename }
+                    .map { hunk in
+                        RenderedHunk(
+                            hunk: hunk,
+                            lines: hunk.getDiffLines().filter { $0.lineType != .header }
+                        )
+                    },
+                renameFrom: hunks.first(where: { $0.renameFrom != nil })?.renameFrom,
+                showsPureRename: hunks.contains(where: \.isPureRename)
+            )
+        }
     }
 }
 

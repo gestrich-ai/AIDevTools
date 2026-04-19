@@ -699,9 +699,19 @@ var targets: [Target] = [
     path: "Tests/SDKs/GitSDKTests"
   ),
   .testTarget(
+    name: "GitUIToolkitTests",
+    dependencies: ["GitUIToolkit", "PRRadarModelsService"],
+    path: "Tests/UIToolkits/GitUIToolkitTests"
+  ),
+  .testTarget(
     name: "KeychainSDKTests",
     dependencies: ["KeychainSDK"],
     path: "Tests/SDKs/KeychainSDKTests"
+  ),
+  .testTarget(
+    name: "LocalDiffServiceTests",
+    dependencies: ["GitSDK", "LocalDiffService"],
+    path: "Tests/Services/LocalDiffServiceTests"
   ),
   .testTarget(
     name: "LoggingSDKTests",
@@ -851,7 +861,7 @@ var targets: [Target] = [
   ),
   .testTarget(
     name: "AIDevToolsKitMacTests",
-        dependencies: ["AIDevToolsKitMac", "ClaudeChainFeature", "ClaudeChainService", "DataPathsService"],
+        dependencies: ["AIDevToolsKitMac", "ClaudeChainFeature", "ClaudeChainService", "DataPathsService", "GitSDK", "LocalDiffService"],
     path: "Tests/Apps/AIDevToolsKitMacTests"
   ),
   ])
