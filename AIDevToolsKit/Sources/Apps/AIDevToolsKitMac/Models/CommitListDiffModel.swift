@@ -56,13 +56,16 @@ final class CommitListDiffModel {
     private let planPhaseDescriptions: [String]
     private let recentCommitLimit: Int
     private let repoPath: String
+    private let workingDirectoryMonitor: GitWorkingDirectoryMonitor
 
     private(set) var diffState: DiffState = .empty(message: "Select a commit or working tree diff.")
     private(set) var entriesState: EntriesState = .loading
     private(set) var selectedEntryIDs: Set<String> = []
+    private var monitorTask: Task<Void, Never>?
 
     init(
         diffService: LocalDiffService,
+        workingDirectoryMonitor: GitWorkingDirectoryMonitor,
         planPhaseDescriptions: [String] = [],
         recentCommitLimit: Int = 20,
         repoPath: String
@@ -71,6 +74,7 @@ final class CommitListDiffModel {
         self.planPhaseDescriptions = planPhaseDescriptions
         self.recentCommitLimit = recentCommitLimit
         self.repoPath = repoPath
+        self.workingDirectoryMonitor = workingDirectoryMonitor
     }
 
     var entries: [Entry] {
@@ -83,39 +87,22 @@ final class CommitListDiffModel {
     }
 
     func load() async {
-        entriesState = .loading
-        do {
-            let unstagedDiff = try await diffService.getUnstagedDiff(repoPath: repoPath)
-            let stagedDiff = try await diffService.getStagedDiff(repoPath: repoPath)
-            let recentCommits = try await diffService.listRecentCommits(limit: recentCommitLimit, repoPath: repoPath)
+        await refreshEntries(showLoadingState: true, autoSelectFirstEntry: true, reloadDiffIfNeeded: true)
+    }
 
-            var entries: [Entry] = []
-            if !unstagedDiff.rawContent.isEmpty {
-                entries.append(Entry(id: "unstaged", kind: .unstaged))
+    func startMonitoring() {
+        monitorTask?.cancel()
+        monitorTask = Task {
+            for await changes in workingDirectoryMonitor.changes(repoPath: repoPath) {
+                guard !Task.isCancelled else { break }
+                await refreshForWorkingDirectoryChanges(changes)
             }
-            if !stagedDiff.rawContent.isEmpty {
-                entries.append(Entry(id: "staged", kind: .staged))
-            }
-            entries.append(contentsOf: recentCommits.map { commit in
-                Entry(id: "commit:\(commit.hash)", kind: .commit(commit))
-            })
-
-            entriesState = entries.isEmpty ? .empty : .loaded(entries)
-            if selectedEntryIDs.isEmpty, let firstEntry = entries.first {
-                selectedEntryIDs = [firstEntry.id]
-                await reloadDiff()
-            } else {
-                selectedEntryIDs = selectedEntryIDs.intersection(Set(entries.map(\.id)))
-                if selectedEntryIDs.isEmpty {
-                    diffState = .empty(message: "Select a commit or working tree diff.")
-                } else {
-                    await reloadDiff()
-                }
-            }
-        } catch {
-            entriesState = .error(error.localizedDescription)
-            diffState = .error(error.localizedDescription)
         }
+    }
+
+    func stopMonitoring() {
+        monitorTask?.cancel()
+        monitorTask = nil
     }
 
     func select(entries entryIDs: Set<String>) async {
@@ -198,5 +185,67 @@ final class CommitListDiffModel {
         } catch {
             diffState = .error(error.localizedDescription)
         }
+    }
+
+    private func refreshEntries(
+        showLoadingState: Bool,
+        autoSelectFirstEntry: Bool,
+        reloadDiffIfNeeded: Bool
+    ) async {
+        if showLoadingState {
+            entriesState = .loading
+        }
+
+        do {
+            let unstagedDiff = try await diffService.getUnstagedDiff(repoPath: repoPath)
+            let stagedDiff = try await diffService.getStagedDiff(repoPath: repoPath)
+            let recentCommits = try await diffService.listRecentCommits(limit: recentCommitLimit, repoPath: repoPath)
+
+            var updatedEntries: [Entry] = []
+            if !unstagedDiff.rawContent.isEmpty {
+                updatedEntries.append(Entry(id: "unstaged", kind: .unstaged))
+            }
+            if !stagedDiff.rawContent.isEmpty {
+                updatedEntries.append(Entry(id: "staged", kind: .staged))
+            }
+            updatedEntries.append(contentsOf: recentCommits.map { commit in
+                Entry(id: "commit:\(commit.hash)", kind: .commit(commit))
+            })
+
+            let previousSelection = selectedEntryIDs
+            let availableEntryIDs = Set(updatedEntries.map(\.id))
+            var nextSelection = previousSelection.intersection(availableEntryIDs)
+
+            if autoSelectFirstEntry, nextSelection.isEmpty, previousSelection.isEmpty, let firstEntry = updatedEntries.first {
+                nextSelection = [firstEntry.id]
+            }
+
+            selectedEntryIDs = nextSelection
+            entriesState = updatedEntries.isEmpty ? .empty : .loaded(updatedEntries)
+
+            guard !nextSelection.isEmpty else {
+                diffState = .empty(message: "Select a commit or working tree diff.")
+                return
+            }
+
+            if reloadDiffIfNeeded || nextSelection != previousSelection {
+                await reloadDiff()
+            }
+        } catch {
+            entriesState = .error(error.localizedDescription)
+            diffState = .error(error.localizedDescription)
+        }
+    }
+
+    private func refreshForWorkingDirectoryChanges(_ changes: Set<GitWorkingDirectoryChange>) async {
+        let shouldReloadDiff =
+            (changes.contains(.index) && selectedEntryIDs.contains("staged")) ||
+            (changes.contains(.workingTree) && selectedEntryIDs.contains("unstaged"))
+
+        await refreshEntries(
+            showLoadingState: false,
+            autoSelectFirstEntry: false,
+            reloadDiffIfNeeded: shouldReloadDiff
+        )
     }
 }

@@ -117,7 +117,10 @@ Build a combined view that pairs a commit list (top or sidebar) with `GitDiffVie
 - `getStagedDiff(repoPath:)` — `git diff --cached`
 - `getCombinedDiff(commits:repoPath:)` — `git diff <oldest>^..<newest>`
 
-## - [ ] Phase 4: Disk monitoring for live diff updates
+## - [x] Phase 4: Disk monitoring for live diff updates
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Kept git/disk watching in a Services-layer utility that emits `AsyncStream` updates, resolved the actual git directory through `git rev-parse --git-dir` so worktrees are covered, and kept selection-aware refresh logic in the app model instead of pushing UI state into the service.
 
 **Skills to read**: `ai-dev-tools-architecture`
 

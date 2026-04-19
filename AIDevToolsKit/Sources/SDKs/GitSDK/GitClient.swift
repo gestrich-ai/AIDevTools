@@ -333,6 +333,19 @@ public struct GitClient: Sendable {
         return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    public func getGitDirectory(workingDirectory: String) async throws -> String {
+        let command = GitCLI.RevParse(gitDir: true)
+        let result = try await execute(command, workingDirectory: workingDirectory)
+        let gitDirectory = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !gitDirectory.isEmpty else {
+            return URL(fileURLWithPath: workingDirectory).appendingPathComponent(".git").standardizedFileURL.path
+        }
+        if gitDirectory.hasPrefix("/") {
+            return URL(fileURLWithPath: gitDirectory).standardizedFileURL.path
+        }
+        return URL(fileURLWithPath: workingDirectory).appendingPathComponent(gitDirectory).standardizedFileURL.path
+    }
+
     public func getRepoRoot(workingDirectory: String) async throws -> String {
         let command = GitCLI.RevParse(showTopLevel: true)
         let result = try await execute(command, workingDirectory: workingDirectory)

@@ -132,6 +132,7 @@ public struct GitCLI {
     @CLICommand("rev-parse")
     public struct RevParse {
         @Flag("--abbrev-ref") public var abbrevRef: Bool = false
+        @Flag("--git-dir") public var gitDir: Bool = false
         @Flag("--is-inside-work-tree") public var isInsideWorkTree: Bool = false
         @Flag("--show-toplevel") public var showTopLevel: Bool = false
         @Positional public var ref: String?

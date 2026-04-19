@@ -8,12 +8,14 @@ struct CommitListDiffView: View {
 
     init(
         diffService: LocalDiffService,
+        workingDirectoryMonitor: GitWorkingDirectoryMonitor = GitWorkingDirectoryMonitor(),
         planPhaseDescriptions: [String] = [],
         recentCommitLimit: Int = 20,
         repoPath: String
     ) {
         _model = State(initialValue: CommitListDiffModel(
             diffService: diffService,
+            workingDirectoryMonitor: workingDirectoryMonitor,
             planPhaseDescriptions: planPhaseDescriptions,
             recentCommitLimit: recentCommitLimit,
             repoPath: repoPath
@@ -30,6 +32,10 @@ struct CommitListDiffView: View {
         }
         .task {
             await model.load()
+            model.startMonitoring()
+        }
+        .onDisappear {
+            model.stopMonitoring()
         }
     }
 
