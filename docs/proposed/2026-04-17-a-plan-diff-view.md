@@ -62,7 +62,10 @@ Move the following from `PRRadar/Views/GitViews/RichDiffViews.swift` into `GitUI
 
 Update PRRadar to import `GitUIToolkit` instead of defining these types locally. This is a pure refactor — no behavior changes.
 
-## - [ ] Phase 2: Build `GitDiffView` in `GitUIToolkit`
+## - [x] Phase 2: Build `GitDiffView` in `GitUIToolkit`
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-code-organization`
+**Principles applied**: Kept the new diff view in the `GitUIToolkit` layer with a single primary type per file, reused the shared diff atoms from Phase 1, and rendered directly from `GitDiff`/`Hunk` so the toolkit view stays independent from PR-specific app models.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-code-organization`
 
