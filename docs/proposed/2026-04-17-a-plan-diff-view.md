@@ -174,7 +174,10 @@ On leaving edit mode, write the edited content back to the plan file on disk. Pl
 **Live reload:**
 The plan markdown file already has some watching via `activePlanModel.startWatching(url:)`. Verify this correctly re-renders the markdown view when the file changes on disk (e.g., when the AI updates it during execution). If not already working, wire the file monitor output to refresh `planContent` and trigger a re-render. The view should update automatically — no manual refresh required.
 
-## - [ ] Phase 7: Wire `CommitListDiffView` into `PlanDetailView`
+## - [x] Phase 7: Wire `CommitListDiffView` into `PlanDetailView`
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`, `ai-dev-tools-enforce`
+**Principles applied**: Kept `CommitListDiffView` general-purpose by passing only repository path and completed phase descriptions from `PlanDetailView`, and moved diff service/monitor construction into the composition root so view code consumes injected dependencies instead of assembling infrastructure.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`
 
