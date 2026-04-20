@@ -645,8 +645,6 @@ final class PRModel: Identifiable, Hashable {
             )
             logger.info("submitSingleComment: confirmed posted", metadata: ["prNumber": "\(prNumber)", "rule": "\(comment.ruleName)"])
             reviewComments = updated
-        } catch PostSingleCommentError.postNotConfirmed {
-            logger.warning("submitSingleComment: postNotConfirmed", metadata: ["prNumber": "\(prNumber)"])
         } catch {
             logger.error("submitSingleComment: failed", metadata: ["prNumber": "\(prNumber)", "error": "\(error)"])
             inlinePostError = error.localizedDescription
