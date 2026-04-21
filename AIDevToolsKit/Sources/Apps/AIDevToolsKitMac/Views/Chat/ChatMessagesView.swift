@@ -23,6 +23,7 @@ enum ChatDisplayRow: Identifiable {
 
 struct ChatMessagesView: View {
     @Environment(ChatModel.self) var chatModel: ChatModel
+    @Environment(SettingsModel.self) private var settingsModel
     @State private var isNearBottom: Bool = true
     @State private var lastSeenMessageId: UUID?
     @State private var scrollDebounceTask: Task<Void, Never>?
@@ -228,6 +229,8 @@ struct ChatMessagesView: View {
             ChatMessageHeaderRow(
                 message: message,
                 providerDisplayName: chatModel.providerDisplayName,
+                providerIcon: chatModel.providerIcon,
+                userPhotoPath: settingsModel.userPhotoPath,
                 isCollapsed: collapsedMessageIds.contains(message.id),
                 onToggleCollapse: { toggleCollapse(for: message) }
             )
@@ -267,13 +270,14 @@ struct ChatMessagesView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "terminal")
-                .font(.system(size: 60))
-                .foregroundStyle(.blue)
+            ProviderIconView(icon: chatModel.providerIcon, size: 56)
 
-            Text("\(chatModel.providerDisplayName) Chat")
-                .font(.title)
-                .fontWeight(.bold)
+            HStack(spacing: 10) {
+                ProviderIconView(icon: chatModel.providerIcon, size: 22)
+                Text("\(chatModel.providerDisplayName) Chat")
+                    .font(.title)
+                    .fontWeight(.bold)
+            }
 
             VStack(spacing: 8) {
                 Text("Chat with \(chatModel.providerDisplayName)")
@@ -312,6 +316,8 @@ struct ChatMessagesView: View {
 struct ChatMessageHeaderRow: View {
     let message: ChatMessage
     let providerDisplayName: String
+    let providerIcon: AIProviderIcon?
+    let userPhotoPath: URL?
     let isCollapsed: Bool
     let onToggleCollapse: () -> Void
 
@@ -332,13 +338,10 @@ struct ChatMessageHeaderRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .top, spacing: 12) {
                 if message.role == .user {
-                    Image(systemName: "person.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.blue)
+                    UserAvatarView(photoURL: userPhotoPath, size: 22)
                 } else {
-                    Image(systemName: "terminal.fill")
-                        .font(.title2)
-                        .foregroundStyle(.purple)
+                    ProviderIconView(icon: providerIcon, size: 22)
+                        .frame(width: 22, height: 22)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {

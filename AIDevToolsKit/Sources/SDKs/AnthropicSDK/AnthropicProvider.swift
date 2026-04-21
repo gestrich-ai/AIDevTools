@@ -3,6 +3,7 @@ import Foundation
 @preconcurrency import SwiftAnthropic
 
 public actor AnthropicProvider: AIClient {
+    public nonisolated var icon: AIProviderIcon? { .anthropic }
     public nonisolated var name: String { "anthropic-api" }
     public nonisolated var displayName: String { "Anthropic API" }
 

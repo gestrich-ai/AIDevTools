@@ -862,7 +862,10 @@ targets.append(contentsOf: [
             "SweepFeature",
             "WorktreeFeature",
         ],
-        path: "Sources/Apps/AIDevToolsKitMac"
+        path: "Sources/Apps/AIDevToolsKitMac",
+        resources: [
+            .process("Resources"),
+        ]
     ),
     .target(
         name: "MarkdownUIToolkit",

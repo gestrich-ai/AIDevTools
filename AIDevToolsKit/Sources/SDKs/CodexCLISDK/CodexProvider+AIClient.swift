@@ -3,6 +3,7 @@ import CLISDK
 import Foundation
 
 extension CodexProvider: AIClient {
+    public var icon: AIProviderIcon? { .openAI }
     public var name: String { "codex" }
     public var displayName: String { "Codex CLI" }
 

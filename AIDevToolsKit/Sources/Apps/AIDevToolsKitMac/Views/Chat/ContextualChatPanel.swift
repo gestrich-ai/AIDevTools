@@ -23,6 +23,14 @@ struct ContextualChatPanel: View {
     @State private var showingQueueViewer: Bool = false
     @State private var showingSessionPicker: Bool = false
 
+    private var selectedProvider: (any AIClient)? {
+        let name = selectedProviderName.isEmpty
+            ? providerModel.providerRegistry.defaultClient?.name
+            : selectedProviderName
+        guard let name else { return nil }
+        return providerModel.providerRegistry.client(named: name)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             headerBar
@@ -71,21 +79,29 @@ struct ContextualChatPanel: View {
 
                 Spacer()
 
-                Picker("", selection: Binding(
-                    get: {
-                        selectedProviderName.isEmpty
-                            ? (providerModel.providerRegistry.defaultClient?.name ?? "")
-                            : selectedProviderName
-                    },
-                    set: { selectedProviderName = $0 }
-                )) {
+                Menu {
                     ForEach(providerModel.providerRegistry.providers, id: \.name) { provider in
-                        Text(provider.displayName).tag(provider.name)
+                        Button {
+                            selectedProviderName = provider.name
+                        } label: {
+                            HStack(spacing: 8) {
+                                ProviderIconView(icon: provider.icon, size: 14)
+                                Text(provider.displayName)
+                            }
+                        }
                     }
+                } label: {
+                    HStack(spacing: 8) {
+                        ProviderIconView(
+                            icon: selectedProvider?.icon ?? providerModel.providerRegistry.defaultClient?.icon,
+                            size: 14
+                        )
+                        Text(selectedProvider?.displayName ?? providerModel.providerRegistry.defaultClient?.displayName ?? "Provider")
+                            .lineLimit(1)
+                    }
+                    .frame(width: 120, alignment: .leading)
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(width: 100)
+                .menuStyle(.borderlessButton)
 
                 Button(action: { showingSessionPicker = true }) {
                     Image(systemName: "clock.arrow.circlepath")

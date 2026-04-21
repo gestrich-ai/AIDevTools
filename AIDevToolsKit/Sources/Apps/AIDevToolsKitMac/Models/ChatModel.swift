@@ -11,6 +11,7 @@ public final class ChatModel {
     public private(set) var state: ModelState = .idle
     public private(set) var messageQueue: [QueuedMessage] = []
     public let providerDisplayName: String
+    public let providerIcon: AIProviderIcon?
     public let providerName: String
     public let settings: ChatSettings
     public private(set) var workingDirectory: String
@@ -39,6 +40,7 @@ public final class ChatModel {
         resumeLatestSessionUseCase: ResumeLatestSessionUseCase,
         sendMessageUseCase: SendChatMessageUseCase,
         providerDisplayName: String,
+        providerIcon: AIProviderIcon?,
         providerName: String,
         workingDirectory: String?,
         mcpConfigPath: String? = nil,
@@ -53,6 +55,7 @@ public final class ChatModel {
         self.sendMessageUseCase = sendMessageUseCase
         self.settings = settings
         self.providerDisplayName = providerDisplayName
+        self.providerIcon = providerIcon
         self.providerName = providerName
         self.systemPrompt = systemPrompt
 
@@ -80,6 +83,7 @@ public final class ChatModel {
             resumeLatestSessionUseCase: ResumeLatestSessionUseCase(client: client),
             sendMessageUseCase: SendChatMessageUseCase(client: client),
             providerDisplayName: client.displayName,
+            providerIcon: client.icon,
             providerName: client.name,
             workingDirectory: configuration.workingDirectory,
             mcpConfigPath: configuration.mcpConfigPath,

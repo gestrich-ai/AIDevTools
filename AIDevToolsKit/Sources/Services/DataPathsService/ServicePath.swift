@@ -1,4 +1,5 @@
 public enum ServicePath {
+    case appSettings
     case anthropicSessions
     case architecturePlanner
     case claudeChainProject(repoSlug: String, projectName: String)
@@ -12,6 +13,8 @@ public enum ServicePath {
 
     public var relativePath: String {
         switch self {
+        case .appSettings:
+            return "services/settings"
         case .anthropicSessions:
             return "sdks/anthropic/sessions"
         case .architecturePlanner:

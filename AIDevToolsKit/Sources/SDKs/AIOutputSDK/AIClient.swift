@@ -1,5 +1,10 @@
 import Foundation
 
+public enum AIProviderIcon: String, Sendable {
+    case anthropic
+    case openAI
+}
+
 public struct AIClientOptions: Sendable {
     public var dangerouslySkipPermissions: Bool
     public var environment: [String: String]?
@@ -60,6 +65,7 @@ public struct AIStructuredResult<T: Sendable>: Sendable {
 }
 
 public protocol AIClient: Sendable {
+    var icon: AIProviderIcon? { get }
     var name: String { get }
     var displayName: String { get }
 
@@ -85,6 +91,8 @@ public protocol AIClient: Sendable {
 }
 
 extension AIClient {
+    public var icon: AIProviderIcon? { nil }
+
     public func run(
         prompt: String,
         options: AIClientOptions,

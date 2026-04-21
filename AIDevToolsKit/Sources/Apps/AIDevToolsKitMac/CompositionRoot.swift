@@ -23,7 +23,7 @@ struct CompositionRoot {
     
     static func create() throws -> CompositionRoot {
         let shared = try SharedCompositionRoot.create()
-        let settingsModel = SettingsModel()
+        let settingsModel = try SettingsModel(settingsService: shared.settingsService)
         
         let gitClientFactory: @Sendable (String?) -> GitClient = { profileId in
             guard let profileId else { return GitClient() }

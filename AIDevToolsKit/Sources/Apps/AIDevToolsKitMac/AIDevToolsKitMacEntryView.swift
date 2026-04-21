@@ -97,6 +97,7 @@ public struct AIDevToolsKitMacEntryView: View {
         .environment(\.localDiffService, localDiffService)
         .environment(mcpModel)
         .environment(planModel)
+        .environment(settingsModel)
         .environment(worktreeModel)
         .environment(workspaceModel)
         .frame(minWidth: 800, minHeight: 600)

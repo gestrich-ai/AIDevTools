@@ -2,6 +2,7 @@ import AIOutputSDK
 import CLISDK
 
 extension ClaudeProvider: AIClient {
+    public var icon: AIProviderIcon? { .anthropic }
     public var name: String { "claude" }
     public var displayName: String { "Claude CLI" }
 
