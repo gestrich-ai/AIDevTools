@@ -31,7 +31,7 @@ struct RunCommandToolbarButton: View {
             Button(action: runActive) {
                 runButtonLabel
             }
-            .help(activeCommand.map { "Run: \($0.name)" } ?? "No run commands configured")
+            .help(activeCommand.map { "Run: \($0.name)" } ?? "No run commands configured — add them in Repositories settings")
             .disabled(activeCommand == nil || isRunning)
 
             if commands.count > 1 {

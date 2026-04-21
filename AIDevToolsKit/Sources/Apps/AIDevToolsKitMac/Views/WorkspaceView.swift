@@ -165,10 +165,8 @@ struct WorkspaceView: View {
                     .help("Toggle Panel")
                 }
             }
-            if let commands = repo.runCommands, !commands.isEmpty {
-                ToolbarItem(placement: .primaryAction) {
-                    RunCommandToolbarButton(repo: repo, commandModel: runCommandModel)
-                }
+            ToolbarItem(placement: .primaryAction) {
+                RunCommandToolbarButton(repo: repo, commandModel: runCommandModel)
             }
         }
         .alert("Run Command Failed", isPresented: runCommandFailedBinding) {
