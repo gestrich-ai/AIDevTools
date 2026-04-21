@@ -381,7 +381,9 @@ public struct OctokitClient: Sendable {
         guard let url = components.url else {
             preconditionFailure("Could not construct URL from components for path: \(path)")
         }
-        var request = URLRequest(url: url)
+        // GitHub returns Cache-Control: max-age=60; without this, URLSession.shared
+        // serves stale cached responses for 60s, hiding comments posted during that window.
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue(accept, forHTTPHeaderField: "Accept")
         return request
