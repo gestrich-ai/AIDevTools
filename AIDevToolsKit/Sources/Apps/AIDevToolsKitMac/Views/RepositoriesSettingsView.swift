@@ -148,6 +148,29 @@ private struct ConfigurationDetailView: View {
                 }
             }
 
+            if let runCommands = config.runCommands, !runCommands.isEmpty {
+                Section("Run Commands") {
+                    ForEach(runCommands) { cmd in
+                        LabeledContent(cmd.name.isEmpty ? "Command" : cmd.name) {
+                            HStack(spacing: 6) {
+                                if cmd.isDefault {
+                                    Text("default")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(.secondary.opacity(0.15), in: Capsule())
+                                }
+                                Text(cmd.command)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                        }
+                    }
+                }
+            }
+
             if casesDirectory != nil {
                 Section("Evals") {
                     detailRow("Cases Directory", value: casesDirectory)

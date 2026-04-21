@@ -13,6 +13,7 @@ public struct RepositoryConfiguration: Codable, Identifiable, Sendable {
     public var prradar: PRRadarRepoSettings?
     public var pullRequest: PullRequestConfig?
     public var recentFocus: String?
+    public var runCommands: [RepoRunCommand]?
     public var skills: [String]?
     public var verification: Verification?
 
@@ -29,6 +30,7 @@ public struct RepositoryConfiguration: Codable, Identifiable, Sendable {
         prradar: PRRadarRepoSettings? = nil,
         pullRequest: PullRequestConfig? = nil,
         recentFocus: String? = nil,
+        runCommands: [RepoRunCommand]? = nil,
         skills: [String]? = nil,
         verification: Verification? = nil
     ) {
@@ -44,6 +46,7 @@ public struct RepositoryConfiguration: Codable, Identifiable, Sendable {
         self.prradar = prradar
         self.pullRequest = pullRequest
         self.recentFocus = recentFocus
+        self.runCommands = runCommands
         self.skills = skills
         self.verification = verification
     }
@@ -62,9 +65,24 @@ public struct RepositoryConfiguration: Codable, Identifiable, Sendable {
             prradar: prradar,
             pullRequest: pullRequest,
             recentFocus: recentFocus,
+            runCommands: runCommands,
             skills: skills,
             verification: verification
         )
+    }
+}
+
+public struct RepoRunCommand: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public var command: String
+    public var isDefault: Bool
+    public var name: String
+
+    public init(id: UUID = UUID(), command: String, isDefault: Bool = false, name: String) {
+        self.id = id
+        self.command = command
+        self.isDefault = isDefault
+        self.name = name
     }
 }
 

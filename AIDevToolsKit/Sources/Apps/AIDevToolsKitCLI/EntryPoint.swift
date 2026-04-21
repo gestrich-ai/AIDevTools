@@ -28,7 +28,7 @@ struct AIDevToolsKit: AsyncParsableCommand {
 
     private static var subcommandTypes: [any ParsableCommand.Type] {
         var commands: [any ParsableCommand.Type] = [
-            ChatCommand.self, ClaudeChainCLI.self, ConfigCommand.self, CredentialsCommand.self, EvalsCommand.self, FileTreeCommand.self, LogsCommand.self, MCPCommand.self, PlanCommand.self, PRRadarCommand.self, ReposCommand.self, SkillsCommand.self, SweepCommand.self, WorktreeCommand.self,
+            ChatCommand.self, ClaudeChainCLI.self, ConfigCommand.self, CredentialsCommand.self, EvalsCommand.self, FileTreeCommand.self, LogsCommand.self, MCPCommand.self, PlanCommand.self, PRRadarCommand.self, ReposCommand.self, RunCommandCommand.self, SkillsCommand.self, SweepCommand.self, WorktreeCommand.self,
         ]
         #if canImport(SwiftData)
         commands.insert(ArchPlannerCommand.self, at: 0)

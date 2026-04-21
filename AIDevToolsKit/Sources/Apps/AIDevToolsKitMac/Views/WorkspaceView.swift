@@ -17,6 +17,7 @@ struct WorkspaceView: View {
     let repoExplorerViewModelFactory: @MainActor () -> DirectoryBrowserViewModel
 
     @State private var executionPanelModel = ExecutionPanelModel()
+    @State private var runCommandModel = RunCommandModel()
     @AppStorage(ExperimentalSettings.architecturePlannerKey) private var isArchitecturePlannerEnabled = false
     @AppStorage("executionPanelWidthMode") private var executionPanelWidthMode = ExecutionPanelWidthMode.side.rawValue
     @AppStorage("workspaceExecutionPanelWidth") private var storedExecutionPanelWidth: Double = 360
@@ -46,6 +47,7 @@ struct WorkspaceView: View {
                 if let id = newValue, let repo = model.repositories.first(where: { $0.id == id }) {
                     Task { await model.selectRepository(repo) }
                 }
+                runCommandModel.reset()
             }
         } detail: {
             if let repo = model.selectedRepository {
@@ -163,6 +165,18 @@ struct WorkspaceView: View {
                     .help("Toggle Panel")
                 }
             }
+            if let commands = repo.runCommands, !commands.isEmpty {
+                ToolbarItem(placement: .primaryAction) {
+                    RunCommandToolbarButton(repo: repo, commandModel: runCommandModel)
+                }
+            }
+        }
+        .alert("Run Command Failed", isPresented: runCommandFailedBinding) {
+            Button("OK") { runCommandModel.reset() }
+        } message: {
+            if case .failed(let message) = runCommandModel.state {
+                Text(message)
+            }
         }
         .environment(executionPanelModel)
     }
@@ -234,5 +248,15 @@ struct WorkspaceView: View {
 
         let key = panelVisibilityKey(tab: selectedTab)
         executionPanelModel.isVisible = UserDefaults.standard.bool(forKey: key)
+    }
+
+    private var runCommandFailedBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .failed = runCommandModel.state { return true }
+                return false
+            },
+            set: { if !$0 { runCommandModel.reset() } }
+        )
     }
 }

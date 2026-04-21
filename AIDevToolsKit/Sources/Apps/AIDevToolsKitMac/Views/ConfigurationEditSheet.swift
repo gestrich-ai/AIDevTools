@@ -23,6 +23,8 @@ struct ConfigurationEditSheet: View {
     @State private var prNotesText: String
     @State private var prradarRulePaths: [RulePath]
     @State private var prradarDiffSource: DiffSource
+    @State private var runCommandsState: [RepoRunCommand]
+    @FocusState private var focusedRunCommandID: UUID?
     let isNew: Bool
     let onSave: (RepositoryConfiguration, String?, String?, String?) -> Void
     let onSavePRRadarSettings: ((PRRadarRepoSettings) -> Void)?
@@ -65,6 +67,7 @@ struct ConfigurationEditSheet: View {
         _prNotesText = State(initialValue: config.pullRequest?.notes ?? "")
         _prradarRulePaths = State(initialValue: prradarSettings?.rulePaths ?? [])
         _prradarDiffSource = State(initialValue: prradarSettings?.diffSource ?? .git)
+        _runCommandsState = State(initialValue: config.runCommands ?? [])
     }
 
     var body: some View {
@@ -125,6 +128,10 @@ struct ConfigurationEditSheet: View {
                         TextField("Optional verification notes", text: $verificationNotesText)
                             .textFieldStyle(.roundedBorder)
                     }
+                }
+
+                Section("Run Commands") {
+                    runCommandsSection
                 }
 
                 Section("Evals") {
@@ -214,6 +221,8 @@ struct ConfigurationEditSheet: View {
             notes: prNotesText
         )
 
+        let runCommands = runCommandsState.filter { !$0.command.isEmpty }
+
         let updated = RepositoryConfiguration(
             id: config.id,
             path: repoURL,
@@ -224,6 +233,7 @@ struct ConfigurationEditSheet: View {
             githubCredentialProfileId: githubProfileIdText.isEmpty ? nil : githubProfileIdText,
             pullRequest: pullRequest,
             recentFocus: recentFocusText.isEmpty ? nil : recentFocusText,
+            runCommands: runCommands.isEmpty ? nil : runCommands,
             skills: skills.isEmpty ? nil : skills,
             verification: verification
         )
@@ -244,6 +254,65 @@ struct ConfigurationEditSheet: View {
         text.split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+    }
+
+    private var runCommandsSection: some View {
+        LabeledContent("Commands") {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach($runCommandsState) { $cmd in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            TextField("Name", text: $cmd.name)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 90)
+
+                            TextField("bash -c ...", text: $cmd.command)
+                                .textFieldStyle(.roundedBorder)
+                                .focused($focusedRunCommandID, equals: cmd.id)
+                                .layoutPriority(1)
+
+                            Toggle("Default", isOn: Binding(
+                                get: { cmd.isDefault },
+                                set: { newValue in
+                                    if newValue {
+                                        for i in runCommandsState.indices {
+                                            runCommandsState[i].isDefault = runCommandsState[i].id == cmd.id
+                                        }
+                                    } else {
+                                        cmd.isDefault = false
+                                    }
+                                }
+                            ))
+                            .toggleStyle(.checkbox)
+
+                            Button(role: .destructive) {
+                                runCommandsState.removeAll { $0.id == cmd.id }
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                        }
+
+                        if focusedRunCommandID != cmd.id, !cmd.command.isEmpty {
+                            Text(cmd.command)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .textSelection(.enabled)
+                                .truncationMode(.middle)
+                        }
+                    }
+                }
+
+                Button {
+                    let isFirst = runCommandsState.isEmpty
+                    runCommandsState.append(RepoRunCommand(command: "", isDefault: isFirst, name: ""))
+                } label: {
+                    Label("Add Command", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+            }
+        }
     }
 
     private var rulePathsSection: some View {

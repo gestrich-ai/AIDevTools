@@ -48,6 +48,7 @@ var products: [Product] = [
     .library(name: "ProviderRegistryService", targets: ["ProviderRegistryService"]),
     .library(name: "RepoExplorerFeature", targets: ["RepoExplorerFeature"]),
     .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
+    .library(name: "RunCommandFeature", targets: ["RunCommandFeature"]),
     .library(name: "SettingsFeature", targets: ["SettingsFeature"]),
     .library(name: "SettingsService", targets: ["SettingsService"]),
     .library(name: "SkillBrowserFeature", targets: ["SkillBrowserFeature"]),
@@ -107,6 +108,7 @@ var targets: [Target] = [
             "PRReviewFeature",
             "ProviderRegistryService",
             "RepositorySDK",
+            "RunCommandFeature",
             "SettingsService",
             "SkillBrowserFeature",
             "SweepFeature",
@@ -224,6 +226,14 @@ var targets: [Target] = [
             "FileTreeService",
         ],
         path: "Sources/Features/RepoExplorerFeature"
+    ),
+    .target(
+        name: "RunCommandFeature",
+        dependencies: [
+            "RepositorySDK",
+            "UseCaseSDK",
+        ],
+        path: "Sources/Features/RunCommandFeature"
     ),
     .target(
         name: "SettingsFeature",
@@ -854,6 +864,7 @@ targets.append(contentsOf: [
             "ProviderRegistryService",
             "RepoExplorerFeature",
             "RepositorySDK",
+            "RunCommandFeature",
             "SettingsFeature",
             "SettingsService",
             "SkillBrowserFeature",
