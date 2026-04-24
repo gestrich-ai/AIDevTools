@@ -167,7 +167,10 @@ Add a top-of-file comment block (matching style of other Claude Chain workflows)
 
 7. Verify that the triggered `claude-chain.yml` workflow runs begin (they will start Claude, which requires `ANTHROPIC_API_KEY` — confirm that secret is set in `AIDevToolsDemo`).
 
-## - [ ] Phase 5: Enforce and validate
+## - [x] Phase 5: Enforce and validate
+
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-configuration-architecture`, `ai-dev-tools-build-quality`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-swift-testing`
+**Principles applied**: Validated the existing Phase 1-4 Swift changes against the enforcement guides without widening scope, confirmed the CLI still builds successfully, and verified the new `scheduled-trigger` command surface and subcommand ordering remain correct.
 
 **Skills to read**: `ai-dev-tools-enforce`
 
