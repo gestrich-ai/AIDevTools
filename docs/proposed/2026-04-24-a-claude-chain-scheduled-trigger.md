@@ -41,7 +41,10 @@ This plan adds:
 - In `WorkflowService.swift`, add a `workflowFileName: String` parameter to both `triggerClaudeChainWorkflow` and `batchTriggerClaudeChainWorkflows`, defaulting to `"claude-chain.yml"`. Replace the hardcoded `"claudechain.yml"` string.
 - Update `AutoStartCommand.swift` to pass a `--workflow-file` option (default `"claude-chain.yml"`) through to `WorkflowService`. This fixes the latent bug in `auto-start` as well.
 
-## - [ ] Phase 2: Add `ScheduledTriggerCommand`
+## - [x] Phase 2: Add `ScheduledTriggerCommand`
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`, `ai-dev-tools-code-quality`
+**Principles applied**: Kept the new scheduling flow in the existing CLI app layer, reused the current chain discovery, capacity, configuration, and workflow dispatch services instead of duplicating capacity logic, and anchored local configuration reads to `--repo-path` so the command works deterministically outside the repository root.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`, `ai-dev-tools-code-quality`
 
