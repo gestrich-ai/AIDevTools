@@ -85,9 +85,52 @@ struct WorkflowServiceTests {
         }
         #expect(error.message.contains("my-refactor"))
     }
+
+    @Test("trigger uses default workflow file name")
+    func triggerUsesDefaultWorkflowFileName() throws {
+        let githubService = RecordingGitHubPRService()
+        let service = WorkflowService(githubService: githubService)
+
+        try service.triggerClaudeChainWorkflow(
+            projectName: "test-project",
+            baseBranch: "main",
+            checkoutRef: "HEAD"
+        )
+
+        let dispatches = githubService.dispatches()
+        #expect(dispatches.count == 1)
+        #expect(dispatches[0].workflowId == "claude-chain.yml")
+    }
+
+    @Test("batch trigger forwards custom workflow file name")
+    func batchTriggerForwardsCustomWorkflowFileName() {
+        let githubService = RecordingGitHubPRService()
+        let service = WorkflowService(githubService: githubService)
+
+        let (successful, failed) = service.batchTriggerClaudeChainWorkflows(
+            projects: ["project1", "project2"],
+            baseBranch: "release",
+            checkoutRef: "HEAD",
+            workflowFileName: "custom-workflow.yml"
+        )
+
+        let dispatches = githubService.dispatches()
+        #expect(successful == ["project1", "project2"])
+        #expect(failed.isEmpty)
+        #expect(dispatches.count == 2)
+        #expect(dispatches.allSatisfy { $0.workflowId == "custom-workflow.yml" })
+        #expect(dispatches.allSatisfy { $0.ref == "HEAD" })
+        #expect(dispatches.allSatisfy { $0.inputs[ClaudeChainConstants.workflowBaseBranchKey] == "release" })
+    }
 }
 
 // MARK: - Test doubles
+
+private struct WorkflowDispatchRecord: Sendable {
+    let workflowId: String
+    let ref: String
+    let inputs: [String: String]
+}
 
 private struct FailingGitHubPRService: GitHubPRServiceProtocol {
     private struct Unimplemented: Error {}
@@ -122,6 +165,63 @@ private struct FailingGitHubPRService: GitHubPRServiceProtocol {
     func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview] { throw Unimplemented() }
     func updatePRs(filter: PRFilter) async throws -> [GitHubService.GitHubPullRequest] { throw Unimplemented() }
     func updatePR(number: Int) async throws { throw Unimplemented() }
+    func updatePRs(numbers: [Int]) async throws { throw Unimplemented() }
+    func updateRepository() async throws { throw Unimplemented() }
+    func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws { throw Unimplemented() }
+    func writeCachedIndex(_ numbers: [Int], key: String) async throws { throw Unimplemented() }
+    func writePR(_ pr: GitHubService.GitHubPullRequest, number: Int) async throws { throw Unimplemented() }
+}
+
+private final class RecordingGitHubPRService: GitHubPRServiceProtocol, @unchecked Sendable {
+    private struct Unimplemented: Error {}
+
+    private let lock = NSLock()
+    private var recordedDispatches: [WorkflowDispatchRecord] = []
+
+    func dispatches() -> [WorkflowDispatchRecord] {
+        lock.withLock {
+            recordedDispatches
+        }
+    }
+
+    func triggerWorkflowDispatch(workflowId: String, ref: String, inputs: [String : String]) async throws {
+        lock.withLock {
+            recordedDispatches.append(
+                WorkflowDispatchRecord(
+                    workflowId: workflowId,
+                    ref: ref,
+                    inputs: inputs
+                )
+            )
+        }
+    }
+
+    func branchHead(branch: String, ttl: Foundation.TimeInterval) async throws -> BranchHead { throw Unimplemented() }
+    func changes() -> AsyncStream<Int> { AsyncStream { _ in } }
+    func checkRuns(number: Int, useCache: Bool) async throws -> [GitHubCheckRun] { throw Unimplemented() }
+    func closePullRequest(number: Int) async throws { throw Unimplemented() }
+    func comments(number: Int, useCache: Bool) async throws -> GitHubPullRequestComments { throw Unimplemented() }
+    func createLabel(name: String, color: String, description: String) async throws { throw Unimplemented() }
+    func createPullRequest(title: String, body: String, head: String, base: String, draft: Bool, labels: [String], assignees: [String], reviewers: [String]) async throws -> CreatedPullRequest { throw Unimplemented() }
+    func deleteBranch(branch: String) async throws { throw Unimplemented() }
+    func fileBlob(blobSHA: String, path: String, ref: String) async throws -> String { throw Unimplemented() }
+    func fileContent(path: String, ref: String) async throws -> String { throw Unimplemented() }
+    func gitTree(treeSHA: String) async throws -> [GitTreeEntry] { throw Unimplemented() }
+    func isMergeable(number: Int) async throws -> Bool? { throw Unimplemented() }
+    func listBranches(ttl: Foundation.TimeInterval) async throws -> [String] { throw Unimplemented() }
+    func listDirectoryNames(path: String, ref: String) async throws -> [String] { throw Unimplemented() }
+    func listPullRequests(limit: Int, filter: PRFilter) async throws -> [GitHubService.GitHubPullRequest] { throw Unimplemented() }
+    func listWorkflowRuns(workflow: String, branch: String?, limit: Int, ttl: Foundation.TimeInterval) async throws -> [OctokitSDK.WorkflowRun] { throw Unimplemented() }
+    func mergePullRequest(number: Int, mergeMethod: String) async throws { throw Unimplemented() }
+    func postIssueComment(prNumber: Int, body: String) async throws { throw Unimplemented() }
+    func pullRequest(number: Int, useCache: Bool) async throws -> GitHubService.GitHubPullRequest { throw Unimplemented() }
+    func pullRequestByHeadBranch(branch: String) async throws -> CreatedPullRequest? { throw Unimplemented() }
+    func readAllCachedPRs() async -> [GitHubService.GitHubPullRequest] { [] }
+    func readCachedIndex(key: String) async throws -> [Int]? { throw Unimplemented() }
+    func repository(useCache: Bool) async throws -> GitHubRepository { throw Unimplemented() }
+    func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview] { throw Unimplemented() }
+    func updatePR(number: Int) async throws { throw Unimplemented() }
+    func updatePRs(filter: PRFilter) async throws -> [GitHubService.GitHubPullRequest] { throw Unimplemented() }
     func updatePRs(numbers: [Int]) async throws { throw Unimplemented() }
     func updateRepository() async throws { throw Unimplemented() }
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws { throw Unimplemented() }

@@ -12,13 +12,18 @@ public struct WorkflowService {
         self.githubService = githubService
     }
 
-    public func triggerClaudeChainWorkflow(projectName: String, baseBranch: String, checkoutRef: String) throws {
+    public func triggerClaudeChainWorkflow(
+        projectName: String,
+        baseBranch: String,
+        checkoutRef: String,
+        workflowFileName: String = "claude-chain.yml"
+    ) throws {
         var triggerError: Error?
         let semaphore = DispatchSemaphore(value: 0)
         Task {
             do {
                 try await githubService.triggerWorkflowDispatch(
-                    workflowId: "claudechain.yml",
+                    workflowId: workflowFileName,
                     ref: checkoutRef,
                     inputs: [
                         ClaudeChainConstants.workflowProjectNameKey: projectName,
@@ -37,13 +42,23 @@ public struct WorkflowService {
         }
     }
 
-    public func batchTriggerClaudeChainWorkflows(projects: [String], baseBranch: String, checkoutRef: String) -> ([String], [String]) {
+    public func batchTriggerClaudeChainWorkflows(
+        projects: [String],
+        baseBranch: String,
+        checkoutRef: String,
+        workflowFileName: String = "claude-chain.yml"
+    ) -> ([String], [String]) {
         var successful: [String] = []
         var failed: [String] = []
 
         for project in projects {
             do {
-                try triggerClaudeChainWorkflow(projectName: project, baseBranch: baseBranch, checkoutRef: checkoutRef)
+                try triggerClaudeChainWorkflow(
+                    projectName: project,
+                    baseBranch: baseBranch,
+                    checkoutRef: checkoutRef,
+                    workflowFileName: workflowFileName
+                )
                 successful.append(project)
                 logger.info("triggered workflow for project: \(project)")
             } catch {

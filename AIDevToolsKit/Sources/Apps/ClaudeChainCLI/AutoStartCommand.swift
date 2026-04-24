@@ -25,9 +25,12 @@ public struct AutoStartCommand: AsyncParsableCommand {
     
     @Option(name: .long, help: "Whether auto-start is enabled (default: true, set to 'false' to disable)")
     public var autoStartEnabled: Bool = true
-    
+
+    @Option(name: .long, help: "Workflow file name to dispatch (default: claude-chain.yml)")
+    public var workflowFile: String = "claude-chain.yml"
+
     public init() {}
-    
+
     public func run() async throws {
         let exitCode = try await cmdAutoStart(
             gh: GitHubActions(),
@@ -35,7 +38,8 @@ public struct AutoStartCommand: AsyncParsableCommand {
             baseBranch: baseBranch ?? "main",
             refBefore: refBefore ?? "",
             refAfter: refAfter ?? "",
-            autoStartEnabled: autoStartEnabled
+            autoStartEnabled: autoStartEnabled,
+            workflowFile: workflowFile
         )
         
         if exitCode != 0 {
@@ -50,7 +54,8 @@ private func cmdAutoStart(
     baseBranch: String,
     refBefore: String,
     refAfter: String,
-    autoStartEnabled: Bool = true
+    autoStartEnabled: Bool = true,
+    workflowFile: String = "claude-chain.yml"
 ) async throws -> Int32 {
     /**
      * Detect new projects and trigger ClaudeChain workflows for them.
@@ -157,7 +162,8 @@ private func cmdAutoStart(
         let (successful, failed) = workflowService.batchTriggerClaudeChainWorkflows(
             projects: projectsToTrigger,
             baseBranch: baseBranch,
-            checkoutRef: refAfter
+            checkoutRef: refAfter,
+            workflowFileName: workflowFile
         )
         triggeredProjects = successful
         failedProjects = failed
