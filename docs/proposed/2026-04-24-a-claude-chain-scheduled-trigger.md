@@ -135,7 +135,10 @@ permissions:
 
 Add a top-of-file comment block (matching style of other Claude Chain workflows) explaining that this workflow runs hourly, finds chains with available capacity, and triggers up to `max_triggers` workflow_dispatch jobs.
 
-## - [ ] Phase 4: Add `claude-chain-scheduled-trigger.yml` to AIDevToolsDemo and set up validation chains
+## - [x] Phase 4: Add `claude-chain-scheduled-trigger.yml` to AIDevToolsDemo and set up validation chains
+
+**Skills used**: `ai-dev-tools-enforce`
+**Principles applied**: Mirrored the production scheduled-trigger workflow into the demo repo to keep validation behavior identical, used `maxOpenPRs: 0` as the documented at-capacity stand-in to avoid fabricating a manual draft PR, and added deterministic pending-task fixtures so the expected trigger counts stay stable.
 
 **Skills to read**: none
 
