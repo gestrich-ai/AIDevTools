@@ -1,0 +1,57 @@
+name: Claude Chain Scheduled Trigger
+
+# Runs hourly to find Claude Chain projects with available capacity
+# and triggers up to max_triggers workflow_dispatch jobs for claude-chain.yml.
+# Can also be triggered manually for validation or operational backfills.
+on:
+  schedule:
+    - cron: '0 * * * *'  # Hourly
+  workflow_dispatch:
+    inputs:
+      max_triggers:
+        description: 'Maximum PRs to trigger this run (default: 5)'
+        required: false
+        default: '5'
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+# No secrets required beyond the automatically provided GITHUB_TOKEN.
+
+jobs:
+  scheduled-trigger:
+    name: Claude Chain Scheduled Trigger
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout AIDevTools
+        uses: actions/checkout@v4
+        with:
+          repository: gestrich/AIDevTools
+          ref: main
+          path: aidevtools
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mark workspace as safe directory
+        run: git config --global --add safe.directory ${{ github.workspace }}
+
+      - name: Build AIDevTools CLI
+        run: |
+          cd aidevtools/AIDevToolsKit
+          swift build -c release --product ai-dev-tools-kit
+
+      - name: Run Claude Chain scheduled trigger
+        run: |
+          cd aidevtools/AIDevToolsKit
+          swift run -c release ai-dev-tools-kit claude-chain scheduled-trigger \
+            --repo "${{ github.repository }}" \
+            --repo-path "${{ github.workspace }}" \
+            --max-triggers "${{ github.event.inputs.max_triggers || '5' }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

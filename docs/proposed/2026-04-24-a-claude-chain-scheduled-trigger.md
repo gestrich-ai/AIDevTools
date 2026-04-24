@@ -90,7 +90,10 @@ claude-chain scheduled-trigger
 
 Register the command in `ClaudeChainCLI.swift` — insert `ScheduledTriggerCommand.self` in alphabetical position in the `subcommands` array.
 
-## - [ ] Phase 3: Add `claude-chain-scheduled-trigger.yml` workflow to AIDevTools
+## - [x] Phase 3: Add `claude-chain-scheduled-trigger.yml` workflow to AIDevTools
+
+**Skills used**: `ai-dev-tools-enforce`
+**Principles applied**: Matched the existing Claude Chain status workflow structure to keep the scheduled trigger minimal and consistent, added only the permissions needed to dispatch `claude-chain.yml`, and kept the manual override limited to `max_triggers` for safe operational control.
 
 **Skills to read**: none
 
