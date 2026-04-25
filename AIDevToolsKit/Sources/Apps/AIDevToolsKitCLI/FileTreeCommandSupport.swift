@@ -40,11 +40,28 @@ func filteredFiles(from files: [FileSystemItem], rootPath: String, filter: Strin
         return sortedFiles
     }
 
-    let predicate = NSPredicate(format: "SELF LIKE %@", filter)
     return sortedFiles.filter { file in
         let relativePath = displayPath(for: file, rootPath: rootPath, fullPaths: false)
-        return predicate.evaluate(with: relativePath) || predicate.evaluate(with: file.name)
+        return wildcardPatternMatches(relativePath, pattern: filter) || wildcardPatternMatches(file.name, pattern: filter)
     }
+}
+
+private func wildcardPatternMatches(_ value: String, pattern: String) -> Bool {
+    var regexPattern = "^"
+
+    for character in pattern {
+        switch character {
+        case "*":
+            regexPattern += ".*"
+        case "?":
+            regexPattern += "."
+        default:
+            regexPattern += NSRegularExpression.escapedPattern(for: String(character))
+        }
+    }
+
+    regexPattern += "$"
+    return value.range(of: regexPattern, options: .regularExpression) != nil
 }
 
 func makeFileTreeService() throws -> FileTreeService {
