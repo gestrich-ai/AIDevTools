@@ -1,5 +1,5 @@
 {
-  "originHash" : "186acf8c639f9d05e19f6ac5d94748667ac80e76d108f065d8c016f9e0fb4cc4",
+  "originHash" : "f6aac5770c74a6c0e4724ce12dc33ec2b6eff05801f99e81876f1b35784f0379",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -292,10 +292,10 @@
     {
       "identity" : "swiftanthropic",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/gestrich/SwiftAnthropic",
+      "location" : "https://github.com/jamesrochabrun/SwiftAnthropic",
       "state" : {
-        "branch" : "main",
-        "revision" : "eb7eb15df3ddb3645399d3c63a548a0da9adaa23"
+        "revision" : "b7d030cd7453f314c780f5492385f73d704cbd5d",
+        "version" : "2.2.2"
       }
     },
     {

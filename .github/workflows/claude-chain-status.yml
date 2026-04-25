@@ -25,6 +25,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout AIDevTools
+        if: github.repository == 'gestrich/AIDevTools'
+        uses: actions/checkout@v4
+        with:
+          path: aidevtools
+
+      - name: Checkout AIDevTools
+        if: github.repository != 'gestrich/AIDevTools'
         uses: actions/checkout@v4
         with:
           repository: gestrich/AIDevTools
