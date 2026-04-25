@@ -1,5 +1,7 @@
-import CoreServices
 import Foundation
+
+#if canImport(CoreServices)
+import CoreServices
 
 private final class CallbackContext {
     let monitor: FileSystemMonitor
@@ -161,3 +163,21 @@ public actor FileSystemMonitor {
         }
     }
 }
+#else
+public actor FileSystemMonitor {
+    private let onChange: @Sendable ([String]) async -> Void
+
+    public init(onChange: @escaping @Sendable ([String]) async -> Void) {
+        self.onChange = onChange
+    }
+
+    public func startMonitoring(path: String) {
+        FileTreeLoggers.monitor.debug(
+            "File system monitoring is unavailable on this platform",
+            metadata: ["path": .string(path)]
+        )
+    }
+
+    public func stopMonitoring() {}
+}
+#endif
