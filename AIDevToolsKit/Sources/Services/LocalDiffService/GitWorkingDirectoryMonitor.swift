@@ -100,9 +100,13 @@ private final class MonitorState {
     private let emitter: ChangeEmitter
     private let pollIntervalNanoseconds: UInt64
 
+#if canImport(CoreServices)
     private var historyEventStream: FSEventStreamRef?
+#endif
     private var historyPollTask: Task<Void, Never>?
+#if canImport(Darwin)
     private var indexMonitor: DispatchSourceFileSystemObject?
+#endif
     private var indexPollTask: Task<Void, Never>?
 #if canImport(CoreServices)
     private var workingTreeEventStream: FSEventStreamRef?
@@ -153,8 +157,10 @@ private final class MonitorState {
 #endif
         historyCallbackContext = nil
 
+#if canImport(Darwin)
         indexMonitor?.cancel()
         indexMonitor = nil
+#endif
 
         indexPollTask?.cancel()
         indexPollTask = nil
