@@ -1,7 +1,14 @@
-import Combine
 import Foundation
 
-public final class FileSystemItem: Codable, Equatable, Identifiable, ObservableObject, @unchecked Sendable {
+#if canImport(Combine)
+import Combine
+
+public typealias FileSystemItemObservable = ObservableObject
+#else
+public protocol FileSystemItemObservable: AnyObject {}
+#endif
+
+public final class FileSystemItem: Codable, Equatable, Identifiable, FileSystemItemObservable, @unchecked Sendable {
     private static let ideExcludePatterns: [String] = [
         ".build",
         ".cache",
@@ -41,8 +48,13 @@ public final class FileSystemItem: Codable, Equatable, Identifiable, ObservableO
     public let isDirectory: Bool
     public let name: String
     public let url: URL
+    #if canImport(Combine)
     @Published public var children: [FileSystemItem]?
     @Published public var isExpanded: Bool = false
+    #else
+    public var children: [FileSystemItem]?
+    public var isExpanded: Bool = false
+    #endif
 
     public var path: String {
         url.path
