@@ -161,6 +161,7 @@ private struct FailingGitHubPRService: GitHubPRServiceProtocol {
     func pullRequestByHeadBranch(branch: String) async throws -> CreatedPullRequest? { throw Unimplemented() }
     func readAllCachedPRs() async -> [GitHubService.GitHubPullRequest] { [] }
     func readCachedIndex(key: String) async throws -> [Int]? { throw Unimplemented() }
+    func readCacheRefreshState() async throws -> CacheRefreshState? { throw Unimplemented() }
     func repository(useCache: Bool) async throws -> GitHubRepository { throw Unimplemented() }
     func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview] { throw Unimplemented() }
     func updatePRs(filter: PRFilter) async throws -> [GitHubService.GitHubPullRequest] { throw Unimplemented() }
@@ -169,6 +170,7 @@ private struct FailingGitHubPRService: GitHubPRServiceProtocol {
     func updateRepository() async throws { throw Unimplemented() }
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws { throw Unimplemented() }
     func writeCachedIndex(_ numbers: [Int], key: String) async throws { throw Unimplemented() }
+    func writeCacheRefreshState(_ state: CacheRefreshState) async throws { throw Unimplemented() }
     func writePR(_ pr: GitHubService.GitHubPullRequest, number: Int) async throws { throw Unimplemented() }
 }
 
@@ -218,6 +220,7 @@ private final class RecordingGitHubPRService: GitHubPRServiceProtocol, @unchecke
     func pullRequestByHeadBranch(branch: String) async throws -> CreatedPullRequest? { throw Unimplemented() }
     func readAllCachedPRs() async -> [GitHubService.GitHubPullRequest] { [] }
     func readCachedIndex(key: String) async throws -> [Int]? { throw Unimplemented() }
+    func readCacheRefreshState() async throws -> CacheRefreshState? { throw Unimplemented() }
     func repository(useCache: Bool) async throws -> GitHubRepository { throw Unimplemented() }
     func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview] { throw Unimplemented() }
     func updatePR(number: Int) async throws { throw Unimplemented() }
@@ -226,5 +229,6 @@ private final class RecordingGitHubPRService: GitHubPRServiceProtocol, @unchecke
     func updateRepository() async throws { throw Unimplemented() }
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws { throw Unimplemented() }
     func writeCachedIndex(_ numbers: [Int], key: String) async throws { throw Unimplemented() }
+    func writeCacheRefreshState(_ state: CacheRefreshState) async throws { throw Unimplemented() }
     func writePR(_ pr: GitHubService.GitHubPullRequest, number: Int) async throws { throw Unimplemented() }
 }
