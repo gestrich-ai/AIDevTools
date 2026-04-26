@@ -102,9 +102,10 @@ public struct RunHistoryEntry: Sendable {
 
 ---
 
-## - [ ] Phase 2: Refactor `PRRadarRunHistoryCommand`
+## - [x] Phase 2: Refactor `PRRadarRunHistoryCommand`
 
-**Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-code-quality`
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-code-quality`
+**Principles applied**: Replaced the inline manifest-scanning loop and private `loadReportSummary` method with `RunHistoryService.loadRuns` and the service's `loadReportSummary`. The directory-existence check is retained in the command to preserve the distinct "no runs directory" vs "no run files" user-facing messages. `PRRadarModelsService` import kept for display-layer types; `PRRadarCLIService` added for `RunHistoryService`. `resolvedOutputDir` confirmed used throughout.
 
 Replace the inline loading logic in `PRRadarRunHistoryCommand` with `RunHistoryService`. The command's display output must remain identical.
 

@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModelsService
 
@@ -21,37 +22,24 @@ struct PRRadarRunHistoryCommand: AsyncParsableCommand {
     func run() async throws {
         let prRadarConfig = try resolvePRRadarConfig(repoName: config)
         let runsDir = "\(prRadarConfig.resolvedOutputDir)/runs"
-        let fm = FileManager.default
 
-        guard fm.fileExists(atPath: runsDir) else {
+        guard FileManager.default.fileExists(atPath: runsDir) else {
             print("No run history found. Runs are saved to: \(runsDir)")
             return
         }
 
-        let files = try fm.contentsOfDirectory(atPath: runsDir)
-            .filter { $0.hasSuffix(".json") }
-            .sorted()
-            .reversed()
-            .prefix(limit)
+        let runs = try RunHistoryService.loadRuns(outputDir: prRadarConfig.resolvedOutputDir, limit: limit)
 
-        if files.isEmpty {
+        if runs.isEmpty {
             print("No run history found at \(runsDir)")
             return
         }
 
-        let decoder = JSONDecoder()
-        print("Showing \(files.count) run\(files.count == 1 ? "" : "s") from \(prRadarConfig.name)/runs/\n")
+        print("Showing \(runs.count) run\(runs.count == 1 ? "" : "s") from \(prRadarConfig.name)/runs/\n")
 
-        for filename in files {
-            let path = "\(runsDir)/\(filename)"
-            guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-                  let manifest = try? decoder.decode(RunManifest.self, from: data) else {
-                continue
-            }
-
-            let prEntries = manifest.prs.map { entry in
-                RunAllPREntry(entry: entry, summary: loadReportSummary(outputDir: prRadarConfig.resolvedOutputDir, prNumber: entry.prNumber))
-            }
+        for historyEntry in runs {
+            let manifest = historyEntry.manifest
+            let prEntries = historyEntry.prEntries
 
             let totalTasks = prEntries.compactMap(\.summary).map(\.totalTasksEvaluated).reduce(0, +)
             let totalViolations = prEntries.compactMap(\.summary).map(\.violationsFound).reduce(0, +)
@@ -81,40 +69,5 @@ struct PRRadarRunHistoryCommand: AsyncParsableCommand {
             }
             print()
         }
-    }
-
-    private func loadReportSummary(outputDir: String, prNumber: Int) -> ReportSummary? {
-        let decoder = JSONDecoder()
-
-        // Try commit-scoped path via metadata phase_result.json
-        let metadataResultPath = PRRadarPhasePaths.phaseDirectory(
-            outputDir: outputDir, prNumber: prNumber, phase: .metadata
-        ) + "/\(PRRadarPhasePaths.phaseResultFilename)"
-
-        if let metaData = try? Data(contentsOf: URL(fileURLWithPath: metadataResultPath)),
-           let metaResult = try? decoder.decode(PhaseResult.self, from: metaData),
-           let commitHash = metaResult.stats?.metadata?["commitHash"] {
-            let reportPath = PRRadarPhasePaths.phaseDirectory(
-                outputDir: outputDir, prNumber: prNumber, phase: .report, commitHash: commitHash
-            ) + "/\(PRRadarPhasePaths.summaryJSONFilename)"
-            if let reportData = try? Data(contentsOf: URL(fileURLWithPath: reportPath)),
-               let report = try? decoder.decode(ReviewReport.self, from: reportData) {
-                return report.summary
-            }
-        }
-
-        // Fall back: scan analysis/ subdirectories for any report/summary.json
-        let analysisDir = "\(outputDir)/\(prNumber)/\(PRRadarPhasePaths.analysisDirectoryName)"
-        if let commits = try? FileManager.default.contentsOfDirectory(atPath: analysisDir) {
-            for commit in commits.sorted().reversed() {
-                let reportPath = "\(analysisDir)/\(commit)/\(PRRadarPhase.report.rawValue)/\(PRRadarPhasePaths.summaryJSONFilename)"
-                if let reportData = try? Data(contentsOf: URL(fileURLWithPath: reportPath)),
-                   let report = try? decoder.decode(ReviewReport.self, from: reportData) {
-                    return report.summary
-                }
-            }
-        }
-
-        return nil
     }
 }
