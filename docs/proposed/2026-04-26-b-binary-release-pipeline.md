@@ -136,7 +136,10 @@ Note for `~/.local/bin` users: make sure it's on your `$PATH` (`export PATH="$HO
 
 Also remove or update any README instructions that tell users to build from source.
 
-## - [ ] Phase 5: End-to-End Test Workflow in AIDevToolsDemo
+## - [x] Phase 5: End-to-End Test Workflow in AIDevToolsDemo
+
+**Skills used**: none
+**Principles applied**: Version resolution uses the GitHub API when no input is provided; checksum verification gates installation; binary smoke test uses both `--help` and `prradar --help` to confirm top-level dispatch works; no secrets required.
 
 **File:** `../AIDevToolsDemo/.github/workflows/test-binary.yml`
 
