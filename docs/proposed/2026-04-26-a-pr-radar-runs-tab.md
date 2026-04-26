@@ -147,7 +147,10 @@ enum PRRadarTab {
 
 ---
 
-## - [ ] Phase 4: `RunsModel`
+## - [x] Phase 4: `RunsModel`
+
+**Skills used**: `swift-app-architecture:swift-swiftui`, `ai-dev-tools-composition-root`, `ai-dev-tools-architecture`
+**Principles applied**: Created `RunsModel` as `@Observable @MainActor final class` with `Observation` imported directly (same pattern as `PRRadarNavigationModel`). Added `GitHubService` import for `PRFilter`. `runAll` wraps the `AsyncThrowingStream` from `RunAllUseCase` in a `do/catch` since it is `AsyncThrowingStream`. Removed `analyzeAllState`, `analyzeAll`, `dismissAnalyzeAllState`, `analyzeAllLogs`, and `AnalyzeAllState` from `AllPRsModel`. Deleted `AnalyzeAllProgressView` (already unlinked from any sheet after removing the `.sheet` modifier from `PRRadarContentView`; Phase 5 planned deletion pulled forward to keep build clean). Removed the analyze-all button, sheet, and popover from `PRRadarContentView`; these move to the Runs tab in Phase 5.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`, `ai-dev-tools-composition-root`, `ai-dev-tools-architecture`
 

@@ -16,7 +16,6 @@ final class AllPRsModel {
 
     private(set) var state: State = .uninitialized
     private(set) var refreshAllState: RefreshAllState = .idle
-    private(set) var analyzeAllState: AnalyzeAllState = .idle
     private(set) var fetchingPRNumbers: Set<Int> = []
     private(set) var loadedAuthors: [AuthorCacheEntry] = []
     var showOnlyWithPendingComments: Bool = false
@@ -167,46 +166,6 @@ final class AllPRsModel {
         prModel.resetAfterDataDeletion(metadata: refreshedMetadata)
     }
 
-    // MARK: - Analyze All
-
-    func analyzeAll(filter: PRFilter, ruleFilePaths: [String]? = nil) async {
-        guard let models = currentPRModels else { return }
-
-        let prsToAnalyze = filteredPRs(models, filter: filter)
-        let total = prsToAnalyze.count
-
-        analyzeAllState = .running(logs: "Analyzing \(total) PRs...\n", current: 0, total: total)
-
-        var analyzedCount = 0
-        var failedCount = 0
-
-        for (index, pr) in prsToAnalyze.enumerated() {
-            let current = index + 1
-            if case .running(let logs, _, _) = analyzeAllState {
-                analyzeAllState = .running(
-                    logs: logs + "[\(current)/\(total)] PR #\(pr.prNumber): \(pr.metadata.title)\n",
-                    current: current,
-                    total: total
-                )
-            }
-
-            if await pr.runAnalysis(aiClient: aiClient, ruleFilePaths: ruleFilePaths) {
-                analyzedCount += 1
-            } else {
-                failedCount += 1
-            }
-        }
-
-        let logs = analyzeAllLogs
-        analyzeAllState = .completed(
-            logs: logs + "\nAnalyze-all complete: \(analyzedCount) succeeded, \(failedCount) failed\n"
-        )
-    }
-
-    func dismissAnalyzeAllState() {
-        analyzeAllState = .idle
-    }
-
     // MARK: - Acquisition
 
     private func cachedPRs(filter: PRFilter? = nil) async -> [PRMetadata] {
@@ -295,11 +254,6 @@ final class AllPRsModel {
         }
     }
 
-    private var analyzeAllLogs: String {
-        if case .running(let logs, _, _) = analyzeAllState { return logs }
-        return ""
-    }
-
     enum RefreshError: LocalizedError {
         case failed(String)
 
@@ -333,25 +287,6 @@ final class AllPRsModel {
         var progressText: String? {
             if case .running(_, let current, let total) = self {
                 return total > 0 ? "\(current)/\(total)" : nil
-            }
-            return nil
-        }
-    }
-
-    enum AnalyzeAllState {
-        case idle
-        case running(logs: String, current: Int, total: Int)
-        case completed(logs: String)
-        case failed(error: String, logs: String)
-
-        var isRunning: Bool {
-            if case .running = self { return true }
-            return false
-        }
-
-        var progressText: String? {
-            if case .running(_, let current, let total) = self {
-                return "\(current)/\(total)"
             }
             return nil
         }

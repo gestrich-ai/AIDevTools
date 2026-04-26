@@ -21,9 +21,6 @@ struct PRRadarContentView: View {
     @State private var selectedPR: PRModel?
     @State private var showNewReview = false
     @State private var newPRNumber = ""
-    @State private var showAnalyzeAll = false
-    @State private var showAnalyzeAllProgress = false
-    @State private var analyzeAllRuleSets: [RuleSetGroup]? = nil
     @State private var showRefreshProgress = false
     @State private var showAnalyzePR = false
     @State private var analyzePRRuleSets: [RuleSetGroup]? = nil
@@ -136,11 +133,6 @@ struct PRRadarContentView: View {
                 }
                 .help("Toggle Panel")
             }
-            }
-        }
-        .sheet(isPresented: $showAnalyzeAllProgress) {
-            if let model = allPRsModel {
-                AnalyzeAllProgressView(model: model, isPresented: $showAnalyzeAllProgress)
             }
         }
         .sheet(isPresented: $showRefreshProgress) {
@@ -310,35 +302,6 @@ struct PRRadarContentView: View {
                 .help(allPRsModel?.refreshAllState.isRunning == true ? "Show progress" : "Refresh PR list")
 
                 Spacer()
-
-                Button {
-                    if let model = allPRsModel, model.analyzeAllState.isRunning {
-                        showAnalyzeAllProgress = true
-                    } else {
-                        analyzeAllRuleSets = nil
-                        showAnalyzeAll = true
-                    }
-                } label: {
-                    if let model = allPRsModel, model.analyzeAllState.isRunning {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .controlSize(.small)
-                            if let progressText = model.analyzeAllState.progressText {
-                                Text(progressText)
-                                    .font(.caption)
-                                    .monospacedDigit()
-                            }
-                        }
-                        .fixedSize()
-                    } else {
-                        Image(systemName: "sparkles")
-                    }
-                }
-                .accessibilityIdentifier("analyzeAllButton")
-                .help(allPRsModel?.analyzeAllState.isRunning == true ? "Show progress" : "Analyze all PRs since a date")
-                .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
-                    analyzeAllPopover
-                }
 
                 Button {
                     newPRNumber = lastSearchedPRNumber
@@ -590,23 +553,6 @@ struct PRRadarContentView: View {
                 Task { await selectedPR?.runAnalysis(ruleFilePaths: ruleFilePaths) }
             },
             onCancel: { showAnalyzePR = false }
-        )
-    }
-
-    @ViewBuilder
-    private var analyzeAllPopover: some View {
-        rulePickerPopover(
-            ruleSets: analyzeAllRuleSets,
-            title: "Analyze All PRs",
-            subtitle: "Last \(daysLookBack) days \u{00B7} State: \(stateFilterLabel)",
-            onLoad: { analyzeAllRuleSets = await loadRuleSets() },
-            onStart: { selectedRules in
-                saveRuleFilePaths(selectedRules)
-                let ruleFilePaths = selectedRules.map(\.filePath)
-                showAnalyzeAll = false
-                Task { await allPRsModel?.analyzeAll(filter: buildFilter(), ruleFilePaths: ruleFilePaths) }
-            },
-            onCancel: { showAnalyzeAll = false }
         )
     }
 
