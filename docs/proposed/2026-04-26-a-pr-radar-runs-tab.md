@@ -24,6 +24,24 @@ The CLI already has `pr-radar run-history` for viewing this data. The Mac app ha
 
 Currently, `run-all` from the Mac app opens `AnalyzeAllProgressView` (a modal) for live progress, driven by `AllPRsModel.analyzeAllState`. This modal will be retired in favour of the new Runs tab.
 
+### CLI parity requirement
+
+All functionality in the Runs tab must be accessible via CLI using the **same use cases and services** as the Mac app. No logic lives exclusively in the Mac model. The shared layer mapping is:
+
+| Functionality | Shared layer | CLI command | Mac model |
+|---|---|---|---|
+| Trigger + stream run-all | `RunAllUseCase` (exists) | `pr-radar run-all` (exists) | `RunsModel` (Phase 4) |
+| Load run history | `RunHistoryService` (Phase 1) | `pr-radar run-history` (Phase 2 refactor) | `RunsModel` (Phase 4) |
+
+No new CLI commands are needed — the existing commands already cover both operations. Phases 1 and 2 ensure the CLI consumes the shared service rather than inline logic.
+
+### Cost visibility
+
+Total cost is displayed at every level:
+- **Run list row**: total cost summed across all PRs in that run (`prEntries.compactMap(\.summary).map(\.totalCostUsd).reduce(0, +)`)
+- **Run detail pane**: per-PR cost in the breakdown table
+- The `run-history` CLI command already shows the same totals
+
 ### Agreed design decisions (from planning session)
 
 1. **Tab strip** on the left sidebar — "PRs" tab (existing) | "Runs" tab (new)
