@@ -136,9 +136,10 @@ Both workflows currently run on `macos-latest`. Now that the binary install step
 
 No other changes needed — the `prradar run` command is platform-agnostic.
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
 
-**Skills to read**: none
+**Skills used**: none
+**Principles applied**: Discovered and fixed a checksum verification bug (tarball was saved as `ai-dev-tools-kit.tar.gz` but `checksums.txt` references `ai-dev-tools-kit-linux-x86_64.tar.gz`, causing `sha256sum` to fail with "no file was verified"). Fixed in both `Examples/workflows/pr-radar.yml` and `gestrich/AIDevToolsDemo/.github/workflows/pr-radar.yml`. Re-triggered the workflow on PR #12; completed in 13s (vs ~7 min build-from-source). No Swift files were modified so `ai-dev-tools-enforce` had nothing to check.
 
 1. Manually trigger `pr-radar.yml` in `gestrich/AIDevToolsDemo` on a real PR — confirm it completes without building from source
 2. Verify the workflow finishes significantly faster than before (expect < 2 min vs ~7 min)

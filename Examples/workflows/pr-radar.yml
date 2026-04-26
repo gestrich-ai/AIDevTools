@@ -59,10 +59,10 @@ jobs:
         env:
           VERSION: v0.1.0
         run: |
-          curl -fsSL "https://github.com/gestrich/AIDevTools/releases/download/${VERSION}/ai-dev-tools-kit-linux-x86_64.tar.gz" -o ai-dev-tools-kit.tar.gz
+          curl -fsSL "https://github.com/gestrich/AIDevTools/releases/download/${VERSION}/ai-dev-tools-kit-linux-x86_64.tar.gz" -o ai-dev-tools-kit-linux-x86_64.tar.gz
           curl -fsSL "https://github.com/gestrich/AIDevTools/releases/download/${VERSION}/checksums.txt" -o checksums.txt
           sha256sum --check --ignore-missing checksums.txt
-          tar -xzf ai-dev-tools-kit.tar.gz
+          tar -xzf ai-dev-tools-kit-linux-x86_64.tar.gz
           chmod +x ai-dev-tools-kit
           sudo mv ai-dev-tools-kit /usr/local/bin/ai-dev-tools-kit
 
