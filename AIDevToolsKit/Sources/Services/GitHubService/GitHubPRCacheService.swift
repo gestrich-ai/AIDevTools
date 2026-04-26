@@ -151,6 +151,18 @@ actor GitHubPRCacheService {
         try data.write(to: authorsURL())
     }
 
+    // MARK: - Cache Refresh State
+
+    func readCacheRefreshState() throws -> CacheRefreshState? {
+        try readFile(at: cacheRefreshStateURL())
+    }
+
+    func writeCacheRefreshState(_ state: CacheRefreshState) throws {
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        let data = try JSONEncoder.prettyPrinted.encode(state)
+        try data.write(to: cacheRefreshStateURL())
+    }
+
     // MARK: - File Blob
 
     func readBlob(blobSHA: String) throws -> String? {
@@ -187,77 +199,6 @@ actor GitHubPRCacheService {
 
     // MARK: - URLs
 
-    private func prDirectory(number: Int) -> URL {
-        rootURL.appendingPathComponent(String(number))
-    }
-
-    private func prURL(number: Int) -> URL {
-        prDirectory(number: number).appendingPathComponent("gh-pr.json")
-    }
-
-    private func checkRunsURL(number: Int) -> URL {
-        prDirectory(number: number).appendingPathComponent("gh-checks.json")
-    }
-
-    private func commentsURL(number: Int) -> URL {
-        prDirectory(number: number).appendingPathComponent("gh-comments.json")
-    }
-
-    private func indexURL(key: String) -> URL {
-        rootURL.appendingPathComponent("index-\(key).json")
-    }
-
-    private func repositoryURL() -> URL {
-        rootURL.appendingPathComponent("gh-repo.json")
-    }
-
-    private func reviewsURL(number: Int) -> URL {
-        prDirectory(number: number).appendingPathComponent("gh-reviews.json")
-    }
-
-    private func branchListURL() -> URL {
-        rootURL.appendingPathComponent("branch-list.json")
-    }
-
-    private func branchesDirectory() -> URL {
-        rootURL.appendingPathComponent("branches")
-    }
-
-    private func sanitise(_ string: String) -> String {
-        string.replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: ":", with: "-")
-            .replacingOccurrences(of: " ", with: "-")
-    }
-
-    private func branchHeadURL(branch: String) -> URL {
-        branchesDirectory().appendingPathComponent("\(sanitise(branch)).json")
-    }
-
-    private func treesDirectory() -> URL {
-        rootURL.appendingPathComponent("trees")
-    }
-
-    private func gitTreeURL(treeSHA: String) -> URL {
-        treesDirectory().appendingPathComponent("\(treeSHA).json")
-    }
-
-    private func dirsDirectory() -> URL {
-        rootURL.appendingPathComponent("dirs")
-    }
-
-    private func directoryURL(path: String, ref: String) -> URL {
-        dirsDirectory().appendingPathComponent("\(sanitise(ref))-\(sanitise(path)).json")
-    }
-
-    private func workflowsDirectory() -> URL {
-        rootURL.appendingPathComponent("workflows")
-    }
-
-    private func workflowRunsURL(workflow: String, branch: String?, limit: Int) -> URL {
-        let branchKey = branch.map { "-\(sanitise($0))" } ?? ""
-        return workflowsDirectory().appendingPathComponent("\(sanitise(workflow))\(branchKey)-\(limit).json")
-    }
-
     private func authorsURL() -> URL {
         rootURL.appendingPathComponent("author-cache.json")
     }
@@ -269,5 +210,79 @@ actor GitHubPRCacheService {
     private func blobURL(blobSHA: String) -> URL {
         blobsDirectory().appendingPathComponent("\(blobSHA).txt")
     }
-}
 
+    private func branchesDirectory() -> URL {
+        rootURL.appendingPathComponent("branches")
+    }
+
+    private func branchHeadURL(branch: String) -> URL {
+        branchesDirectory().appendingPathComponent("\(sanitise(branch)).json")
+    }
+
+    private func branchListURL() -> URL {
+        rootURL.appendingPathComponent("branch-list.json")
+    }
+
+    private func cacheRefreshStateURL() -> URL {
+        rootURL.appendingPathComponent("cache-refresh-state.json")
+    }
+
+    private func checkRunsURL(number: Int) -> URL {
+        prDirectory(number: number).appendingPathComponent("gh-checks.json")
+    }
+
+    private func commentsURL(number: Int) -> URL {
+        prDirectory(number: number).appendingPathComponent("gh-comments.json")
+    }
+
+    private func dirsDirectory() -> URL {
+        rootURL.appendingPathComponent("dirs")
+    }
+
+    private func directoryURL(path: String, ref: String) -> URL {
+        dirsDirectory().appendingPathComponent("\(sanitise(ref))-\(sanitise(path)).json")
+    }
+
+    private func gitTreeURL(treeSHA: String) -> URL {
+        treesDirectory().appendingPathComponent("\(treeSHA).json")
+    }
+
+    private func indexURL(key: String) -> URL {
+        rootURL.appendingPathComponent("index-\(key).json")
+    }
+
+    private func prDirectory(number: Int) -> URL {
+        rootURL.appendingPathComponent(String(number))
+    }
+
+    private func prURL(number: Int) -> URL {
+        prDirectory(number: number).appendingPathComponent("gh-pr.json")
+    }
+
+    private func repositoryURL() -> URL {
+        rootURL.appendingPathComponent("gh-repo.json")
+    }
+
+    private func reviewsURL(number: Int) -> URL {
+        prDirectory(number: number).appendingPathComponent("gh-reviews.json")
+    }
+
+    private func sanitise(_ string: String) -> String {
+        string.replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: " ", with: "-")
+    }
+
+    private func treesDirectory() -> URL {
+        rootURL.appendingPathComponent("trees")
+    }
+
+    private func workflowsDirectory() -> URL {
+        rootURL.appendingPathComponent("workflows")
+    }
+
+    private func workflowRunsURL(workflow: String, branch: String?, limit: Int) -> URL {
+        let branchKey = branch.map { "-\(sanitise($0))" } ?? ""
+        return workflowsDirectory().appendingPathComponent("\(sanitise(workflow))\(branchKey)-\(limit).json")
+    }
+}
