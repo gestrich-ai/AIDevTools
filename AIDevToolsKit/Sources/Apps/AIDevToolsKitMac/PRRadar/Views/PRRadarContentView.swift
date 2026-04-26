@@ -17,6 +17,7 @@ struct PRRadarContentView: View {
     @Environment(ProviderModel.self) private var providerModel
     @Environment(WorkspaceModel.self) private var workspaceModel
     @State private var allPRsModel: AllPRsModel?
+    @State private var navigationModel = PRRadarNavigationModel()
     @State private var selectedPR: PRModel?
     @State private var showNewReview = false
     @State private var newPRNumber = ""
@@ -50,6 +51,7 @@ struct PRRadarContentView: View {
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .environment(navigationModel)
         .environment(\.allPRsModel, allPRsModel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar {
@@ -196,6 +198,13 @@ struct PRRadarContentView: View {
             if selectedPR == nil, let first = filteredPRModels.first {
                 selectedPR = first
             }
+        }
+        .onChange(of: navigationModel.selectedPRNumber) { _, prNumber in
+            guard let prNumber else { return }
+            if let match = currentPRModels.first(where: { $0.prNumber == prNumber }) {
+                selectedPR = match
+            }
+            navigationModel.selectedPRNumber = nil
         }
     }
 

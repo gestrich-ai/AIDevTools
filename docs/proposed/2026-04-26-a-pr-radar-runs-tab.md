@@ -118,9 +118,10 @@ Replace the inline loading logic in `PRRadarRunHistoryCommand` with `RunHistoryS
 
 ---
 
-## - [ ] Phase 3: Shared Navigation State
+## - [x] Phase 3: Shared Navigation State
 
-**Skills to read**: `swift-app-architecture:swift-swiftui`, `ai-dev-tools-composition-root`
+**Skills used**: `swift-app-architecture:swift-swiftui`, `ai-dev-tools-composition-root`
+**Principles applied**: Created `PRRadarNavigationModel` as an `@Observable @MainActor` final class following the MV pattern. Instantiated as `@State` inside `PRRadarContentView` (same level as `AllPRsModel`) and injected via `.environment(navigationModel)` so child views can access it via `@Environment(PRRadarNavigationModel.self)`. Added `onChange(of: navigationModel.selectedPRNumber)` to update `selectedPR` when cross-tab navigation fires, then clears the pending number. `import Observation` required since the file has no other imports that transitively provide it.
 
 Add a small shared navigation model at the Mac Apps layer that both the PRs tab and Runs tab observe. This enables cross-tab PR selection without coupling `RunsModel` directly to `AllPRsModel`.
 
