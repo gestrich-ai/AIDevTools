@@ -67,7 +67,10 @@ After this step completes, the existing fetch logic continues unchanged: `update
 
 Now that the cache is kept current by the date-range refresh, revert the `fetchedNumbers` filter in `GitHubPRLoaderUseCase` (lines 83–88) back to `filter.matches($0)`. Add a short comment explaining the invariant: the cache is authoritative because the date-range refresh runs before each filtered fetch and catches all state transitions.
 
-## - [ ] Phase 4: End-to-end test with AIDevToolsDemo
+## - [x] Phase 4: End-to-end test with AIDevToolsDemo
+
+**Skills used**: none
+**Principles applied**: Used `gestrich/AIDevToolsDemo` as the live test target. The correct CLI command is `ai-dev-tools-kit prradar refresh --config AIDevToolsDemo` (not `pr-radar refresh`). The cache root is `~/Desktop/ai-dev-tools/services/github/gestrich-AIDevToolsDemo/` (the CLI resolves data root from `~/Desktop/ai-dev-tools`, not `~/Library/Application Support/AIDevToolsKit/`). All five verification steps passed: `cache-refresh-state.json` was written, new PR cache files appeared, `updatedAt` timestamps advanced after mutations, `lastCheckedAt` advanced, and closing PR #19 caused its `gh-pr.json` to update to `"state": "closed"` while dropping it from the open-PR count (7→6). The date-range `state=all` fetch correctly triggered early-stop on encountering PRs older than `lastCheckedAt`.
 
 Use `gestrich/AIDevToolsDemo` as a live test target. Its cache dir is `~/Library/Application Support/AIDevToolsKit/github/gestrich-AIDevToolsDemo/`. The CLI command for fetching is `pr-radar refresh --config AIDevToolsDemo` (run from the AIDevTools repo after `swift build`).
 
