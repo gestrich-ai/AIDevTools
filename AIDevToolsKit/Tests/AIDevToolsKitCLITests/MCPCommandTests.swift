@@ -1,7 +1,7 @@
 #if os(macOS)
 @testable import AIDevToolsKitCLI
 import AppIPCSDK
-import CLIMacCommands
+@testable import CLIMacCommands
 import Foundation
 import MCP
 import Testing
