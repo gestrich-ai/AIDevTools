@@ -45,11 +45,11 @@ struct RunListRow: View {
     }
 
     private var totalViolations: Int {
-        entry.prEntries.compactMap(\.summary).map(\.violationsFound).reduce(0, +)
+        entry.manifest.prs.compactMap(\.violationsFound).reduce(0, +)
     }
 
     private var totalCostUsd: Double {
-        entry.prEntries.compactMap(\.summary).map(\.totalCostUsd).reduce(0.0, +)
+        entry.manifest.prs.compactMap(\.costUsd).reduce(0.0, +)
     }
 
     private var rowTitle: String {
@@ -60,15 +60,27 @@ struct RunListRow: View {
     }
 
     private var formattedStartTime: String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: entry.manifest.startedAt) {
-            return date.formatted(.relative(presentation: .named))
-        }
-        formatter.formatOptions = [.withInternetDateTime]
-        if let date = formatter.date(from: entry.manifest.startedAt) {
+        if let date = Self.parseDate(entry.manifest.startedAt) {
             return date.formatted(.relative(presentation: .named))
         }
         return entry.manifest.startedAt
     }
+
+    private static func parseDate(_ string: String) -> Date? {
+        if let date = iso8601WithFractionalSeconds.date(from: string) { return date }
+        if let date = iso8601.date(from: string) { return date }
+        return nil
+    }
+
+    private static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private static let iso8601: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
 }

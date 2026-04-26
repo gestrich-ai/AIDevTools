@@ -11,7 +11,7 @@ struct WorkspaceView: View {
     }
 
     @Environment(AppModel.self) private var appModel
-    @Environment(WorkspaceModel.self) var model
+    @Environment(WorkspaceModel.self) private var model
 
     let evalProviderRegistry: EvalProviderRegistry
     let repoExplorerViewModelFactory: @MainActor () -> DirectoryBrowserViewModel
@@ -28,7 +28,7 @@ struct WorkspaceView: View {
     @State private var selectedRepoID: UUID?
 
     private var isChatPanelSupportedTab: Bool {
-        selectedTab == "claudeChain" || selectedTab == "plans"
+        selectedTab == "claudeChain" || selectedTab == "plans" || selectedTab == "prradar"
     }
 
     private static let executionPanelMinWidth: CGFloat = 320

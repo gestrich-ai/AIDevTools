@@ -30,7 +30,7 @@ struct RunsListView: View {
                 liveRunSection(model: model)
                 ForEach(model.runs) { entry in
                     RunListRow(entry: entry)
-                        .tag(Optional(entry))
+                        .tag(entry)
                 }
             }
             .listStyle(.sidebar)
@@ -74,6 +74,7 @@ struct RunsListView: View {
             .tag(Optional<RunHistoryEntry>.none)
         case .idle, .completed:
             EmptyView()
+                .tag(Optional<RunHistoryEntry>.none)
         }
     }
 

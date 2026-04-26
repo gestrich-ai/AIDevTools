@@ -18,7 +18,6 @@ public struct RunAllUseCase: StreamingUseCase {
         filter: PRFilter,
         rulesDir: String,
         minScore: String? = nil,
-        repo: String? = nil,
         comment: Bool = false,
         limit: String? = nil,
         analysisMode: AnalysisMode = .all,
@@ -89,15 +88,18 @@ public struct RunAllUseCase: StreamingUseCase {
                             }
                         }
 
+                        let summary = pipelineOutput?.report?.report.summary
                         let entry = PRManifestEntry(
+                            costUsd: summary?.totalCostUsd,
                             failureReason: failureReason,
                             prNumber: prNumber,
                             status: succeeded ? .succeeded : .failed,
-                            title: pr.title
+                            title: pr.title,
+                            violationsFound: summary?.violationsFound
                         )
                         manifestEntries.append(entry)
 
-                        prStats.append(RunAllPREntry(entry: entry, summary: pipelineOutput?.report?.report.summary))
+                        prStats.append(RunAllPREntry(entry: entry, summary: summary))
 
                         if succeeded {
                             analyzedCount += 1
@@ -113,7 +115,11 @@ public struct RunAllUseCase: StreamingUseCase {
                         rulesPathName: rulesPathName,
                         startedAt: runStartedAt
                     )
-                    try? Self.saveManifest(manifest, outputDir: config.resolvedOutputDir)
+                    do {
+                        try Self.saveManifest(manifest, outputDir: config.resolvedOutputDir)
+                    } catch {
+                        continuation.yield(.log(text: "Warning: failed to save run manifest: \(error.localizedDescription)\n"))
+                    }
 
                     continuation.yield(.log(text: "\nRun complete: \(analyzedCount) succeeded, \(failedCount) failed\n"))
 
