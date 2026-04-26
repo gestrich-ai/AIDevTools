@@ -106,7 +106,10 @@ Logic:
 6. If destination requires elevated permissions, re-run the move with `sudo` (or print a helpful error)
 7. Confirm: `ai-dev-tools-kit --version` (or `--help`) to verify the install worked
 
-## - [ ] Phase 4: README Update
+## - [x] Phase 4: README Update
+
+**Skills used**: none
+**Principles applied**: Installation section placed between the intro paragraph and "Mac App and CLI" section for maximum prominence; used blockquote for the `~/.local/bin` PATH note to match the spec; no existing build-from-source instructions were present so none needed removal.
 
 Update the top-level `README.md` with a dedicated **Installation** section, placed prominently near the top.
 

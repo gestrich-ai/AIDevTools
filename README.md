@@ -2,6 +2,29 @@
 
 AIDevTools is a macOS app and CLI toolkit for AI-assisted software development. It provides tools for evaluating AI coding agents, chatting with AI, planning and executing implementations architecturally, reviewing pull requests with rules-based analysis, and automating task chains with GitHub Actions.
 
+## Installation
+
+Install the `ai-dev-tools-kit` CLI binary (no Swift toolchain required):
+
+**Quick install (latest):**
+```sh
+curl -fsSL https://raw.githubusercontent.com/gestrich/AIDevTools/main/scripts/install.sh | sh
+```
+
+**Pin to a specific version:**
+```sh
+VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/gestrich/AIDevTools/main/scripts/install.sh | sh
+```
+
+**Install to a custom directory (no sudo):**
+```sh
+INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/gestrich/AIDevTools/main/scripts/install.sh | sh
+```
+
+> If you install to `~/.local/bin`, make sure it's on your `$PATH` (`export PATH="$HOME/.local/bin:$PATH"` in your shell profile).
+
+**Supported platforms:** macOS arm64, Linux x86_64
+
 ## Mac App and CLI
 
 AIDevTools ships as two interfaces backed by the same shared logic:
