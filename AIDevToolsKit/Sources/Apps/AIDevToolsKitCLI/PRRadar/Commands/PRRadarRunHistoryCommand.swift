@@ -20,7 +20,7 @@ struct PRRadarRunHistoryCommand: AsyncParsableCommand {
 
     func run() async throws {
         let prRadarConfig = try resolvePRRadarConfig(repoName: config)
-        let runsDir = "\(prRadarConfig.outputDir)/runs"
+        let runsDir = "\(prRadarConfig.resolvedOutputDir)/runs"
         let fm = FileManager.default
 
         guard fm.fileExists(atPath: runsDir) else {
@@ -49,20 +49,13 @@ struct PRRadarRunHistoryCommand: AsyncParsableCommand {
                 continue
             }
 
-            let prReports = manifest.prs.map { entry -> RunAllPRStats in
-                let report = loadReportSummary(outputDir: prRadarConfig.outputDir, prNumber: entry.prNumber)
-                return RunAllPRStats(
-                    aiTasksRun: report?.totalTasksEvaluated ?? 0,
-                    entry: entry,
-                    totalCostUsd: report?.totalCostUsd ?? 0,
-                    totalDurationMs: report?.totalDurationMs ?? 0,
-                    violationsFound: report?.violationsFound ?? 0
-                )
+            let prEntries = manifest.prs.map { entry in
+                RunAllPREntry(entry: entry, summary: loadReportSummary(outputDir: prRadarConfig.resolvedOutputDir, prNumber: entry.prNumber))
             }
 
-            let totalTasks = prReports.map(\.aiTasksRun).reduce(0, +)
-            let totalViolations = prReports.map(\.violationsFound).reduce(0, +)
-            let totalCost = prReports.map(\.totalCostUsd).reduce(0, +)
+            let totalTasks = prEntries.compactMap(\.summary).map(\.totalTasksEvaluated).reduce(0, +)
+            let totalViolations = prEntries.compactMap(\.summary).map(\.violationsFound).reduce(0, +)
+            let totalCost = prEntries.compactMap(\.summary).map(\.totalCostUsd).reduce(0, +)
             let rules = manifest.rulesPathName ?? "default"
             let succeeded = manifest.prs.filter { $0.status == .succeeded }.count
             let failed = manifest.prs.filter { $0.status == .failed }.count
@@ -71,12 +64,16 @@ struct PRRadarRunHistoryCommand: AsyncParsableCommand {
             print("   PRs: \(manifest.prs.count) (\(succeeded) succeeded, \(failed) failed)")
             print("   AI tasks: \(totalTasks)  |  Violations: \(totalViolations)  |  Cost: $\(String(format: "%.4f", totalCost))")
 
-            if detailed && !prReports.isEmpty {
+            if detailed && !prEntries.isEmpty {
                 print("   PR Breakdown (sorted by duration):")
-                for pr in prReports.sorted(by: { $0.totalDurationMs > $1.totalDurationMs }) {
+                for pr in prEntries.sorted(by: { ($0.summary?.totalDurationMs ?? 0) > ($1.summary?.totalDurationMs ?? 0) }) {
                     let icon = pr.entry.status == .succeeded ? "✓" : "✗"
                     let title = String(pr.entry.title.prefix(50))
-                    print("     \(icon) #\(pr.entry.prNumber)  \(pr.formattedDuration)  \(pr.aiTasksRun)t  \(pr.violationsFound)v  $\(String(format: "%.4f", pr.totalCostUsd))  \(title)")
+                    let tasks = pr.summary?.totalTasksEvaluated ?? 0
+                    let violations = pr.summary?.violationsFound ?? 0
+                    let cost = pr.summary?.totalCostUsd ?? 0
+                    let duration = pr.summary?.formattedDuration ?? "–"
+                    print("     \(icon) #\(pr.entry.prNumber)  \(duration)  \(tasks)t  \(violations)v  $\(String(format: "%.4f", cost))  \(title)")
                     if let reason = pr.entry.failureReason {
                         print("         ↳ \(reason)")
                     }

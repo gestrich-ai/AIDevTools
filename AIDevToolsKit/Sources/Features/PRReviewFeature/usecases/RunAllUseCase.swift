@@ -51,7 +51,7 @@ public struct RunAllUseCase: StreamingUseCase {
                     let totalCount = prs.count
                     let runStartedAt = ISO8601DateFormatter().string(from: Date())
                     var manifestEntries: [PRManifestEntry] = []
-                    var prStats: [RunAllPRStats] = []
+                    var prStats: [RunAllPREntry] = []
 
                     for (index, pr) in prs.enumerated() {
                         let prNumber = pr.number
@@ -97,14 +97,7 @@ public struct RunAllUseCase: StreamingUseCase {
                         )
                         manifestEntries.append(entry)
 
-                        let reportSummary = pipelineOutput?.report?.report.summary
-                        prStats.append(RunAllPRStats(
-                            aiTasksRun: reportSummary?.totalTasksEvaluated ?? 0,
-                            entry: entry,
-                            totalCostUsd: reportSummary?.totalCostUsd ?? 0,
-                            totalDurationMs: reportSummary?.totalDurationMs ?? 0,
-                            violationsFound: reportSummary?.violationsFound ?? 0
-                        ))
+                        prStats.append(RunAllPREntry(entry: entry, summary: pipelineOutput?.report?.report.summary))
 
                         if succeeded {
                             analyzedCount += 1
@@ -120,7 +113,7 @@ public struct RunAllUseCase: StreamingUseCase {
                         rulesPathName: rulesPathName,
                         startedAt: runStartedAt
                     )
-                    try? Self.saveManifest(manifest, outputDir: config.outputDir)
+                    try? Self.saveManifest(manifest, outputDir: config.resolvedOutputDir)
 
                     continuation.yield(.log(text: "\nRun complete: \(analyzedCount) succeeded, \(failedCount) failed\n"))
 
@@ -155,9 +148,9 @@ public struct RunAllOutput: Sendable {
     public let analyzedCount: Int
     public let failedCount: Int
     public let manifest: RunManifest
-    public let prStats: [RunAllPRStats]
+    public let prStats: [RunAllPREntry]
 
-    public init(analyzedCount: Int, failedCount: Int, manifest: RunManifest, prStats: [RunAllPRStats]) {
+    public init(analyzedCount: Int, failedCount: Int, manifest: RunManifest, prStats: [RunAllPREntry]) {
         self.analyzedCount = analyzedCount
         self.failedCount = failedCount
         self.manifest = manifest

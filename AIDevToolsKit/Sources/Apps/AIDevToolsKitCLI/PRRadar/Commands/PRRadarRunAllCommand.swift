@@ -106,9 +106,9 @@ struct PRRadarRunAllCommand: AsyncParsableCommand {
         let stats = output.prStats
         let rules = manifest.rulesPathName ?? "default"
 
-        let totalTasks = stats.map(\.aiTasksRun).reduce(0, +)
-        let totalViolations = stats.map(\.violationsFound).reduce(0, +)
-        let totalCost = stats.map(\.totalCostUsd).reduce(0, +)
+        let totalTasks = stats.compactMap(\.summary).map(\.totalTasksEvaluated).reduce(0, +)
+        let totalViolations = stats.compactMap(\.summary).map(\.violationsFound).reduce(0, +)
+        let totalCost = stats.compactMap(\.summary).map(\.totalCostUsd).reduce(0, +)
 
         print("\n── Run Summary ─────────────────────────────────────────────────────")
         print("Config: \(manifest.config)/\(rules)  |  \(output.analyzedCount) succeeded, \(output.failedCount) failed")
@@ -116,12 +116,14 @@ struct PRRadarRunAllCommand: AsyncParsableCommand {
 
         if !stats.isEmpty {
             print("\nPR Breakdown (sorted by duration):")
-            for pr in stats.sorted(by: { $0.totalDurationMs > $1.totalDurationMs }) {
+            for pr in stats.sorted(by: { ($0.summary?.totalDurationMs ?? 0) > ($1.summary?.totalDurationMs ?? 0) }) {
                 let icon = pr.entry.status == .succeeded ? "✓" : "✗"
                 let title = String(pr.entry.title.prefix(48))
-                let tasks = "\(pr.aiTasksRun) task\(pr.aiTasksRun == 1 ? "" : "s")"
-                let violations = "\(pr.violationsFound) violation\(pr.violationsFound == 1 ? "" : "s")"
-                print("  \(icon) #\(pr.entry.prNumber)  \(pr.formattedDuration)  \(tasks)  \(violations)  $\(String(format: "%.4f", pr.totalCostUsd))  \(title)")
+                let tasks = pr.summary?.totalTasksEvaluated ?? 0
+                let violations = pr.summary?.violationsFound ?? 0
+                let cost = pr.summary?.totalCostUsd ?? 0
+                let duration = pr.summary?.formattedDuration ?? "–"
+                print("  \(icon) #\(pr.entry.prNumber)  \(duration)  \(tasks) task\(tasks == 1 ? "" : "s")  \(violations) violation\(violations == 1 ? "" : "s")  $\(String(format: "%.4f", cost))  \(title)")
                 if let reason = pr.entry.failureReason {
                     print("      ↳ \(reason)")
                 }

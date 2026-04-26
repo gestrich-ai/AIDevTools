@@ -51,28 +51,14 @@ public struct RunManifest: Codable, Sendable {
     }
 }
 
-// MARK: - In-memory stats for current-run display (not persisted)
+// MARK: - In-memory pairing for current-run display (not persisted)
 
-public struct RunAllPRStats: Sendable {
-    public let aiTasksRun: Int
+public struct RunAllPREntry: Sendable {
     public let entry: PRManifestEntry
-    public let totalCostUsd: Double
-    public let totalDurationMs: Int
-    public let violationsFound: Int
+    public let summary: ReportSummary?
 
-    public init(
-        aiTasksRun: Int,
-        entry: PRManifestEntry,
-        totalCostUsd: Double,
-        totalDurationMs: Int,
-        violationsFound: Int
-    ) {
-        self.aiTasksRun = aiTasksRun
+    public init(entry: PRManifestEntry, summary: ReportSummary?) {
         self.entry = entry
-        self.totalCostUsd = totalCostUsd
-        self.totalDurationMs = totalDurationMs
-        self.violationsFound = violationsFound
+        self.summary = summary
     }
-
-    public var formattedDuration: String { DurationFormatter.format(milliseconds: totalDurationMs) }
 }
