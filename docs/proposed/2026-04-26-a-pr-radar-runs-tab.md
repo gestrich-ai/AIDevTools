@@ -67,7 +67,10 @@ RunsListView / RunDetailView (Mac Apps layer)
 
 ---
 
-## - [ ] Phase 1: Extract `RunHistoryService`
+## - [x] Phase 1: Extract `RunHistoryService`
+
+**Skills used**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`, `swift-app-architecture:swift-architecture`
+**Principles applied**: Placed `RunHistoryService` and `RunHistoryEntry` in `PRRadarCLIService` (Services layer) — a pure static struct with no `@Observable` or orchestration, matching the disk-read utility pattern. `loadReportSummary` logic moved verbatim from `PRRadarRunHistoryCommand`; `loadRuns` returns results sorted newest-first. Both the CLI command and the future `RunsModel` (Mac app) can consume this service via the same import.
 
 **Skills to read**: `ai-dev-tools-architecture`, `ai-dev-tools-composition-root`, `swift-app-architecture:swift-architecture`
 
