@@ -114,9 +114,10 @@ Update the `Create PRRadar config` and `Run review pipeline` steps to call `ai-d
 
 The `aidevtools/AIDevToolsKit` working directory prefix can be removed from those steps entirely.
 
-## - [ ] Phase 2: Update Examples/workflows pr-radar.yml
+## - [x] Phase 2: Update Examples/workflows pr-radar.yml
 
-**Skills to read**: none
+**Skills used**: none
+**Principles applied**: Applied identical binary-download substitution as Phase 1. Replaced four build-from-source steps with a single `Download ai-dev-tools-kit` step pinned to `v0.1.0`. Removed `cd aidevtools/AIDevToolsKit` and `swift run -c release` prefixes from `Create PRRadar config` and `Run review pipeline` steps. Added a comment block explaining how to update `VERSION` to pin to a specific release. Removed references to Swift toolchain in comments.
 
 Apply the identical binary-download substitution to `gestrich/AIDevTools/Examples/workflows/pr-radar.yml` — this is the template that new clients copy when setting up PR Radar.
 

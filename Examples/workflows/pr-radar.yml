@@ -39,6 +39,10 @@ permissions:
 # Rules directory:
 #   Add your code review rules to a directory in your repo (e.g. code-review-rules/).
 #   Update --rules-dir below to match. See docs/rule-examples/ for rule file format.
+#
+# Binary version:
+#   Update VERSION below to pin to a specific release of ai-dev-tools-kit.
+#   See https://github.com/gestrich/AIDevTools/releases for available versions.
 
 jobs:
   review:
@@ -51,31 +55,20 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Checkout AIDevTools
-        uses: actions/checkout@v4
-        with:
-          repository: gestrich/AIDevTools
-          ref: main
-          path: aidevtools
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Swift 6.2
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "6.2"
-
-      - name: Mark workspace as safe directory
-        run: git config --global --add safe.directory ${{ github.workspace }}
-
-      - name: Build AIDevTools CLI
+      - name: Download ai-dev-tools-kit
+        env:
+          VERSION: v0.1.0
         run: |
-          cd aidevtools/AIDevToolsKit
-          swift build -c release --product ai-dev-tools-kit
+          curl -fsSL "https://github.com/gestrich/AIDevTools/releases/download/${VERSION}/ai-dev-tools-kit-linux-x86_64.tar.gz" -o ai-dev-tools-kit.tar.gz
+          curl -fsSL "https://github.com/gestrich/AIDevTools/releases/download/${VERSION}/checksums.txt" -o checksums.txt
+          sha256sum --check --ignore-missing checksums.txt
+          tar -xzf ai-dev-tools-kit.tar.gz
+          chmod +x ai-dev-tools-kit
+          sudo mv ai-dev-tools-kit /usr/local/bin/ai-dev-tools-kit
 
       - name: Create PRRadar config
         run: |
-          cd aidevtools/AIDevToolsKit
-          swift run -c release ai-dev-tools-kit prradar config add ci \
+          ai-dev-tools-kit prradar config add ci \
             --repo-path ${{ github.workspace }} \
             --rules-dir ${{ github.workspace }}/code-review-rules \
             --github-account ci \
@@ -85,8 +78,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd aidevtools/AIDevToolsKit
-
           ARGS="${{ github.event.inputs.pr_number }} \
             --config ci \
             --data-path /tmp/prradar-ci-data \
@@ -97,4 +88,4 @@ jobs:
             ARGS="$ARGS --no-dry-run"
           fi
 
-          swift run -c release ai-dev-tools-kit prradar run $ARGS
+          ai-dev-tools-kit prradar run $ARGS
