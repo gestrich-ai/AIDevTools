@@ -1,6 +1,5 @@
 import CredentialService
 import EnvironmentSDK
-import FileTreeService
 import Foundation
 import GitSDK
 import Logging
@@ -11,7 +10,6 @@ import ProviderRegistryService
 struct CLICompositionRoot {
     let credentialResolver: CredentialResolver
     let evalProviderRegistry: EvalProviderRegistry
-    let fileTreeService: FileTreeService
     let gitClient: GitClient
     let mcpService: MCPService
     let providerRegistry: ProviderRegistry
@@ -46,7 +44,6 @@ struct CLICompositionRoot {
     private init(shared: SharedCompositionRoot, printGitOutput: Bool = true) {
         credentialResolver = shared.credentialResolver
         evalProviderRegistry = shared.evalProviderRegistry
-        fileTreeService = FileTreeService(dataPathsService: shared.dataPathsService)
         gitClient = GitClient(printOutput: printGitOutput, environment: shared.credentialResolver.gitEnvironment)
         mcpService = shared.mcpService
         providerRegistry = shared.providerRegistry

@@ -2,6 +2,9 @@ import ArgumentParser
 import ClaudeChainCLI
 import Foundation
 import Logging
+#if os(macOS)
+import CLIMacCommands
+#endif
 
 @main
 struct AIDevToolsKit: AsyncParsableCommand {
@@ -28,10 +31,10 @@ struct AIDevToolsKit: AsyncParsableCommand {
 
     private static var subcommandTypes: [any ParsableCommand.Type] {
         var commands: [any ParsableCommand.Type] = [
-            ChatCommand.self, ClaudeChainCLI.self, ConfigCommand.self, CredentialsCommand.self, EvalsCommand.self, FileTreeCommand.self, LogsCommand.self, MCPCommand.self, PlanCommand.self, PRRadarCommand.self, ReposCommand.self, RunCommandCommand.self, SkillsCommand.self, SweepCommand.self, WorktreeCommand.self,
+            ChatCommand.self, ClaudeChainCLI.self, ConfigCommand.self, CredentialsCommand.self, EvalsCommand.self, LogsCommand.self, PlanCommand.self, PRRadarCommand.self, ReposCommand.self, RunCommandCommand.self, SkillsCommand.self, SweepCommand.self, WorktreeCommand.self,
         ]
-        #if canImport(SwiftData)
-        commands.insert(ArchPlannerCommand.self, at: 0)
+        #if os(macOS)
+        commands += CLIMacSubcommands.all
         #endif
         return commands
     }

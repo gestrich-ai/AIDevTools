@@ -1,4 +1,3 @@
-#if canImport(SwiftData)
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import ArgumentParser
@@ -36,8 +35,8 @@ struct ArchPlannerExecuteCommand: AsyncParsableCommand {
         }
 
         let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
-        let root = try CLICompositionRoot.create()
-        let registry = root.providerRegistry
+        let shared = try SharedCompositionRoot.create()
+        let registry = shared.providerRegistry
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
         let useCase = ExecuteImplementationUseCase(client: client)
         let options = ExecuteImplementationUseCase.Options(
@@ -64,4 +63,3 @@ struct ArchPlannerExecuteCommand: AsyncParsableCommand {
         print("Executed \(result.phasesExecuted) phases, \(result.decisionsRecorded) decisions recorded")
     }
 }
-#endif

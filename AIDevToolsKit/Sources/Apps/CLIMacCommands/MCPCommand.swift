@@ -1,6 +1,4 @@
-#if canImport(Darwin)
 import AppIPCSDK
-#endif
 import ArgumentParser
 import ClaudeChainFeature
 import CredentialFeature
@@ -116,13 +114,11 @@ struct MCPCommand: AsyncParsableCommand {
             ])
         ),
         ]
-        #if canImport(Darwin)
         tools.append(Tool(
             name: "get_ui_state",
             description: "Returns current UI state of the AIDevTools Mac app: selected plan and current tab",
             inputSchema: .object(["type": .string("object"), "properties": .object([:])])
         ))
-        #endif
         return tools
     }
 
@@ -136,10 +132,8 @@ struct MCPCommand: AsyncParsableCommand {
             return try await handleGetChainStatus(params.arguments ?? [:])
         case "get_plan_details":
             return try await handleGetPlanDetails(params.arguments ?? [:])
-        #if canImport(Darwin)
         case "get_ui_state":
             return try await handleGetUIState()
-        #endif
         case "list_plans":
             return try await handleListPlans()
         case "navigate_to_tab":
@@ -155,7 +149,6 @@ struct MCPCommand: AsyncParsableCommand {
 
     // MARK: - Tool handlers
 
-    #if canImport(Darwin)
     private static func handleGetChatContext() async throws -> CallTool.Result {
         do {
             let state = try await AppIPCClient().getUIState()
@@ -167,14 +160,6 @@ struct MCPCommand: AsyncParsableCommand {
             )
         }
     }
-    #else
-    private static func handleGetChatContext() async throws -> CallTool.Result {
-        .init(
-            content: [.text(text: "Chat context is only available on macOS when the app is running.", annotations: nil, _meta: nil)],
-            isError: false
-        )
-    }
-    #endif
 
     private static func handleListPlans() async throws -> CallTool.Result {
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -199,7 +184,9 @@ struct MCPCommand: AsyncParsableCommand {
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         do {
             let resolver = resolveGitHubCredentials(githubProfileId: nil, githubToken: nil)
-            let dataPathsService = try DataPathsService.fromCLI(dataPath: nil)
+            let resolved = ResolveDataPathUseCase().resolve(explicit: nil)
+            let dataPathsService = try DataPathsService(rootPath: resolved.path)
+            try MigrateDataPathsUseCase(dataPathsService: dataPathsService).run()
             let prService = try await GitHubServiceFactory.createPRService(
                 repoPath: cwd.path,
                 resolver: resolver,
@@ -265,7 +252,7 @@ struct MCPCommand: AsyncParsableCommand {
 
         let encoded = tab.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? tab
         try writeDeepLink("aidevtools://tab/\(encoded)")
-        return .init(content: [.text(text: "Navigated to tab: \(tab)", annotations: nil, _meta: nil)], isError: false)
+        return .init(content: [.text(text: "Navigated to tab: \(tab)", annotations: nil, _meta:nil)], isError: false)
     }
 
     private static func handleReloadPlans() async throws -> CallTool.Result {
@@ -273,7 +260,6 @@ struct MCPCommand: AsyncParsableCommand {
         return .init(content: [.text(text: "Plans reload triggered", annotations: nil, _meta: nil)], isError: false)
     }
 
-    #if canImport(Darwin)
     private static func handleGetUIState() async throws -> CallTool.Result {
         do {
             let state = try await AppIPCClient().getUIState()
@@ -285,7 +271,6 @@ struct MCPCommand: AsyncParsableCommand {
             )
         }
     }
-    #endif
 
     // MARK: - Deep link helper
 

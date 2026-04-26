@@ -77,9 +77,7 @@ var targets: [Target] = [
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
             "AIOutputSDK",
             "AnthropicSDK",
-            .target(name: "AppIPCSDK", condition: .when(platforms: [.macOS])),
-            .target(name: "ArchitecturePlannerFeature", condition: .when(platforms: [.macOS])),
-            .target(name: "ArchitecturePlannerService", condition: .when(platforms: [.macOS])),
+            .target(name: "CLIMacCommands", condition: .when(platforms: [.macOS])),
             "ChatFeature",
             "ClaudeChainCLI",
             "ClaudeChainFeature",
@@ -93,7 +91,6 @@ var targets: [Target] = [
             "EvalFeature",
             "EvalSDK",
             "EvalService",
-            "FileTreeService",
             "GitHubService",
             "LoggingSDK",
             "MCPService",
@@ -114,7 +111,30 @@ var targets: [Target] = [
         ],
         path: "Sources/Apps/AIDevToolsKitCLI"
     ),
-    
+    .target(
+        name: "CLIMacCommands",
+        dependencies: [
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            "AIOutputSDK",
+            "AppIPCSDK",
+            "ArchitecturePlannerFeature",
+            "ArchitecturePlannerService",
+            "ClaudeChainFeature",
+            "ClaudeCLISDK",
+            "CredentialFeature",
+            "DataPathsService",
+            "FileTreeService",
+            "GitHubService",
+            .product(name: "MCP", package: "swift-sdk"),
+            "PlanFeature",
+            "PlanService",
+            "PRRadarCLIService",
+            "ProviderRegistryService",
+            "RepositorySDK",
+        ],
+        path: "Sources/Apps/CLIMacCommands"
+    ),
+
     // UI Toolkits Layer
     .target(
         name: "GitUIToolkit",

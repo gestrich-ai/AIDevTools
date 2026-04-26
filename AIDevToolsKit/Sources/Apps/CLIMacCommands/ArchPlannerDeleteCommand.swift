@@ -1,4 +1,3 @@
-#if canImport(SwiftData)
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import ArgumentParser
@@ -37,4 +36,3 @@ struct ArchPlannerDeleteCommand: AsyncParsableCommand {
         printColored("Deleted job \(jobId)", color: .green)
     }
 }
-#endif

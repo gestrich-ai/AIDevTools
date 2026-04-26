@@ -1,4 +1,5 @@
 import ArgumentParser
+import DataPathsService
 import FileTreeService
 import Foundation
 
@@ -65,8 +66,10 @@ private func wildcardPatternMatches(_ value: String, pattern: String) -> Bool {
 }
 
 func makeFileTreeService() throws -> FileTreeService {
-    let root = try CLICompositionRoot.create()
-    return root.fileTreeService
+    let resolved = ResolveDataPathUseCase().resolve(explicit: nil)
+    let dataPathsService = try DataPathsService(rootPath: resolved.path)
+    try MigrateDataPathsUseCase(dataPathsService: dataPathsService).run()
+    return FileTreeService(dataPathsService: dataPathsService)
 }
 
 func validatedDirectoryURL(for path: String) throws -> URL {

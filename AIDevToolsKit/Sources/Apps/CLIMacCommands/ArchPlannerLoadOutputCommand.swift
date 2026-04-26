@@ -1,4 +1,3 @@
-#if canImport(SwiftData)
 import AIOutputSDK
 import ArchitecturePlannerFeature
 import ArgumentParser
@@ -28,7 +27,9 @@ struct ArchPlannerLoadOutputCommand: AsyncParsableCommand {
             throw ExitCode.failure
         }
 
-        let service = try DataPathsService.fromCLI(dataPath: dataPathOptions.dataPath)
+        let resolved = ResolveDataPathUseCase().resolve(explicit: dataPathOptions.dataPath)
+        let service = try DataPathsService(rootPath: resolved.path)
+        try MigrateDataPathsUseCase(dataPathsService: service).run()
         let workspace = try ArchitecturePlannerWorkspace(dataPathsService: service, repoName: repoName)
         let session = AIRunSession(key: "\(uuid.uuidString)/\(stepIndex)", store: workspace.outputStore)
 
@@ -40,4 +41,3 @@ struct ArchPlannerLoadOutputCommand: AsyncParsableCommand {
         print(output)
     }
 }
-#endif

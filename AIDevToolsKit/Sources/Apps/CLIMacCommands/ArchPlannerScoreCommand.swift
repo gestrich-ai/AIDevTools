@@ -1,4 +1,3 @@
-#if canImport(SwiftData)
 import ArchitecturePlannerFeature
 import ArchitecturePlannerService
 import ArgumentParser
@@ -33,8 +32,8 @@ struct ArchPlannerScoreCommand: AsyncParsableCommand {
         }
 
         let store = try DataPathsService.makeArchPlannerStore(dataPath: dataPathOptions.dataPath, repoName: repoName)
-        let root = try CLICompositionRoot.create()
-        let registry = root.providerRegistry
+        let shared = try SharedCompositionRoot.create()
+        let registry = shared.providerRegistry
         let client = provider.flatMap { registry.client(named: $0) } ?? registry.defaultClient!
         let useCase = ScoreConformanceUseCase(client: client)
         let options = ScoreConformanceUseCase.Options(jobId: uuid, repoPath: repoPath)
@@ -51,4 +50,3 @@ struct ArchPlannerScoreCommand: AsyncParsableCommand {
         print("Mappings: \(result.mappingsCreated)")
     }
 }
-#endif
