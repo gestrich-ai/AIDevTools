@@ -631,6 +631,7 @@ var targets: [Target] = [
         name: "AIDevToolsKitCLITests",
         dependencies: [
             "AIDevToolsKitCLI",
+            .target(name: "CLIMacCommands", condition: .when(platforms: [.macOS])),
             .product(name: "MCP", package: "swift-sdk"),
         ]
     ),

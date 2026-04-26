@@ -1,5 +1,7 @@
+#if os(macOS)
 @testable import AIDevToolsKitCLI
 import AppIPCSDK
+import CLIMacCommands
 import Foundation
 import MCP
 import Testing
@@ -40,3 +42,4 @@ struct MCPCommandTests {
         #expect(text.contains("not running") || text.contains("unavailable"))
     }
 }
+#endif
