@@ -66,6 +66,9 @@ jobs:
         with:
           swift-version: '6.2'
 
+      - name: Install system dependencies
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+
       - name: Build
         run: swift build -c release --product ai-dev-tools-kit --package-path AIDevToolsKit --static-swift-stdlib
 
