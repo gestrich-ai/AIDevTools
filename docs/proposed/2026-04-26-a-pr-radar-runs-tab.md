@@ -286,9 +286,10 @@ Also run `swift build` — zero errors, no new warnings before moving on.
 
 ---
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
 
-**Skills to read**: `ai-dev-tools-build-quality`
+**Skills used**: `ai-dev-tools-build-quality`
+**Principles applied**: Ran all three CLI validation steps against AIDevToolsDemo. Step 1: no runs existed, proceeded to Step 2. Step 2: `run-all` completed without errors, manifest created at `{resolvedOutputDir}/runs/2026-04-26T17-23-10Z-default.json`, `run-history` showed the new run with correct totals. Step 3: created a temporary test manifest referencing existing PR #12 analysis; `run-history --detailed` showed non-zero violations (2) and tasks (2), confirming `loadReportSummary` resolves paths correctly via `phase_result.json → commitHash → report/summary.json`. Removed the temporary test manifest after verification. Build is clean — the only warning is a pre-existing third-party `octokit.swift` resource warning, not from Phases 1–6 changes. Mac app manual checks require interactive testing by Bill.
 
 ### CLI validation against AIDevToolsDemo
 
