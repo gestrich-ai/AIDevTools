@@ -84,3 +84,17 @@ public struct RunHistoryService {
         return nil
     }
 }
+
+extension RunHistoryEntry: Identifiable {
+    public var id: String { manifest.id }
+}
+
+extension RunHistoryEntry: Hashable {
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.manifest.id == rhs.manifest.id
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(manifest.id)
+    }
+}

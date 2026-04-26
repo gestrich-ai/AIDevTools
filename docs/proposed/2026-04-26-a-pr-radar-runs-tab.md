@@ -197,7 +197,10 @@ Read `ai-dev-tools-composition-root` to understand exactly where to instantiate 
 
 ---
 
-## - [ ] Phase 5: Mac Views
+## - [x] Phase 5: Mac Views
+
+**Skills used**: `swift-app-architecture:swift-swiftui`, `ai-dev-tools-code-organization`
+**Principles applied**: Added `Identifiable` + `Hashable` to `RunHistoryEntry` (keyed on `manifest.id`) to support `List(selection:)` binding. Tab strip implemented as a segmented `Picker` bound to `navigationModel.selectedTab`. `RunsModel` is a `@State` in `PRRadarContentView`, instantiated alongside `AllPRsModel` in `.task(id: repository.id)` and propagated via a new `@Entry var runsModel: RunsModel?` environment key. Detail pane switches between `prDetailView` and `RunDetailView(entry: selectedRun)` based on `selectedTab`. Runs tab toolbar shows a "Run All" button with a popover that lets users select a rule path; on start it derives `rulesDir` from `config.resolvedRulesDir(named:)` and switches the tab to `.runs` before launching the task. `RunDetailView` is mode-switched: live logs while running (auto-scrolls to bottom on every log append), `List`-based PR breakdown sorted by duration when complete, with tap-to-navigate wiring into `PRRadarNavigationModel`. One file per type throughout; primary type first in each file.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`, `ai-dev-tools-code-organization`
 

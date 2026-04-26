@@ -1,4 +1,5 @@
 import Logging
+import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModelsService
 import PRReviewFeature
@@ -17,8 +18,10 @@ struct PRRadarContentView: View {
     @Environment(ProviderModel.self) private var providerModel
     @Environment(WorkspaceModel.self) private var workspaceModel
     @State private var allPRsModel: AllPRsModel?
+    @State private var runsModel: RunsModel?
     @State private var navigationModel = PRRadarNavigationModel()
     @State private var selectedPR: PRModel?
+    @State private var selectedRun: RunHistoryEntry?
     @State private var showNewReview = false
     @State private var newPRNumber = ""
     @State private var showRefreshProgress = false
@@ -28,6 +31,8 @@ struct PRRadarContentView: View {
     @State private var isDeletingPR = false
     @State private var isSearchingPR = false
     @State private var searchError: String?
+    @State private var showRunAllPopover = false
+    @State private var runAllRulePathName: String = ""
     @AppStorage("prradar_daysLookBack") private var daysLookBack: Int = 7
     @AppStorage("prradar_selectedPRState") private var selectedPRStateString: String = "OPEN"
     @AppStorage("prradar_selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
@@ -50,89 +55,17 @@ struct PRRadarContentView: View {
         }
         .environment(navigationModel)
         .environment(\.allPRsModel, allPRsModel)
+        .environment(\.runsModel, runsModel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar {
             if isActive {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    Task { await selectedPR?.refreshPRData() }
-                } label: {
-                    if let pr = selectedPR, pr.operationMode == .refreshing {
-                        ProgressView()
-                            .controlSize(.small)
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if navigationModel.selectedTab == .runs {
+                        runsTabToolbarItems
                     } else {
-                        Image(systemName: "arrow.clockwise")
+                        prsTabToolbarItems
                     }
                 }
-                .accessibilityIdentifier("refreshButton")
-                .help("Refresh PR data")
-                .disabled(isPRActionDisabled)
-
-                Button {
-                    analyzePRRuleSets = nil
-                    showAnalyzePR = true
-                } label: {
-                    if let pr = selectedPR, pr.operationMode == .analyzing {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "sparkles")
-                    }
-                }
-                .accessibilityIdentifier("analyzeButton")
-                .help("Analyze PR")
-                .disabled(isPRActionDisabled)
-                .popover(isPresented: $showAnalyzePR, arrowEdge: .bottom) {
-                    analyzePRPopover
-                }
-
-                Button {
-                    if let pr = selectedPR {
-                        let path = "\(pr.config.resolvedOutputDir)/\(pr.prNumber)"
-                        NSWorkspace.shared.open(URL(fileURLWithPath: path))
-                    }
-                } label: {
-                    Image(systemName: "folder")
-                }
-                .accessibilityIdentifier("folderButton")
-                .help("Open PR data in Finder")
-                .disabled(selectedPR == nil || isDeletingPR)
-
-                Button {
-                    if let pr = selectedPR,
-                       let urlString = pr.metadata.url,
-                       let url = URL(string: urlString) {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Image(systemName: "safari")
-                }
-                .accessibilityIdentifier("safariButton")
-                .help("Open PR on GitHub")
-                .disabled(selectedPR?.metadata.url == nil || isDeletingPR)
-
-                Button {
-                    showDeleteConfirmation = true
-                } label: {
-                    if isDeletingPR {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "trash")
-                    }
-                }
-                .accessibilityIdentifier("deleteButton")
-                .help("Delete all local data for this PR")
-                .disabled(isPRActionDisabled)
-                .popover(isPresented: $showDeleteConfirmation, arrowEdge: .bottom) {
-                    deleteConfirmationPopover
-                }
-
-                Button(action: { executionPanelModel.isVisible.toggle() }) {
-                    Image(systemName: "sidebar.trailing")
-                }
-                .help("Toggle Panel")
-            }
             }
         }
         .sheet(isPresented: $showRefreshProgress) {
@@ -156,14 +89,22 @@ struct PRRadarContentView: View {
         }
         .task(id: repository.id) {
             selectedPR = nil
+            selectedRun = nil
             guard let config = workspaceModel.prradarConfig(for: repository) else {
                 allPRsModel = nil
+                runsModel = nil
                 return
             }
-            let model = AllPRsModel(config: config, providerRegistry: providerModel.providerRegistry)
-            model.selectedProviderName = providerModel.providerRegistry.defaultClient?.name ?? ""
-            allPRsModel = model
-            await model.refresh(filter: buildFilter())
+            let prsModel = AllPRsModel(config: config, providerRegistry: providerModel.providerRegistry)
+            prsModel.selectedProviderName = providerModel.providerRegistry.defaultClient?.name ?? ""
+            allPRsModel = prsModel
+            runAllRulePathName = config.defaultRulePath?.name ?? ""
+            let rm = RunsModel()
+            runsModel = rm
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await prsModel.refresh(filter: buildFilter()) }
+                group.addTask { await rm.loadHistory(config: config) }
+            }
         }
         .onChange(of: selectedPR) { old, new in
             old?.cancelRefresh()
@@ -205,43 +146,13 @@ struct PRRadarContentView: View {
     private var prListView: some View {
         VStack(spacing: 0) {
             if allPRsModel != nil {
-                prListFilterBar
-                prViolationNavigationBar
+                tabStripPicker
                 Divider()
-                if filteredPRModels.isEmpty {
-                    if allPRsModel?.isLoading == true {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if let model = allPRsModel, case .failed(let error, let prior) = model.state, prior == nil {
-                        ContentUnavailableView(
-                            "PR Radar Unavailable",
-                            systemImage: "exclamationmark.triangle",
-                            description: Text(inTabErrorMessage(error))
-                        )
-                    } else {
-                        ContentUnavailableView(
-                            "No Reviews Found",
-                            systemImage: "doc.text.magnifyingglass",
-                            description: Text(allPRsModel?.showOnlyWithPendingComments == true ? "No PRs with pending comments found." : "No PR review data found in the output directory.")
-                        )
-                    }
-                } else {
-                    ScrollViewReader { proxy in
-                        List(filteredPRModels, selection: $selectedPR) { prModel in
-                            PRListRow(prModel: prModel)
-                                .id(prModel.id)
-                                .tag(prModel)
-                        }
-                        .listStyle(.sidebar)
-                        .accessibilityIdentifier("prList")
-                        .onChange(of: selectedPR) { _, newPR in
-                            if let pr = newPR {
-                                withAnimation {
-                                    proxy.scrollTo(pr.id)
-                                }
-                            }
-                        }
-                    }
+                switch navigationModel.selectedTab {
+                case .prs:
+                    prListContent
+                case .runs:
+                    RunsListView(selectedRun: $selectedRun)
                 }
             } else {
                 ContentUnavailableView(
@@ -253,6 +164,62 @@ struct PRRadarContentView: View {
         }
         .frame(width: 300)
         .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private var tabStripPicker: some View {
+        Picker("", selection: Binding(
+            get: { navigationModel.selectedTab },
+            set: { navigationModel.selectedTab = $0 }
+        )) {
+            Text("PRs").tag(PRRadarTab.prs)
+            Text("Runs").tag(PRRadarTab.runs)
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .labelsHidden()
+    }
+
+    @ViewBuilder
+    private var prListContent: some View {
+        prListFilterBar
+        prViolationNavigationBar
+        Divider()
+        if filteredPRModels.isEmpty {
+            if allPRsModel?.isLoading == true {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let model = allPRsModel, case .failed(let error, let prior) = model.state, prior == nil {
+                ContentUnavailableView(
+                    "PR Radar Unavailable",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(inTabErrorMessage(error))
+                )
+            } else {
+                ContentUnavailableView(
+                    "No Reviews Found",
+                    systemImage: "doc.text.magnifyingglass",
+                    description: Text(allPRsModel?.showOnlyWithPendingComments == true ? "No PRs with pending comments found." : "No PR review data found in the output directory.")
+                )
+            }
+        } else {
+            ScrollViewReader { proxy in
+                List(filteredPRModels, selection: $selectedPR) { prModel in
+                    PRListRow(prModel: prModel)
+                        .id(prModel.id)
+                        .tag(prModel)
+                }
+                .listStyle(.sidebar)
+                .accessibilityIdentifier("prList")
+                .onChange(of: selectedPR) { _, newPR in
+                    if let pr = newPR {
+                        withAnimation {
+                            proxy.scrollTo(pr.id)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var prListFilterBar: some View {
@@ -474,41 +441,166 @@ struct PRRadarContentView: View {
         return "\(currentPosition) of \(total) violations"
     }
 
+    // MARK: - Toolbar Items
+
+    @ViewBuilder
+    private var prsTabToolbarItems: some View {
+        Button {
+            Task { await selectedPR?.refreshPRData() }
+        } label: {
+            if let pr = selectedPR, pr.operationMode == .refreshing {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "arrow.clockwise")
+            }
+        }
+        .accessibilityIdentifier("refreshButton")
+        .help("Refresh PR data")
+        .disabled(isPRActionDisabled)
+
+        Button {
+            analyzePRRuleSets = nil
+            showAnalyzePR = true
+        } label: {
+            if let pr = selectedPR, pr.operationMode == .analyzing {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "sparkles")
+            }
+        }
+        .accessibilityIdentifier("analyzeButton")
+        .help("Analyze PR")
+        .disabled(isPRActionDisabled)
+        .popover(isPresented: $showAnalyzePR, arrowEdge: .bottom) {
+            analyzePRPopover
+        }
+
+        Button {
+            if let pr = selectedPR {
+                let path = "\(pr.config.resolvedOutputDir)/\(pr.prNumber)"
+                NSWorkspace.shared.open(URL(fileURLWithPath: path))
+            }
+        } label: {
+            Image(systemName: "folder")
+        }
+        .accessibilityIdentifier("folderButton")
+        .help("Open PR data in Finder")
+        .disabled(selectedPR == nil || isDeletingPR)
+
+        Button {
+            if let pr = selectedPR,
+               let urlString = pr.metadata.url,
+               let url = URL(string: urlString) {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            Image(systemName: "safari")
+        }
+        .accessibilityIdentifier("safariButton")
+        .help("Open PR on GitHub")
+        .disabled(selectedPR?.metadata.url == nil || isDeletingPR)
+
+        Button {
+            showDeleteConfirmation = true
+        } label: {
+            if isDeletingPR {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "trash")
+            }
+        }
+        .accessibilityIdentifier("deleteButton")
+        .help("Delete all local data for this PR")
+        .disabled(isPRActionDisabled)
+        .popover(isPresented: $showDeleteConfirmation, arrowEdge: .bottom) {
+            deleteConfirmationPopover
+        }
+
+        Button(action: { executionPanelModel.isVisible.toggle() }) {
+            Image(systemName: "sidebar.trailing")
+        }
+        .help("Toggle Panel")
+    }
+
+    @ViewBuilder
+    private var runsTabToolbarItems: some View {
+        Button {
+            runAllRulePathName = allPRsModel?.config.defaultRulePath?.name ?? ""
+            showRunAllPopover = true
+        } label: {
+            if case .running = runsModel?.liveRunState {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "play.rectangle")
+            }
+        }
+        .help("Run analysis on all PRs")
+        .disabled(isRunAllDisabled)
+        .popover(isPresented: $showRunAllPopover, arrowEdge: .bottom) {
+            runAllPopover
+        }
+
+        Button(action: { executionPanelModel.isVisible.toggle() }) {
+            Image(systemName: "sidebar.trailing")
+        }
+        .help("Toggle Panel")
+    }
+
+    private var isRunAllDisabled: Bool {
+        guard let model = runsModel else { return true }
+        if case .running = model.liveRunState { return true }
+        return allPRsModel == nil
+    }
+
     // MARK: - Detail
 
     @ViewBuilder
     private var detailView: some View {
         if allPRsModel != nil {
-            if isSearchingPR {
-                VStack(spacing: 12) {
-                    ProgressView()
-                        .controlSize(.large)
-                    Text("Fetching PR data...")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let pr = selectedPR {
-                if pr.detailLoaded {
-                    ReviewDetailView()
-                        .environment(pr)
-                        .id(pr.metadata.number)
-                } else {
-                    ProgressView()
-                        .controlSize(.large)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            } else {
-                ContentUnavailableView(
-                    "Select a Pull Request",
-                    systemImage: "arrow.left.circle",
-                    description: Text("Choose a PR from the list to view its review data.")
-                )
+            switch navigationModel.selectedTab {
+            case .prs:
+                prDetailView
+            case .runs:
+                RunDetailView(entry: selectedRun)
             }
         } else {
             ContentUnavailableView(
                 "PR Radar Not Configured",
                 systemImage: "eye.slash",
                 description: Text("Configure this repository's PR Radar settings in Settings → Repositories.")
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var prDetailView: some View {
+        if isSearchingPR {
+            VStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.large)
+                Text("Fetching PR data...")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let pr = selectedPR {
+            if pr.detailLoaded {
+                ReviewDetailView()
+                    .environment(pr)
+                    .id(pr.metadata.number)
+            } else {
+                ProgressView()
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        } else {
+            ContentUnavailableView(
+                "Select a Pull Request",
+                systemImage: "arrow.left.circle",
+                description: Text("Choose a PR from the list to view its review data.")
             )
         }
     }
@@ -554,6 +646,51 @@ struct PRRadarContentView: View {
             },
             onCancel: { showAnalyzePR = false }
         )
+    }
+
+    @ViewBuilder
+    private var runAllPopover: some View {
+        VStack(spacing: 12) {
+            Text("Analyze All PRs")
+                .font(.headline)
+
+            let rulePaths = allPRsModel?.config.rulePaths ?? []
+            if rulePaths.count > 1 {
+                Picker("Rules", selection: $runAllRulePathName) {
+                    ForEach(rulePaths, id: \.name) { path in
+                        Text(path.name).tag(path.name)
+                    }
+                }
+                .frame(width: 200)
+            } else if let path = rulePaths.first {
+                Text("Rules: \(path.name)")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+            }
+
+            HStack(spacing: 12) {
+                Button("Cancel", role: .cancel) {
+                    showRunAllPopover = false
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Button("Start") {
+                    startRunAll()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding()
+    }
+
+    private func startRunAll() {
+        guard let model = allPRsModel, let rm = runsModel else { return }
+        let pathName = runAllRulePathName.isEmpty ? model.config.defaultRulePath?.name : runAllRulePathName
+        let rulesDir = pathName.flatMap { model.config.resolvedRulesDir(named: $0) } ?? model.config.resolvedDefaultRulesDir
+        showRunAllPopover = false
+        navigationModel.selectedTab = .runs
+        selectedRun = nil
+        Task { await rm.runAll(config: model.config, filter: buildFilter(), rulesDir: rulesDir, rulesPathName: pathName) }
     }
 
     @ViewBuilder
@@ -761,4 +898,5 @@ struct PRRadarContentView: View {
 
 extension EnvironmentValues {
     @Entry var allPRsModel: AllPRsModel? = nil
+    @Entry var runsModel: RunsModel? = nil
 }
