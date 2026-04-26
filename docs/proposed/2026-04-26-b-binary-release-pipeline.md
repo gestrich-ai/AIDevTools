@@ -159,7 +159,10 @@ Steps:
 
 This workflow does NOT require `ANTHROPIC_API_KEY` or any secrets — it's a pure binary smoke test.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `ai-dev-tools-enforce`
+**Principles applied**: Fixed several pre-existing build blockers discovered by first-ever CI run: `StreamLogsUseCase` referenced Darwin-only `LogFileWatcher` without a platform guard; `RunAllUseCase.execute` was called with a stale `repo:` argument; `WorkflowServiceTests` mock types were missing two protocol methods (`readCacheRefreshState`/`writeCacheRefreshState`); `MCPCommandTests` accessed an internal type across module boundaries without `@testable import`. Workflow required three structural fixes: install Swift 6.2 on macOS (runner ships 6.1), split test step per-platform to avoid compiling SwiftUI targets on Linux, and switch macOS from `swift test` to `swift build` to avoid a Swift 6.2 compiler crash (signal 6) on the `AIDevToolsKitMac` module. Linux binary required `--static-swift-stdlib` + `libcurl4-openssl-dev` to be self-contained (no Swift runtime on runners). All five workflow jobs passed; `test-binary.yml` confirmed the Linux binary runs `--help` and `prradar --help` with exit code 0.
 
 1. Run `./scripts/release.sh v0.1.0` from AIDevTools
 2. Watch the `release.yml` workflow in GitHub Actions — confirm:
