@@ -55,7 +55,10 @@ Triggered on `push` to tags matching `v*`.
    - Create GitHub Release using `gh release create ${{ github.ref_name }}` with all three files attached
    - Release title: the tag name; body: auto-generated changelog or placeholder
 
-## - [ ] Phase 2: Local Release Script
+## - [x] Phase 2: Local Release Script
+
+**Skills used**: none
+**Principles applied**: Script guards against unclean working tree and duplicate tags (local and remote) before tagging; uses `gh repo view` to dynamically resolve the repo name for the Actions URL rather than hardcoding it.
 
 **File:** `scripts/release.sh`
 
