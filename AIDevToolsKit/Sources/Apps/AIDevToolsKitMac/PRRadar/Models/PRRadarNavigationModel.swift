@@ -2,8 +2,21 @@ import Observation
 
 @Observable @MainActor
 final class PRRadarNavigationModel {
-    var selectedTab: PRRadarTab = .prs
-    var selectedPRNumber: Int? = nil
+    private(set) var selectedTab: PRRadarTab = .prs
+    private(set) var selectedPRNumber: Int? = nil
+
+    func selectTab(_ tab: PRRadarTab) {
+        selectedTab = tab
+    }
+
+    func selectPR(number: Int) {
+        selectedTab = .prs
+        selectedPRNumber = number
+    }
+
+    func clearSelectedPRNumber() {
+        selectedPRNumber = nil
+    }
 }
 
 enum PRRadarTab {

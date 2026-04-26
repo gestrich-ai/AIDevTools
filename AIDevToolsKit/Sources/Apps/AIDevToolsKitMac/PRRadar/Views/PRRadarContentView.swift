@@ -137,7 +137,7 @@ struct PRRadarContentView: View {
             if let match = currentPRModels.first(where: { $0.prNumber == prNumber }) {
                 selectedPR = match
             }
-            navigationModel.selectedPRNumber = nil
+            navigationModel.clearSelectedPRNumber()
         }
     }
 
@@ -169,7 +169,7 @@ struct PRRadarContentView: View {
     private var tabStripPicker: some View {
         Picker("", selection: Binding(
             get: { navigationModel.selectedTab },
-            set: { navigationModel.selectedTab = $0 }
+            set: { navigationModel.selectTab($0) }
         )) {
             Text("PRs").tag(PRRadarTab.prs)
             Text("Runs").tag(PRRadarTab.runs)
@@ -688,7 +688,7 @@ struct PRRadarContentView: View {
         let pathName = runAllRulePathName.isEmpty ? model.config.defaultRulePath?.name : runAllRulePathName
         let rulesDir = pathName.flatMap { model.config.resolvedRulesDir(named: $0) } ?? model.config.resolvedDefaultRulesDir
         showRunAllPopover = false
-        navigationModel.selectedTab = .runs
+        navigationModel.selectTab(.runs)
         selectedRun = nil
         Task { await rm.runAll(config: model.config, filter: buildFilter(), rulesDir: rulesDir, rulesPathName: pathName) }
     }

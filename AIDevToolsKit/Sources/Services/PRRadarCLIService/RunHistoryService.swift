@@ -2,16 +2,6 @@ import Foundation
 import PRRadarConfigService
 import PRRadarModelsService
 
-public struct RunHistoryEntry: Sendable {
-    public let manifest: RunManifest
-    public let prEntries: [RunAllPREntry]
-
-    public init(manifest: RunManifest, prEntries: [RunAllPREntry]) {
-        self.manifest = manifest
-        self.prEntries = prEntries
-    }
-}
-
 public struct RunHistoryService {
     public static func loadRuns(outputDir: String, limit: Int = 50) throws -> [RunHistoryEntry] {
         let runsDir = "\(outputDir)/runs"
@@ -32,6 +22,8 @@ public struct RunHistoryService {
 
         for filename in files {
             let path = "\(runsDir)/\(filename)"
+            // Swallowing intentionally: a corrupt or unreadable manifest should not abort
+            // the entire history load — skip it and surface the rest.
             guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
                   let manifest = try? decoder.decode(RunManifest.self, from: data) else {
                 continue
@@ -82,6 +74,16 @@ public struct RunHistoryService {
         }
 
         return nil
+    }
+}
+
+public struct RunHistoryEntry: Sendable {
+    public let manifest: RunManifest
+    public let prEntries: [RunAllPREntry]
+
+    public init(manifest: RunManifest, prEntries: [RunAllPREntry]) {
+        self.manifest = manifest
+        self.prEntries = prEntries
     }
 }
 

@@ -70,8 +70,7 @@ struct RunDetailView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            navigationModel.selectedTab = .prs
-            navigationModel.selectedPRNumber = prEntry.entry.prNumber
+            navigationModel.selectPR(number: prEntry.entry.prNumber)
         }
     }
 

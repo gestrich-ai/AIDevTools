@@ -264,9 +264,10 @@ Remove all references:
 
 ---
 
-## - [ ] Phase 6: Enforce
+## - [x] Phase 6: Enforce
 
-**Skills to read**: `ai-dev-tools-enforce`
+**Skills used**: `ai-dev-tools-enforce`, `ai-dev-tools-architecture`, `ai-dev-tools-code-organization`, `ai-dev-tools-code-quality`, `ai-dev-tools-build-quality`
+**Principles applied**: Reordered `RunHistoryService.swift` so primary type `RunHistoryService` appears first and `RunHistoryEntry` (supporting type) follows — matching the file name. Added a comment documenting intentional `try?` swallowing when loading manifest files (partial-failure scenario). Added `private(set)` to both properties on `PRRadarNavigationModel` and introduced explicit mutation methods (`selectTab(_:)`, `selectPR(number:)`, `clearSelectedPRNumber()`); updated callers in `PRRadarContentView` and `RunDetailView`. Build is clean — all warnings pre-exist in `ArchPlannerGuidelinesCommand.swift` and are not from Phase 1–5 changes.
 
 Run `ai-dev-tools-enforce` (Fix mode) on every `.swift` file changed during Phases 1–5. Fix all violations before proceeding to Phase 7.
 
