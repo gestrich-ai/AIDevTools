@@ -125,9 +125,10 @@ Same changes as Phase 1. Keep the comment block at the top of the file explainin
 
 Also update the comments: remove any note about needing a Swift toolchain; add a note that `VERSION` can be updated to pin to a specific release.
 
-## - [ ] Phase 3: Switch runner from macos-latest to ubuntu-latest
+## - [x] Phase 3: Switch runner from macos-latest to ubuntu-latest
 
-**Skills to read**: none
+**Skills used**: none
+**Principles applied**: Changed `runs-on: macos-latest` to `runs-on: ubuntu-latest` in both `Examples/workflows/pr-radar.yml` (local commit) and `gestrich/AIDevToolsDemo/.github/workflows/pr-radar.yml` (via GitHub API). Ubuntu runners cost ~10x less and the self-contained binary works on either platform; `sha256sum` also works natively on Ubuntu without additional setup.
 
 Both workflows currently run on `macos-latest`. Now that the binary install step replaces the Swift build, there's no reason to pay for a macOS runner. Switch both workflows to `runs-on: ubuntu-latest`.
 
