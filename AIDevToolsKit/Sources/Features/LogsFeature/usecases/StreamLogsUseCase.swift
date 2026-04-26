@@ -1,3 +1,4 @@
+#if canImport(Darwin)
 import LoggingSDK
 import UseCaseSDK
 
@@ -26,3 +27,4 @@ public struct StreamLogsUseCase: StreamingUseCase {
         }
     }
 }
+#endif
