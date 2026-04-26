@@ -89,17 +89,14 @@ public struct GitHubPRLoaderUseCase {
                     return
                 }
 
-                // Re-read from cache after the API write: the cache is the source of truth for
-                // enrichment data. Use the live API result (fetchedGHPRs) as the authoritative
-                // set of which PRs are currently open — do NOT filter by cached state, because
-                // a PR that transitioned from open→closed still has state=OPEN in its disk cache
-                // until it gets individually re-fetched.
-                let fetchedNumbers = Set(fetchedGHPRs.map { $0.number })
+                // Re-read from cache after the API write: the cache is the source of truth.
+                // The date-range refresh above catches all state transitions (open→closed, etc.)
+                // before this point, so the cache is authoritative and can be filtered directly.
                 let postFetchCached = await service.readAllCachedPRs()
                 let fetchedPRs = postFetchCached
                     .map { $0.withAuthorNames(from: nameMap) }
                     .compactMap { try? $0.toPRMetadata() }
-                    .filter { fetchedNumbers.contains($0.number) }
+                    .filter { filter.matches($0) }
                     .sorted { $0.number > $1.number }
 
                 continuation.yield(.fetched(fetchedPRs))

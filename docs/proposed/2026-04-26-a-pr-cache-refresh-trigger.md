@@ -60,7 +60,10 @@ Inside `GitHubPRLoaderUseCase.execute(filter:)`, before running the existing fil
 
 After this step completes, the existing fetch logic continues unchanged: `updatePRs(filter:)` is called with the caller's filter, and filtered results are returned.
 
-## - [ ] Phase 3: Revert `fetchedNumbers` workaround
+## - [x] Phase 3: Revert `fetchedNumbers` workaround
+
+**Skills used**: none
+**Principles applied**: Removed the `fetchedNumbers` set and replaced `.filter { fetchedNumbers.contains($0.number) }` with `.filter { filter.matches($0) }` in `postFetchCached`. Updated the comment to explain the invariant: the date-range refresh (Phase 2) runs before each filtered fetch and keeps the cache authoritative for all state transitions.
 
 Now that the cache is kept current by the date-range refresh, revert the `fetchedNumbers` filter in `GitHubPRLoaderUseCase` (lines 83–88) back to `filter.matches($0)`. Add a short comment explaining the invariant: the cache is authoritative because the date-range refresh runs before each filtered fetch and catches all state transitions.
 
