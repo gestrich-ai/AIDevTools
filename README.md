@@ -25,6 +25,32 @@ INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/gestrich/A
 
 **Supported platforms:** macOS arm64, Linux x86_64
 
+## GitHub Actions
+
+For CI use, download the binary directly instead of using the install script. This avoids `sudo` prompts and works on standard `ubuntu-latest` runners without a Swift toolchain:
+
+```yaml
+- name: Download ai-dev-tools-kit
+  env:
+    VERSION: v0.1.0
+  run: |
+    curl -fsSL "https://github.com/gestrich/AIDevTools/releases/download/${VERSION}/ai-dev-tools-kit-linux-x86_64.tar.gz" -o ai-dev-tools-kit-linux-x86_64.tar.gz
+    curl -fsSL "https://github.com/gestrich/AIDevTools/releases/download/${VERSION}/checksums.txt" -o checksums.txt
+    sha256sum --check --ignore-missing checksums.txt
+    tar -xzf ai-dev-tools-kit-linux-x86_64.tar.gz
+    chmod +x ai-dev-tools-kit
+    sudo mv ai-dev-tools-kit /usr/local/bin/ai-dev-tools-kit
+```
+
+Then call the binary directly in subsequent steps:
+
+```yaml
+- name: Run PRRadar
+  run: ai-dev-tools-kit prradar run 42 --config ci --diff-source github-api --mode regex
+```
+
+See [`Examples/workflows/pr-radar.yml`](Examples/workflows/pr-radar.yml) for a complete working workflow.
+
 ## Mac App and CLI
 
 AIDevTools ships as two interfaces backed by the same shared logic:
