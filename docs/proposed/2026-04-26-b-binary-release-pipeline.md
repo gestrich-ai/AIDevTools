@@ -77,7 +77,10 @@ Steps:
 4. `git push origin <version>`
 5. Print the GitHub Actions URL to watch progress
 
-## - [ ] Phase 3: Install Script
+## - [x] Phase 3: Install Script
+
+**Skills used**: none
+**Principles applied**: Written as POSIX `/bin/sh` (not bash) since it runs via `curl ... | sh`; SHA256 verification uses `sha256sum` (Linux) or `shasum` (macOS) with a clear mismatch error; sudo fallback uses `sh -c` to handle spaces in paths; temp dir is always cleaned via `trap ... EXIT`.
 
 **File:** `scripts/install.sh`
 
