@@ -56,6 +56,8 @@ actor GitHubPRCacheService {
     func readAllCachedPRs() -> [GitHubPullRequest] {
         let fileManager = FileManager.default
         let path = rootURL.path(percentEncoded: false)
+        // Swallowing intentionally: if the directory listing or individual file reads
+        // fail, return whatever successfully loaded rather than aborting the entire call.
         guard fileManager.fileExists(atPath: path),
               let contents = try? fileManager.contentsOfDirectory(atPath: path)
         else { return [] }
@@ -63,6 +65,8 @@ actor GitHubPRCacheService {
             guard Int(dirName) != nil else { return nil }
             let url = rootURL.appendingPathComponent("\(dirName)/gh-pr.json")
             guard let data = fileManager.contents(atPath: url.path(percentEncoded: false)) else { return nil }
+            // Swallowing intentionally: a single malformed cache file is skipped rather
+            // than aborting the full read.
             return try? JSONDecoder().decode(GitHubPullRequest.self, from: data)
         }
     }

@@ -7,7 +7,7 @@ public struct CacheRefreshState: Codable, Sendable {
         self.lastCheckedAt = lastCheckedAt
     }
 
-    static var fallbackDate: Date {
+    public static var fallbackDate: Date {
         Date().addingTimeInterval(-60 * 24 * 60 * 60)
     }
 }

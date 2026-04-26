@@ -4,7 +4,7 @@ import OctokitSDK
 
 private let logger = Logger(label: "GitHubPRLoaderUseCase")
 
-public struct GitHubPRLoaderUseCase {
+public struct GitHubPRLoaderUseCase: Sendable {
 
     public enum Event: Sendable {
         // List-level events
@@ -65,6 +65,9 @@ public struct GitHubPRLoaderUseCase {
                 let nameMap = Dictionary(uniqueKeysWithValues: cachedAuthorEntries.map { ($0.login, $0.name) })
 
                 let cachedGHPRs = await service.readAllCachedPRs()
+                // Swallowing intentionally: a PR that fails to map is omitted from the list
+                // rather than aborting the entire load. Mapping failures indicate malformed
+                // cached data for a single PR, not a systemic error.
                 let cachedPRs: [PRMetadata] = cachedGHPRs
                     .map { $0.withAuthorNames(from: nameMap) }
                     .compactMap { try? $0.toPRMetadata() }
@@ -93,6 +96,8 @@ public struct GitHubPRLoaderUseCase {
                 // The date-range refresh above catches all state transitions (open→closed, etc.)
                 // before this point, so the cache is authoritative and can be filtered directly.
                 let postFetchCached = await service.readAllCachedPRs()
+                // Swallowing intentionally: same as cachedPRs mapping above — omit
+                // individual malformed PRs rather than failing the full list.
                 let fetchedPRs = postFetchCached
                     .map { $0.withAuthorNames(from: nameMap) }
                     .compactMap { try? $0.toPRMetadata() }
@@ -104,6 +109,8 @@ public struct GitHubPRLoaderUseCase {
                 // Enrichment targets: PRs the API returned that also pass the filter.
                 // Using fetchedGHPRs (not the full cache) scopes enrichment to PRs that
                 // the API confirmed are still relevant — avoids re-enriching stale entries.
+                // Swallowing intentionally: same as cachedPRs mapping above — omit
+                // individual malformed PRs rather than failing the full list.
                 let enrichmentTargets = fetchedGHPRs
                     .map { $0.withAuthorNames(from: nameMap) }
                     .compactMap { try? $0.toPRMetadata() }
@@ -220,7 +227,7 @@ public struct GitHubPRLoaderUseCase {
         return enriched
     }
 
-    private func withStep<T: Sendable>(_ step: String, pr: Int, _ body: () async throws -> T) async throws -> T {
+    private func withStep<T: Sendable>(_ step: String, pr: Int, _ body: @Sendable () async throws -> T) async throws -> T {
         do {
             return try await body()
         } catch {

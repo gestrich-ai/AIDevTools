@@ -2,7 +2,7 @@ import Foundation
 import Logging
 import OctokitSDK
 
-public struct GitHubPRService: GitHubPRServiceProtocol {
+public struct GitHubPRService: GitHubPRServiceProtocol, Sendable {
     private let cache: GitHubPRCacheService
     private let apiClient: any GitHubAPIServiceProtocol
     private let changeStream: AsyncStream<Int>
@@ -165,6 +165,8 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
                 logger.warning("createPullRequest: requestReviewers failed (non-fatal): \(error)")
             }
         }
+        // Swallowing intentionally: cache refresh after PR creation is best-effort;
+        // a failure here doesn't affect the caller's primary result (the created PR).
         _ = try? await updatePRs(filter: PRFilter())
         return created
     }
