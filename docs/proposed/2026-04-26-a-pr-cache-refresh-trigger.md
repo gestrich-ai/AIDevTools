@@ -45,7 +45,10 @@ Store and retrieve a `lastCheckedAt` timestamp scoped to each repo config. Locat
 - Write `lastCheckedAt = Date()` after each successful date-range refresh
 - Read on fetch; fall back to `Date() - 60 days` if the file is absent (first run)
 
-## - [ ] Phase 2: Add date-range cache refresh inside the existing fetch path
+## - [x] Phase 2: Add date-range cache refresh inside the existing fetch path
+
+**Skills used**: `ai-dev-tools-architecture`
+**Principles applied**: Added `readCacheRefreshState()` / `writeCacheRefreshState(_:)` to `GitHubPRServiceProtocol` and `GitHubPRService` (delegating to the cache actor), following the same pattern as `loadAllAuthors`. Inserted the date-range refresh step in `GitHubPRLoaderUseCase.execute(filter:)` right after `makeService()` succeeds, so the subsequent `readAllCachedPRs()` call picks up the freshened cache state. The refresh is non-fatal: `readCacheRefreshState` failures fall back silently to the 60-day window; any `updatePRs` or `writeCacheRefreshState` failure is logged as a warning and the caller's filtered fetch proceeds normally.
 
 Inside `GitHubPRLoaderUseCase.execute(filter:)`, before running the existing filtered fetch, add a silent date-range refresh step:
 

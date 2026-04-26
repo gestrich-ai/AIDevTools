@@ -24,6 +24,7 @@ public protocol GitHubPRServiceProtocol: Sendable {
     func pullRequestByHeadBranch(branch: String) async throws -> CreatedPullRequest?
     func readAllCachedPRs() async -> [GitHubPullRequest]
     func readCachedIndex(key: String) async throws -> [Int]?
+    func readCacheRefreshState() async throws -> CacheRefreshState?
     func repository(useCache: Bool) async throws -> GitHubRepository
     func reviews(number: Int, useCache: Bool) async throws -> [GitHubReview]
     func triggerWorkflowDispatch(workflowId: String, ref: String, inputs: [String: String]) async throws
@@ -33,5 +34,6 @@ public protocol GitHubPRServiceProtocol: Sendable {
     func updateRepository() async throws
     func writeComments(_ comments: GitHubPullRequestComments, number: Int) async throws
     func writeCachedIndex(_ numbers: [Int], key: String) async throws
+    func writeCacheRefreshState(_ state: CacheRefreshState) async throws
     func writePR(_ pr: GitHubPullRequest, number: Int) async throws
 }

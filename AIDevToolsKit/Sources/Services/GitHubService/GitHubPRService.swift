@@ -274,6 +274,16 @@ public struct GitHubPRService: GitHubPRServiceProtocol {
         return authorCache.entries.values.map { $0.value }
     }
 
+    // MARK: - Cache Refresh State
+
+    public func readCacheRefreshState() async throws -> CacheRefreshState? {
+        try await cache.readCacheRefreshState()
+    }
+
+    public func writeCacheRefreshState(_ state: CacheRefreshState) async throws {
+        try await cache.writeCacheRefreshState(state)
+    }
+
     public func listDirectoryNames(path: String, ref: String) async throws -> [String] {
         let ttl: TimeInterval = 300
         if let cached = try await cache.readDirectoryNames(path: path, ref: ref, ttl: ttl) {

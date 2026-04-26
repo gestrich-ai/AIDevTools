@@ -45,6 +45,20 @@ public struct GitHubPRLoaderUseCase {
                     return
                 }
 
+                // Silent date-range cache refresh: updates the on-disk cache for all PRs changed
+                // since lastCheckedAt (including PRs that closed or merged). Non-fatal — failure
+                // is logged and the fetch continues with the existing cache state.
+                do {
+                    // Swallowing intentionally: missing refresh state falls back to 60-day window;
+                    // cache freshness is best-effort.
+                    let stored = try? await service.readCacheRefreshState()
+                    let refreshDate = stored?.lastCheckedAt ?? CacheRefreshState.fallbackDate
+                    _ = try await service.updatePRs(filter: PRFilter(dateFilter: .updatedSince(refreshDate)))
+                    try await service.writeCacheRefreshState(CacheRefreshState())
+                } catch {
+                    logger.warning("execute(filter:): date-range cache refresh failed (non-fatal): \(error)")
+                }
+
                 // Swallowing intentionally: author name cache is best-effort; missing names
                 // fall back to login handles, which does not affect PR data correctness.
                 let cachedAuthorEntries = (try? await service.loadAllAuthors()) ?? []
