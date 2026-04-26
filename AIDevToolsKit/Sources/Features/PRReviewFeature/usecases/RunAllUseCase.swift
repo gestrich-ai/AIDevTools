@@ -21,7 +21,8 @@ public struct RunAllUseCase: StreamingUseCase {
         repo: String? = nil,
         comment: Bool = false,
         limit: String? = nil,
-        analysisMode: AnalysisMode = .all
+        analysisMode: AnalysisMode = .all,
+        rulesPathName: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<RunAllOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .diff))
@@ -48,6 +49,9 @@ public struct RunAllUseCase: StreamingUseCase {
                     var analyzedCount = 0
                     var failedCount = 0
                     let totalCount = prs.count
+                    let runStartedAt = ISO8601DateFormatter().string(from: Date())
+                    var manifestEntries: [PRManifestEntry] = []
+                    var prStats: [RunAllPRStats] = []
 
                     for (index, pr) in prs.enumerated() {
                         let prNumber = pr.number
@@ -57,6 +61,8 @@ public struct RunAllUseCase: StreamingUseCase {
 
                         let analyzeUseCase = RunPipelineUseCase(config: config)
                         var succeeded = false
+                        var pipelineOutput: RunPipelineOutput?
+                        var failureReason: String?
 
                         for try await progress in analyzeUseCase.execute(
                             prNumber: prNumber,
@@ -74,12 +80,31 @@ public struct RunAllUseCase: StreamingUseCase {
                                 continuation.yield(.prepareStreamEvent(event))
                             case .taskEvent(let task, let event):
                                 continuation.yield(.taskEvent(task: task, event: event))
-                            case .completed:
+                            case .completed(let output):
                                 succeeded = true
+                                pipelineOutput = output
                             case .failed(let error, _):
                                 continuation.yield(.log(text: "  Failed: \(error)\n"))
+                                failureReason = error
                             }
                         }
+
+                        let entry = PRManifestEntry(
+                            failureReason: failureReason,
+                            prNumber: prNumber,
+                            status: succeeded ? .succeeded : .failed,
+                            title: pr.title
+                        )
+                        manifestEntries.append(entry)
+
+                        let reportSummary = pipelineOutput?.report?.report.summary
+                        prStats.append(RunAllPRStats(
+                            aiTasksRun: reportSummary?.totalTasksEvaluated ?? 0,
+                            entry: entry,
+                            totalCostUsd: reportSummary?.totalCostUsd ?? 0,
+                            totalDurationMs: reportSummary?.totalDurationMs ?? 0,
+                            violationsFound: reportSummary?.violationsFound ?? 0
+                        ))
 
                         if succeeded {
                             analyzedCount += 1
@@ -88,9 +113,18 @@ public struct RunAllUseCase: StreamingUseCase {
                         }
                     }
 
-                    continuation.yield(.log(text: "\nAnalyze-all complete: \(analyzedCount) succeeded, \(failedCount) failed\n"))
+                    let manifest = RunManifest(
+                        completedAt: ISO8601DateFormatter().string(from: Date()),
+                        config: config.name,
+                        prs: manifestEntries,
+                        rulesPathName: rulesPathName,
+                        startedAt: runStartedAt
+                    )
+                    try? Self.saveManifest(manifest, outputDir: config.outputDir)
 
-                    let output = RunAllOutput(analyzedCount: analyzedCount, failedCount: failedCount)
+                    continuation.yield(.log(text: "\nRun complete: \(analyzedCount) succeeded, \(failedCount) failed\n"))
+
+                    let output = RunAllOutput(analyzedCount: analyzedCount, failedCount: failedCount, manifest: manifest, prStats: prStats)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
@@ -100,6 +134,19 @@ public struct RunAllUseCase: StreamingUseCase {
             }
         }
     }
+
+    private static func saveManifest(_ manifest: RunManifest, outputDir: String) throws {
+        let runsDir = "\(outputDir)/runs"
+        try FileManager.default.createDirectory(atPath: runsDir, withIntermediateDirectories: true)
+        let label = manifest.rulesPathName ?? "default"
+        let datePart = manifest.startedAt
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: ".", with: "-")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(manifest)
+        try data.write(to: URL(fileURLWithPath: "\(runsDir)/\(datePart)-\(label).json"))
+    }
 }
 
 // MARK: - Supporting Types
@@ -107,4 +154,13 @@ public struct RunAllUseCase: StreamingUseCase {
 public struct RunAllOutput: Sendable {
     public let analyzedCount: Int
     public let failedCount: Int
+    public let manifest: RunManifest
+    public let prStats: [RunAllPRStats]
+
+    public init(analyzedCount: Int, failedCount: Int, manifest: RunManifest, prStats: [RunAllPRStats]) {
+        self.analyzedCount = analyzedCount
+        self.failedCount = failedCount
+        self.manifest = manifest
+        self.prStats = prStats
+    }
 }

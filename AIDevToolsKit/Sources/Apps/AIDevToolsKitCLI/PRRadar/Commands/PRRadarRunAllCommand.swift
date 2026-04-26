@@ -59,7 +59,8 @@ struct PRRadarRunAllCommand: AsyncParsableCommand {
             repo: repo,
             comment: comment,
             limit: limit,
-            analysisMode: mode
+            analysisMode: mode,
+            rulesPathName: rulesPathName
         ) {
             switch progress {
             case .running:
@@ -92,11 +93,40 @@ struct PRRadarRunAllCommand: AsyncParsableCommand {
                     break
                 }
             case .completed(let output):
-                print("\nRun-all complete: \(output.analyzedCount) succeeded, \(output.failedCount) failed")
+                printRunSummary(output)
             case .failed(let error, let logs):
                 if !logs.isEmpty { printPRRadarError(logs) }
                 throw PRRadarCLIError.phaseFailed("run-all failed: \(error)")
             }
         }
+    }
+
+    private func printRunSummary(_ output: RunAllOutput) {
+        let manifest = output.manifest
+        let stats = output.prStats
+        let rules = manifest.rulesPathName ?? "default"
+
+        let totalTasks = stats.map(\.aiTasksRun).reduce(0, +)
+        let totalViolations = stats.map(\.violationsFound).reduce(0, +)
+        let totalCost = stats.map(\.totalCostUsd).reduce(0, +)
+
+        print("\n── Run Summary ─────────────────────────────────────────────────────")
+        print("Config: \(manifest.config)/\(rules)  |  \(output.analyzedCount) succeeded, \(output.failedCount) failed")
+        print("Total:  \(totalTasks) AI tasks  |  \(totalViolations) violations  |  $\(String(format: "%.4f", totalCost))")
+
+        if !stats.isEmpty {
+            print("\nPR Breakdown (sorted by duration):")
+            for pr in stats.sorted(by: { $0.totalDurationMs > $1.totalDurationMs }) {
+                let icon = pr.entry.status == .succeeded ? "✓" : "✗"
+                let title = String(pr.entry.title.prefix(48))
+                let tasks = "\(pr.aiTasksRun) task\(pr.aiTasksRun == 1 ? "" : "s")"
+                let violations = "\(pr.violationsFound) violation\(pr.violationsFound == 1 ? "" : "s")"
+                print("  \(icon) #\(pr.entry.prNumber)  \(pr.formattedDuration)  \(tasks)  \(violations)  $\(String(format: "%.4f", pr.totalCostUsd))  \(title)")
+                if let reason = pr.entry.failureReason {
+                    print("      ↳ \(reason)")
+                }
+            }
+        }
+        print("────────────────────────────────────────────────────────────────────")
     }
 }

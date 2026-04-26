@@ -18,6 +18,7 @@ struct PRRadarCommand: AsyncParsableCommand {
             PRRadarReportCommand.self,
             PRRadarRunAllCommand.self,
             PRRadarRunCommand.self,
+            PRRadarRunHistoryCommand.self,
             PRRadarStatusCommand.self,
             PRRadarSyncCommand.self,
             PRRadarViolationsCommand.self,

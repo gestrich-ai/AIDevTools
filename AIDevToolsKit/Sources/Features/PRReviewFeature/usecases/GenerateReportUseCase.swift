@@ -27,11 +27,9 @@ public struct GenerateReportUseCase: StreamingUseCase {
             continuation.yield(.running(phase: .report))
 
             Task {
+                var resolvedCommit: String? = commitHash
                 do {
-                    let resolvedCommit: String?
-                    if let hash = commitHash {
-                        resolvedCommit = hash
-                    } else {
+                    if resolvedCommit == nil {
                         resolvedCommit = await FetchPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
                     }
                     let scoreThreshold = Int(minScore ?? "5") ?? 5
@@ -85,6 +83,7 @@ public struct GenerateReportUseCase: StreamingUseCase {
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
+                    try? PhaseResultWriter.writeFailure(phase: .report, outputDir: config.resolvedOutputDir, prNumber: prNumber, commitHash: resolvedCommit, error: error.localizedDescription)
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()
                 }

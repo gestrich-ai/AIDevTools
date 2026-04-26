@@ -34,11 +34,9 @@ public struct AnalyzeUseCase: StreamingUseCase {
             continuation.yield(.running(phase: .analyze))
 
             Task {
+                var resolvedCommit: String? = commitHash
                 do {
-                    let resolvedCommit: String?
-                    if let hash = commitHash {
-                        resolvedCommit = hash
-                    } else {
+                    if resolvedCommit == nil {
                         resolvedCommit = await FetchPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
                     }
 
@@ -128,6 +126,7 @@ public struct AnalyzeUseCase: StreamingUseCase {
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
+                    try? PhaseResultWriter.writeFailure(phase: .analyze, outputDir: config.resolvedOutputDir, prNumber: prNumber, commitHash: resolvedCommit, error: error.localizedDescription)
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()
                 }
@@ -142,11 +141,9 @@ public struct AnalyzeUseCase: StreamingUseCase {
             continuation.yield(.running(phase: .analyze))
 
             Task {
+                var resolvedCommit: String? = commitHash
                 do {
-                    let resolvedCommit: String?
-                    if let hash = commitHash {
-                        resolvedCommit = hash
-                    } else {
+                    if resolvedCommit == nil {
                         resolvedCommit = await FetchPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
                     }
 
@@ -189,6 +186,7 @@ public struct AnalyzeUseCase: StreamingUseCase {
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
+                    try? PhaseResultWriter.writeFailure(phase: .analyze, outputDir: config.resolvedOutputDir, prNumber: prNumber, commitHash: resolvedCommit, error: error.localizedDescription)
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()
                 }

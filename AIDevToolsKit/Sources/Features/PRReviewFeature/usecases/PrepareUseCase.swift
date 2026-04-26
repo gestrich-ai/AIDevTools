@@ -26,14 +26,12 @@ public struct PrepareUseCase: StreamingUseCase {
             continuation.yield(.running(phase: .prepare))
 
             Task {
+                var resolvedCommit: String? = commitHash
                 do {
                     guard let githubAccount = config.githubCredentialProfileId else {
                         throw CredentialError.notConfigured(profileId: config.githubCredentialProfileId)
                     }
-                    let resolvedCommit: String?
-                    if let hash = commitHash {
-                        resolvedCommit = hash
-                    } else {
+                    if resolvedCommit == nil {
                         resolvedCommit = await FetchPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
                     }
 
@@ -208,6 +206,7 @@ public struct PrepareUseCase: StreamingUseCase {
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
+                    try? PhaseResultWriter.writeFailure(phase: .prepare, outputDir: config.resolvedOutputDir, prNumber: prNumber, commitHash: resolvedCommit, error: error.localizedDescription)
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()
                 }

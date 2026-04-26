@@ -147,6 +147,8 @@ public struct FetchPRUseCase: StreamingUseCase {
                 } catch is CancellationError {
                     continuation.finish(throwing: CancellationError())
                 } catch {
+                    try? PhaseResultWriter.writeFailure(phase: .metadata, outputDir: config.resolvedOutputDir, prNumber: prNumber, error: error.localizedDescription)
+                    try? PhaseResultWriter.writeFailure(phase: .diff, outputDir: config.resolvedOutputDir, prNumber: prNumber, error: error.localizedDescription)
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()
                 }
