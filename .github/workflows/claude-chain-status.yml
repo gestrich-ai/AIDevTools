@@ -24,6 +24,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # When this workflow runs inside gestrich/AIDevTools itself, the repo is already checked out
+      # at the workspace root — just copy it into aidevtools/ without re-specifying repository/token.
+      # When running from any other repo, fetch gestrich/AIDevTools explicitly.
       - name: Checkout AIDevTools
         if: github.repository == 'gestrich/AIDevTools'
         uses: actions/checkout@v4
