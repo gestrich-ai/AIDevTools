@@ -56,7 +56,6 @@ struct PRRadarRunAllCommand: AsyncParsableCommand {
             filter: prFilter,
             rulesDir: try resolveRulesDir(rulesPathName: rulesPathName, config: prRadarConfig),
             minScore: minScore,
-            repo: repo,
             comment: comment,
             limit: limit,
             analysisMode: mode,
