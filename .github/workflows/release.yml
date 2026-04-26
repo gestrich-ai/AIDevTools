@@ -67,7 +67,7 @@ jobs:
           swift-version: '6.2'
 
       - name: Build
-        run: swift build -c release --product ai-dev-tools-kit --package-path AIDevToolsKit
+        run: swift build -c release --product ai-dev-tools-kit --package-path AIDevToolsKit --static-swift-stdlib
 
       - name: Package
         run: tar -czf ai-dev-tools-kit-linux-x86_64.tar.gz -C AIDevToolsKit/.build/release ai-dev-tools-kit
