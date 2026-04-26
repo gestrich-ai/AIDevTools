@@ -253,20 +253,64 @@ Remove all references:
 
 ---
 
-## - [ ] Phase 6: Validation
+## - [ ] Phase 6: Enforce
 
-**Skills to read**: `ai-dev-tools-enforce`, `ai-dev-tools-build-quality`
+**Skills to read**: `ai-dev-tools-enforce`
 
-### Automated
+Run `ai-dev-tools-enforce` (Fix mode) on every `.swift` file changed during Phases 1–5. Fix all violations before proceeding to Phase 7.
 
-1. Run `swift build` in `AIDevToolsKit/` — zero errors, no new warnings
-2. Run `ai-dev-tools-enforce` on all files changed during this plan
-3. Run `pr-radar run-history` CLI command against a real config directory — confirm output is identical to before Phase 2
+Files expected to be in scope (expand as needed based on actual changes):
+- `Sources/Services/PRRadarCLIService/RunHistoryService.swift` (new)
+- `Sources/Apps/AIDevToolsKitCLI/PRRadar/Commands/PRRadarRunHistoryCommand.swift`
+- `Sources/Apps/AIDevToolsKitMac/PRRadar/Models/PRRadarNavigationModel.swift` (new)
+- `Sources/Apps/AIDevToolsKitMac/PRRadar/Models/RunsModel.swift` (new)
+- `Sources/Apps/AIDevToolsKitMac/PRRadar/Models/AllPRsModel.swift`
+- `Sources/Apps/AIDevToolsKitMac/PRRadar/Views/PRRadarContentView.swift`
+- `Sources/Apps/AIDevToolsKitMac/PRRadar/Views/RunsListView.swift` (new)
+- `Sources/Apps/AIDevToolsKitMac/PRRadar/Views/RunListRow.swift` (new)
+- `Sources/Apps/AIDevToolsKitMac/PRRadar/Views/RunDetailView.swift` (new)
 
-### Manual checks
+Also run `swift build` — zero errors, no new warnings before moving on.
 
-1. PRs tab — PR list loads, individual PR analysis works, `run-all` button is gone from toolbar
-2. Runs tab — historical runs load for the selected repo, rows show correct timestamps/counts/cost
-3. Trigger `run-all` from Runs tab — live row appears at top, logs stream in detail pane, row updates to complete state with PR breakdown when done
-4. Click a PR row in the breakdown — PRs tab activates and that PR is selected in the list
+---
+
+## - [ ] Phase 7: Validation
+
+**Skills to read**: `ai-dev-tools-build-quality`
+
+### CLI validation against AIDevToolsDemo
+
+The `AIDevToolsDemo` config is already registered (`/Users/bill/Developer/personal/AIDevToolsDemo`, rules at `/Users/bill/Developer/personal/AIDevToolsDemo/code-review-rules`, diff-source: github-api). Use it to exercise the full CLI path.
+
+**Step 1 — Verify `run-history` still works after Phase 2 refactor:**
+```bash
+ai-dev-tools-kit prradar run-history --config AIDevToolsDemo
+```
+Confirm output shows past runs with correct timestamps, PR counts, violations, and cost totals. If no runs exist yet, proceed to Step 2 and re-run Step 1 after.
+
+**Step 2 — Run `run-all` on a small sample to exercise the full pipeline:**
+```bash
+ai-dev-tools-kit prradar run-all \
+  --config AIDevToolsDemo \
+  --lookback-hours 72 \
+  --limit 2
+```
+Verify:
+- Run completes without errors
+- A new manifest file appears in `{AIDevToolsDemo resolvedOutputDir}/runs/`
+- The summary table prints correctly with PR breakdown (cost, violations, duration)
+- Re-running `run-history` shows the new run with correct totals
+
+**Step 3 — Verify `run-history` loads `ReportSummary` from the right path:**
+```bash
+ai-dev-tools-kit prradar run-history --config AIDevToolsDemo --detailed
+```
+Confirm that per-PR stats (violations, cost, duration) are non-zero for succeeded PRs — if they show as zero, `loadReportSummary` is still using an unresolved path.
+
+### Manual Mac app checks
+
+1. PRs tab — PR list loads, individual PR analysis works, `run-all` button absent from toolbar
+2. Runs tab — historical runs load for the selected repo, rows show timestamps/counts/cost
+3. Trigger `run-all` from Runs tab — live row appears at top, logs stream in detail pane, transitions to PR breakdown on completion
+4. Click a PR row in the breakdown — PRs tab activates and that PR is selected
 5. Switch repos — Runs tab refreshes to show history for the newly selected repo
