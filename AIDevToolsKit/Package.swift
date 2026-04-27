@@ -23,7 +23,6 @@ var products: [Product] = [
     .library(name: "EvalFeature", targets: ["EvalFeature"]),
     .library(name: "EvalSDK", targets: ["EvalSDK"]),
     .library(name: "EvalService", targets: ["EvalService"]),
-    .library(name: "FileTreeService", targets: ["FileTreeService"]),
     .library(name: "GitDiffModelsService", targets: ["GitDiffModelsService"]),
     .library(name: "GitHubService", targets: ["GitHubService"]),
     .library(name: "GitSDK", targets: ["GitSDK"]),
@@ -293,14 +292,6 @@ var targets: [Target] = [
         name: "EvalService",
         dependencies: ["AIOutputSDK", "RepositorySDK", "SkillScannerSDK"],
         path: "Sources/Services/EvalService"
-    ),
-    .target(
-        name: "FileTreeService",
-        dependencies: [
-            "DataPathsService",
-            .product(name: "Logging", package: "swift-log"),
-        ],
-        path: "Sources/Services/FileTreeService"
     ),
     .target(
         name: "GitHubService",
@@ -787,6 +778,7 @@ var targets: [Target] = [
 #if os(macOS)
 products.append(contentsOf: [
     .library(name: "AIDevToolsKitMac", targets: ["AIDevToolsKitMac"]),
+    .library(name: "FileTreeService", targets: ["FileTreeService"]),
     .library(name: "GitUIToolkit", targets: ["GitUIToolkit"]),
     .library(name: "MarkdownUIToolkit", targets: ["MarkdownUIToolkit"]),
     .library(name: "RepoExplorerFeature", targets: ["RepoExplorerFeature"]),
@@ -798,6 +790,14 @@ dependencies.append(contentsOf: [
 ])
 
 targets.append(contentsOf: [
+    .target(
+        name: "FileTreeService",
+        dependencies: [
+            "DataPathsService",
+            .product(name: "Logging", package: "swift-log"),
+        ],
+        path: "Sources/Services/FileTreeService"
+    ),
     .target(
         name: "CLIMacCommands",
         dependencies: [
