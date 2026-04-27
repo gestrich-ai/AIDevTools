@@ -27,7 +27,6 @@ var products: [Product] = [
     .library(name: "GitDiffModelsService", targets: ["GitDiffModelsService"]),
     .library(name: "GitHubService", targets: ["GitHubService"]),
     .library(name: "GitSDK", targets: ["GitSDK"]),
-    .library(name: "GitUIToolkit", targets: ["GitUIToolkit"]),
     .library(name: "KeychainSDK", targets: ["KeychainSDK"]),
     .library(name: "LocalDiffService", targets: ["LocalDiffService"]),
     .library(name: "LoggingSDK", targets: ["LoggingSDK"]),
@@ -46,7 +45,6 @@ var products: [Product] = [
     .library(name: "PRRadarModelsService", targets: ["PRRadarModelsService"]),
     .library(name: "PRReviewFeature", targets: ["PRReviewFeature"]),
     .library(name: "ProviderRegistryService", targets: ["ProviderRegistryService"]),
-    .library(name: "RepoExplorerFeature", targets: ["RepoExplorerFeature"]),
     .library(name: "RepositorySDK", targets: ["RepositorySDK"]),
     .library(name: "RunCommandFeature", targets: ["RunCommandFeature"]),
     .library(name: "SettingsFeature", targets: ["SettingsFeature"]),
@@ -111,38 +109,7 @@ var targets: [Target] = [
         ],
         path: "Sources/Apps/AIDevToolsKitCLI"
     ),
-    .target(
-        name: "CLIMacCommands",
-        dependencies: [
-            .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            "AIOutputSDK",
-            "AppIPCSDK",
-            "ArchitecturePlannerFeature",
-            "ArchitecturePlannerService",
-            "ClaudeChainFeature",
-            "ClaudeCLISDK",
-            "CredentialFeature",
-            "DataPathsService",
-            "FileTreeService",
-            "GitHubService",
-            .product(name: "MCP", package: "swift-sdk"),
-            "PlanFeature",
-            "PlanService",
-            "PRRadarCLIService",
-            "ProviderRegistryService",
-            "RepositorySDK",
-        ],
-        path: "Sources/Apps/CLIMacCommands"
-    ),
-
     // UI Toolkits Layer
-    .target(
-        name: "GitUIToolkit",
-        dependencies: [
-            "GitDiffModelsService",
-        ],
-        path: "Sources/UIToolkits/GitUIToolkit"
-    ),
     
     // Features Layer
     .target(
@@ -237,13 +204,6 @@ var targets: [Target] = [
             "UseCaseSDK",
         ],
         path: "Sources/Features/PRReviewFeature"
-    ),
-    .target(
-        name: "RepoExplorerFeature",
-        dependencies: [
-            "FileTreeService",
-        ],
-        path: "Sources/Features/RepoExplorerFeature"
     ),
     .target(
         name: "RunCommandFeature",
@@ -738,11 +698,6 @@ var targets: [Target] = [
         path: "Tests/SDKs/GitSDKTests"
     ),
     .testTarget(
-        name: "GitUIToolkitTests",
-        dependencies: ["GitDiffModelsService", "GitUIToolkit"],
-        path: "Tests/UIToolkits/GitUIToolkitTests"
-    ),
-    .testTarget(
         name: "KeychainSDKTests",
         dependencies: ["KeychainSDK"],
         path: "Tests/SDKs/KeychainSDKTests"
@@ -826,12 +781,12 @@ var targets: [Target] = [
 ]
 
 #if os(macOS)
-products.append(
-    .library(name: "AIDevToolsKitMac", targets: ["AIDevToolsKitMac"])
-)
-products.append(
-    .library(name: "MarkdownUIToolkit", targets: ["MarkdownUIToolkit"])
-)
+products.append(contentsOf: [
+    .library(name: "AIDevToolsKitMac", targets: ["AIDevToolsKitMac"]),
+    .library(name: "GitUIToolkit", targets: ["GitUIToolkit"]),
+    .library(name: "MarkdownUIToolkit", targets: ["MarkdownUIToolkit"]),
+    .library(name: "RepoExplorerFeature", targets: ["RepoExplorerFeature"]),
+])
 
 dependencies.append(contentsOf: [
     .package(url: "https://github.com/gonzalezreal/swift-markdown-ui.git", from: "2.0.0"),
@@ -839,6 +794,48 @@ dependencies.append(contentsOf: [
 ])
 
 targets.append(contentsOf: [
+    .target(
+        name: "CLIMacCommands",
+        dependencies: [
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            "AIOutputSDK",
+            "AppIPCSDK",
+            "ArchitecturePlannerFeature",
+            "ArchitecturePlannerService",
+            "ClaudeChainFeature",
+            "ClaudeCLISDK",
+            "CredentialFeature",
+            "DataPathsService",
+            "FileTreeService",
+            "GitHubService",
+            .product(name: "MCP", package: "swift-sdk"),
+            "PlanFeature",
+            "PlanService",
+            "PRRadarCLIService",
+            "ProviderRegistryService",
+            "RepositorySDK",
+        ],
+        path: "Sources/Apps/CLIMacCommands"
+    ),
+    .target(
+        name: "GitUIToolkit",
+        dependencies: [
+            "GitDiffModelsService",
+        ],
+        path: "Sources/UIToolkits/GitUIToolkit"
+    ),
+    .target(
+        name: "RepoExplorerFeature",
+        dependencies: [
+            "FileTreeService",
+        ],
+        path: "Sources/Features/RepoExplorerFeature"
+    ),
+    .testTarget(
+        name: "GitUIToolkitTests",
+        dependencies: ["GitDiffModelsService", "GitUIToolkit"],
+        path: "Tests/UIToolkits/GitUIToolkitTests"
+    ),
     .target(
         name: "AIDevToolsKitMac",
         dependencies: [
