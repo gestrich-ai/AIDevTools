@@ -1,3 +1,4 @@
+#if canImport(Darwin)
 import Foundation
 import Testing
 @testable import AIOutputSDK
@@ -78,3 +79,4 @@ struct FileWatcherTests {
         await task.value
     }
 }
+#endif
