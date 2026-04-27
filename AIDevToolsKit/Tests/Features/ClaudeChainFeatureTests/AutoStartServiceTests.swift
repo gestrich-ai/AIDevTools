@@ -69,7 +69,7 @@ final class AutoStartServiceTests: XCTestCase {
     func testMixedNewAndExistingProjects() throws {
         let mockPRService = TestMockPRService(repo: "owner/repo")
         // Set up dynamic response behavior
-        var responseMap: [String: [GitHubPullRequest]] = [
+        let responseMap: [String: [GitHubPullRequest]] = [
             "new-project": [],
             "existing-project": [createGitHubPR(prNumber: 1, taskHash: "abc12345", project: "existing-project")]
         ]
