@@ -128,7 +128,6 @@ public struct AIRunSession: Sendable {
 
     // MARK: - Legacy closure-based execution
 
-    @available(*, deprecated, message: "Use run(prompt:options:onOutput:) instead")
     @discardableResult
     public func run(
         onOutput: (@Sendable (String) -> Void)? = nil,
