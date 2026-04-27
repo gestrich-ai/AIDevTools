@@ -189,7 +189,7 @@ public struct RunSpecChainTaskUseCase: UseCase {
 
         let chainProject = try await source.loadProject()
         let projectBasePath = URL(fileURLWithPath: chainProject.specPath).deletingLastPathComponent().path
-        let chainDir = URL(fileURLWithPath: projectBasePath).deletingLastPathComponent().path
+        _ = URL(fileURLWithPath: projectBasePath).deletingLastPathComponent().path
         let project = Project(name: options.projectName, basePath: projectBasePath)
         let specURL = URL(fileURLWithPath: project.specPath)
         let repository = ProjectRepository(repo: "")
