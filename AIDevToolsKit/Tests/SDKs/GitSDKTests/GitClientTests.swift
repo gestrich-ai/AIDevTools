@@ -66,7 +66,7 @@ struct GitClientTests {
         // Use realpath() so paths match what git reports (e.g. /var → /private/var on macOS)
         let tempDir = rawPath.withCString { cPath -> String in
             var buf = [CChar](repeating: 0, count: Int(PATH_MAX))
-            return Darwin.realpath(cPath, &buf).map { String(cString: $0) } ?? rawPath
+            return realpath(cPath, &buf).map { String(cString: $0) } ?? rawPath
         }
         let result = try await client.execute(GitCLI.Init(), workingDirectory: tempDir)
         #expect(result.isSuccess)
