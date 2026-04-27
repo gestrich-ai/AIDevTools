@@ -6,7 +6,6 @@ var products: [Product] = [
     .executable(name: "ai-dev-tools-kit", targets: ["AIDevToolsKitCLI"]),
     .library(name: "AIOutputSDK", targets: ["AIOutputSDK"]),
     .library(name: "AnthropicSDK", targets: ["AnthropicSDK"]),
-    .library(name: "AppIPCSDK", targets: ["AppIPCSDK"]),
     .library(name: "ChatFeature", targets: ["ChatFeature"]),
     .library(name: "ChatService", targets: ["ChatService"]),
     .library(name: "ClaudeChainCLI", targets: ["ClaudeChainCLI"]),
@@ -421,11 +420,6 @@ var targets: [Target] = [
         path: "Sources/SDKs/AnthropicSDK"
     ),
     .target(
-        name: "AppIPCSDK",
-        dependencies: [],
-        path: "Sources/SDKs/AppIPCSDK"
-    ),
-    .target(
         name: "ClaudeCLISDK",
         dependencies: [
             .product(name: "CLISDK", package: "SwiftCLI"),
@@ -573,11 +567,6 @@ var targets: [Target] = [
             "AIDevToolsKitCLI",
             .product(name: "MCP", package: "swift-sdk"),
         ]
-    ),
-    .testTarget(
-        name: "AppIPCSDKTests",
-        dependencies: ["AppIPCSDK"],
-        path: "Tests/SDKs/AppIPCSDKTests"
     ),
     .testTarget(
         name: "ClaudeChainCLITests",
@@ -752,6 +741,7 @@ var targets: [Target] = [
 #if os(macOS)
 products.append(contentsOf: [
     .library(name: "AIDevToolsKitMac", targets: ["AIDevToolsKitMac"]),
+    .library(name: "AppIPCSDK", targets: ["AppIPCSDK"]),
     .library(name: "FileTreeService", targets: ["FileTreeService"]),
     .library(name: "GitUIToolkit", targets: ["GitUIToolkit"]),
     .library(name: "MarkdownUIToolkit", targets: ["MarkdownUIToolkit"]),
@@ -764,6 +754,16 @@ dependencies.append(contentsOf: [
 ])
 
 targets.append(contentsOf: [
+    .target(
+        name: "AppIPCSDK",
+        dependencies: [],
+        path: "Sources/SDKs/AppIPCSDK"
+    ),
+    .testTarget(
+        name: "AppIPCSDKTests",
+        dependencies: ["AppIPCSDK"],
+        path: "Tests/SDKs/AppIPCSDKTests"
+    ),
     .target(
         name: "ArchitecturePlannerFeature",
         dependencies: [
