@@ -67,6 +67,12 @@ var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/nerdishbynature/octokit.swift", from: "0.14.0"),
 ]
 
+#if os(macOS)
+let macOnlyTargetDeps: [Target.Dependency] = ["CLIMacCommands"]
+#else
+let macOnlyTargetDeps: [Target.Dependency] = []
+#endif
+
 var targets: [Target] = [
     // Apps Layer
     .executableTarget(
@@ -75,7 +81,6 @@ var targets: [Target] = [
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
             "AIOutputSDK",
             "AnthropicSDK",
-            .target(name: "CLIMacCommands", condition: .when(platforms: [.macOS])),
             "ChatFeature",
             "ClaudeChainCLI",
             "ClaudeChainFeature",
@@ -106,7 +111,7 @@ var targets: [Target] = [
             "SkillBrowserFeature",
             "SweepFeature",
             "WorktreeFeature",
-        ],
+        ] + macOnlyTargetDeps,
         path: "Sources/Apps/AIDevToolsKitCLI"
     ),
     // UI Toolkits Layer
@@ -591,7 +596,6 @@ var targets: [Target] = [
         name: "AIDevToolsKitCLITests",
         dependencies: [
             "AIDevToolsKitCLI",
-            .target(name: "CLIMacCommands", condition: .when(platforms: [.macOS])),
             .product(name: "MCP", package: "swift-sdk"),
         ]
     ),
