@@ -117,17 +117,6 @@ var targets: [Target] = [
     
     // Features Layer
     .target(
-        name: "ArchitecturePlannerFeature",
-        dependencies: [
-            "AIOutputSDK",
-            "ArchitecturePlannerService",
-            "DataPathsService",
-            "RepositorySDK",
-            "UseCaseSDK",
-        ],
-        path: "Sources/Features/ArchitecturePlannerFeature"
-    ),
-    .target(
         name: "ChatFeature",
         dependencies: [
             "AIOutputSDK",
@@ -261,11 +250,6 @@ var targets: [Target] = [
     ),
     
     // Services Layer
-    .target(
-        name: "ArchitecturePlannerService",
-        dependencies: [],
-        path: "Sources/Services/ArchitecturePlannerService"
-    ),
     .target(
         name: "ChatService",
         dependencies: [
@@ -596,16 +580,6 @@ var targets: [Target] = [
         path: "Tests/SDKs/AppIPCSDKTests"
     ),
     .testTarget(
-        name: "ArchitecturePlannerFeatureTests",
-        dependencies: ["ArchitecturePlannerFeature", "ArchitecturePlannerService", "RepositorySDK"],
-        path: "Tests/Features/ArchitecturePlannerFeatureTests"
-    ),
-    .testTarget(
-        name: "ArchitecturePlannerServiceTests",
-        dependencies: ["ArchitecturePlannerService"],
-        path: "Tests/Services/ArchitecturePlannerServiceTests"
-    ),
-    .testTarget(
         name: "ClaudeChainCLITests",
         dependencies: ["ClaudeChainCLI"],
         path: "Tests/Apps/ClaudeChainCLITests"
@@ -790,6 +764,32 @@ dependencies.append(contentsOf: [
 ])
 
 targets.append(contentsOf: [
+    .target(
+        name: "ArchitecturePlannerFeature",
+        dependencies: [
+            "AIOutputSDK",
+            "ArchitecturePlannerService",
+            "DataPathsService",
+            "RepositorySDK",
+            "UseCaseSDK",
+        ],
+        path: "Sources/Features/ArchitecturePlannerFeature"
+    ),
+    .target(
+        name: "ArchitecturePlannerService",
+        dependencies: [],
+        path: "Sources/Services/ArchitecturePlannerService"
+    ),
+    .testTarget(
+        name: "ArchitecturePlannerFeatureTests",
+        dependencies: ["ArchitecturePlannerFeature", "ArchitecturePlannerService", "RepositorySDK"],
+        path: "Tests/Features/ArchitecturePlannerFeatureTests"
+    ),
+    .testTarget(
+        name: "ArchitecturePlannerServiceTests",
+        dependencies: ["ArchitecturePlannerService"],
+        path: "Tests/Services/ArchitecturePlannerServiceTests"
+    ),
     .target(
         name: "FileTreeService",
         dependencies: [
