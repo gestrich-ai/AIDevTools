@@ -59,7 +59,7 @@ struct InlineCommentView: View {
                     }
                 }
 
-                if let comment {
+                if comment != nil {
                     RichContentView(commentMarkdown)
                 }
             }
