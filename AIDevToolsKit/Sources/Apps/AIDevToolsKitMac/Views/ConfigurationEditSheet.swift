@@ -260,48 +260,7 @@ struct ConfigurationEditSheet: View {
         LabeledContent("Commands") {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach($runCommandsState) { $cmd in
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 6) {
-                            TextField("Name", text: $cmd.name)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 90)
-
-                            TextField("bash -c ...", text: $cmd.command)
-                                .textFieldStyle(.roundedBorder)
-                                .focused($focusedRunCommandID, equals: cmd.id)
-                                .layoutPriority(1)
-
-                            Toggle("Default", isOn: Binding(
-                                get: { cmd.isDefault },
-                                set: { newValue in
-                                    if newValue {
-                                        for i in runCommandsState.indices {
-                                            runCommandsState[i].isDefault = runCommandsState[i].id == cmd.id
-                                        }
-                                    } else {
-                                        cmd.isDefault = false
-                                    }
-                                }
-                            ))
-                            .toggleStyle(.checkbox)
-
-                            Button(role: .destructive) {
-                                runCommandsState.removeAll { $0.id == cmd.id }
-                            } label: {
-                                Image(systemName: "minus.circle")
-                            }
-                            .buttonStyle(.borderless)
-                        }
-
-                        if focusedRunCommandID != cmd.id, !cmd.command.isEmpty {
-                            Text(cmd.command)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .textSelection(.enabled)
-                                .truncationMode(.middle)
-                        }
-                    }
+                    runCommandRow($cmd)
                 }
 
                 Button {
@@ -315,52 +274,57 @@ struct ConfigurationEditSheet: View {
         }
     }
 
+    @ViewBuilder
+    private func runCommandRow(_ cmd: Binding<RepoRunCommand>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                TextField("Name", text: cmd.name)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 90)
+
+                TextField("bash -c ...", text: cmd.command)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focusedRunCommandID, equals: cmd.wrappedValue.id)
+                    .layoutPriority(1)
+
+                Toggle("Default", isOn: Binding(
+                    get: { cmd.wrappedValue.isDefault },
+                    set: { newValue in
+                        if newValue {
+                            for i in runCommandsState.indices {
+                                runCommandsState[i].isDefault = runCommandsState[i].id == cmd.wrappedValue.id
+                            }
+                        } else {
+                            cmd.wrappedValue.isDefault = false
+                        }
+                    }
+                ))
+                .toggleStyle(.checkbox)
+
+                Button(role: .destructive) {
+                    runCommandsState.removeAll { $0.id == cmd.wrappedValue.id }
+                } label: {
+                    Image(systemName: "minus.circle")
+                }
+                .buttonStyle(.borderless)
+            }
+
+            if focusedRunCommandID != cmd.wrappedValue.id, !cmd.wrappedValue.command.isEmpty {
+                Text(cmd.wrappedValue.command)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .textSelection(.enabled)
+                    .truncationMode(.middle)
+            }
+        }
+    }
+
     private var rulePathsSection: some View {
         LabeledContent("Rule Paths") {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach($prradarRulePaths) { $rulePath in
-                    HStack(spacing: 6) {
-                        TextField("Name", text: $rulePath.name)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 90)
-
-                        TextField("Path", text: $rulePath.path)
-                            .textFieldStyle(.roundedBorder)
-
-                        Button {
-                            let panel = NSOpenPanel()
-                            panel.canChooseFiles = false
-                            panel.canChooseDirectories = true
-                            panel.allowsMultipleSelection = false
-                            if panel.runModal() == .OK, let url = panel.url {
-                                rulePath.path = url.path
-                            }
-                        } label: {
-                            Image(systemName: "folder")
-                        }
-                        .buttonStyle(.borderless)
-
-                        Toggle("Default", isOn: Binding(
-                            get: { rulePath.isDefault },
-                            set: { newValue in
-                                if newValue {
-                                    for i in prradarRulePaths.indices {
-                                        prradarRulePaths[i].isDefault = prradarRulePaths[i].id == rulePath.id
-                                    }
-                                } else {
-                                    rulePath.isDefault = false
-                                }
-                            }
-                        ))
-                        .toggleStyle(.checkbox)
-
-                        Button(role: .destructive) {
-                            prradarRulePaths.removeAll { $0.id == rulePath.id }
-                        } label: {
-                            Image(systemName: "minus.circle")
-                        }
-                        .buttonStyle(.borderless)
-                    }
+                    rulePathRow($rulePath)
                 }
 
                 Button {
@@ -370,6 +334,52 @@ struct ConfigurationEditSheet: View {
                 }
                 .buttonStyle(.borderless)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func rulePathRow(_ rulePath: Binding<RulePath>) -> some View {
+        HStack(spacing: 6) {
+            TextField("Name", text: rulePath.name)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 90)
+
+            TextField("Path", text: rulePath.path)
+                .textFieldStyle(.roundedBorder)
+
+            Button {
+                let panel = NSOpenPanel()
+                panel.canChooseFiles = false
+                panel.canChooseDirectories = true
+                panel.allowsMultipleSelection = false
+                if panel.runModal() == .OK, let url = panel.url {
+                    rulePath.wrappedValue.path = url.path
+                }
+            } label: {
+                Image(systemName: "folder")
+            }
+            .buttonStyle(.borderless)
+
+            Toggle("Default", isOn: Binding(
+                get: { rulePath.wrappedValue.isDefault },
+                set: { newValue in
+                    if newValue {
+                        for i in prradarRulePaths.indices {
+                            prradarRulePaths[i].isDefault = prradarRulePaths[i].id == rulePath.wrappedValue.id
+                        }
+                    } else {
+                        rulePath.wrappedValue.isDefault = false
+                    }
+                }
+            ))
+            .toggleStyle(.checkbox)
+
+            Button(role: .destructive) {
+                prradarRulePaths.removeAll { $0.id == rulePath.wrappedValue.id }
+            } label: {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.borderless)
         }
     }
 
