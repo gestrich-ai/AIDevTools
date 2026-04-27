@@ -57,7 +57,7 @@ public class GitHubActions {
                     content = "\(name)=\(value)\n"
                 }
                 
-                let existingContent = (try? String(contentsOf: fileURL)) ?? ""
+                let existingContent = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
                 let newContent = existingContent + content
                 try newContent.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
             } catch {
@@ -89,7 +89,7 @@ public class GitHubActions {
         } catch {
             // Fallback to creating/appending to file
             do {
-                let existingContent = (try? String(contentsOf: fileURL)) ?? ""
+                let existingContent = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
                 let newContent = existingContent + content
                 try newContent.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
             } catch {
