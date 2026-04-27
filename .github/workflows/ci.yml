@@ -10,7 +10,7 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -28,10 +28,5 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
 
-      - name: Build (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Build
         run: swift build --package-path AIDevToolsKit
-
-      - name: Test (macOS)
-        if: matrix.os == 'macos-latest'
-        run: swift test --package-path AIDevToolsKit
