@@ -32,7 +32,10 @@ This plan investigates whether `--no-parallel` is still required now that the kn
 
 ---
 
-## - [ ] Phase 2: Watch CI and decide
+## - [x] Phase 2: Watch CI and decide
+
+**Skills used**: none
+**Principles applied**: CI run `25137227099` (from `dac0f1f`, which removed `--no-parallel`) hit the 30-minute `timeout-minutes` on both Ubuntu and macOS test steps, confirming a deadlock. Both platforms still require `--no-parallel`. Re-added it to both steps with a comment noting `.enabled(if: CI == nil)` guards are insufficient and citing `dac0f1f` as the test evidence.
 
 **Skills to read**: none
 
