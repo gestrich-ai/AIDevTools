@@ -30,7 +30,10 @@ jobs:
 
       - name: Test (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: swift test --package-path AIDevToolsKit --no-parallel
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit --no-parallel
+          echo "::test-fence::"
 
       - name: Test (macOS)
         if: matrix.os == 'macos-latest'
@@ -39,4 +42,7 @@ jobs:
         # Blocking tests (Process.waitUntilExit) are disabled via .enabled(if: CI == nil)
         # but parallel execution still deadlocks on Swift 6.2 / macOS 14; serialized
         # execution completes reliably.
-        run: swift test --package-path AIDevToolsKit --no-parallel
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit --no-parallel
+          echo "::test-fence::"
