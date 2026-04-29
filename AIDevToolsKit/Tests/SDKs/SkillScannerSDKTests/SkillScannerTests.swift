@@ -96,9 +96,11 @@ struct SkillScannerTests {
         // Assert
         #expect(skills.count == 1)
         #expect(skills[0].name == "my-skill")
-        // Resolve symlinks on both sides: scanner resolves internally (strips /private prefix on macOS,
-        // trailing slashes on Linux), so comparing real paths is the only reliable way.
-        #expect(skills[0].path.resolvingSymlinksInPath() == subdir.resolvingSymlinksInPath())
+        // standardizedFileURL resolves symlinks (handles /var→/private/var on macOS).
+        // Strip trailing slash before comparing — Linux contentsOfDirectory adds it for directories.
+        let lhs = skills[0].path.standardizedFileURL.path
+        let rhs = subdir.standardizedFileURL.path
+        #expect((lhs.hasSuffix("/") ? String(lhs.dropLast()) : lhs) == (rhs.hasSuffix("/") ? String(rhs.dropLast()) : rhs))
     }
 
     @Test("includes reference files found alongside SKILL.md in a subdirectory") func scanFindsReferenceFilesInSubdirectory() throws {
