@@ -58,31 +58,7 @@ struct CommitListDiffModelTests {
             .path
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
 
-        // Run blocking git init on a background thread to avoid blocking the main actor,
-        // which would stall Swift Testing's scheduler on CI.
-        let pathCopy = path
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let process = Process()
-                process.currentDirectoryURL = URL(fileURLWithPath: pathCopy)
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-                process.arguments = ["init"]
-                process.standardError = Pipe()
-                process.standardOutput = Pipe()
-                do {
-                    try process.run()
-                    process.waitUntilExit()
-                    if process.terminationStatus != 0 {
-                        continuation.resume(throwing: TestFailure("git init failed in \(pathCopy)"))
-                    } else {
-                        continuation.resume()
-                    }
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-
+        try runGit(arguments: ["init"], workingDirectory: path)
         _ = try await gitClient.config(key: "user.email", value: "tests@example.com", workingDirectory: path)
         _ = try await gitClient.config(key: "user.name", value: "Test User", workingDirectory: path)
 
