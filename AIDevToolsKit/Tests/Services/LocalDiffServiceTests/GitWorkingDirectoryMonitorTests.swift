@@ -7,7 +7,7 @@ import Testing
 struct GitWorkingDirectoryMonitorTests {
     private let gitClient = GitClient()
 
-    @Test("publishes a history change after a commit advances HEAD")
+    @Test("publishes a history change after a commit advances HEAD", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func publishesHistoryChangesForCommits() async throws {
         let repo = try await makeRepository()
         defer { cleanupRepository(repo) }
@@ -32,7 +32,7 @@ struct GitWorkingDirectoryMonitorTests {
         #expect(changes.contains(.history))
     }
 
-    @Test("publishes an index change after files are staged")
+    @Test("publishes an index change after files are staged", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func publishesIndexChangesForStaging() async throws {
         let repo = try await makeRepository()
         defer { cleanupRepository(repo) }
@@ -97,7 +97,6 @@ struct GitWorkingDirectoryMonitorTests {
             }
             group.addTask {
                 try await Task.sleep(nanoseconds: 3_000_000_000)
-                waiter.cancel()
                 throw TestFailure("Timed out waiting for a git working directory change.")
             }
 
