@@ -41,6 +41,10 @@ jobs:
     name: Build macOS
     needs: test
     runs-on: macos-latest
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +60,11 @@ jobs:
       - name: Package
         run: tar -czf ai-dev-tools-kit-macos-arm64.tar.gz -C AIDevToolsKit/.build/release ai-dev-tools-kit
 
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'ai-dev-tools-kit-*.tar.gz'
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -66,6 +75,10 @@ jobs:
     name: Build Linux
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,6 +96,11 @@ jobs:
 
       - name: Package
         run: tar -czf ai-dev-tools-kit-linux-x86_64.tar.gz -C AIDevToolsKit/.build/release ai-dev-tools-kit
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'ai-dev-tools-kit-*.tar.gz'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

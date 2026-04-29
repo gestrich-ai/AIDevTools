@@ -101,7 +101,10 @@ Confirm:
 
 This is the proof-of-completion: a release was gated on real tests passing on both platforms, published, and consumed successfully by a downstream repo.
 
-## - [ ] Phase 4: Add GitHub Attestations for build provenance
+## - [x] Phase 4: Add GitHub Attestations for build provenance
+
+**Skills used**: none
+**Principles applied**: Added `attestations: write` and `id-token: write` permissions to both `build-macos` and `build-linux` jobs, inserted `actions/attest-build-provenance@v2` after the `Package` step in each. Added a **Verifying the binary** section to `README.md` with the exact `gh attestation verify` command. Added a `Verify attestation` step to AIDevToolsDemo's `test-binary.yml` between checksum verification and binary install.
 
 **Skills to read**: none
 

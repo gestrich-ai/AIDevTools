@@ -25,6 +25,21 @@ INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/gestrich/A
 
 **Supported platforms:** macOS arm64, Linux x86_64
 
+## Verifying the binary
+
+Every release binary is attested with GitHub's build provenance, cryptographically linking each artifact to the exact workflow run, commit SHA, and repository that produced it.
+
+After downloading a release asset, verify it with the `gh` CLI:
+
+```sh
+gh attestation verify ai-dev-tools-kit-linux-x86_64.tar.gz \
+  --repo gestrich/AIDevTools
+```
+
+The output includes the commit SHA, workflow name, and run ID — proving the binary was built by a legitimate workflow run from a specific commit in `gestrich/AIDevTools`, not just uploaded by anyone with repo write access.
+
+This step is optional but recommended for security-sensitive environments. It requires the `gh` CLI, which is already needed for the install script workflow.
+
 ## GitHub Actions
 
 For CI use, download the binary directly instead of using the install script. This avoids `sudo` prompts and works on standard `ubuntu-latest` runners without a Swift toolchain:
