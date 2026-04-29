@@ -28,9 +28,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
 
-      - name: Build (Linux)
+      - name: Test (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: swift build --package-path AIDevToolsKit
+        run: swift test --package-path AIDevToolsKit --no-parallel
 
       - name: Test (macOS)
         if: matrix.os == 'macos-latest'
