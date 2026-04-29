@@ -85,7 +85,9 @@ private func cleanup(_ path: String) {
 
 // MARK: - ListWorktreesUseCase
 
-@Suite("ListWorktreesUseCase")
+// System test: calls makeCommittedRepo() which uses GitClient.execute() → CLIClient.execute() → waitUntilExit().
+// Parallel execution on CI exhausts Swift's cooperative thread pool. Disabled in CI.
+@Suite("ListWorktreesUseCase", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
 struct ListWorktreesUseCaseTests {
 
     let client = GitClient()
@@ -153,7 +155,9 @@ struct ListWorktreesUseCaseTests {
 
 // MARK: - AddWorktreeUseCase
 
-@Suite("AddWorktreeUseCase")
+// System test: calls makeCommittedRepo() which uses GitClient.execute() → CLIClient.execute() → waitUntilExit().
+// Parallel execution on CI exhausts Swift's cooperative thread pool. Disabled in CI.
+@Suite("AddWorktreeUseCase", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
 struct AddWorktreeUseCaseTests {
 
     let client = GitClient()
@@ -177,7 +181,9 @@ struct AddWorktreeUseCaseTests {
 
 // MARK: - RemoveWorktreeUseCase
 
-@Suite("RemoveWorktreeUseCase")
+// System test: calls makeCommittedRepo() and client.execute() directly → CLIClient.execute() → waitUntilExit().
+// Parallel execution on CI exhausts Swift's cooperative thread pool. Disabled in CI.
+@Suite("RemoveWorktreeUseCase", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
 struct RemoveWorktreeUseCaseTests {
 
     let client = GitClient()
