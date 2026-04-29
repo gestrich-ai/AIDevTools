@@ -97,6 +97,7 @@ struct GitWorkingDirectoryMonitorTests {
             }
             group.addTask {
                 try await Task.sleep(nanoseconds: 3_000_000_000)
+                waiter.cancel()
                 throw TestFailure("Timed out waiting for a git working directory change.")
             }
 
