@@ -74,7 +74,10 @@ If the test job fails for any reason (new test failure exposed only in release/b
 
 Note: `scripts/release.sh` guards against a dirty working tree and duplicate tags. Make sure Phase 1 changes are committed before running it.
 
-## - [ ] Phase 3: Verify AIDevToolsDemo uses the new binary
+## - [x] Phase 3: Verify AIDevToolsDemo uses the new binary
+
+**Skills used**: none
+**Principles applied**: Triggered `test-binary.yml` in `gestrich/AIDevToolsDemo` with `version=v0.2.0` via `gh workflow run`. Watched the run complete in ~8s with all steps green: Resolve version, Download release assets, Verify checksum, Install binary, Verify help output, Verify prradar subcommand routing.
 
 **Skills to read**: none
 
