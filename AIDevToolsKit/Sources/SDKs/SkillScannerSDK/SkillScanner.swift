@@ -33,11 +33,14 @@ public struct SkillScanner: Sendable {
             for item in contents {
                 let isDirectory = (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
                 if isDirectory {
-                    let skillFile = item.appendingPathComponent("SKILL.md")
+                    // Normalize: Linux adds trailing slash to directory URLs from contentsOfDirectory
+                    let itemPath = item.path
+                    let normalized = URL(fileURLWithPath: itemPath.hasSuffix("/") ? String(itemPath.dropLast()) : itemPath)
+                    let skillFile = normalized.appendingPathComponent("SKILL.md")
                     if FileManager.default.fileExists(atPath: skillFile.path) {
-                        let name = item.lastPathComponent
-                        let refs = findReferenceFiles(in: item)
-                        skills.append(SkillInfo(name: name, path: item, referenceFiles: refs, source: .project))
+                        let name = normalized.lastPathComponent
+                        let refs = findReferenceFiles(in: normalized)
+                        skills.append(SkillInfo(name: name, path: normalized, referenceFiles: refs, source: .project))
                     }
                 } else if item.pathExtension == "md" {
                     let name = item.deletingPathExtension().lastPathComponent
