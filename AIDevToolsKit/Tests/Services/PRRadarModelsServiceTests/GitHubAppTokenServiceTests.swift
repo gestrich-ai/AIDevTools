@@ -40,6 +40,7 @@ struct GitHubAppTokenServiceTests {
     -----END PRIVATE KEY-----
     """
 
+    #if canImport(Security)
     @Test("JWT has three base64url-encoded segments")
     func jwtStructure() throws {
         // Arrange / Act
@@ -92,6 +93,7 @@ struct GitHubAppTokenServiceTests {
             #expect(!part.contains("="))
         }
     }
+    #endif
 
     @Test("Invalid PEM throws invalidPrivateKey")
     func invalidPEMThrows() {

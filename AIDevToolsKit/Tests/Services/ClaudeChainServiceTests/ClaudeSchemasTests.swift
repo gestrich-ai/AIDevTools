@@ -128,11 +128,11 @@ class ClaudeSchemasTests: XCTestCase {
         let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         
         XCTAssertNotNil(parsed)
-        // Compare with original schema (convert both to NSObject for comparison)
-        let originalData = try JSONSerialization.data(withJSONObject: ClaudeSchemas.mainTaskSchema)
-        let reparsedOriginal = try JSONSerialization.jsonObject(with: originalData) as? [String: Any]
-        
-        XCTAssertTrue(NSDictionary(dictionary: parsed!).isEqual(to: reparsedOriginal!))
+        // Serialize both with sorted keys and compare bytes — NSDictionary.isEqual deep-compare
+        // is unreliable for nested [String: Any] on Linux.
+        let parsedBytes = try JSONSerialization.data(withJSONObject: parsed!, options: [.sortedKeys])
+        let originalData = try JSONSerialization.data(withJSONObject: ClaudeSchemas.mainTaskSchema, options: [.sortedKeys])
+        XCTAssertEqual(parsedBytes, originalData)
     }
     
     func testSummaryTaskSchemaJSONIsValidJSON() throws {
@@ -145,11 +145,10 @@ class ClaudeSchemasTests: XCTestCase {
         let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         
         XCTAssertNotNil(parsed)
-        // Compare with original schema
-        let originalData = try JSONSerialization.data(withJSONObject: ClaudeSchemas.summaryTaskSchema)
-        let reparsedOriginal = try JSONSerialization.jsonObject(with: originalData) as? [String: Any]
-        
-        XCTAssertTrue(NSDictionary(dictionary: parsed!).isEqual(to: reparsedOriginal!))
+        // Serialize both with sorted keys and compare bytes.
+        let parsedBytes = try JSONSerialization.data(withJSONObject: parsed!, options: [.sortedKeys])
+        let originalData = try JSONSerialization.data(withJSONObject: ClaudeSchemas.summaryTaskSchema, options: [.sortedKeys])
+        XCTAssertEqual(parsedBytes, originalData)
     }
     
     func testMainTaskSchemaJSONIsCompact() throws {
