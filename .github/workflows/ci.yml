@@ -35,20 +35,15 @@ jobs:
         # annotations in the check run UI.
         run: |
           echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --no-parallel
+          swift test --package-path AIDevToolsKit
           echo "::test-fence::"
 
       - name: Test (macOS)
         if: matrix.os == 'macos-latest'
-        # --no-parallel prevents Swift Testing's parallel runner from exhausting the
-        # 6-thread cooperative pool on the 3-vCPU GitHub Actions macOS runner.
-        # Blocking tests (Process.waitUntilExit) are disabled via .enabled(if: CI == nil)
-        # but parallel execution still deadlocks on Swift 6.2 / macOS 14; serialized
-        # execution completes reliably.
         # stop-commands prevents tests that emit ::error:: / ::notice:: strings
         # (e.g. GitHub Actions output formatting tests) from creating spurious
         # annotations in the check run UI.
         run: |
           echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --no-parallel
+          swift test --package-path AIDevToolsKit
           echo "::test-fence::"
