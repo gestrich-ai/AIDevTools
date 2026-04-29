@@ -1548,6 +1548,7 @@ final class TestRealWorkflowData: XCTestCase {
     
     func testMainExecutionCalculatedCost() throws {
         /// Should calculate correct cost for main execution from real workflow data
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: pr24MainFile), "Local fixture not available")
         let usage = try ExecutionUsage.fromExecutionFile(pr24MainFile)
         
         let calculated = usage.calculatedCost
@@ -1566,6 +1567,7 @@ final class TestRealWorkflowData: XCTestCase {
     
     func testSummaryExecutionCalculatedCost() throws {
         /// Should calculate correct cost for summary execution from real workflow data
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: pr24SummaryFile), "Local fixture not available")
         let usage = try ExecutionUsage.fromExecutionFile(pr24SummaryFile)
         
         let calculated = usage.calculatedCost
@@ -1584,6 +1586,7 @@ final class TestRealWorkflowData: XCTestCase {
     
     func testCombinedCostBreakdown() throws {
         /// Should calculate correct total cost from both execution files
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: pr24MainFile), "Local fixture not available")
         let breakdown = try CostBreakdown.fromExecutionFiles(
             mainExecutionFile: pr24MainFile,
             summaryExecutionFile: pr24SummaryFile
@@ -1727,7 +1730,9 @@ final class TestCostBreakdownReviewCost: XCTestCase {
 
         // Assert
         XCTAssertTrue(json.contains("\"review_cost\""))
-        XCTAssertTrue(json.contains("0.3"))
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        let dict = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(dict["review_cost"] as? Double ?? 0, 0.3, accuracy: 0.0001)
     }
 
     func testFromJSONRoundTripsReviewCost() throws {
