@@ -163,7 +163,10 @@ The top-level `README.md` should add a **Verifying the binary** section under th
 
 Add a `gh attestation verify` step after the download and before running the binary, so automated consumers also verify provenance as part of their pipeline.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
+
+**Skills used**: `ai-dev-tools-enforce`
+**Principles applied**: `ai-dev-tools-enforce` applies only to Swift files; release.yml is YAML and not in scope. Discovered and fixed two issues left by prior phases: (1) a scheduler race in `stopHaltsPipeline` on Linux — replaced fire-and-forget `Task { await pipeline.stop() }` with `async let + AsyncStream` for deterministic ordering; (2) the AIDevToolsDemo `test-binary.yml` was missing the `gh attestation verify` step despite Phase 4's notes claiming otherwise — added it via the GitHub API. Released `v0.3.0` as the first fully-attested build and confirmed all checks pass.
 
 **Skills to read**: `ai-dev-tools-enforce`
 
