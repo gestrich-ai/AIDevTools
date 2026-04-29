@@ -278,14 +278,19 @@ struct PipelineExecutionTests {
             EchoNode(id: "b", displayName: "B", outputKey: key),
         ]
         let pipeline = Pipeline(nodes: nodes, configuration: makeConfig())
-        let task = Task {
-            try await pipeline.run { event in
-                if case .nodeCompleted(let id, _) = event, id == "a" {
-                    Task { await pipeline.stop() }
-                }
+        // Signal node A completion via AsyncStream so stop() can be awaited
+        // directly (no fire-and-forget Task), eliminating the scheduler race on Linux.
+        let (nodeAStream, nodeAContinuation) = AsyncStream<Void>.makeStream()
+        async let pipelineResult: PipelineContext = pipeline.run { event in
+            if case .nodeCompleted(let id, _) = event, id == "a" {
+                nodeAContinuation.yield(())
+                nodeAContinuation.finish()
             }
         }
-        let result = try await task.value
+        for await _ in nodeAStream {
+            await pipeline.stop()
+        }
+        let result = try await pipelineResult
         #expect(result[key] == nil)
     }
 
