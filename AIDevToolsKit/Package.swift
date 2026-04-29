@@ -661,11 +661,6 @@ var targets: [Target] = [
         path: "Tests/SDKs/KeychainSDKTests"
     ),
     .testTarget(
-        name: "LocalDiffServiceTests",
-        dependencies: ["GitSDK", "LocalDiffService"],
-        path: "Tests/Services/LocalDiffServiceTests"
-    ),
-    .testTarget(
         name: "LoggingSDKTests",
         dependencies: [
             .product(name: "Logging", package: "swift-log"),
@@ -909,6 +904,14 @@ targets.append(contentsOf: [
         name: "AIDevToolsKitMacTests",
         dependencies: ["AIDevToolsKitMac", "ClaudeChainFeature", "ClaudeChainService", "DataPathsService", "GitSDK", "LocalDiffService"],
         path: "Tests/Apps/AIDevToolsKitMacTests"
+    ),
+    // Tests that call Process().waitUntilExit() or use FSEventStream/keychain. These
+    // block Swift's cooperative thread pool when run in parallel and must not run in CI.
+    // They are disabled automatically via .enabled(if: CI env var is absent).
+    .testTarget(
+        name: "SystemTests",
+        dependencies: ["AIDevToolsKitMac", "GitSDK", "LocalDiffService"],
+        path: "Tests/SystemTests"
     ),
 ])
 #endif

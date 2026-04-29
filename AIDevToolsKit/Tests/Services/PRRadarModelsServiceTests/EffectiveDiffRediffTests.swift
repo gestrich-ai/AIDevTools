@@ -189,7 +189,9 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
 
 // MARK: - Tests: rediff (via git diff --no-index)
 
-@Suite struct RediffRegionsTests {
+// System test: calls gitRediff() which runs Process().waitUntilExit(). Disabled in CI.
+@Suite(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+struct RediffRegionsTests {
 
     @Test func identicalRegionsProduceEmptyDiff() async throws {
         let text = "line1\nline2\nline3\n"
@@ -325,7 +327,9 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
 
 // MARK: - Tests: computeEffectiveDiffForCandidate
 
-@Suite struct ComputeEffectiveDiffForCandidateTests {
+// System test: passes gitRediff() as a closure, which calls Process().waitUntilExit(). Disabled in CI.
+@Suite(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+struct ComputeEffectiveDiffForCandidateTests {
 
     @Test func pureMoveProducesEmptyHunks() async throws {
         let oldContent = "line1\nline2\nline3\nline4\nline5\n"

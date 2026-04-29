@@ -184,7 +184,8 @@ struct SweepClaudeChainSourceNextTaskNoGitTests {
 
 // MARK: - nextTask git tests
 
-@Suite("SweepClaudeChainSource.nextTask (with git)")
+// System test: calls initGitRepo() which calls Process().waitUntilExit(). Disabled in CI.
+@Suite("SweepClaudeChainSource.nextTask (with git)", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
 struct SweepClaudeChainSourceNextTaskGitTests {
 
     @Test("returns first file when cursor is nil")
@@ -382,7 +383,8 @@ struct SweepClaudeChainSourceDirectoryLoadProjectTests {
 
 // MARK: - nextTask directory-mode tests (with git)
 
-@Suite("SweepClaudeChainSource.nextTask (directory mode)")
+// System test: calls initGitRepo() which calls Process().waitUntilExit(). Disabled in CI.
+@Suite("SweepClaudeChainSource.nextTask (directory mode)", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
 struct SweepClaudeChainSourceDirectoryNextTaskTests {
 
     @Test("returns first directory with Directory label in instructions")

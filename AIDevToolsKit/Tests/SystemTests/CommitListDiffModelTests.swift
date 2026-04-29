@@ -4,8 +4,11 @@ import LocalDiffService
 import Testing
 @testable import AIDevToolsKitMac
 
+// System test: @MainActor suite that calls Process().waitUntilExit() in makeRepository().
+// Blocking the cooperative thread pool from a @MainActor context can stall Swift Testing's
+// scheduler when many such tests run in parallel on CI. Disabled in CI; run locally.
 @MainActor
-@Suite("CommitListDiffModel")
+@Suite("CommitListDiffModel", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
 struct CommitListDiffModelTests {
     private let gitClient = GitClient()
     private let diffService = LocalDiffService()
