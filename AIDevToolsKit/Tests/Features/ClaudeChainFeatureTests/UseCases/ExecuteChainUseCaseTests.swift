@@ -5,7 +5,8 @@ import ClaudeChainService
 import Foundation
 import Testing
 
-@Suite("ExecuteSpecChainUseCase - spec verification")
+@Suite("ExecuteSpecChainUseCase - spec verification",
+       .enabled(if: FileManager.default.fileExists(atPath: "/Users/bill/Developer/personal/claude-chain-demo")))
 struct ExecuteSpecChainUseCaseSpecTests {
 
     let demoRepoPath = URL(fileURLWithPath: "/Users/bill/Developer/personal/claude-chain-demo")
