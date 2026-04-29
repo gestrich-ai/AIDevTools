@@ -53,7 +53,10 @@ To separate per-platform test commands (same pattern as `ci.yml`):
 
 No other changes — `build-macos`, `build-linux`, `release` jobs are correct as-is.
 
-## - [ ] Phase 2: Trigger a new release and watch it pass
+## - [x] Phase 2: Trigger a new release and watch it pass
+
+**Skills used**: none
+**Principles applied**: Pushed main branch so Phase 1 changes were live on the remote, then ran `./scripts/release.sh v0.2.0`. Watched the workflow via `gh run watch` and confirmed all five jobs passed (Test macOS, Test Linux, Build macOS, Build Linux, Create Release). Verified the GitHub Release `v0.2.0` contains all three expected assets: `ai-dev-tools-kit-macos-arm64.tar.gz`, `ai-dev-tools-kit-linux-x86_64.tar.gz`, and `checksums.txt`.
 
 **Skills to read**: none
 
