@@ -6,12 +6,53 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Round 1 confirmed: Half A (A-E, 18 targets) deadlocks, Half B (G-W) passes.
-  # Round 2: Bisect Half A into two quarters.
+  # Round 1: Half A deadlocks, Half B passes.
+  # Round 2: Quarter A1 deadlocks, Quarter A2 passes.
+  # Round 3: Bisect Quarter A1 (9 targets) into Eighth A1a (5) and Eighth A1b (4).
 
-  # Quarter A1: first 9 targets from Half A
-  quarter-a1:
-    name: "Quarter A1 (AIDevTools..ClaudeChainFeature)"
+  # Eighth A1a: first 5 targets
+  eighth-a1a:
+    name: "Eighth A1a (AIDevToolsKitCLI..ChatFeature)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install deps
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Run Eighth A1a in parallel
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit \
+            --filter "AIDevToolsKitCLITests|AIOutputSDKTests|ArchitecturePlannerFeatureTests|ArchitecturePlannerServiceTests|ChatFeatureTests" \
+            2>&1 | tail -50
+          echo "::test-fence::"
+
+  # Eighth A1b: last 4 targets
+  eighth-a1b:
+    name: "Eighth A1b (ChatService..ClaudeChainFeature)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install deps
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Run Eighth A1b in parallel
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit \
+            --filter "ChatServiceTests|ClaudeCLISDKTests|ClaudeChainCLITests|ClaudeChainFeatureTests" \
+            2>&1 | tail -50
+          echo "::test-fence::"
+
+  # Combined: all 9 Quarter A1 targets (control — should still deadlock)
+  quarter-a1-control:
+    name: "Quarter A1 Control (all 9)"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -29,9 +70,9 @@ jobs:
             2>&1 | tail -50
           echo "::test-fence::"
 
-  # Quarter A2: last 9 targets from Half A
-  quarter-a2:
-    name: "Quarter A2 (ClaudeChainSDK..EvalService)"
+  # Cross: Eighth A1a + A1b swapped pairs (to detect interaction effects)
+  eighth-a1a-plus-a2:
+    name: "Eighth A1a + Quarter A2"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -41,50 +82,10 @@ jobs:
           swift-version: '6.2'
       - name: Install deps
         run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run Quarter A2 in parallel
+      - name: Run Eighth A1a + Quarter A2 in parallel
         run: |
           echo "::stop-commands::test-fence"
           swift test --package-path AIDevToolsKit \
-            --filter "ClaudeChainSDKTests|ClaudeChainServiceTests|CredentialFeatureTests|CredentialServiceTests|DataPathsServiceTests|EnvironmentSDKTests|EvalFeatureTests|EvalSDKTests|EvalServiceTests" \
-            2>&1 | tail -50
-          echo "::test-fence::"
-
-  # Cross-quarter: A1 + Half B (to check if A1 alone causes deadlock with more targets)
-  quarter-a1-plus-half-b:
-    name: "Quarter A1 + Half B"
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run Quarter A1 + Half B in parallel
-        run: |
-          echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit \
-            --filter "AIDevToolsKitCLITests|AIOutputSDKTests|ArchitecturePlannerFeatureTests|ArchitecturePlannerServiceTests|ChatFeatureTests|ChatServiceTests|ClaudeCLISDKTests|ClaudeChainCLITests|ClaudeChainFeatureTests|GitSDKTests|KeychainSDKTests|LoggingSDKTests|PRRadarModelsServiceTests|PipelineFeatureTests|PipelineSDKTests|PlanFeatureTests|PlanServiceTests|RepositorySDKTests|SkillBrowserFeatureTests|SkillScannerSDKTests|SweepServiceTests|WorktreeFeatureTests" \
-            2>&1 | tail -50
-          echo "::test-fence::"
-
-  # Cross-quarter: A2 + Half B
-  quarter-a2-plus-half-b:
-    name: "Quarter A2 + Half B"
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run Quarter A2 + Half B in parallel
-        run: |
-          echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit \
-            --filter "ClaudeChainSDKTests|ClaudeChainServiceTests|CredentialFeatureTests|CredentialServiceTests|DataPathsServiceTests|EnvironmentSDKTests|EvalFeatureTests|EvalSDKTests|EvalServiceTests|GitSDKTests|KeychainSDKTests|LoggingSDKTests|PRRadarModelsServiceTests|PipelineFeatureTests|PipelineSDKTests|PlanFeatureTests|PlanServiceTests|RepositorySDKTests|SkillBrowserFeatureTests|SkillScannerSDKTests|SweepServiceTests|WorktreeFeatureTests" \
+            --filter "AIDevToolsKitCLITests|AIOutputSDKTests|ArchitecturePlannerFeatureTests|ArchitecturePlannerServiceTests|ChatFeatureTests|ClaudeChainSDKTests|ClaudeChainServiceTests|CredentialFeatureTests|CredentialServiceTests|DataPathsServiceTests|EnvironmentSDKTests|EvalFeatureTests|EvalSDKTests|EvalServiceTests" \
             2>&1 | tail -50
           echo "::test-fence::"
