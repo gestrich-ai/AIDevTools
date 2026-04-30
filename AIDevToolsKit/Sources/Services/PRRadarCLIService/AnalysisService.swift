@@ -280,7 +280,7 @@ public struct AnalysisService: Sendable {
                 }
                 let scriptService = ScriptAnalysisService()
                 let focusedScriptHunks = PRHunk.filterForFocusArea(allHunks, focusArea: task.focusArea)
-                let (scriptOutcome, scriptOutput) = scriptService.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: focusedScriptHunks)
+                let (scriptOutcome, scriptOutput) = await scriptService.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: focusedScriptHunks)
                 result = scriptOutcome
                 try EvaluationOutputWriter.write(scriptOutput, to: evalsDir)
 

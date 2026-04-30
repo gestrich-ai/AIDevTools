@@ -64,7 +64,7 @@ public struct AnalyzeSingleTaskUseCase: StreamingUseCase {
                         )
                         let hunks = resolvedDiff?.hunks ?? []
                         let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
-                        let (outcome, output) = ScriptAnalysisService().analyzeTask(task, scriptPath: scriptPath, repoPath: config.repoPath, hunks: focusedHunks)
+                        let (outcome, output) = await ScriptAnalysisService().analyzeTask(task, scriptPath: scriptPath, repoPath: config.repoPath, hunks: focusedHunks)
                         result = outcome
                         try EvaluationOutputWriter.write(output, to: evalsDir)
                     } else {

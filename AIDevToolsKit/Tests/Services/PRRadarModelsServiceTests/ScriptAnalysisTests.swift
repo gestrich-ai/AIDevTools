@@ -804,7 +804,7 @@ struct ScriptParsingTests {
 struct ScriptAnalysisServiceTests {
 
     @Test("happy path: script with violations returns success")
-    func happyPathWithViolations() throws {
+    func happyPathWithViolations() async throws {
         // Arrange
         let scriptOutput = "15\t8\t5\tImport out of order\n23\t1\t3\n"
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
@@ -818,7 +818,7 @@ struct ScriptAnalysisServiceTests {
         ])]
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
+        let (result, _) = await service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -838,7 +838,7 @@ struct ScriptAnalysisServiceTests {
     }
 
     @Test("empty stdout returns success with no violations")
-    func emptyStdout() throws {
+    func emptyStdout() async throws {
         // Arrange
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: "")
         defer { cleanup() }
@@ -847,7 +847,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
+        let (result, _) = await service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .success(let r) = result {
@@ -858,7 +858,7 @@ struct ScriptAnalysisServiceTests {
     }
 
     @Test("non-zero exit code returns error with stderr")
-    func nonZeroExit() throws {
+    func nonZeroExit() async throws {
         // Arrange
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: "", exitCode: 1, stderr: "Script failed")
         defer { cleanup() }
@@ -867,7 +867,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
+        let (result, _) = await service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -878,7 +878,7 @@ struct ScriptAnalysisServiceTests {
     }
 
     @Test("script not found returns error")
-    func scriptNotFound() {
+    func scriptNotFound() async {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: repoDir, withIntermediateDirectories: true)
@@ -888,7 +888,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: "scripts/nonexistent.sh", repoPath: repoDir.path, hunks: [])
+        let (result, _) = await service.analyzeTask(task, scriptPath: "scripts/nonexistent.sh", repoPath: repoDir.path, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -899,7 +899,7 @@ struct ScriptAnalysisServiceTests {
     }
 
     @Test("script not executable returns error")
-    func scriptNotExecutable() throws {
+    func scriptNotExecutable() async throws {
         // Arrange
         let repoDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let scriptsDir = repoDir.appendingPathComponent("scripts")
@@ -914,7 +914,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: "scripts/check.sh", repoPath: repoDir.path, hunks: [])
+        let (result, _) = await service.analyzeTask(task, scriptPath: "scripts/check.sh", repoPath: repoDir.path, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -925,7 +925,7 @@ struct ScriptAnalysisServiceTests {
     }
 
     @Test("post-filtering: only violations on changed lines survive")
-    func postFiltering() throws {
+    func postFiltering() async throws {
         // Arrange — script reports violations on lines 10, 15, 20; only line 15 is changed
         let scriptOutput = "10\t0\t5\tLine 10\n15\t0\t5\tLine 15\n20\t0\t5\tLine 20\n"
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
@@ -938,7 +938,7 @@ struct ScriptAnalysisServiceTests {
         ])]
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
+        let (result, _) = await service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -950,7 +950,7 @@ struct ScriptAnalysisServiceTests {
     }
 
     @Test("newCodeLinesOnly: true filters to only added lines")
-    func newCodeLinesOnlyFiltering() throws {
+    func newCodeLinesOnlyFiltering() async throws {
         // Arrange — script reports violations on lines 10, 11, 12
         // Line 10 is added, line 11 is changed (in move), line 12 is removed
         let scriptOutput = "10\t0\t5\n11\t0\t5\n12\t0\t5\n"
@@ -966,7 +966,7 @@ struct ScriptAnalysisServiceTests {
         ])]
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
+        let (result, _) = await service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert — only line 10 (changeKind == .added) passes
         if case .success(let r) = result {
@@ -978,7 +978,7 @@ struct ScriptAnalysisServiceTests {
     }
 
     @Test("newCodeLinesOnly: false allows all changed lines")
-    func allChangedLinesFiltering() throws {
+    func allChangedLinesFiltering() async throws {
         // Arrange
         let scriptOutput = "10\t0\t5\n11\t0\t5\n12\t0\t5\n13\t0\t5\n"
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
@@ -994,7 +994,7 @@ struct ScriptAnalysisServiceTests {
         ])]
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
+        let (result, _) = await service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert — lines 10, 11, 12 pass (changed); line 13 (unchanged) does not
         if case .success(let r) = result {
@@ -1007,7 +1007,7 @@ struct ScriptAnalysisServiceTests {
     }
 
     @Test("malformed script output returns error")
-    func malformedOutput() throws {
+    func malformedOutput() async throws {
         // Arrange
         let scriptOutput = "this is not valid TSV"
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
@@ -1017,7 +1017,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
+        let (result, _) = await service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .error(let e) = result {

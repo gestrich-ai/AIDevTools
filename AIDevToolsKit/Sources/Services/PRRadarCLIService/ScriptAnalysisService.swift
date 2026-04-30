@@ -15,7 +15,7 @@ public struct ScriptAnalysisService: Sendable {
         scriptPath: String,
         repoPath: String,
         hunks: [PRHunk]
-    ) -> (outcome: RuleOutcome, output: EvaluationOutput) {
+    ) async -> (outcome: RuleOutcome, output: EvaluationOutput) {
         let startDate = Date()
         let startTime = startDate.timeIntervalSinceReferenceDate
         let startedAt = ISO8601DateFormatter().string(from: startDate)
@@ -81,13 +81,29 @@ public struct ScriptAnalysisService: Sendable {
             return makeErrorResult("Failed to launch script '\(scriptPath)': \(error.localizedDescription)")
         }
 
-        // Read pipe data before waitUntilExit to avoid deadlock when pipe buffer fills
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
+        // Read both pipes concurrently on DispatchQueue threads so readDataToEndOfFile()
+        // doesn't block the cooperative thread pool while the script runs. Reads complete
+        // when the process closes its pipe ends on exit.
+        let stdoutHandle = stdoutPipe.fileHandleForReading
+        let stderrHandle = stderrPipe.fileHandleForReading
+        async let stdoutDataAsync: Data = withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                continuation.resume(returning: stdoutHandle.readDataToEndOfFile())
+            }
+        }
+        async let stderrDataAsync: Data = withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                continuation.resume(returning: stderrHandle.readDataToEndOfFile())
+            }
+        }
 
-        let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
-        let stderr = String(data: stderrData, encoding: .utf8) ?? ""
+        // Suspend this task until the process exits, freeing the cooperative thread.
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            process.terminationHandler = { _ in continuation.resume() }
+        }
+
+        let stdout = String(data: await stdoutDataAsync, encoding: .utf8) ?? ""
+        let stderr = String(data: await stderrDataAsync, encoding: .utf8) ?? ""
 
         if !stdout.isEmpty {
             entries.append(OutputEntry(type: .text, content: stdout.trimmingCharacters(in: .whitespacesAndNewlines), label: "stdout", timestamp: Date()))
