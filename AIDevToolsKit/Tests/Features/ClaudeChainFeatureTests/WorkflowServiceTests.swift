@@ -76,7 +76,7 @@ struct WorkflowServiceTests {
     @Test("GitHubAPIError message names the project")
     func triggerErrorMessageNamesProject() async throws {
         let service = WorkflowService(githubService: FailingGitHubPRService())
-        let error = try #require(throws: GitHubAPIError.self) {
+        let error = try await #require(throws: GitHubAPIError.self) {
             try await service.triggerClaudeChainWorkflow(
                 projectName: "my-refactor",
                 baseBranch: "main",
