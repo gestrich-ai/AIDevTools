@@ -72,6 +72,8 @@ struct GitClientTests {
         }
         let result = try await client.execute(GitCLI.Init(), workingDirectory: tempDir)
         #expect(result.isSuccess)
+        _ = try await client.config(key: "user.email", value: "test@example.com", workingDirectory: tempDir)
+        _ = try await client.config(key: "user.name", value: "Test User", workingDirectory: tempDir)
         return tempDir
     }
 
