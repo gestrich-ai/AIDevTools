@@ -905,9 +905,9 @@ targets.append(contentsOf: [
         dependencies: ["AIDevToolsKitMac", "ClaudeChainFeature", "ClaudeChainService", "DataPathsService", "GitSDK", "LocalDiffService"],
         path: "Tests/Apps/AIDevToolsKitMacTests"
     ),
-    // Tests that call Process().waitUntilExit() or use FSEventStream/keychain. These
-    // block Swift's cooperative thread pool when run in parallel. CI uses --no-parallel
-    // to avoid deadlocks, so these now run in CI.
+    // Tests that call Process().waitUntilExit() or use FSEventStream/keychain.
+    // Previously disabled in CI due to cooperative thread pool deadlocks under
+    // parallel execution; fixed and re-enabled.
     .testTarget(
         name: "SystemTests",
         dependencies: ["AIDevToolsKitMac", "GitSDK", "LocalDiffService"],

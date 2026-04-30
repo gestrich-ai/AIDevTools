@@ -33,13 +33,9 @@ jobs:
         # stop-commands prevents tests that emit ::error:: / ::notice:: strings
         # (e.g. GitHub Actions output formatting tests) from creating spurious
         # annotations in the check run UI.
-        # --no-parallel: runs XCTest and Swift Testing serially (deadlock-safe).
-        # Second invocation runs one Swift Testing suite in parallel to bisect
-        # which suite(s) cause the cooperative-thread deadlock.
         run: |
           echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --no-parallel
-          swift test --package-path AIDevToolsKit --filter "DurationFormatter"
+          swift test --package-path AIDevToolsKit
           echo "::test-fence::"
 
       - name: Test (macOS)
@@ -47,11 +43,7 @@ jobs:
         # stop-commands prevents tests that emit ::error:: / ::notice:: strings
         # (e.g. GitHub Actions output formatting tests) from creating spurious
         # annotations in the check run UI.
-        # --no-parallel: runs XCTest and Swift Testing serially (deadlock-safe).
-        # Second invocation runs one Swift Testing suite in parallel to bisect
-        # which suite(s) cause the cooperative-thread deadlock.
         run: |
           echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --no-parallel
-          swift test --package-path AIDevToolsKit --filter "DurationFormatter"
+          swift test --package-path AIDevToolsKit
           echo "::test-fence::"
