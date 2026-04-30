@@ -8,7 +8,7 @@ import Testing
 // Blocking the cooperative thread pool from a @MainActor context can stall Swift Testing's
 // scheduler when many such tests run in parallel on CI. Disabled in CI; run locally.
 @MainActor
-@Suite("CommitListDiffModel", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+@Suite("CommitListDiffModel")
 struct CommitListDiffModelTests {
     private let gitClient = GitClient()
     private let diffService = LocalDiffService()

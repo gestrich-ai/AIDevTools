@@ -7,7 +7,7 @@ import Testing
 
 // System test: initGitRepo() calls Process().waitUntilExit() multiple times per test setup.
 // Parallel execution on CI exhausts Swift's cooperative thread pool. Disabled in CI.
-@Suite("RunSpecChainTaskUseCase", .serialized, .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+@Suite("RunSpecChainTaskUseCase", .serialized)
 struct RunSpecChainTaskUseCaseTests {
 
     // MARK: - Helpers

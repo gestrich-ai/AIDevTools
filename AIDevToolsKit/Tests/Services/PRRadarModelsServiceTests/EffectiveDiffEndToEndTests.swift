@@ -72,7 +72,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
 // System test: each test calls gitRediff() which runs Process().waitUntilExit(), blocking the
 // Swift cooperative thread pool. Parallel execution on CI exhausts the pool. Disabled in CI.
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+@Suite
 struct EffectiveDiffEndToEndTests {
 
     // Fixture 1: Pure move, no changes

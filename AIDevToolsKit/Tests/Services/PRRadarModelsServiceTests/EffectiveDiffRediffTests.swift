@@ -190,7 +190,7 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
 // MARK: - Tests: rediff (via git diff --no-index)
 
 // System test: calls gitRediff() which runs Process().waitUntilExit(). Disabled in CI.
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+@Suite
 struct RediffRegionsTests {
 
     @Test func identicalRegionsProduceEmptyDiff() async throws {
@@ -328,7 +328,7 @@ struct RediffRegionsTests {
 // MARK: - Tests: computeEffectiveDiffForCandidate
 
 // System test: passes gitRediff() as a closure, which calls Process().waitUntilExit(). Disabled in CI.
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+@Suite
 struct ComputeEffectiveDiffForCandidateTests {
 
     @Test func pureMoveProducesEmptyHunks() async throws {

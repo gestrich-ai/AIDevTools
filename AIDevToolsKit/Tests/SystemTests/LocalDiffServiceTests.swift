@@ -6,7 +6,7 @@ import Testing
 // System test: calls Process().waitUntilExit() in makeRepository(), which blocks Swift's
 // cooperative thread pool. Running many such tests in parallel on CI exhausts the pool
 // and causes a total deadlock. Disabled in CI; run locally without the CI env var set.
-@Suite("LocalDiffService", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+@Suite("LocalDiffService")
 struct LocalDiffServiceTests {
     private let gitClient = GitClient()
     private let service = LocalDiffService()

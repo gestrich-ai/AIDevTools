@@ -57,7 +57,7 @@ struct GitCLICommandTests {
 
 // System test: calls GitClient.execute() → CLIClient.execute() → waitUntilExit().
 // Parallel execution on CI exhausts Swift's cooperative thread pool. Disabled in CI.
-@Suite("GitClient", .enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+@Suite("GitClient")
 struct GitClientTests {
 
     let client = GitClient()
