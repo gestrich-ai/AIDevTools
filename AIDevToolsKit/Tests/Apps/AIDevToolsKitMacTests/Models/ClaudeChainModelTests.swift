@@ -43,6 +43,36 @@ struct ClaudeChainModelTests {
         return ClaudeChainModel(providerRegistry: registry, dataPathsService: dataPathsService, gitClientFactory: { _ in GitClient() })
     }
 
+    /// Polls the model's state until it leaves `.loadingChains`, up to `timeout`.
+    @MainActor private func awaitLoaded(
+        _ model: ClaudeChainModel,
+        timeout: Duration = .milliseconds(2000)
+    ) async throws {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if case .loadingChains = model.state {
+                try await Task.sleep(for: .milliseconds(10))
+            } else {
+                return
+            }
+        }
+    }
+
+    /// Polls the model's state until it leaves `.executing`, up to `timeout`.
+    @MainActor private func awaitCompleted(
+        _ model: ClaudeChainModel,
+        timeout: Duration = .milliseconds(2000)
+    ) async throws {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if case .executing = model.state {
+                try await Task.sleep(for: .milliseconds(10))
+            } else {
+                return
+            }
+        }
+    }
+
     // MARK: - loadChains state transitions
 
     @Test("initial state is idle")
@@ -101,7 +131,7 @@ struct ClaudeChainModelTests {
 
         // Act
         model.loadChains(for: repoPath, githubCredentialProfileId: nil)
-        try await Task.sleep(for: .milliseconds(100))
+        try await awaitLoaded(model)
 
         // Assert: state is .loaded (not .error) — no credentials is a graceful fallback
         guard case .loaded = model.state else {
@@ -124,7 +154,7 @@ struct ClaudeChainModelTests {
 
         // Act
         model.loadChains(for: tempDir, githubCredentialProfileId: nil)
-        try await Task.sleep(for: .milliseconds(100))
+        try await awaitLoaded(model)
 
         // Assert
         guard case .loaded(let projects) = model.state else {
@@ -166,7 +196,7 @@ struct ClaudeChainModelTests {
 
         // Act
         model.loadChains(for: tempDir, githubCredentialProfileId: nil)
-        try await Task.sleep(for: .milliseconds(100))
+        try await awaitLoaded(model)
 
         // Assert: state is .loaded (graceful fallback when no credentials)
         guard case .loaded = model.state else {
@@ -219,7 +249,7 @@ struct ClaudeChainModelTests {
         // Act
         model.executeChain(project: project, repoPath: tempDir)
         // Wait for the async Task inside executeChain to complete.
-        try await Task.sleep(for: .milliseconds(200))
+        try await awaitCompleted(model)
 
         // Assert: strategy returns a failed result rather than throwing.
         guard case .completed(let result) = model.state else {

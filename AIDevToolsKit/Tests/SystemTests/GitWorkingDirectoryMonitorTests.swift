@@ -24,7 +24,7 @@ struct GitWorkingDirectoryMonitorTests {
             pollIntervalNanoseconds: 50_000_000
         )
         let stream = monitor.changes(repoPath: repo)
-        let waiter = firstChange(in: stream)
+        let waiter = firstChange(in: stream, containing: .history)
 
         try await Task.sleep(nanoseconds: 300_000_000)
 
@@ -49,7 +49,7 @@ struct GitWorkingDirectoryMonitorTests {
             pollIntervalNanoseconds: 50_000_000
         )
         let stream = monitor.changes(repoPath: repo)
-        let waiter = firstChange(in: stream)
+        let waiter = firstChange(in: stream, containing: .index)
 
         try await Task.sleep(nanoseconds: 300_000_000)
 
@@ -83,13 +83,25 @@ struct GitWorkingDirectoryMonitorTests {
         try content.write(to: fileURL, atomically: true, encoding: .utf8)
     }
 
-    private func firstChange(in stream: AsyncStream<Set<GitWorkingDirectoryChange>>) -> Task<Set<GitWorkingDirectoryChange>, Error> {
+    private func firstChange(
+        in stream: AsyncStream<Set<GitWorkingDirectoryChange>>,
+        containing expected: GitWorkingDirectoryChange? = nil
+    ) -> Task<Set<GitWorkingDirectoryChange>, Error> {
         Task {
+            var accumulated: Set<GitWorkingDirectoryChange> = []
             var iterator = stream.makeAsyncIterator()
-            guard let changes = await iterator.next() else {
+            while let changes = await iterator.next() {
+                accumulated.formUnion(changes)
+                if let expected {
+                    if accumulated.contains(expected) { return accumulated }
+                } else {
+                    return accumulated
+                }
+            }
+            guard !accumulated.isEmpty else {
                 throw TestFailure("Monitor stream ended before emitting a change.")
             }
-            return changes
+            return accumulated
         }
     }
 
