@@ -6,15 +6,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Rounds 1-4 narrowed deadlock to ClaudeChainFeatureTests (hangs even solo).
-  # Round 5: Separate build from test to determine if it's a compile-time or
-  # test-runtime hang. Also test individual test files within the target.
-
-  # Phase A: Build only (no test execution)
-  build-only:
-    name: "Build: ClaudeChainFeatureTests (no run)"
+  # The fix: WorkflowService now uses async/await instead of DispatchSemaphore+Task
+  # which deadlocked on Linux's cooperative thread pool.
+  # Run ALL tests in parallel to verify the fix.
+  all-parallel:
+    name: All tests parallel (verify fix)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: swift-actions/setup-swift@v2
@@ -22,129 +20,8 @@ jobs:
           swift-version: '6.2'
       - name: Install deps
         run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Build test target
-        run: |
-          swift build --package-path AIDevToolsKit --build-tests 2>&1 | tail -100
-          echo "BUILD_EXIT=$?" >> $GITHUB_ENV
-      - name: Report
-        run: echo "Build exited with $BUILD_EXIT"
-
-  # Phase B: Run only specific test files to find which one hangs
-  test-prservice:
-    name: "Test: PRServiceTests only"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run
+      - name: Run all tests in parallel
         run: |
           echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --filter "PRServiceTests" 2>&1
-          echo "::test-fence::"
-
-  test-workflowservice:
-    name: "Test: WorkflowServiceTests only"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run
-        run: |
-          echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --filter "WorkflowServiceTests" 2>&1
-          echo "::test-fence::"
-
-  test-autostart:
-    name: "Test: AutoStartServiceTests only"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run
-        run: |
-          echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --filter "AutoStartServiceTests" 2>&1
-          echo "::test-fence::"
-
-  test-assignee:
-    name: "Test: AssigneeServiceTests only"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run
-        run: |
-          echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --filter "AssigneeServiceTests" 2>&1
-          echo "::test-fence::"
-
-  test-taskhashing:
-    name: "Test: TaskHashingTests only"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run
-        run: |
-          echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --filter "TaskHashingTests" 2>&1
-          echo "::test-fence::"
-
-  test-worktreeoptions:
-    name: "Test: WorktreeOptionsTests only"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run
-        run: |
-          echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --filter "WorktreeOptionsTests" 2>&1
-          echo "::test-fence::"
-
-  test-executechain:
-    name: "Test: ExecuteChainUseCaseTests only"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '6.2'
-      - name: Install deps
-        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run
-        run: |
-          echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --filter "ExecuteChainUseCaseTests" 2>&1
+          swift test --package-path AIDevToolsKit
           echo "::test-fence::"
