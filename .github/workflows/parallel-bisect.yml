@@ -1,0 +1,118 @@
+name: Parallel Bisect (Linux)
+
+on:
+  push:
+    branches: [fix/parallel-testing-linux]
+  workflow_dispatch:
+
+jobs:
+  # Job 1: Confirm deadlock — run ALL tests in parallel (no --no-parallel flag)
+  all-parallel:
+    name: All tests parallel
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install deps
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Run all tests in parallel
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit 2>&1 | tail -50
+          echo "::test-fence::"
+
+  # Job 2: First half of test targets (A-E)
+  half-a:
+    name: "Half A (A-E)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install deps
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Run half A in parallel
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit \
+            --filter "AIDevToolsKitCLITests|AIOutputSDKTests|ArchitecturePlannerFeatureTests|ArchitecturePlannerServiceTests|ChatFeatureTests|ChatServiceTests|ClaudeCLISDKTests|ClaudeChainCLITests|ClaudeChainFeatureTests|ClaudeChainSDKTests|ClaudeChainServiceTests|CredentialFeatureTests|CredentialServiceTests|DataPathsServiceTests|EnvironmentSDKTests|EvalFeatureTests|EvalSDKTests|EvalServiceTests" \
+            2>&1 | tail -50
+          echo "::test-fence::"
+
+  # Job 3: Second half of test targets (G-W)
+  half-b:
+    name: "Half B (G-W)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install deps
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Run half B in parallel
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit \
+            --filter "GitSDKTests|KeychainSDKTests|LoggingSDKTests|PRRadarModelsServiceTests|PipelineFeatureTests|PipelineSDKTests|PlanFeatureTests|PlanServiceTests|RepositorySDKTests|SkillBrowserFeatureTests|SkillScannerSDKTests|SweepServiceTests|WorktreeFeatureTests" \
+            2>&1 | tail -50
+          echo "::test-fence::"
+
+  # Job 4: Each target individually in parallel (canary — find which single target deadlocks itself)
+  individual-canaries:
+    name: "Individual: ${{ matrix.target }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - AIDevToolsKitCLITests
+          - AIOutputSDKTests
+          - ArchitecturePlannerFeatureTests
+          - ArchitecturePlannerServiceTests
+          - ChatFeatureTests
+          - ChatServiceTests
+          - ClaudeCLISDKTests
+          - ClaudeChainCLITests
+          - ClaudeChainFeatureTests
+          - ClaudeChainSDKTests
+          - ClaudeChainServiceTests
+          - CredentialFeatureTests
+          - CredentialServiceTests
+          - DataPathsServiceTests
+          - EnvironmentSDKTests
+          - EvalFeatureTests
+          - EvalSDKTests
+          - EvalServiceTests
+          - GitSDKTests
+          - KeychainSDKTests
+          - LoggingSDKTests
+          - PRRadarModelsServiceTests
+          - PipelineFeatureTests
+          - PipelineSDKTests
+          - PlanFeatureTests
+          - PlanServiceTests
+          - RepositorySDKTests
+          - SkillBrowserFeatureTests
+          - SkillScannerSDKTests
+          - SweepServiceTests
+          - WorktreeFeatureTests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install deps
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: "Run ${{ matrix.target }} in parallel"
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit --filter "${{ matrix.target }}" 2>&1 | tail -50
+          echo "::test-fence::"
