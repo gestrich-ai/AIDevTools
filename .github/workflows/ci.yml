@@ -7,51 +7,40 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    name: Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
+  # BISECT ROUND 1: Split 30 Linux test targets into two halves, run in parallel
+  # to find which half contains the deadlocking test(s).
+  half-a:
+    name: "Half A (15 targets) - parallel"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Swift
-        uses: swift-actions/setup-swift@v2
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
         with:
           swift-version: '6.2'
-
-      - name: Install system dependencies
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install deps
         run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-
-      - name: Test (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        # stop-commands prevents tests that emit ::error:: / ::notice:: strings
-        # (e.g. GitHub Actions output formatting tests) from creating spurious
-        # annotations in the check run UI.
-        # --no-parallel: runs XCTest and Swift Testing serially (deadlock-safe).
-        # Second invocation runs one Swift Testing suite in parallel to bisect
-        # which suite(s) cause the cooperative-thread deadlock.
+      - name: Test Half A in parallel
         run: |
           echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --no-parallel
-          swift test --package-path AIDevToolsKit --filter "DurationFormatter"
+          swift test --package-path AIDevToolsKit \
+            --filter "AIDevToolsKitCLITests|AIOutputSDKTests|ChatFeatureTests|ChatServiceTests|ClaudeCLISDKTests|ClaudeChainCLITests|ClaudeChainFeatureTests|ClaudeChainSDKTests|ClaudeChainServiceTests|CredentialFeatureTests|CredentialServiceTests|DataPathsServiceTests|EnvironmentSDKTests|EvalFeatureTests|EvalIntegrationTests"
           echo "::test-fence::"
 
-      - name: Test (macOS)
-        if: matrix.os == 'macos-latest'
-        # stop-commands prevents tests that emit ::error:: / ::notice:: strings
-        # (e.g. GitHub Actions output formatting tests) from creating spurious
-        # annotations in the check run UI.
-        # --no-parallel: runs XCTest and Swift Testing serially (deadlock-safe).
-        # Second invocation runs one Swift Testing suite in parallel to bisect
-        # which suite(s) cause the cooperative-thread deadlock.
+  half-b:
+    name: "Half B (15 targets) - parallel"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install deps
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Test Half B in parallel
         run: |
           echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit --no-parallel
-          swift test --package-path AIDevToolsKit --filter "DurationFormatter"
+          swift test --package-path AIDevToolsKit \
+            --filter "EvalSDKTests|EvalServiceTests|GitSDKTests|KeychainSDKTests|LoggingSDKTests|PRRadarModelsServiceTests|PipelineFeatureTests|PipelineSDKTests|PlanFeatureTests|PlanServiceTests|RepositorySDKTests|SkillBrowserFeatureTests|SkillScannerSDKTests|SweepServiceTests|WorktreeFeatureTests"
           echo "::test-fence::"
