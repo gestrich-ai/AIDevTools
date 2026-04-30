@@ -6,13 +6,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  # The fix: WorkflowService now uses async/await instead of DispatchSemaphore+Task
-  # which deadlocked on Linux's cooperative thread pool.
-  # Run ALL tests in parallel to verify the fix.
-  all-parallel:
-    name: All tests parallel (verify fix)
+  half-a:
+    name: "Half A (15 targets)"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: swift-actions/setup-swift@v2
@@ -20,8 +17,27 @@ jobs:
           swift-version: '6.2'
       - name: Install deps
         run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
-      - name: Run all tests in parallel
+      - name: Test Half A in parallel
         run: |
           echo "::stop-commands::test-fence"
-          swift test --package-path AIDevToolsKit
+          swift test --package-path AIDevToolsKit \
+            --filter "AIDevToolsKitCLITests|AIOutputSDKTests|ChatFeatureTests|ChatServiceTests|ClaudeCLISDKTests|ClaudeChainCLITests|ClaudeChainFeatureTests|ClaudeChainSDKTests|ClaudeChainServiceTests|CredentialFeatureTests|CredentialServiceTests|DataPathsServiceTests|EnvironmentSDKTests|EvalFeatureTests|EvalIntegrationTests"
+          echo "::test-fence::"
+
+  half-b:
+    name: "Half B (15 targets)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install deps
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Test Half B in parallel
+        run: |
+          echo "::stop-commands::test-fence"
+          swift test --package-path AIDevToolsKit \
+            --filter "EvalSDKTests|EvalServiceTests|GitSDKTests|KeychainSDKTests|LoggingSDKTests|PRRadarModelsServiceTests|PipelineFeatureTests|PipelineSDKTests|PlanFeatureTests|PlanServiceTests|RepositorySDKTests|SkillBrowserFeatureTests|SkillScannerSDKTests|SweepServiceTests|WorktreeFeatureTests"
           echo "::test-fence::"
