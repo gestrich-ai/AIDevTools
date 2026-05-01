@@ -55,6 +55,7 @@ private func initGitRepo(at dir: URL) async {
     await sh("git init")
     await sh("git config user.email test@test.com")
     await sh("git config user.name Test")
+    await sh("git config branch.autoSetupMerge false")
     await sh("git add -A && git commit -m 'Initial commit'")
 }
 
