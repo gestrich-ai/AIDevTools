@@ -23,13 +23,21 @@ public struct FileWatcher: Sendable {
             let queue = DispatchQueue(label: "FileWatcher.\(url.lastPathComponent)")
             let source = DispatchSource.makeFileSystemObjectSource(
                 fileDescriptor: fileDescriptor,
-                eventMask: .write,
+                eventMask: [.write, .delete, .rename],
                 queue: queue
             )
 
             let debounce = DebounceState()
 
             source.setEventHandler {
+                let flags = source.data
+                // File was deleted or renamed — finish the stream and clean up.
+                if flags.contains(.delete) || flags.contains(.rename) {
+                    debounce.task?.cancel()
+                    source.cancel()
+                    continuation.finish()
+                    return
+                }
                 debounce.task?.cancel()
                 debounce.task = Task {
                     try? await Task.sleep(for: .milliseconds(200))

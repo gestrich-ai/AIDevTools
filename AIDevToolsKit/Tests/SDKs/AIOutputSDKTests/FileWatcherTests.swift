@@ -24,12 +24,12 @@ struct FileWatcherTests {
 
     // MARK: - File write detection
 
-    @Test func emitsContentWhenFileIsWritten() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func emitsContentWhenFileIsWritten() async throws {
         // Arrange
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("FileWatcherTest_\(UUID().uuidString).txt")
         try "initial".write(to: tempURL, atomically: false, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
 
         let watcher = FileWatcher(url: tempURL)
         var receivedContent: String?
@@ -47,9 +47,13 @@ struct FileWatcherTests {
 
         // Wait for 200ms debounce + delivery margin
         try await Task.sleep(for: .seconds(3))
+
+        // Delete the file to trigger the DispatchSource .delete event,
+        // which finishes the stream and cancels the source on the GCD queue
+        // (immune to cooperative thread-pool saturation).
+        try? FileManager.default.removeItem(at: tempURL)
         task.cancel()
-        // Intentionally not awaiting task.value: under heavy parallel CI load the
-        // Swift cooperative thread pool saturates, making await take 90+ seconds.
+        _ = await task.result
 
         // Assert
         #expect(receivedContent == "updated content")
@@ -57,12 +61,12 @@ struct FileWatcherTests {
 
     // MARK: - Cancellation
 
-    @Test func cancellationTerminatesStream() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func cancellationTerminatesStream() async throws {
         // Arrange
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("FileWatcherTest_\(UUID().uuidString).txt")
         try "content".write(to: tempURL, atomically: false, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
 
         let watcher = FileWatcher(url: tempURL)
 
@@ -74,10 +78,12 @@ struct FileWatcherTests {
         }
 
         try await Task.sleep(for: .milliseconds(50))
-        task.cancel()
 
-        // Intentionally not awaiting task.value: under heavy parallel CI load the
-        // Swift cooperative thread pool saturates, making await take 90+ seconds.
+        // Delete the file to trigger the DispatchSource .delete event,
+        // finishing the stream via GCD (not subject to cooperative pool starvation).
+        try? FileManager.default.removeItem(at: tempURL)
+        task.cancel()
+        _ = await task.result
     }
 }
 #endif
