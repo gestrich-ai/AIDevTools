@@ -7,7 +7,8 @@ import Testing
 
 // System test: initGitRepo() calls async Process helpers multiple times per test setup.
 // Fixed: now uses async terminationHandler.
-@Suite("RunSpecChainTaskUseCase", .serialized)
+// TEMPORARY: disabled to isolate whether this + FileWatcher are the only hang sources.
+@Suite("RunSpecChainTaskUseCase", .serialized, .disabled("CI binary search: isolating hang source"))
 struct RunSpecChainTaskUseCaseTests {
 
     // MARK: - Helpers
