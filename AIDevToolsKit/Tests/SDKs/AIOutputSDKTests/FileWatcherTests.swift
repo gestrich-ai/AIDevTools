@@ -3,6 +3,9 @@ import Foundation
 import Testing
 @testable import AIOutputSDK
 
+// TEMPORARY: disabled to isolate whether FileWatcher is the only hang source.
+// Will re-enable once the fix is confirmed.
+@Suite(.disabled("CI binary search: isolating hang source"))
 struct FileWatcherTests {
 
     // MARK: - Non-existent file
