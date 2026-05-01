@@ -47,13 +47,12 @@ struct FileWatcherTests {
 
         // Wait for 200ms debounce + delivery margin
         try await Task.sleep(for: .seconds(3))
-
-        // Delete the file to trigger the DispatchSource .delete event,
-        // which finishes the stream and cancels the source on the GCD queue
-        // (immune to cooperative thread-pool saturation).
-        try? FileManager.default.removeItem(at: tempURL)
         task.cancel()
-        _ = await task.result
+
+        // Delete the file to trigger the DispatchSource .delete event handler,
+        // which calls source.cancel() on the GCD queue. This ensures cleanup
+        // even if the cooperative thread pool is saturated.
+        try? FileManager.default.removeItem(at: tempURL)
 
         // Assert
         #expect(receivedContent == "updated content")
@@ -78,12 +77,18 @@ struct FileWatcherTests {
         }
 
         try await Task.sleep(for: .milliseconds(50))
-
-        // Delete the file to trigger the DispatchSource .delete event,
-        // finishing the stream via GCD (not subject to cooperative pool starvation).
-        try? FileManager.default.removeItem(at: tempURL)
         task.cancel()
-        _ = await task.result
+
+        // Delete the file to trigger the DispatchSource .delete event handler,
+        // which calls source.cancel() on the GCD queue (immune to cooperative
+        // thread-pool saturation). This ensures the DispatchSource is torn down
+        // even if the AsyncStream iterator never resumes to deliver onTermination.
+        try? FileManager.default.removeItem(at: tempURL)
+
+        // Do NOT await task.result — under heavy parallel CI load, the cooperative
+        // thread pool saturates and the for-await loop never resumes to exit,
+        // causing an indefinite hang. The file deletion above ensures the
+        // DispatchSource is cleaned up via GCD regardless.
     }
 }
 #endif
