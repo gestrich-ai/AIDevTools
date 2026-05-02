@@ -188,7 +188,7 @@ struct SweepClaudeChainSourceNextTaskNoGitTests {
 // MARK: - nextTask git tests
 
 // System test: calls initGitRepo() which uses async Process helpers.
-@Suite("SweepClaudeChainSource.nextTask (with git)", .disabled("CI binary search"))
+@Suite("SweepClaudeChainSource.nextTask (with git)", )
 struct SweepClaudeChainSourceNextTaskGitTests {
 
     @Test("returns first file when cursor is nil")
@@ -387,7 +387,7 @@ struct SweepClaudeChainSourceDirectoryLoadProjectTests {
 // MARK: - nextTask directory-mode tests (with git)
 
 // System test: calls initGitRepo() which uses async Process helpers.
-@Suite("SweepClaudeChainSource.nextTask (directory mode)", .disabled("CI binary search"))
+@Suite("SweepClaudeChainSource.nextTask (directory mode)", )
 struct SweepClaudeChainSourceDirectoryNextTaskTests {
 
     @Test("returns first directory with Directory label in instructions")

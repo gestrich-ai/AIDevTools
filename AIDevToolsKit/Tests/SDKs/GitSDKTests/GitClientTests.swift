@@ -56,7 +56,7 @@ struct GitCLICommandTests {
 // MARK: - Integration tests against temp repos
 
 // System test: calls GitClient.execute() → CLIClient.execute() (async).
-@Suite("GitClient", .disabled("CI binary search"))
+@Suite("GitClient")
 struct GitClientTests {
 
     let client = GitClient()

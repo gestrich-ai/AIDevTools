@@ -77,7 +77,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 // MARK: - End-to-End Tests
 
 // System test: each test calls gitRediff() which runs async Process helpers.
-@Suite(.disabled("CI binary search"))
+@Suite
 struct EffectiveDiffEndToEndTests {
 
     // Fixture 1: Pure move, no changes
