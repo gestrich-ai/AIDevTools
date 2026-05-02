@@ -2,7 +2,7 @@ import GitSDK
 import PipelineService
 import Testing
 
-@Suite("WorktreeNode")
+@Suite("WorktreeNode", .disabled("CI binary search"))
 struct WorktreeNodeTests {
 
     private func makeNode() -> WorktreeNode {

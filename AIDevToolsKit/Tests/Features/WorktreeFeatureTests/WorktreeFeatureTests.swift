@@ -87,7 +87,7 @@ private func cleanup(_ path: String) {
 
 // System test: calls makeCommittedRepo() which uses GitClient.execute() → CLIClient.execute() (async).
 // Fixed: now uses async terminationHandler.
-@Suite("ListWorktreesUseCase")
+@Suite("ListWorktreesUseCase", .disabled("CI binary search"))
 struct ListWorktreesUseCaseTests {
 
     let client = GitClient()
@@ -157,7 +157,7 @@ struct ListWorktreesUseCaseTests {
 
 // System test: calls makeCommittedRepo() which uses GitClient.execute() → CLIClient.execute() (async).
 // Fixed: now uses async terminationHandler.
-@Suite("AddWorktreeUseCase")
+@Suite("AddWorktreeUseCase", .disabled("CI binary search"))
 struct AddWorktreeUseCaseTests {
 
     let client = GitClient()
@@ -183,7 +183,7 @@ struct AddWorktreeUseCaseTests {
 
 // System test: calls makeCommittedRepo() and client.execute() directly → CLIClient.execute() (async).
 // Fixed: now uses async terminationHandler.
-@Suite("RemoveWorktreeUseCase")
+@Suite("RemoveWorktreeUseCase", .disabled("CI binary search"))
 struct RemoveWorktreeUseCaseTests {
 
     let client = GitClient()

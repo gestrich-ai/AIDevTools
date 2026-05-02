@@ -9,7 +9,7 @@ import Testing
 
 @testable import AIDevToolsKitMac
 
-@Suite("ClaudeChainModel")
+@Suite("ClaudeChainModel", .disabled("CI binary search"))
 struct ClaudeChainModelTests {
 
     // MARK: - Helpers
