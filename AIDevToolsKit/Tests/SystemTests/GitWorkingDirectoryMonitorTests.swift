@@ -6,7 +6,7 @@ import Testing
 // System test: uses FSEventStream (via GitWorkingDirectoryMonitor) and async Process helpers.
 // FSEvents are not reliable in CI sandbox environments and blocking process calls exhaust
 // Swift's cooperative thread pool. Fixed: now uses async terminationHandler.
-@Suite("GitWorkingDirectoryMonitor", .disabled("CI binary search"))
+@Suite("GitWorkingDirectoryMonitor")
 struct GitWorkingDirectoryMonitorTests {
     private let gitClient = GitClient()
 
@@ -25,6 +25,7 @@ struct GitWorkingDirectoryMonitorTests {
         )
         let stream = monitor.changes(repoPath: repo)
         let waiter = firstChange(in: stream, containing: .history)
+        defer { waiter.cancel() }
 
         try await Task.sleep(nanoseconds: 300_000_000)
 
@@ -50,6 +51,7 @@ struct GitWorkingDirectoryMonitorTests {
         )
         let stream = monitor.changes(repoPath: repo)
         let waiter = firstChange(in: stream, containing: .index)
+        defer { waiter.cancel() }
 
         try await Task.sleep(nanoseconds: 300_000_000)
 

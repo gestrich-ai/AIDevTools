@@ -143,6 +143,10 @@ private final class MonitorState {
         }
     }
 
+    deinit {
+        stop()
+    }
+
     func stop() {
         historyPollTask?.cancel()
         historyPollTask = nil
