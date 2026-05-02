@@ -1,23 +1,33 @@
 #if canImport(Darwin)
 import Foundation
 
-public struct FileWatcher: Sendable {
+public final class FileWatcher: Sendable {
     public let url: URL
+    private let _cancelSource = CancelSource()
 
     public init(url: URL) {
         self.url = url
+    }
+
+    /// Cancels the DispatchSource backing `contentStream()`, finishing the stream
+    /// and closing the file descriptor. Safe to call from any thread.
+    ///
+    /// This is necessary because `AsyncStream.onTermination` only fires when the
+    /// iterator is released, which requires the Swift cooperative thread pool.
+    /// Under heavy parallel CI load, the pool saturates and `onTermination` never
+    /// fires, leaving the DispatchSource alive and preventing process exit.
+    public func cancel() {
+        _cancelSource.cancel()
     }
 
     /// Returns an AsyncStream that emits the file's content whenever it changes on disk.
     /// Uses DispatchSource.makeFileSystemObjectSource to watch for writes.
     /// Debounces rapid changes by 200ms to avoid flooding during multi-write operations.
     ///
-    /// The returned stream also holds a `SourceGuard` that cancels the DispatchSource
-    /// in its `deinit`. This ensures cleanup even when the Swift cooperative thread pool
-    /// is saturated and `onTermination` delivery is delayed (which would otherwise keep
-    /// the DispatchSource alive indefinitely, preventing process exit).
+    /// Call `cancel()` on the FileWatcher to stop the stream and clean up resources.
     public func contentStream() -> AsyncStream<String> {
         let url = self.url
+        let cancelSource = self._cancelSource
         return AsyncStream { continuation in
             let fileDescriptor = open(url.path, O_EVTONLY)
             guard fileDescriptor >= 0 else {
@@ -34,12 +44,7 @@ public struct FileWatcher: Sendable {
 
             let debounce = DebounceState()
 
-            // Guard ensures DispatchSource cleanup via deinit when the continuation
-            // and all closures are released — even if onTermination never fires.
-            let guard_ = SourceGuard(source: source, debounce: debounce)
-
-            source.setEventHandler { [guard_] in
-                _ = guard_  // prevent premature deallocation
+            source.setEventHandler {
                 debounce.task?.cancel()
                 debounce.task = Task {
                     try? await Task.sleep(for: .milliseconds(200))
@@ -54,36 +59,53 @@ public struct FileWatcher: Sendable {
                 close(fileDescriptor)
             }
 
-            continuation.onTermination = { [guard_] _ in
-                guard_.cancel()
+            let cleanup = {
+                debounce.task?.cancel()
+                source.cancel()
+                continuation.finish()
             }
+
+            continuation.onTermination = { _ in
+                cleanup()
+            }
+
+            // Register with the external cancel source so cancel() works from any thread.
+            cancelSource.onCancel(queue: queue, handler: cleanup)
 
             source.resume()
         }
     }
 }
 
-/// Ensures the DispatchSource is cancelled when all references are dropped.
-/// This is critical for parallel CI: when the cooperative thread pool is saturated,
-/// AsyncStream's onTermination may never fire (it requires the iterator to be polled).
-/// The deinit runs on whatever thread drops the last reference — typically a GCD thread,
-/// not subject to cooperative pool starvation.
-private final class SourceGuard {
-    private let source: DispatchSourceFileSystemObject
-    private let debounce: DebounceState
+/// Thread-safe cancellation token that dispatches a handler on a GCD queue.
+private final class CancelSource: @unchecked Sendable {
+    private var handler: (() -> Void)?
+    private var queue: DispatchQueue?
+    private var isCancelled = false
+    private let lock = NSLock()
 
-    init(source: DispatchSourceFileSystemObject, debounce: DebounceState) {
-        self.source = source
-        self.debounce = debounce
+    func onCancel(queue: DispatchQueue, handler: @escaping () -> Void) {
+        lock.lock()
+        if isCancelled {
+            lock.unlock()
+            queue.async { handler() }
+        } else {
+            self.handler = handler
+            self.queue = queue
+            lock.unlock()
+        }
     }
 
     func cancel() {
-        debounce.task?.cancel()
-        source.cancel()
-    }
-
-    deinit {
-        cancel()
+        lock.lock()
+        guard !isCancelled else { lock.unlock(); return }
+        isCancelled = true
+        let h = handler
+        let q = queue
+        handler = nil
+        queue = nil
+        lock.unlock()
+        if let h, let q { q.async { h() } }
     }
 }
 
